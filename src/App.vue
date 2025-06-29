@@ -210,12 +210,12 @@ const handleConnectionSuccess = () => {
         <div class="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full mx-4 transform animate-modal-content">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg sm:text-xl font-bold text-gray-800">Connect Your Wallet</h2>
-            <button 
-              @click="showConnectionModal = false"
-              class="text-gray-500 hover:text-gray-700 p-1 touch-target hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110"
-            >
-              <IconX class="w-5 h-5" />
-            </button>
+<!--            <button -->
+<!--              @click="showConnectionModal = false"-->
+<!--              class="text-gray-500 hover:text-gray-700 p-1 touch-target hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110"-->
+<!--            >-->
+<!--              <IconX class="w-5 h-5" />-->
+<!--            </button>-->
           </div>
           <NWCConnection @connection-success="handleConnectionSuccess" />
           <div class="mt-4 flex justify-end">
