@@ -121,13 +121,38 @@ const fetchAndStoreProfile = async (pubkey) => {
       const fallbackUrls = DEFAULT_RELAYS.map(relay => relay.url)
       console.warn('No read-enabled relays, using fallback relays')
       
-      const events = await currentPool.list(fallbackUrls, [
-        {
-          kinds: [0],
-          authors: [pubkey],
-          limit: 1
-        }
-      ])
+      // Use subscribeMany instead of list
+      const events = await new Promise((resolve, reject) => {
+        const receivedEvents = []
+        const timeout = setTimeout(() => {
+          sub.close()
+          resolve(receivedEvents)
+        }, 10000) // 10 second timeout
+
+        const sub = currentPool.subscribeMany(fallbackUrls, [
+          {
+            kinds: [0],
+            authors: [pubkey],
+            limit: 1
+          }
+        ], {
+          onevent: (event) => {
+            receivedEvents.push(event)
+          },
+          oneose: () => {
+            clearTimeout(timeout)
+            sub.close()
+            resolve(receivedEvents)
+          },
+          onclose: (reason) => {
+            clearTimeout(timeout)
+            if (reason && reason !== 'closed by caller') {
+              console.warn('Subscription closed:', reason)
+            }
+            resolve(receivedEvents)
+          }
+        })
+      })
 
       if (events.length > 0) {
         const profileEvent = events[0]
@@ -148,13 +173,38 @@ const fetchAndStoreProfile = async (pubkey) => {
         throw new Error('No profile found for this pubkey')
       }
     } else {
-      const events = await currentPool.list(relayUrls, [
-        {
-          kinds: [0],
-          authors: [pubkey],
-          limit: 1
-        }
-      ])
+      // Use subscribeMany instead of list
+      const events = await new Promise((resolve, reject) => {
+        const receivedEvents = []
+        const timeout = setTimeout(() => {
+          sub.close()
+          resolve(receivedEvents)
+        }, 10000) // 10 second timeout
+
+        const sub = currentPool.subscribeMany(relayUrls, [
+          {
+            kinds: [0],
+            authors: [pubkey],
+            limit: 1
+          }
+        ], {
+          onevent: (event) => {
+            receivedEvents.push(event)
+          },
+          oneose: () => {
+            clearTimeout(timeout)
+            sub.close()
+            resolve(receivedEvents)
+          },
+          onclose: (reason) => {
+            clearTimeout(timeout)
+            if (reason && reason !== 'closed by caller') {
+              console.warn('Subscription closed:', reason)
+            }
+            resolve(receivedEvents)
+          }
+        })
+      })
 
       if (events.length > 0) {
         const profileEvent = events[0]
@@ -210,19 +260,6 @@ const checkRelayStatus = async (url) => {
     const currentPool = initPool()
     
     // Test connection with a simple subscription using SimplePool.subscribe
-    const sub = currentPool.subscribe([url], [{ kinds: [0], limit: 1 }], {
-      onevent: () => {
-        // Got an event, relay is working
-        relay.status = 'connected'
-        sub.close()
-      },
-      oneose: () => {
-        // End of stored events, relay responded
-        relay.status = 'connected'
-        sub.close()
-      }
-    })
-    
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
         relay.status = 'disconnected'
@@ -230,25 +267,29 @@ const checkRelayStatus = async (url) => {
         resolve(false)
       }, 5000) // 5 second timeout
 
-      // Override the callbacks to handle timeout cleanup
-      const originalOnevent = sub.onevent
-      const originalOneose = sub.oneose
-      
-      sub.onevent = (event) => {
-        clearTimeout(timeout)
-        relay.status = 'connected'
-        sub.close()
-        resolve(true)
-        if (originalOnevent) originalOnevent(event)
-      }
-
-      sub.oneose = () => {
-        clearTimeout(timeout)
-        relay.status = 'connected'
-        sub.close()
-        resolve(true)
-        if (originalOneose) originalOneose()
-      }
+      const sub = currentPool.subscribe([url], [{ kinds: [0], limit: 1 }], {
+        onevent: (event) => {
+          // Got an event, relay is working
+          clearTimeout(timeout)
+          relay.status = 'connected'
+          sub.close()
+          resolve(true)
+        },
+        oneose: () => {
+          // End of stored events, relay responded
+          clearTimeout(timeout)
+          relay.status = 'connected'
+          sub.close()
+          resolve(true)
+        },
+        onclose: (reason) => {
+          clearTimeout(timeout)
+          if (reason && reason !== 'closed by caller') {
+            relay.status = 'disconnected'
+          }
+          resolve(false)
+        }
+      })
     })
   } catch (error) {
     console.error(`Failed to check relay ${url}:`, error)
