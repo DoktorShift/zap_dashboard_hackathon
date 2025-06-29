@@ -30,7 +30,7 @@ let activeSubscriptions = new Map()
 // Connection timeout settings
 const CONNECTION_TIMEOUT = 10000 // 10 seconds
 const QUERY_TIMEOUT = 15000 // 15 seconds
-const RELAY_CHECK_TIMEOUT = 8000 // 8 seconds
+const RELAY_CHECK_TIMEOUT = 10000 // 10 seconds for relay status checking
 
 // Debounce utility
 const debounce = (func, wait) => {
@@ -241,7 +241,7 @@ const createMinimalUserData = (pubkey) => {
   return userData
 }
 
-// Check relay status using proper connection testing
+// Check relay status using proper connection testing with ensureRelay
 const checkRelayStatus = async (url) => {
   const relay = userRelays.value.find(r => r.url === url)
   if (!relay) return false
@@ -251,21 +251,19 @@ const checkRelayStatus = async (url) => {
   try {
     const currentPool = initPool()
     
-    // Test connection by trying to get a simple event with timeout
-    const testResult = await Promise.race([
-      currentPool.get([url], { kinds: [0], limit: 1 }),
-      new Promise((resolve) => 
-        setTimeout(() => resolve(null), RELAY_CHECK_TIMEOUT)
-      )
-    ])
+    // Use ensureRelay with connection timeout to test the relay
+    await currentPool.ensureRelay(url, { 
+      connectionTimeout: RELAY_CHECK_TIMEOUT 
+    })
     
-    // If we get any response (even null), the relay is reachable
+    // If ensureRelay succeeds, the relay is connected
     relay.status = 'connected'
     console.log(`Relay ${url} is connected`)
     return true
     
   } catch (error) {
-    console.error(`Failed to check relay ${url}:`, error)
+    // If ensureRelay throws an error, the relay is disconnected
+    console.error(`Failed to check relay ${url}:`, error.message || error)
     relay.status = 'disconnected'
     return false
   }
