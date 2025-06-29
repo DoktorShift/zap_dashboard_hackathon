@@ -277,13 +277,19 @@ const amountDistributionOption = computed(() => {
       data: ranges.map(r => r.label),
       axisLine: { lineStyle: { color: '#fed7aa' } },
       axisTick: { lineStyle: { color: '#fed7aa' } },
-      axisLabel: { color: '#9a3412' }
+      axisLabel: { color: '#9a3412' },
     },
     yAxis: {
       type: 'value',
       axisLine: { lineStyle: { color: '#fed7aa' } },
       axisTick: { lineStyle: { color: '#fed7aa' } },
-      axisLabel: { color: '#9a3412' }
+      axisLabel: { color: '#9a3412' },
+      splitLine: {
+        show: false,
+      },
+      splitArea: {
+        show: false,
+      }
     },
     series: [{
       data: ranges.map(r => r.count),
@@ -296,7 +302,8 @@ const amountDistributionOption = computed(() => {
             { offset: 0, color: '#f97316' },
             { offset: 1, color: '#fed7aa' }
           ]
-        }
+        },
+        borderRadius: [8, 8, 0, 0]
       }
     }]
   }

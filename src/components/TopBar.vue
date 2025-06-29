@@ -99,10 +99,10 @@ const handleProfileAction = (action) => {
         <!-- Action Buttons -->
         <div class="flex items-center space-x-2">
           <!-- Export Button - Hidden on mobile -->
-          <button class="btn-secondary text-sm hidden sm:flex hover:shadow-md">
-            <IconUpload class="w-4 h-4" />
-            <span class="hidden lg:inline">Export</span>
-          </button>
+<!--          <button class="btn-secondary text-sm hidden sm:flex hover:shadow-md">-->
+<!--            <IconUpload class="w-4 h-4" />-->
+<!--            <span class="hidden lg:inline">Export</span>-->
+<!--          </button>-->
           
           <!-- Connection Button -->
           <button 
