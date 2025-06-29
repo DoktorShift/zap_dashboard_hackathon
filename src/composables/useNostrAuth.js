@@ -18,15 +18,19 @@ const DEFAULT_RELAYS = [
   { url: 'wss://relay.damus.io', status: 'disconnected', read: true, write: true },
   { url: 'wss://nos.lol', status: 'disconnected', read: true, write: true },
   { url: 'wss://relay.snort.social', status: 'disconnected', read: true, write: true },
-  { url: 'wss://relay.nostr.band', status: 'disconnected', read: true, write: false },
   { url: 'wss://relay.primal.net', status: 'disconnected', read: true, write: true },
   { url: 'wss://nostr.wine', status: 'disconnected', read: true, write: true },
-  { url: 'wss://relay.nostr.info', status: 'disconnected', read: true, write: false }
+  { url: 'wss://relay.nostr.band', status: 'disconnected', read: true, write: false }
 ]
 
-// Simple pool for relay connections
+// Simple pool for relay connections - using proper nostr-tools pattern
 let pool = null
 let activeSubscriptions = new Map()
+
+// Connection timeout settings
+const CONNECTION_TIMEOUT = 10000 // 10 seconds
+const QUERY_TIMEOUT = 15000 // 15 seconds
+const RELAY_CHECK_TIMEOUT = 8000 // 8 seconds
 
 // Debounce utility
 const debounce = (func, wait) => {
@@ -41,11 +45,16 @@ const debounce = (func, wait) => {
   }
 }
 
-// Initialize pool
+// Initialize pool with proper error handling
 const initPool = () => {
   if (!pool) {
-    pool = new SimplePool()
-    console.log('SimplePool initialized')
+    try {
+      pool = new SimplePool()
+      console.log('SimplePool initialized successfully')
+    } catch (error) {
+      console.error('Failed to initialize SimplePool:', error)
+      throw error
+    }
   }
   return pool
 }
@@ -104,7 +113,7 @@ const saveRelaysToStorage = (relayData) => {
   }
 }
 
-// Fetch user profile from relays using proper nostr-tools patterns
+// Fetch user profile using proper nostr-tools patterns
 const fetchAndStoreProfile = async (pubkey) => {
   if (!pubkey) {
     throw new Error('No pubkey provided')
@@ -121,77 +130,52 @@ const fetchAndStoreProfile = async (pubkey) => {
       .filter(relay => relay.read && relay.status === 'connected')
       .map(relay => relay.url)
 
-    // Fallback to all relays if no connected read relays
-    const relayUrls = readRelays.length > 0 ? readRelays : userRelays.value.map(r => r.url)
+    // Fallback to all configured relays if no connected read relays
+    let relayUrls = readRelays.length > 0 ? readRelays : userRelays.value.map(r => r.url)
     
+    // Use default relays as last resort
     if (relayUrls.length === 0) {
-      // Use default relays as last resort
-      const fallbackUrls = DEFAULT_RELAYS.map(relay => relay.url)
+      relayUrls = DEFAULT_RELAYS.map(relay => relay.url)
       console.warn('No configured relays, using default relays')
-      
-      const profileEvent = await fetchProfileFromRelays(currentPool, fallbackUrls, pubkey)
-      if (profileEvent) {
-        return createUserData(pubkey, profileEvent)
-      }
-    } else {
-      const profileEvent = await fetchProfileFromRelays(currentPool, relayUrls, pubkey)
-      if (profileEvent) {
-        return createUserData(pubkey, profileEvent)
-      }
     }
     
-    // If no profile found, create minimal user data
-    const userData = createMinimalUserData(pubkey)
-    currentUser.value = userData
-    saveUserToStorage(userData)
-    console.log('Created minimal profile for pubkey:', pubkey)
-    return userData
+    console.log('Fetching profile from relays:', relayUrls)
+    
+    // Use the new querySync method with timeout
+    const profileEvent = await Promise.race([
+      currentPool.get(relayUrls, {
+        kinds: [0], // NIP-01 profile events
+        authors: [pubkey],
+        limit: 1
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile fetch timeout')), QUERY_TIMEOUT)
+      )
+    ])
+    
+    if (profileEvent) {
+      return createUserData(pubkey, profileEvent)
+    } else {
+      // If no profile found, create minimal user data
+      const userData = createMinimalUserData(pubkey)
+      currentUser.value = userData
+      saveUserToStorage(userData)
+      console.log('No profile found, created minimal profile for pubkey:', pubkey)
+      return userData
+    }
 
   } catch (error) {
     console.error('Failed to fetch profile:', error)
     authError.value = `Failed to fetch profile: ${error.message}`
-    throw error
+    
+    // Create minimal user data as fallback
+    const userData = createMinimalUserData(pubkey)
+    currentUser.value = userData
+    saveUserToStorage(userData)
+    return userData
   } finally {
     isLoading.value = false
   }
-}
-
-// Helper function to fetch profile from relays
-const fetchProfileFromRelays = async (pool, relayUrls, pubkey) => {
-  return new Promise((resolve, reject) => {
-    let profileEvent = null
-    const timeout = setTimeout(() => {
-      if (sub) sub.close()
-      resolve(profileEvent)
-    }, 15000) // 15 second timeout
-
-    const sub = pool.subscribeMany(relayUrls, [
-      {
-        kinds: [0], // NIP-01 profile events
-        authors: [pubkey],
-        limit: 1
-      }
-    ], {
-      onevent: (event) => {
-        console.log('Received profile event:', event)
-        if (!profileEvent || event.created_at > profileEvent.created_at) {
-          profileEvent = event // Keep the most recent profile event
-        }
-      },
-      oneose: () => {
-        clearTimeout(timeout)
-        sub.close()
-        resolve(profileEvent)
-      },
-      onclose: (reason) => {
-        clearTimeout(timeout)
-        if (reason && reason !== 'closed by caller') {
-          console.warn('Profile subscription closed:', reason)
-        }
-        resolve(profileEvent)
-      }
-    })
-  })
 }
 
 // Create user data from profile event
@@ -205,9 +189,9 @@ const createUserData = (pubkey, profileEvent) => {
       npub,
       profile: {
         ...profileData,
-        // Ensure we have basic fields
-        name: profileData.name || profileData.display_name || `User ${pubkey.substring(0, 8)}`,
-        display_name: profileData.display_name || profileData.name || `User ${pubkey.substring(0, 8)}`,
+        // Ensure we have basic fields with proper fallback logic
+        name: profileData.name || `User ${pubkey.substring(0, 8)}`,
+        display_name: profileData.display_name || null, // No fallback for display_name
         about: profileData.about || 'Nostr user',
         picture: profileData.picture || profileData.avatar || null,
         nip05: profileData.nip05 || null,
@@ -239,7 +223,7 @@ const createMinimalUserData = (pubkey) => {
     npub,
     profile: {
       name: `User ${pubkey.substring(0, 8)}`,
-      display_name: `User ${pubkey.substring(0, 8)}`,
+      display_name: null, // No fallback for display_name
       about: 'Nostr user',
       picture: null,
       nip05: null,
@@ -257,7 +241,7 @@ const createMinimalUserData = (pubkey) => {
   return userData
 }
 
-// Check relay status using proper nostr-tools patterns
+// Check relay status using proper connection testing
 const checkRelayStatus = async (url) => {
   const relay = userRelays.value.find(r => r.url === url)
   if (!relay) return false
@@ -267,35 +251,19 @@ const checkRelayStatus = async (url) => {
   try {
     const currentPool = initPool()
     
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        if (sub) sub.close()
-        relay.status = 'disconnected'
-        resolve(false)
-      }, 8000) // 8 second timeout
-
-      const sub = currentPool.subscribe([url], [{ kinds: [0], limit: 1 }], {
-        onevent: (event) => {
-          clearTimeout(timeout)
-          relay.status = 'connected'
-          sub.close()
-          resolve(true)
-        },
-        oneose: () => {
-          clearTimeout(timeout)
-          relay.status = 'connected'
-          sub.close()
-          resolve(true)
-        },
-        onclose: (reason) => {
-          clearTimeout(timeout)
-          if (reason && reason !== 'closed by caller') {
-            relay.status = 'disconnected'
-          }
-          resolve(relay.status === 'connected')
-        }
-      })
-    })
+    // Test connection by trying to get a simple event with timeout
+    const testResult = await Promise.race([
+      currentPool.get([url], { kinds: [0], limit: 1 }),
+      new Promise((resolve) => 
+        setTimeout(() => resolve(null), RELAY_CHECK_TIMEOUT)
+      )
+    ])
+    
+    // If we get any response (even null), the relay is reachable
+    relay.status = 'connected'
+    console.log(`Relay ${url} is connected`)
+    return true
+    
   } catch (error) {
     console.error(`Failed to check relay ${url}:`, error)
     relay.status = 'disconnected'
@@ -303,21 +271,38 @@ const checkRelayStatus = async (url) => {
   }
 }
 
-// Check all relay statuses (debounced)
+// Check all relay statuses with proper error handling
 const checkAllRelayStatuses = debounce(async () => {
   console.log('Checking all relay statuses...')
   relayError.value = ''
   
   try {
-    const promises = userRelays.value.map(relay => checkRelayStatus(relay.url))
+    // Check relays in parallel but with individual error handling
+    const promises = userRelays.value.map(async (relay) => {
+      try {
+        return await checkRelayStatus(relay.url)
+      } catch (error) {
+        console.warn(`Error checking relay ${relay.url}:`, error)
+        relay.status = 'disconnected'
+        return false
+      }
+    })
+    
     await Promise.allSettled(promises)
     console.log('Relay status check completed')
     
     // Save updated relay statuses
     saveRelaysToStorage(userRelays.value)
+    
+    // Check if we have any connected relays
+    const connectedCount = userRelays.value.filter(r => r.status === 'connected').length
+    if (connectedCount === 0) {
+      relayError.value = 'No relays are currently reachable'
+    }
+    
   } catch (error) {
     console.error('Failed to check relay statuses:', error)
-    relayError.value = 'Failed to check some relay statuses'
+    relayError.value = 'Failed to check relay statuses'
   }
 }, 1000)
 
@@ -383,7 +368,7 @@ const removeRelay = (url) => {
   return true
 }
 
-// Start listening for user events
+// Start listening for user events with proper subscription management
 const startUserEventListener = (pubkey) => {
   if (!pubkey || !pool) return
 
@@ -403,36 +388,40 @@ const startUserEventListener = (pubkey) => {
     existingSub.close()
   }
 
-  // Subscribe to user's events (notes, reactions, etc.)
-  const sub = currentPool.subscribeMany(relayUrls, [
-    {
-      kinds: [1, 6, 7], // Notes, reposts, reactions
-      authors: [pubkey],
-      limit: 50
-    },
-    {
-      kinds: [1, 6, 7], // Events mentioning the user
-      '#p': [pubkey],
-      limit: 50
-    }
-  ], {
-    onevent: (event) => {
-      console.log('Received user event:', event)
-      // Here you can emit events or update reactive state
-      // For example, you could emit a custom event that other parts of the app can listen to
-      document.dispatchEvent(new CustomEvent('nostr:event', { detail: event }))
-    },
-    oneose: () => {
-      console.log('End of stored events for user:', pubkey)
-    },
-    onclose: (reason) => {
-      console.log('User event subscription closed:', reason)
-      activeSubscriptions.delete(pubkey)
-    }
-  })
+  try {
+    // Subscribe to user's events using proper nostr-tools pattern
+    const sub = currentPool.subscribeMany(relayUrls, [
+      {
+        kinds: [1, 6, 7], // Notes, reposts, reactions
+        authors: [pubkey],
+        limit: 50
+      },
+      {
+        kinds: [1, 6, 7], // Events mentioning the user
+        '#p': [pubkey],
+        limit: 50
+      }
+    ], {
+      onevent: (event) => {
+        console.log('Received user event:', event)
+        // Emit custom event for other parts of the app
+        document.dispatchEvent(new CustomEvent('nostr:event', { detail: event }))
+      },
+      oneose: () => {
+        console.log('End of stored events for user:', pubkey)
+      },
+      onclose: (reasons) => {
+        console.log('User event subscription closed:', reasons)
+        activeSubscriptions.delete(pubkey)
+      },
+      maxWait: QUERY_TIMEOUT
+    })
 
-  activeSubscriptions.set(pubkey, sub)
-  console.log('Started listening for events for user:', pubkey)
+    activeSubscriptions.set(pubkey, sub)
+    console.log('Started listening for events for user:', pubkey)
+  } catch (error) {
+    console.error('Failed to start user event listener:', error)
+  }
 }
 
 // Stop listening for user events
@@ -532,29 +521,45 @@ const logout = () => {
   }
 }
 
-// Initialize auth and relays
+// Initialize auth and relays with better error handling
 const initAuthAndRelays = async () => {
   console.log('Initializing Nostr auth and relays...')
   
-  // Initialize pool
-  initPool()
-  
-  // Load user from storage
-  const hasUser = loadUserFromStorage()
-  
-  // Load or initialize relays
-  if (!loadRelaysFromStorage()) {
-    console.log('No saved relays found, using defaults')
-    userRelays.value = [...DEFAULT_RELAYS]
-    saveRelaysToStorage(userRelays.value)
-  }
-  
-  // Check relay statuses
-  await checkAllRelayStatuses()
-  
-  // If user exists, start listening for their events
-  if (hasUser && currentUser.value) {
-    startUserEventListener(currentUser.value.pubkey)
+  try {
+    // Initialize pool
+    initPool()
+    
+    // Load user from storage
+    const hasUser = loadUserFromStorage()
+    
+    // Load or initialize relays
+    if (!loadRelaysFromStorage()) {
+      console.log('No saved relays found, using defaults')
+      userRelays.value = [...DEFAULT_RELAYS]
+      saveRelaysToStorage(userRelays.value)
+    }
+    
+    // Check relay statuses with timeout
+    await Promise.race([
+      checkAllRelayStatuses(),
+      new Promise((resolve) => 
+        setTimeout(() => {
+          console.warn('Relay status check timed out')
+          resolve()
+        }, CONNECTION_TIMEOUT)
+      )
+    ])
+    
+    // If user exists, start listening for their events
+    if (hasUser && currentUser.value) {
+      // Wait a bit for relays to be checked
+      setTimeout(() => {
+        startUserEventListener(currentUser.value.pubkey)
+      }, 2000)
+    }
+  } catch (error) {
+    console.error('Failed to initialize auth and relays:', error)
+    authError.value = 'Failed to initialize Nostr connection'
   }
 }
 
@@ -592,9 +597,13 @@ onUnmounted(() => {
   activeSubscriptions.forEach(sub => sub.close())
   activeSubscriptions.clear()
   
-  // Close pool
+  // Close pool connections
   if (pool) {
-    pool.close([])
+    try {
+      pool.close(userRelays.value.map(r => r.url))
+    } catch (error) {
+      console.warn('Error closing pool connections:', error)
+    }
   }
 })
 
