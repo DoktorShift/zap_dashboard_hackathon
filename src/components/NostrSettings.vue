@@ -16,7 +16,8 @@ import {
   IconExternalLink,
   IconShield,
   IconKey,
-  IconGlobe
+  IconGlobe,
+  IconBolt
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import * as nip19 from 'nostr-tools/nip19'
@@ -186,24 +187,10 @@ const getUserAvatar = () => {
          'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
 }
 
-// Get user display name
-const getUserDisplayName = () => {
-  return userProfile.value?.display_name || 
-         userProfile.value?.name || 
-         currentUser.value?.npub?.substring(0, 12) + '...' ||
-         'Anonymous'
-}
-
-// Decode npub for display
+// Get short npub for display
 const getShortNpub = () => {
   if (!currentUser.value?.npub) return ''
   return currentUser.value.npub.substring(0, 20) + '...'
-}
-
-// Get hex pubkey for display
-const getShortPubkey = () => {
-  if (!currentUser.value?.pubkey) return ''
-  return currentUser.value.pubkey.substring(0, 16) + '...'
 }
 </script>
 
@@ -252,13 +239,18 @@ const getShortPubkey = () => {
           <div class="flex items-start space-x-4 flex-1">
             <img 
               :src="getUserAvatar()" 
-              :alt="getUserDisplayName()"
+              :alt="userProfile?.name || 'User'"
               class="w-16 h-16 rounded-full border-2 border-purple-200"
               @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
             />
             <div class="flex-1 min-w-0">
-              <h4 class="text-lg font-medium text-gray-900">{{ getUserDisplayName() }}</h4>
-              <p v-if="userProfile?.about" class="text-sm text-gray-600 mb-3 line-clamp-2">
+              <h4 class="text-lg font-medium text-gray-900">{{ userProfile?.name || 'Anonymous' }}</h4>
+              
+              <!-- Display name if different from name, otherwise show about -->
+              <p v-if="userProfile?.display_name && userProfile?.display_name !== userProfile?.name" class="text-sm text-gray-600 mb-3">
+                {{ userProfile.display_name }}
+              </p>
+              <p v-else-if="userProfile?.about" class="text-sm text-gray-600 mb-3 line-clamp-2">
                 {{ userProfile.about }}
               </p>
               
@@ -280,25 +272,16 @@ const getShortPubkey = () => {
                   </button>
                 </div>
                 
-                <!-- Hex Pubkey -->
-                <div class="flex items-center space-x-2">
-                  <IconKey class="w-4 h-4 text-gray-400" />
-                  <code class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    {{ getShortPubkey() }}
-                  </code>
-                  <button
-                    @click="copyToClipboard(currentUser.pubkey)"
-                    class="text-gray-400 hover:text-gray-600 transition-colors"
-                    title="Copy pubkey"
-                  >
-                    <IconCopy class="w-3 h-3" />
-                  </button>
-                </div>
-                
                 <!-- NIP-05 -->
                 <div v-if="userProfile?.nip05" class="flex items-center space-x-2">
                   <IconShield class="w-4 h-4 text-green-500" />
                   <span class="text-xs text-green-600">{{ userProfile.nip05 }}</span>
+                </div>
+                
+                <!-- Lightning Address (LUD16) -->
+                <div v-if="userProfile?.lud16" class="flex items-center space-x-2">
+                  <IconBolt class="w-4 h-4 text-orange-500" />
+                  <span class="text-xs text-orange-600">{{ userProfile.lud16 }}</span>
                 </div>
                 
                 <!-- Website -->
