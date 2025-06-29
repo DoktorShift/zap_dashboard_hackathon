@@ -69,11 +69,11 @@ const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar },
+  { id: 'wallet', label: 'Wallet', icon: IconWallet },
   { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
   { id: 'content', label: 'Content', icon: IconFileText },
   { id: 'donations', label: 'Donations', icon: IconGift },
   { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
-  { id: 'wallet', label: 'Wallet', icon: IconWallet },
   { id: 'finances', label: 'Finances', icon: IconCreditCard },
   { id: 'settings', label: 'Settings', icon: IconSettings }
 ]
