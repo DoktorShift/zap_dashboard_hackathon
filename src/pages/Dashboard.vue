@@ -221,7 +221,7 @@ const chartOption = computed(() => {
 // Recent zaps from real data
 const recentZaps = computed(() => {
   return zapData.value
-    .slice(0, 3)
+    .slice(0, 5)
     .map(zap => ({
       ...zap,
       timeAgo: formatTimeAgo(zap.timestamp)
