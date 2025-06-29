@@ -2,23 +2,50 @@
 import { ref, inject, computed, onMounted, onUnmounted } from 'vue'
 import { IconSearch, IconUpload, IconBolt, IconMenu2, IconUser, IconSettings, IconLogout, IconChevronDown } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
+import { useNostrAuth } from '../composables/useNostrAuth.js'
 
 const zapData = inject('zapData')
 const emit = defineEmits(['show-connection', 'toggle-mobile-menu'])
 
+// Use Nostr authentication
+const { isAuthenticated, userProfile, currentUser } = useNostrAuth()
+
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
-
-const userProfile = ref({
-  name: 'Creator',
-  email: 'creator@example.com',
-  pubkey: 'npub1...',
-  avatar: 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-})
 
 // Watch for connection status based on zapData
 const hasConnection = computed(() => {
   return localStorage.getItem('nwc_url') !== null
+})
+
+// Get user avatar with Nostr profile fallback
+const getUserAvatar = computed(() => {
+  if (isAuthenticated.value && userProfile.value?.picture) {
+    return userProfile.value.picture
+  }
+  // Fallback to default avatar
+  return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+})
+
+// Get user name with Nostr profile fallback
+const getUserName = computed(() => {
+  if (isAuthenticated.value && userProfile.value?.name) {
+    return userProfile.value.name
+  }
+  return 'Creator'
+})
+
+// Get user email/identifier with Nostr profile fallback
+const getUserIdentifier = computed(() => {
+  if (isAuthenticated.value) {
+    if (userProfile.value?.nip05) {
+      return userProfile.value.nip05
+    }
+    if (currentUser.value?.npub) {
+      return currentUser.value.npub.substring(0, 20) + '...'
+    }
+  }
+  return 'creator@example.com'
 })
 
 // Close dropdown when clicking outside
@@ -119,9 +146,10 @@ const handleProfileAction = (action) => {
           >
             <div class="relative">
               <img 
-                :src="userProfile.avatar" 
-                alt="Profile"
+                :src="getUserAvatar" 
+                :alt="getUserName"
                 class="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-orange-200 group-hover:border-orange-300 transition-all duration-200"
+                @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
               />
               <!-- Online indicator -->
               <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
@@ -130,13 +158,13 @@ const handleProfileAction = (action) => {
             <!-- Profile Info - Hidden on mobile -->
             <div class="hidden sm:block text-left">
               <div class="flex items-center space-x-1">
-                <span class="text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors duration-200">{{ userProfile.name }}</span>
+                <span class="text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors duration-200">{{ getUserName }}</span>
                 <IconChevronDown :class="[
                   'w-3 h-3 text-gray-400 group-hover:text-orange-500 transition-all duration-200',
                   showProfileDropdown ? 'rotate-180' : ''
                 ]" />
               </div>
-              <div class="text-xs text-gray-500 truncate max-w-[100px]">{{ userProfile.email }}</div>
+              <div class="text-xs text-gray-500 truncate max-w-[100px]">{{ getUserIdentifier }}</div>
             </div>
           </button>
           
@@ -150,13 +178,14 @@ const handleProfileAction = (action) => {
               <div class="px-4 py-3 border-b border-gray-100">
                 <div class="flex items-center space-x-3">
                   <img 
-                    :src="userProfile.avatar" 
-                    alt="Profile"
+                    :src="getUserAvatar" 
+                    :alt="getUserName"
                     class="w-10 h-10 rounded-full border-2 border-orange-200"
+                    @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
                   />
                   <div class="flex-1 min-w-0">
-                    <div class="font-medium text-gray-900 truncate">{{ userProfile.name }}</div>
-                    <div class="text-sm text-gray-500 truncate">{{ userProfile.email }}</div>
+                    <div class="font-medium text-gray-900 truncate">{{ getUserName }}</div>
+                    <div class="text-sm text-gray-500 truncate">{{ getUserIdentifier }}</div>
                   </div>
                 </div>
               </div>
