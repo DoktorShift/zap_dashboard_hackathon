@@ -373,6 +373,59 @@ const truncateInvoice = (invoice, length = 20) => {
   if (invoice.length <= length) return invoice
   return invoice.substring(0, length) + '...'
 }
+
+const parseNoteContent = (note) => {
+  if (typeof note === 'string') {
+    if (note.startsWith('[') && note.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(note)
+        if (Array.isArray(parsed)) {
+          return extractTextFromArray(parsed)
+        }
+      } catch (error) {
+        return note
+      }
+    }
+    return note
+  }
+  
+  if (Array.isArray(note)) {
+    return extractTextFromArray(note)
+  }
+  
+  if (typeof note === 'object' && note !== null) {
+    try {
+      return JSON.stringify(note)
+    } catch (error) {
+      return 'Unable to display note content'
+    }
+  }
+  
+  return String(note || 'No note content')
+}
+
+const extractTextFromArray = (noteArray) => {
+  try {
+    const textPlain = noteArray.find(item => Array.isArray(item) && item[0] === 'text/plain')
+    if (textPlain && textPlain[1]) {
+      return textPlain[1]
+    }
+    
+    const textIdentifier = noteArray.find(item => Array.isArray(item) && item[0] === 'text/identifier')
+    if (textIdentifier && textIdentifier[1]) {
+      return textIdentifier[1]
+    }
+    
+    const firstText = noteArray.find(item => Array.isArray(item) && typeof item[1] === 'string')
+    if (firstText && firstText[1]) {
+      return firstText[1]
+    }
+    
+    return 'Complex note content'
+  } catch (error) {
+    return 'Unable to parse note content'
+  }
+}
 </script>
 
 <template>
@@ -500,7 +553,7 @@ const truncateInvoice = (invoice, length = 20) => {
                     {{ transaction.type === 'incoming' ? 'Received' : 'Sent' }}
                   </p>
                   <p class="text-sm text-gray-600">
-                    {{ transaction.description || 'No description' }}
+                    {{ parseNoteContent(transaction.description) }}
                   </p>
                   <p class="text-xs text-gray-500">
                     {{ formatDate(transaction.settled_at || transaction.created_at) }}
