@@ -14,14 +14,13 @@ import {
   IconArrowUpRight,
   IconArrowDownLeft,
   IconClock,
-  IconCheckCircle,
   IconAlertCircle,
   IconQrcode,
   IconScan,
   IconCamera,
   IconCameraOff
 } from '@iconify-prerendered/vue-tabler'
-import { Qrcode } from 'qrcode-vue3'
+import QRCodeVue3 from 'qrcode-vue3'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
 import { 
   getBalance, 
@@ -569,7 +568,7 @@ const truncateInvoice = (invoice, length = 20) => {
         <div v-else class="space-y-4">
           <div v-if="invoiceStatus === 'paid'" class="text-center">
             <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <IconCheckCircle class="w-8 h-8 text-green-600" />
+              <IconCheck class="w-8 h-8 text-green-600" />
             </div>
             <h4 class="text-lg font-semibold text-green-600 mb-2">Payment Received!</h4>
             <p class="text-gray-600">{{ formatAmount(createdInvoice.amount) }} sats received</p>
@@ -580,7 +579,7 @@ const truncateInvoice = (invoice, length = 20) => {
             
             <!-- QR Code -->
             <div class="bg-white p-4 rounded-lg border-2 border-gray-200 mb-4 inline-block">
-              <Qrcode 
+              <QRCodeVue3
                 :value="createdInvoice.invoice" 
                 :size="200"
                 color="#000000"
@@ -628,7 +627,7 @@ const truncateInvoice = (invoice, length = 20) => {
         
         <div v-if="paymentStatus === 'success'" class="text-center">
           <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <IconCheckCircle class="w-8 h-8 text-green-600" />
+            <IconCheck class="w-8 h-8 text-green-600" />
           </div>
           <h4 class="text-lg font-semibold text-green-600 mb-2">Payment Sent!</h4>
           <p class="text-gray-600">Payment completed successfully</p>
