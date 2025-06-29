@@ -1,5 +1,5 @@
 <script setup>
-import { ref, inject, onMounted, watch } from 'vue'
+import { ref, inject, onMounted, watch, computed } from 'vue'
 import { IconBolt, IconRefresh, IconPlugOff, IconCheck, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
 import nwcLogo from '../assets/nwc-logo.svg'
