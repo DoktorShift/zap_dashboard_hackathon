@@ -10,7 +10,6 @@ import {
   IconBolt,
   IconWallet,
   IconAlertCircle,
-  IconCheckCircle,
   IconClock
 } from '@iconify-prerendered/vue-tabler'
 import { useNotifications } from '../composables/useNotifications.js'
@@ -62,7 +61,7 @@ const getNotificationIcon = (type) => {
       return IconWallet
     case NOTIFICATION_TYPES.CONNECTION_SUCCESS:
     case NOTIFICATION_TYPES.PAYMENT_SUCCESS:
-      return IconCheckCircle
+      return IconCheck
     case NOTIFICATION_TYPES.CONNECTION_ERROR:
     case NOTIFICATION_TYPES.PAYMENT_ERROR:
     case NOTIFICATION_TYPES.WALLET_ERROR:
