@@ -10,6 +10,7 @@ import {
   IconGift, 
   IconShoppingCart, 
   IconWallet, 
+  IconCreditCard,
   IconSettings 
 } from '@iconify-prerendered/vue-tabler'
 import logoSvg from '../assets/LOGO.svg'
@@ -71,7 +72,8 @@ const menuItems = [
   { id: 'content', label: 'Content', icon: IconFileText },
   { id: 'donations', label: 'Donations', icon: IconGift },
   { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
-  { id: 'finances', label: 'Finances', icon: IconWallet },
+  { id: 'wallet', label: 'Wallet', icon: IconWallet },
+  { id: 'finances', label: 'Finances', icon: IconCreditCard },
   { id: 'settings', label: 'Settings', icon: IconSettings }
 ]
 

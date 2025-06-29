@@ -14,7 +14,8 @@
     "vue-echarts": "^6.6.1",
     "lucide-vue-next": "^0.294.0",
     "@getalby/sdk": "^5.1.0",
-    "@iconify-prerendered/vue-tabler": "^0.28.1749100890"
+    "@iconify-prerendered/vue-tabler": "^0.28.1749100890",
+    "qrcode.vue": "^3.4.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.3",

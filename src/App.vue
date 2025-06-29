@@ -10,6 +10,7 @@ import ChatZaps from './pages/ChatZaps.vue'
 import Content from './pages/Content.vue'
 import Donations from './pages/Donations.vue'
 import MiniPoS from './pages/MiniPoS.vue'
+import Wallet from './pages/Wallet.vue'
 import Finances from './pages/Finances.vue'
 import Settings from './pages/Settings.vue'
 import NWCConnection from './components/NWCConnection.vue'
@@ -67,6 +68,7 @@ const components = {
   content: Content,
   donations: Donations,
   'mini-pos': MiniPoS,
+  wallet: Wallet,
   finances: Finances,
   settings: Settings
 }
