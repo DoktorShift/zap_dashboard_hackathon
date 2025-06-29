@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject, defineAsyncComponent } from 'vue'
 import { 
   IconWallet, 
   IconBolt, 
@@ -22,7 +22,6 @@ import {
   IconCameraOff
 } from '@iconify-prerendered/vue-tabler'
 import { Qrcode } from 'qrcode-vue3'
-import { QrStream } from 'qrcode-reader-vue3'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
 import { 
   getBalance, 
@@ -32,6 +31,9 @@ import {
   payInvoice, 
   lookupInvoice 
 } from '../utils/nwcClient.js'
+
+// Dynamically import QrStream to avoid build issues
+const QrStream = defineAsyncComponent(() => import('qrcode-reader-vue3').then(m => m.QrStream))
 
 const { isWalletConnected, activeConnection } = useNostrConnections()
 
