@@ -1,5 +1,5 @@
 <script setup>
-import { inject, ref, onMounted, watch } from 'vue'
+import { inject, ref, onMounted, watch, computed } from 'vue'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { 
   IconDashboard, 
@@ -61,8 +61,9 @@ onMounted(() => {
   fetchWalletData()
 })
 
-const totalZaps = zapData.value.length
-const totalSats = zapData.value.reduce((sum, zap) => sum + zap.amount, 0)
+// Make totalZaps and totalSats reactive computed properties
+const totalZaps = computed(() => zapData.value.length)
+const totalSats = computed(() => zapData.value.reduce((sum, zap) => sum + zap.amount, 0))
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
