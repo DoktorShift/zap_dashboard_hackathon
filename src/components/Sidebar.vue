@@ -1,1 +1,150 @@
-{"code":"rate-limited","message":"You have hit the rate limit. Please <a class=\"__boltUpgradePlan__\">Upgrade</a> to keep chatting, or you can continue coding for free in the editor.","providerLimitHit":false,"isRetryable":true}
+<script setup>
+import { inject, ref, onMounted, watch } from 'vue'
+import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
+import { 
+  IconDashboard, 
+  IconBolt, 
+  IconChartBar, 
+  IconMessageCircle, 
+  IconFileText, 
+  IconGift, 
+  IconShoppingCart, 
+  IconWallet, 
+  IconSettings 
+} from '@iconify-prerendered/vue-tabler'
+import logoSvg from '../assets/LOGO.svg'
+
+const currentPage = inject('currentPage')
+const zapData = inject('zapData')
+const emit = defineEmits(['change-page'])
+
+// Real-time wallet data
+const walletBalance = ref(0)
+const walletInfo = ref(null)
+const isLoading = ref(false)
+
+// Fetch real wallet data
+async function fetchWalletData() {
+  const client = getNWCClient()
+  if (!client) return
+
+  isLoading.value = true
+  try {
+    const [balance, info] = await Promise.all([
+      getBalance(),
+      getWalletInfo()
+    ])
+    
+    if (balance) {
+      walletBalance.value = Math.floor(balance.balance / 1000) // Convert msats to sats
+    }
+    
+    if (info) {
+      walletInfo.value = info
+    }
+  } catch (error) {
+    console.error('Failed to fetch wallet data:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Watch for zapData changes to refresh wallet data
+watch(() => zapData.value.length, (newLength) => {
+  if (newLength > 0) {
+    fetchWalletData()
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  fetchWalletData()
+})
+
+const totalZaps = zapData.value.length
+const totalSats = zapData.value.reduce((sum, zap) => sum + zap.amount, 0)
+
+const menuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
+  { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt },
+  { id: 'analytics', label: 'Analytics', icon: IconChartBar },
+  { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
+  { id: 'content', label: 'Content', icon: IconFileText },
+  { id: 'donations', label: 'Donations', icon: IconGift },
+  { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
+  { id: 'finances', label: 'Finances', icon: IconWallet },
+  { id: 'settings', label: 'Settings', icon: IconSettings }
+]
+
+const handlePageChange = (pageId) => {
+  emit('change-page', pageId)
+}
+</script>
+
+<template>
+  <div class="w-full h-full bg-white/80 backdrop-blur-sm border-r border-orange-100/50 flex flex-col">
+    <!-- Logo -->
+    <div class="p-4 sm:p-6 border-b border-orange-100/50">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 bg-gradient-to-r from-orange-400 to-amber-400 rounded-lg flex items-center justify-center shadow-sm">
+          <img :src="logoSvg" alt="ZapTracker Logo" class="w-5 h-5" />
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-gray-800">ZapTracker</h1>
+          <p class="text-xs text-gray-600">Lightning Insights</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Navigation -->
+    <nav class="flex-1 p-3 sm:p-4 overflow-y-auto">
+      <ul class="space-y-1">
+        <li v-for="item in menuItems" :key="item.id">
+          <button
+            @click="handlePageChange(item.id)"
+            :class="[
+              'w-full flex items-center space-x-3 px-2 py-2 rounded-lg text-left transition-all duration-200 touch-target group',
+              currentPage === item.id
+                ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-sm'
+                : 'text-gray-700 hover:bg-orange-50 hover:text-orange-700'
+            ]"
+          >
+            <component 
+              :is="item.icon" 
+              :class="[
+                'w-5 h-5 transition-all duration-200 flex-shrink-0',
+                currentPage === item.id 
+                  ? 'text-white' 
+                  : 'text-gray-500 group-hover:text-orange-600'
+              ]" 
+            />
+            <span class="font-medium">{{ item.label }}</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
+    
+    <!-- Stats Summary -->
+    <div class="p-3 sm:p-4 border-t border-orange-100/50">
+      <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-3 sm:p-4 rounded-lg shadow-sm">
+        <div class="text-sm font-medium mb-1">Total Zaps</div>
+        <div class="text-xl sm:text-2xl font-bold">{{ totalZaps.toLocaleString() }}</div>
+        <div class="text-sm opacity-90">{{ totalSats.toLocaleString() }} sats</div>
+        
+        <!-- Wallet Balance -->
+        <div v-if="walletBalance > 0" class="mt-3 pt-3 border-t border-white/20">
+          <div class="text-sm font-medium mb-1">Wallet Balance</div>
+          <div class="text-lg font-bold">{{ walletBalance.toLocaleString() }} sats</div>
+          <div v-if="walletInfo" class="text-xs opacity-75 truncate">{{ walletInfo.alias }}</div>
+        </div>
+        
+        <!-- Loading indicator -->
+        <div v-else-if="isLoading" class="mt-3 pt-3 border-t border-white/20">
+          <div class="flex items-center space-x-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <span class="text-xs">Loading balance...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
