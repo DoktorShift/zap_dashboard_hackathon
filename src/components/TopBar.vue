@@ -184,7 +184,7 @@ const handleProfileAction = (action) => {
       emit('change-page', 'settings', 'nostr')
       break
     case 'settings':
-      emit('change-page', 'settings', 'nostr')
+      emit('change-page', 'settings', 'alerts')
       break
     case 'account':
       console.log('Navigate to account')
