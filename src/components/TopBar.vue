@@ -1,9 +1,13 @@
 <script setup>
 import { ref, inject, computed, onMounted, onUnmounted } from 'vue'
-import { IconSearch, IconUpload, IconBolt, IconMenu2, IconUser, IconSettings, IconLogout, IconChevronDown } from '@iconify-prerendered/vue-tabler'
+import { IconSearch, IconUpload, IconBolt, IconMenu2, IconUser, IconSettings, IconLogout, IconChevronDown, IconRefresh } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
 
 const zapData = inject('zapData')
+const isRefreshingData = inject('isRefreshingData')
+const refreshZapData = inject('refreshZapData')
+const isWalletConnected = inject('isWalletConnected')
+
 const emit = defineEmits(['show-connection', 'toggle-mobile-menu'])
 
 const showProfileDropdown = ref(false)
@@ -19,6 +23,31 @@ const userProfile = ref({
 // Watch for connection status based on zapData
 const hasConnection = computed(() => {
   return localStorage.getItem('nwc_url') !== null
+})
+
+// Data status for header display
+const dataStatus = computed(() => {
+  if (!isWalletConnected.value) {
+    return {
+      show: false,
+      text: '',
+      color: ''
+    }
+  }
+  
+  if (zapData.value.length > 0) {
+    return {
+      show: true,
+      text: `${zapData.value.length} zaps loaded`,
+      color: 'text-green-600'
+    }
+  }
+  
+  return {
+    show: true,
+    text: 'No data yet',
+    color: 'text-gray-500'
+  }
 })
 
 // Close dropdown when clicking outside
@@ -58,6 +87,12 @@ const handleProfileAction = (action) => {
       break
   }
 }
+
+const handleRefresh = () => {
+  if (refreshZapData && !isRefreshingData.value) {
+    refreshZapData()
+  }
+}
 </script>
 
 <template>
@@ -90,6 +125,24 @@ const handleProfileAction = (action) => {
             class="w-48 lg:w-64 pl-10 pr-4 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm transition-all text-sm hover:shadow-sm"
           />
           <IconSearch class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+        </div>
+        
+        <!-- Data Status & Refresh (when connected) -->
+        <div v-if="dataStatus.show" class="flex items-center space-x-2 bg-white/80 backdrop-blur-sm border border-green-200/50 rounded-lg px-3 py-2">
+          <div class="flex items-center space-x-2">
+            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span :class="['text-xs sm:text-sm font-medium', dataStatus.color]">
+              {{ dataStatus.text }}
+            </span>
+          </div>
+          <button
+            @click="handleRefresh"
+            :disabled="isRefreshingData"
+            class="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-all duration-200 touch-target"
+            :title="isRefreshingData ? 'Refreshing...' : 'Refresh data'"
+          >
+            <IconRefresh :class="['w-4 h-4', isRefreshingData ? 'animate-spin' : '']" />
+          </button>
         </div>
         
         <!-- Action Buttons -->
