@@ -4,6 +4,8 @@ A modern, real-time dashboard for managing and analyzing Lightning Network zaps 
 
 ![Zap Dashboard Preview](public/dashboard.png)
 
+> **🔒 Privacy First**: We don't store any of your data on our servers. All data is stored locally in your browser's local storage, ensuring your privacy and data sovereignty.
+
 ## 🌟 Features
 
 ### 📊 **Real-time Analytics**
