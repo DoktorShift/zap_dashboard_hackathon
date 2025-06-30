@@ -116,7 +116,7 @@ const handleRefresh = () => {
       </div>
       
       <!-- Right Side Actions -->
-      <div class="flex items-center space-x-2 sm:space-x-4">
+      <div class="flex items-center space-x-2 sm:space-x-3">
         <!-- Search - Hidden on mobile, shown on tablet+ -->
         <div class="relative hidden md:block">
           <input
@@ -128,20 +128,25 @@ const handleRefresh = () => {
         </div>
         
         <!-- Data Status & Refresh (when connected) -->
-        <div v-if="dataStatus.show" class="">
-<!--          <div class="flex items-center space-x-2">-->
-<!--            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>-->
-<!--            <span :class="['text-xs sm:text-sm font-medium', dataStatus.color]">-->
-<!--              {{ dataStatus.text }}-->
-<!--            </span>-->
-<!--          </div>-->
+        <div v-if="dataStatus.show" class="flex items-center space-x-3">
+          <div class="hidden sm:flex items-center space-x-2">
+            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span :class="['text-xs font-medium', dataStatus.color]">
+              {{ dataStatus.text }}
+            </span>
+          </div>
+          
+          <!-- Refresh Button with Consistent Styling -->
           <button
             @click="handleRefresh"
             :disabled="isRefreshingData"
-            class="p-1 pl-[11px] text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-all duration-200 touch-target"
             :title="isRefreshingData ? 'Refreshing...' : 'Refresh data'"
+            class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target group disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <IconRefresh :class="['w-4 h-4', isRefreshingData ? 'animate-spin' : '']" />
+            <IconRefresh :class="[
+              'w-5 h-5 transition-all duration-200 group-hover:scale-110', 
+              isRefreshingData ? 'animate-spin' : ''
+            ]" />
           </button>
         </div>
         
@@ -159,8 +164,10 @@ const handleRefresh = () => {
             <span class="hidden sm:inline">{{ hasConnection ? 'Connected' : 'Connect' }}</span>
           </button>
           
-          <!-- Notifications -->
-          <NotificationDropdown />
+          <!-- Notifications with Consistent Hover Effect -->
+          <div class="p-2 hover:bg-orange-50 rounded-lg transition-all duration-200 group">
+            <NotificationDropdown />
+          </div>
         </div>
         
         <!-- Enhanced Profile Dropdown -->
@@ -168,7 +175,7 @@ const handleRefresh = () => {
           <!-- Profile Trigger Button -->
           <button 
             @click="toggleProfileDropdown"
-            class="flex items-center space-x-2 sm:space-x-3 p-1 sm:p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group touch-target"
+            class="flex items-center space-x-2 sm:space-x-3 p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group touch-target"
           >
             <div class="relative">
               <img 
