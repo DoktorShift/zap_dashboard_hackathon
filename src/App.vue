@@ -328,8 +328,8 @@ watch(connectionError, (error) => {
     
     <!-- Connection Modal -->
     <transition name="modal-transition">
-      <div v-if="showConnectionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full mx-4 transform animate-modal-content">
+      <div v-if="showConnectionModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full transform animate-modal-content max-h-[90vh] overflow-y-auto">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg sm:text-xl font-bold text-gray-800">Connect Your Wallet</h2>
             <button 
