@@ -237,6 +237,7 @@ watch(connectionError, (error) => {
         <TopBar 
           @show-connection="showConnectionModal = true" 
           @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen"
+          @change-page="changePage"
         />
       </header>
       
