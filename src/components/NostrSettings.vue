@@ -204,8 +204,12 @@ const getShortNpub = () => {
       <!-- Not Authenticated -->
       <div v-if="!isAuthenticated" class="bg-white rounded-lg border border-gray-200 p-6">
         <div class="text-center">
-          <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <IconUser class="w-8 h-8 text-purple-600" />
+          <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <img 
+              src="/nostr-logo/nostr10.png" 
+              alt="Nostr Logo" 
+              class="w-16 h-16 object-contain"
+            />
           </div>
           
           <h4 class="text-lg font-medium text-gray-900 mb-2">Connect with Nostr</h4>
