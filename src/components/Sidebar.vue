@@ -87,11 +87,11 @@ const handlePageChange = (pageId) => {
     <!-- Logo -->
     <div class="p-4 sm:p-6 border-b border-orange-100/50">
       <div class="flex items-center space-x-3">
-        <div class="w-8 h-8">
+        <div class="w-12 h-12 flex items-center justify-center">
           <img 
             src="/nwc-logo/nwc_logo.png" 
             alt="NWC Logo" 
-            class="w-5 h-5"
+            class="w-10 h-10 object-contain"
           />
         </div>
         <div>
