@@ -334,7 +334,7 @@ const formatDate = (dateString) => {
 
     <!-- Simplified Add Connection Modal -->
     <div v-if="showAddForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-lg font-semibold text-gray-900">Add Connection</h3>
           <button @click="closeAddForm" class="text-gray-500 hover:text-gray-700">
@@ -383,7 +383,7 @@ const formatDate = (dateString) => {
 
     <!-- Simplified Edit Connection Modal -->
     <div v-if="showEditForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-lg font-semibold text-gray-900">Edit Connection</h3>
           <button @click="closeEditForm" class="text-gray-500 hover:text-gray-700">
@@ -424,7 +424,7 @@ const formatDate = (dateString) => {
 
     <!-- Simplified Delete Confirmation Modal -->
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center space-x-3 mb-4">
           <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
             <IconTrash class="w-5 h-5 text-red-600" />
