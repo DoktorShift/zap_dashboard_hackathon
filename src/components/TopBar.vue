@@ -129,12 +129,12 @@ const handleRefresh = () => {
         
         <!-- Data Status & Refresh (when connected) -->
         <div v-if="dataStatus.show" class="flex items-center space-x-3">
-          <div class="hidden sm:flex items-center space-x-2">
-            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span :class="['text-xs font-medium', dataStatus.color]">
-              {{ dataStatus.text }}
-            </span>
-          </div>
+<!--          <div class="hidden sm:flex items-center space-x-2">-->
+<!--            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>-->
+<!--            <span :class="['text-xs font-medium', dataStatus.color]">-->
+<!--              {{ dataStatus.text }}-->
+<!--            </span>-->
+<!--          </div>-->
           
           <!-- Refresh Button with Consistent Styling -->
           <button
