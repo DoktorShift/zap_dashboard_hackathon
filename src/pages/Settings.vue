@@ -11,20 +11,20 @@ const tabs = [
   { id: 'nostr', label: 'Nostr', icon: IconUser },
   { id: 'wallet', label: 'Wallet', icon: IconBolt },
   { id: 'alerts', label: 'Notifications', icon: IconBell },
-  { id: 'privacy', label: 'Privacy', icon: IconShield }
+  // { id: 'privacy', label: 'Privacy', icon: IconShield }
 ]
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Page Header -->
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
-        <IconSettings class="w-6 h-6 text-orange-600" />
-        <span>Settings</span>
-      </h1>
-      <p class="text-gray-600">Manage your zap dashboard preferences and integrations</p>
-    </div>
+<!--    <div>-->
+<!--      <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
+<!--        <IconSettings class="w-6 h-6 text-orange-600" />-->
+<!--        <span>Settings</span>-->
+<!--      </h1>-->
+<!--      <p class="text-gray-600">Manage your zap dashboard preferences and integrations</p>-->
+<!--    </div>-->
     
     <!-- Settings Tabs -->
     <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">

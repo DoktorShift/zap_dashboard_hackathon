@@ -1,6 +1,23 @@
 <script setup>
 import { ref, inject, computed, onMounted, onUnmounted } from 'vue'
-import { IconSearch, IconUpload, IconBolt, IconMenu2, IconUser, IconSettings, IconLogout, IconChevronDown, IconRefresh } from '@iconify-prerendered/vue-tabler'
+import { 
+  IconSearch, 
+  IconUpload, 
+  IconBolt, 
+  IconMenu2, 
+  IconUser, 
+  IconSettings, 
+  IconLogout, 
+  IconChevronDown, 
+  IconRefresh,
+  IconDashboard,
+  IconChartBar,
+  IconWallet,
+  IconMessageCircle,
+  IconFileText,
+  IconGift,
+  IconShoppingCart
+} from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 
@@ -8,6 +25,7 @@ const zapData = inject('zapData')
 const isRefreshingData = inject('isRefreshingData')
 const refreshZapData = inject('refreshZapData')
 const isWalletConnected = inject('isWalletConnected')
+const currentPage = inject('currentPage')
 
 const emit = defineEmits(['show-connection', 'toggle-mobile-menu'])
 
@@ -16,6 +34,68 @@ const { isAuthenticated, userProfile, currentUser } = useNostrAuth()
 
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
+
+// Page title, description, and icon mapping
+const pageInfo = computed(() => {
+  const pageMap = {
+    'dashboard': {
+      title: 'Dashboard',
+      description: 'Welcome back, track your lightning earnings',
+      icon: IconDashboard
+    },
+    'zap-feed': {
+      title: 'Zap Feed',
+      description: 'Real-time zap activity and notifications',
+      icon: IconBolt
+    },
+    'analytics': {
+      title: 'Analytics',
+      description: 'Deep insights into your zap performance',
+      icon: IconChartBar
+    },
+    'wallet': {
+      title: 'Wallet',
+      description: 'Manage your Lightning wallet and transactions',
+      icon: IconWallet
+    },
+    'chat-zaps': {
+      title: 'Chat + Zaps',
+      description: 'Interactive chat with zap integration',
+      icon: IconMessageCircle
+    },
+    'content': {
+      title: 'Content',
+      description: 'Manage and analyze your content performance',
+      icon: IconFileText
+    },
+    'donations': {
+      title: 'Donations',
+      description: 'Manage donation campaigns and goals',
+      icon: IconGift
+    },
+    'mini-pos': {
+      title: 'Mini PoS',
+      description: 'Point of Sale system for lightning payments',
+      icon: IconShoppingCart
+    },
+    'finances': {
+      title: 'Finances',
+      description: 'Financial overview and reporting',
+      icon: IconWallet
+    },
+    'settings': {
+      title: 'Settings',
+      description: 'Manage your zap dashboard preferences and integrations',
+      icon: IconSettings
+    }
+  }
+  
+  return pageMap[currentPage.value] || {
+    title: 'Dashboard',
+    description: 'Welcome back, track your lightning earnings',
+    icon: IconDashboard
+  }
+})
 
 // Watch for connection status based on zapData
 const hasConnection = computed(() => {
@@ -137,22 +217,25 @@ const handleRefresh = () => {
         
         <!-- Page Title -->
         <div>
-          <h2 class="text-lg sm:text-xl font-semibold text-gray-800">Dashboard</h2>
-          <p class="text-xs sm:text-sm text-gray-600 hidden sm:block">Welcome back, track your lightning earnings</p>
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 flex items-center space-x-2">
+            <component :is="pageInfo.icon" class="w-5 h-5 text-orange-600" />
+            <span>{{ pageInfo.title }}</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-gray-600 hidden sm:block">{{ pageInfo.description }}</p>
         </div>
       </div>
       
       <!-- Right Side Actions -->
       <div class="flex items-center space-x-2 sm:space-x-3">
         <!-- Search - Hidden on mobile, shown on tablet+ -->
-        <div class="relative hidden md:block">
-          <input
-            type="text"
-            placeholder="Search zaps..."
-            class="w-48 lg:w-64 pl-10 pr-4 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm transition-all text-sm hover:shadow-sm"
-          />
-          <IconSearch class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-        </div>
+<!--        <div class="relative hidden md:block">-->
+<!--          <input-->
+<!--            type="text"-->
+<!--            placeholder="Search zaps..."-->
+<!--            class="w-48 lg:w-64 pl-10 pr-4 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm transition-all text-sm hover:shadow-sm"-->
+<!--          />-->
+<!--          <IconSearch class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />-->
+<!--        </div>-->
 
         <!-- Data Status & Refresh (when connected) -->
         <div v-if="dataStatus.show" class="flex items-center space-x-3">
