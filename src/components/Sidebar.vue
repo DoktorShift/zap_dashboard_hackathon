@@ -13,7 +13,6 @@ import {
   IconCreditCard,
   IconSettings 
 } from '@iconify-prerendered/vue-tabler'
-import logoSvg from '../assets/LOGO.svg'
 
 const currentPage = inject('currentPage')
 const zapData = inject('zapData')
@@ -88,8 +87,12 @@ const handlePageChange = (pageId) => {
     <!-- Logo -->
     <div class="p-4 sm:p-6 border-b border-orange-100/50">
       <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 bg-gradient-to-r from-orange-400 to-amber-400 rounded-lg flex items-center justify-center shadow-sm">
-          <img :src="logoSvg" alt="ZapTracker Logo" class="w-5 h-5" />
+        <div class="w-10 h-10 flex items-center justify-center">
+          <img 
+            src="/nwc-logo/nwc_logo.png" 
+            alt="NWC Logo" 
+            class="w-10 h-10 object-contain"
+          />
         </div>
         <div>
           <h1 class="text-lg font-bold text-gray-800">ZapTracker</h1>
