@@ -12,7 +12,9 @@ import {
   IconTrash,
   IconEye,
   IconCopy,
-  IconDots
+  IconDots,
+  IconBolt,
+  IconUsers
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -22,7 +24,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['edit', 'delete', 'preview', 'duplicate', 'share'])
+const emit = defineEmits(['edit', 'delete', 'preview', 'duplicate', 'share', 'publish-nostr'])
 
 const getTypeIcon = (type) => {
   const icons = {
@@ -81,7 +83,7 @@ const formatDate = (dateString) => {
             ]">
               <component :is="getTypeIcon(item.type)" class="w-4 h-4" />
             </div>
-            
+
             <!-- Content Info -->
             <div class="flex-1 min-w-0">
               <div class="flex items-center space-x-2 mb-1">
@@ -96,15 +98,21 @@ const formatDate = (dateString) => {
                   'px-2 py-1 rounded-full text-xs font-medium',
                   getMonetizationColor(item.monetizationModel)
                 ]">
-                  {{ item.monetizationModel === 'one-time' ? 'One-time' : 
+                  {{ item.monetizationModel === 'one-time' ? 'One-time' :
                      item.monetizationModel === 'subscription' ? 'Subscription' : 'Free' }}
+                </span>
+                <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  On Nostr
                 </span>
               </div>
               <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ item.description }}</p>
-              <p class="text-xs text-gray-500">Updated {{ formatDate(item.updatedAt) }}</p>
+              <div class="flex items-center space-x-4 text-xs text-gray-500">
+                <span>Updated {{ formatDate(item.updatedAt) }}</span>
+                <span>By {{ item.creatorName || 'You' }}</span>
+              </div>
             </div>
           </div>
-          
+
           <!-- Actions -->
           <div class="flex items-center space-x-2 flex-shrink-0">
             <button
@@ -122,11 +130,19 @@ const formatDate = (dateString) => {
               <IconEye class="w-4 h-4" />
             </button>
             <button
+              v-if="item.status === 'draft'"
+              @click="$emit('publish-nostr', item)"
+              class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              title="Publish to Nostr"
+            >
+              <IconShare class="w-4 h-4" />
+            </button>
+            <button
               @click="$emit('share', item)"
               class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
               title="Share"
             >
-              <IconShare class="w-4 h-4" />
+              <IconCopy class="w-4 h-4" />
             </button>
             <button
               @click="$emit('delete', item)"
@@ -137,12 +153,14 @@ const formatDate = (dateString) => {
             </button>
           </div>
         </div>
-        
+
         <!-- Stats -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-orange-100/50">
           <div class="text-center">
             <p class="text-sm font-medium text-orange-600">Price</p>
-            <p class="text-lg font-bold text-gray-900">{{ item.price.toLocaleString() }} sats</p>
+            <p class="text-lg font-bold text-gray-900">
+              {{ item.monetizationModel === 'free' ? 'Free' : item.price.toLocaleString() + ' sats' }}
+            </p>
           </div>
           <div class="text-center">
             <p class="text-sm font-medium text-gray-600">
