@@ -9,7 +9,10 @@ import {
   IconFile,
   IconX,
   IconPlus,
-  IconLock
+  IconLock,
+  IconUser,
+  IconBolt,
+  IconShare
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -22,6 +25,10 @@ const props = defineProps({
     default: false
   },
   isLoading: {
+    type: Boolean,
+    default: false
+  },
+  isAuthenticated: {
     type: Boolean,
     default: false
   }
@@ -47,8 +54,8 @@ const monetizationModels = [
 const newTag = ref('')
 
 const isFormValid = computed(() => {
-  return props.form.title.trim() && 
-         props.form.description.trim() && 
+  return props.form.title.trim() &&
+         props.form.description.trim() &&
          props.form.previewText.trim() &&
          props.form.fullContent.trim() &&
          (props.form.monetizationModel === 'free' || props.form.price > 0)
@@ -66,13 +73,15 @@ const removeTag = (index) => {
 }
 
 const handleSubmit = () => {
-  if (isFormValid.value) {
+  if (isFormValid.value && props.isAuthenticated) {
     emit('submit')
   }
 }
 
 const handleSaveDraft = () => {
-  emit('save-draft')
+  if (props.isAuthenticated) {
+    emit('save-draft')
+  }
 }
 </script>
 
@@ -86,8 +95,24 @@ const handleSaveDraft = () => {
         Publish premium content that users can unlock with Lightning payments
       </p>
     </div>
-    
-    <div class="p-6 space-y-6">
+
+    <!-- Authentication Required Message -->
+    <div v-if="!isAuthenticated" class="p-6">
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div class="flex items-center space-x-3">
+          <IconUser class="w-5 h-5 text-amber-600" />
+          <div>
+            <h3 class="font-medium text-amber-800">Authentication Required</h3>
+            <p class="text-sm text-amber-700 mt-1">
+              Please connect your Nostr identity to create and manage content.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Content -->
+    <div v-else class="p-6 space-y-6">
       <!-- Title -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
@@ -95,29 +120,32 @@ const handleSaveDraft = () => {
           v-model="form.title"
           type="text"
           placeholder="Enter content title..."
-          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+          :disabled="!isAuthenticated"
+          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
         />
       </div>
-      
+
       <!-- Type and Monetization -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Content Type</label>
           <select
             v-model="form.type"
-            class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+            :disabled="!isAuthenticated"
+            class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
           >
             <option v-for="type in contentTypes" :key="type.value" :value="type.value">
               {{ type.label }}
             </option>
           </select>
         </div>
-        
+
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Monetization Model</label>
           <select
             v-model="form.monetizationModel"
-            class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+            :disabled="!isAuthenticated"
+            class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
           >
             <option v-for="model in monetizationModels" :key="model.value" :value="model.value">
               {{ model.label }}
@@ -125,7 +153,7 @@ const handleSaveDraft = () => {
           </select>
         </div>
       </div>
-      
+
       <!-- Price -->
       <div v-if="form.monetizationModel !== 'free'">
         <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -138,14 +166,15 @@ const handleSaveDraft = () => {
             type="number"
             min="1"
             placeholder="5000"
-            class="w-full px-3 py-3 pr-12 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+            :disabled="!isAuthenticated"
+            class="w-full px-3 py-3 pr-12 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
           />
           <div class="absolute inset-y-0 right-0 flex items-center pr-3">
             <IconLock class="w-4 h-4 text-gray-400" />
           </div>
         </div>
       </div>
-      
+
       <!-- Description -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
@@ -153,10 +182,11 @@ const handleSaveDraft = () => {
           v-model="form.description"
           rows="3"
           placeholder="Brief description of your content..."
-          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+          :disabled="!isAuthenticated"
+          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
         ></textarea>
       </div>
-      
+
       <!-- Preview Text -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Preview Text</label>
@@ -164,11 +194,12 @@ const handleSaveDraft = () => {
           v-model="form.previewText"
           rows="4"
           placeholder="Write a compelling preview that will encourage users to unlock your content..."
-          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+          :disabled="!isAuthenticated"
+          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
         ></textarea>
         <p class="text-xs text-gray-500 mt-1">This is what users see before purchasing</p>
       </div>
-      
+
       <!-- Full Content -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Full Content</label>
@@ -176,11 +207,12 @@ const handleSaveDraft = () => {
           v-model="form.fullContent"
           rows="8"
           placeholder="Write your premium content here..."
-          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+          :disabled="!isAuthenticated"
+          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
         ></textarea>
         <p class="text-xs text-gray-500 mt-1">This content is unlocked after payment</p>
       </div>
-      
+
       <!-- Tags -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
@@ -191,7 +223,11 @@ const handleSaveDraft = () => {
             class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
           >
             <span>{{ tag }}</span>
-            <button @click="removeTag(index)" class="hover:text-orange-900">
+            <button
+              @click="removeTag(index)"
+              :disabled="!isAuthenticated"
+              class="hover:text-orange-900 disabled:opacity-50"
+            >
               <IconX class="w-3 h-3" />
             </button>
           </span>
@@ -201,18 +237,20 @@ const handleSaveDraft = () => {
             v-model="newTag"
             type="text"
             placeholder="Add tag..."
+            :disabled="!isAuthenticated"
             @keyup.enter="addTag"
-            class="flex-1 px-3 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm"
+            class="flex-1 px-3 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm disabled:bg-gray-50 disabled:text-gray-500"
           />
           <button
             @click="addTag"
-            class="btn-secondary text-sm"
+            :disabled="!isAuthenticated"
+            class="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <IconPlus class="w-4 h-4" />
           </button>
         </div>
       </div>
-      
+
       <!-- Cover Image -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Cover Image URL (optional)</label>
@@ -220,11 +258,26 @@ const handleSaveDraft = () => {
           v-model="form.coverImage"
           type="url"
           placeholder="https://example.com/image.jpg"
-          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+          :disabled="!isAuthenticated"
+          class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
         />
       </div>
+
+      <!-- Nostr Publishing Info -->
+      <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+        <div class="flex items-start space-x-3">
+          <IconShare class="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 class="font-medium text-purple-900 mb-1">Nostr Publishing</h4>
+            <p class="text-sm text-purple-800">
+              Your content will be stored locally and can be published to the Nostr network as a long-form content event (NIP-23).
+              This allows for decentralized content distribution and monetization.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
-    
+
     <!-- Actions -->
     <div class="p-6 border-t border-orange-100/50 flex flex-col sm:flex-row gap-3 sm:justify-end">
       <button
@@ -235,18 +288,18 @@ const handleSaveDraft = () => {
       </button>
       <button
         @click="handleSaveDraft"
-        :disabled="isLoading"
-        class="btn-secondary"
+        :disabled="isLoading || !isAuthenticated"
+        class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Save Draft
       </button>
       <button
         @click="handleSubmit"
-        :disabled="!isFormValid || isLoading"
-        class="btn-primary"
+        :disabled="!isFormValid || isLoading || !isAuthenticated"
+        class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <IconLock class="w-4 h-4" />
-        {{ isLoading ? 'Publishing...' : 'Publish Gated Content' }}
+        {{ isLoading ? 'Publishing...' : 'Create Gated Content' }}
       </button>
     </div>
   </div>
