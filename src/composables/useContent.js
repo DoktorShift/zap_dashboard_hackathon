@@ -1,6 +1,6 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
-import { SimplePool } from 'nostr-tools/pool'
+import { nostrRelayManager, publishToNostr } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 
 // Content types
@@ -288,7 +288,7 @@ export function useContent() {
     return duplicate
   }
 
-  // Enhanced Nostr publishing functionality using correct SimplePool API
+  // Enhanced Nostr publishing functionality using the relay manager
   const publishToNostr = async (contentId) => {
     if (!isAuthenticated.value || !window.nostr) {
       throw new Error('Nostr authentication required')
@@ -304,12 +304,13 @@ export function useContent() {
       publishingStatus.value = 'Preparing content for Nostr...'
       publishingProgress.value = 10
 
-      // Get write-enabled relays from useNostrAuth
-      const availableWriteRelays = writeRelays.value || []
-      
-      if (availableWriteRelays.length === 0) {
+      // Check if relay manager is initialized and has write relays
+      const stats = nostrRelayManager.getConnectionStats()
+      if (stats.writeEnabled === 0) {
         throw new Error('No write-enabled relays available. Please check your relay configuration in Settings > Nostr.')
       }
+
+      console.log(`Publishing to ${stats.writeEnabled} write-enabled relays`)
 
       // Create NIP-23 long-form content event
       const eventTemplate = {
@@ -350,71 +351,44 @@ export function useContent() {
       publishingStatus.value = 'Broadcasting to Nostr relays...'
       publishingProgress.value = 50
 
-      // Get relay URLs for publishing
-      const relayUrls = availableWriteRelays.map(relay => relay.url)
+      console.log('Publishing event to Nostr network:', signedEvent.id)
+
+      // Use the relay manager to publish
+      const result = await nostrRelayManager.publishEvent(signedEvent)
       
-      console.log('Publishing to relays:', relayUrls)
+      publishingStatus.value = 'Waiting for relay confirmations...'
+      publishingProgress.value = 80
 
-      // Create a new pool instance for publishing
-      const pool = new SimplePool()
+      publishingProgress.value = 100
+
+      if (result.successful === 0) {
+        throw new Error('Failed to publish to any relays. Please check your relay connections.')
+      }
+
+      // Update content status with Nostr event information
+      await updateContent(contentId, {
+        status: CONTENT_STATUS.PUBLISHED,
+        nostrEventId: signedEvent.id,
+        publishedToRelays: result.successful,
+        publishedAt: new Date().toISOString()
+      })
+
+      publishingStatus.value = `Successfully published to ${result.successful} relay${result.successful !== 1 ? 's' : ''}!`
       
-      try {
-        // Use the correct SimplePool API - publish to multiple relays
-        const publishPromises = pool.publish(relayUrls, signedEvent)
-        
-        publishingStatus.value = 'Waiting for relay confirmations...'
-        publishingProgress.value = 80
+      if (result.failed > 0) {
+        publishingStatus.value += ` (${result.failed} relay${result.failed !== 1 ? 's' : ''} failed)`
+      }
 
-        // Wait for publishing results with timeout
-        const results = await Promise.race([
-          Promise.allSettled(publishPromises),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Publishing timeout after 30 seconds')), 30000)
-          )
-        ])
+      console.log('✅ Content published to Nostr successfully:', {
+        eventId: signedEvent.id,
+        successfulRelays: result.successful,
+        failedRelays: result.failed
+      })
 
-        // Count successful publications
-        const successfulPublications = results
-          .filter(result => result.status === 'fulfilled')
-          .length
-
-        const failedPublications = results.length - successfulPublications
-
-        publishingProgress.value = 100
-
-        if (successfulPublications === 0) {
-          throw new Error('Failed to publish to any relays. Please check your relay connections.')
-        }
-
-        // Update content status with Nostr event information
-        await updateContent(contentId, {
-          status: CONTENT_STATUS.PUBLISHED,
-          nostrEventId: signedEvent.id,
-          publishedToRelays: successfulPublications,
-          publishedAt: new Date().toISOString()
-        })
-
-        publishingStatus.value = `Successfully published to ${successfulPublications} relay${successfulPublications !== 1 ? 's' : ''}!`
-        
-        if (failedPublications > 0) {
-          publishingStatus.value += ` (${failedPublications} relay${failedPublications !== 1 ? 's' : ''} failed)`
-        }
-
-        console.log('✅ Content published to Nostr successfully:', {
-          eventId: signedEvent.id,
-          successfulRelays: successfulPublications,
-          failedRelays: failedPublications
-        })
-
-        return {
-          event: signedEvent,
-          successfulRelays: successfulPublications,
-          failedRelays: failedPublications
-        }
-
-      } finally {
-        // Always close the pool to clean up connections
-        pool.close(relayUrls)
+      return {
+        event: signedEvent,
+        successfulRelays: result.successful,
+        failedRelays: result.failed
       }
 
     } catch (err) {

@@ -16,6 +16,7 @@ import Settings from './pages/Settings.vue'
 import NWCConnection from './components/NWCConnection.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
+import { nostrRelayManager } from './utils/nostrRelayManager.js'
 
 // Use the Nostr connections composable
 const {
@@ -146,7 +147,15 @@ watch(activeConnection, async (newConnection, oldConnection) => {
 
 // Enhanced initialization
 onMounted(async () => {
-  console.log('App mounted, checking connection status...')
+  console.log('App mounted, initializing relay manager...')
+  
+  try {
+    // Initialize the relay manager first
+    await nostrRelayManager.initialize()
+    console.log('✅ Relay manager initialized successfully')
+  } catch (error) {
+    console.error('❌ Failed to initialize relay manager:', error)
+  }
   
   // Check if we need to show connection modal
   if (!isWalletConnected.value) {

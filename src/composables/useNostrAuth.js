@@ -1,6 +1,7 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { SimplePool } from 'nostr-tools/pool'
 import * as nip19 from 'nostr-tools/nip19'
+import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 
 // Global state for Nostr authentication
 const currentUser = ref(null)
@@ -23,41 +24,9 @@ const DEFAULT_RELAYS = [
   { url: 'wss://relay.nostr.band', status: 'disconnected', read: true, write: false }
 ]
 
-// Simple pool for relay connections - using proper nostr-tools pattern
-let pool = null
-let activeSubscriptions = new Map()
-
 // Connection timeout settings
 const CONNECTION_TIMEOUT = 10000 // 10 seconds
 const QUERY_TIMEOUT = 15000 // 15 seconds
-const RELAY_CHECK_TIMEOUT = 10000 // 10 seconds for relay status checking
-
-// Debounce utility
-const debounce = (func, wait) => {
-  let timeout
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout)
-      func(...args)
-    }
-    clearTimeout(timeout)
-    timeout = setTimeout(later, wait)
-  }
-}
-
-// Initialize pool with proper error handling
-const initPool = () => {
-  if (!pool) {
-    try {
-      pool = new SimplePool()
-      console.log('SimplePool initialized successfully')
-    } catch (error) {
-      console.error('Failed to initialize SimplePool:', error)
-      throw error
-    }
-  }
-  return pool
-}
 
 // Load user from localStorage
 const loadUserFromStorage = () => {
@@ -113,7 +82,46 @@ const saveRelaysToStorage = (relayData) => {
   }
 }
 
-// Fetch user profile using proper nostr-tools patterns
+// Sync relay statuses from relay manager
+const syncRelayStatuses = () => {
+  const managerStatuses = nostrRelayManager.getRelayStatuses()
+  
+  // Update userRelays with current statuses
+  userRelays.value = userRelays.value.map(relay => {
+    const managerStatus = managerStatuses.find(s => s.url === relay.url)
+    if (managerStatus) {
+      return {
+        ...relay,
+        status: managerStatus.status,
+        error: managerStatus.error,
+        lastUpdated: managerStatus.lastUpdated,
+        lastConnected: managerStatus.lastConnected
+      }
+    }
+    return relay
+  })
+  
+  // Add any new relays from manager that aren't in userRelays
+  managerStatuses.forEach(managerStatus => {
+    const exists = userRelays.value.find(r => r.url === managerStatus.url)
+    if (!exists && managerStatus.config) {
+      userRelays.value.push({
+        url: managerStatus.url,
+        status: managerStatus.status,
+        read: managerStatus.config.read,
+        write: managerStatus.config.write,
+        error: managerStatus.error,
+        lastUpdated: managerStatus.lastUpdated,
+        lastConnected: managerStatus.lastConnected
+      })
+    }
+  })
+  
+  // Save updated relays
+  saveRelaysToStorage(userRelays.value)
+}
+
+// Fetch user profile using the relay manager
 const fetchAndStoreProfile = async (pubkey) => {
   if (!pubkey) {
     throw new Error('No pubkey provided')
@@ -123,35 +131,14 @@ const fetchAndStoreProfile = async (pubkey) => {
   authError.value = ''
 
   try {
-    const currentPool = initPool()
+    console.log('Fetching profile using relay manager for pubkey:', pubkey.substring(0, 8) + '...')
     
-    // Get read-enabled relays
-    const readRelays = userRelays.value
-      .filter(relay => relay.read && relay.status === 'connected')
-      .map(relay => relay.url)
-
-    // Fallback to all configured relays if no connected read relays
-    let relayUrls = readRelays.length > 0 ? readRelays : userRelays.value.map(r => r.url)
-    
-    // Use default relays as last resort
-    if (relayUrls.length === 0) {
-      relayUrls = DEFAULT_RELAYS.map(relay => relay.url)
-      console.warn('No configured relays, using default relays')
-    }
-    
-    console.log('Fetching profile from relays:', relayUrls)
-    
-    // Use the new querySync method with timeout
-    const profileEvent = await Promise.race([
-      currentPool.get(relayUrls, {
-        kinds: [0], // NIP-01 profile events
-        authors: [pubkey],
-        limit: 1
-      }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timeout')), QUERY_TIMEOUT)
-      )
-    ])
+    // Use relay manager to get profile
+    const profileEvent = await nostrRelayManager.getEvent({
+      kinds: [0], // NIP-01 profile events
+      authors: [pubkey],
+      limit: 1
+    })
     
     if (profileEvent) {
       return createUserData(pubkey, profileEvent)
@@ -191,7 +178,7 @@ const createUserData = (pubkey, profileEvent) => {
         ...profileData,
         // Ensure we have basic fields with proper fallback logic
         name: profileData.name || `User ${pubkey.substring(0, 8)}`,
-        display_name: profileData.display_name || null, // No fallback for display_name
+        display_name: profileData.display_name || null,
         about: profileData.about || 'Nostr user',
         picture: profileData.picture || profileData.avatar || null,
         nip05: profileData.nip05 || null,
@@ -201,7 +188,7 @@ const createUserData = (pubkey, profileEvent) => {
         banner: profileData.banner || null
       },
       lastUpdated: new Date().toISOString(),
-      profileEvent: profileEvent // Store the raw event for reference
+      profileEvent: profileEvent
     }
 
     currentUser.value = userData
@@ -223,7 +210,7 @@ const createMinimalUserData = (pubkey) => {
     npub,
     profile: {
       name: `User ${pubkey.substring(0, 8)}`,
-      display_name: null, // No fallback for display_name
+      display_name: null,
       about: 'Nostr user',
       picture: null,
       nip05: null,
@@ -241,60 +228,37 @@ const createMinimalUserData = (pubkey) => {
   return userData
 }
 
-// Check relay status using proper connection testing with ensureRelay
+// Check relay status using relay manager
 const checkRelayStatus = async (url) => {
   const relay = userRelays.value.find(r => r.url === url)
   if (!relay) return false
 
-  relay.status = 'checking'
-  
   try {
-    const currentPool = initPool()
-    
-    // Use ensureRelay with connection timeout to test the relay
-    await currentPool.ensureRelay(url, { 
-      connectionTimeout: RELAY_CHECK_TIMEOUT 
-    })
-    
-    // If ensureRelay succeeds, the relay is connected
-    relay.status = 'connected'
-    console.log(`Relay ${url} is connected`)
+    // The relay manager handles connection checking
+    await nostrRelayManager.addRelay(url, { read: relay.read, write: relay.write })
     return true
-    
   } catch (error) {
-    // If ensureRelay throws an error, the relay is disconnected
     console.error(`Failed to check relay ${url}:`, error.message || error)
-    relay.status = 'disconnected'
     return false
   }
 }
 
-// Check all relay statuses with proper error handling
-const checkAllRelayStatuses = debounce(async () => {
-  console.log('Checking all relay statuses...')
+// Check all relay statuses
+const checkAllRelayStatuses = async () => {
+  console.log('Checking all relay statuses using relay manager...')
   relayError.value = ''
   
   try {
-    // Check relays in parallel but with individual error handling
-    const promises = userRelays.value.map(async (relay) => {
-      try {
-        return await checkRelayStatus(relay.url)
-      } catch (error) {
-        console.warn(`Error checking relay ${relay.url}:`, error)
-        relay.status = 'disconnected'
-        return false
-      }
-    })
+    // Initialize relay manager with current relays
+    await nostrRelayManager.initialize(userRelays.value)
     
-    await Promise.allSettled(promises)
-    console.log('Relay status check completed')
+    // Sync statuses back to our state
+    syncRelayStatuses()
     
-    // Save updated relay statuses
-    saveRelaysToStorage(userRelays.value)
+    const stats = nostrRelayManager.getConnectionStats()
+    console.log('Relay status check completed:', stats)
     
-    // Check if we have any connected relays
-    const connectedCount = userRelays.value.filter(r => r.status === 'connected').length
-    if (connectedCount === 0) {
+    if (stats.connected === 0) {
       relayError.value = 'No relays are currently reachable'
     }
     
@@ -302,7 +266,7 @@ const checkAllRelayStatuses = debounce(async () => {
     console.error('Failed to check relay statuses:', error)
     relayError.value = 'Failed to check relay statuses'
   }
-}, 1000)
+}
 
 // Validate relay URL
 const validateRelayUrl = (url) => {
@@ -337,7 +301,7 @@ const addRelay = async (url, options = { read: true, write: true }) => {
   
   const newRelay = {
     url: url.trim(),
-    status: 'checking',
+    status: 'connecting',
     read: options.read,
     write: options.write
   }
@@ -345,8 +309,19 @@ const addRelay = async (url, options = { read: true, write: true }) => {
   userRelays.value.push(newRelay)
   saveRelaysToStorage(userRelays.value)
   
-  // Check status of new relay
-  await checkRelayStatus(url)
+  // Add to relay manager
+  try {
+    await nostrRelayManager.addRelay(url, options)
+    syncRelayStatuses()
+  } catch (error) {
+    // Remove from userRelays if failed to add to manager
+    const index = userRelays.value.findIndex(r => r.url === url)
+    if (index !== -1) {
+      userRelays.value.splice(index, 1)
+      saveRelaysToStorage(userRelays.value)
+    }
+    throw error
+  }
   
   console.log('Added relay:', url)
   return newRelay
@@ -362,33 +337,20 @@ const removeRelay = (url) => {
   userRelays.value.splice(index, 1)
   saveRelaysToStorage(userRelays.value)
   
+  // Remove from relay manager
+  nostrRelayManager.removeRelay(url)
+  
   console.log('Removed relay:', url)
   return true
 }
 
-// Start listening for user events with proper subscription management
+// Start listening for user events using relay manager
 const startUserEventListener = (pubkey) => {
-  if (!pubkey || !pool) return
-
-  const currentPool = initPool()
-  const relayUrls = userRelays.value
-    .filter(relay => relay.read && relay.status === 'connected')
-    .map(relay => relay.url)
-
-  if (relayUrls.length === 0) {
-    console.warn('No connected read relays for event listening')
-    return
-  }
-
-  // Close existing subscription if any
-  const existingSub = activeSubscriptions.get(pubkey)
-  if (existingSub) {
-    existingSub.close()
-  }
+  if (!pubkey) return
 
   try {
-    // Subscribe to user's events using proper nostr-tools pattern
-    const sub = currentPool.subscribeMany(relayUrls, [
+    // Subscribe to user's events using relay manager
+    const sub = nostrRelayManager.subscribeToEvents([
       {
         kinds: [1, 6, 7], // Notes, reposts, reactions
         authors: [pubkey],
@@ -410,29 +372,18 @@ const startUserEventListener = (pubkey) => {
       },
       onclose: (reasons) => {
         console.log('User event subscription closed:', reasons)
-        activeSubscriptions.delete(pubkey)
-      },
-      maxWait: QUERY_TIMEOUT
+      }
     })
 
-    activeSubscriptions.set(pubkey, sub)
     console.log('Started listening for events for user:', pubkey)
+    return sub
   } catch (error) {
     console.error('Failed to start user event listener:', error)
+    return null
   }
 }
 
-// Stop listening for user events
-const stopUserEventListener = (pubkey) => {
-  const sub = activeSubscriptions.get(pubkey)
-  if (sub) {
-    sub.close()
-    activeSubscriptions.delete(pubkey)
-    console.log('Stopped listening for events for user:', pubkey)
-  }
-}
-
-// Login function with enhanced timeout and error handling
+// Login function
 const login = () => {
   return new Promise((resolve, reject) => {
     isLoading.value = true
@@ -491,15 +442,6 @@ const login = () => {
 // Logout function
 const logout = () => {
   try {
-    // Stop event listeners
-    if (currentUser.value) {
-      stopUserEventListener(currentUser.value.pubkey)
-    }
-    
-    // Close all active subscriptions
-    activeSubscriptions.forEach(sub => sub.close())
-    activeSubscriptions.clear()
-    
     // Dispatch logout event
     document.dispatchEvent(new Event('nlLogout'))
     
@@ -519,14 +461,11 @@ const logout = () => {
   }
 }
 
-// Initialize auth and relays with better error handling
+// Initialize auth and relays
 const initAuthAndRelays = async () => {
   console.log('Initializing Nostr auth and relays...')
   
   try {
-    // Initialize pool
-    initPool()
-    
     // Load user from storage
     const hasUser = loadUserFromStorage()
     
@@ -537,20 +476,22 @@ const initAuthAndRelays = async () => {
       saveRelaysToStorage(userRelays.value)
     }
     
-    // Check relay statuses with timeout
-    await Promise.race([
-      checkAllRelayStatuses(),
-      new Promise((resolve) => 
-        setTimeout(() => {
-          console.warn('Relay status check timed out')
-          resolve()
-        }, CONNECTION_TIMEOUT)
-      )
-    ])
+    // Initialize relay manager with user relays
+    await nostrRelayManager.initialize(userRelays.value)
+    
+    // Set up relay manager event listeners
+    nostrRelayManager.addEventListener((event) => {
+      if (event.type === 'relayConnected' || event.type === 'relayDisconnected' || 
+          event.type === 'relayHealthy' || event.type === 'relayUnhealthy') {
+        syncRelayStatuses()
+      }
+    })
+    
+    // Sync initial statuses
+    syncRelayStatuses()
     
     // If user exists, start listening for their events
     if (hasUser && currentUser.value) {
-      // Wait a bit for relays to be checked
       setTimeout(() => {
         startUserEventListener(currentUser.value.pubkey)
       }, 2000)
@@ -591,18 +532,7 @@ watch(userRelays, (newRelays) => {
 
 // Cleanup on unmount
 onUnmounted(() => {
-  // Close all active subscriptions
-  activeSubscriptions.forEach(sub => sub.close())
-  activeSubscriptions.clear()
-  
-  // Close pool connections
-  if (pool) {
-    try {
-      pool.close(userRelays.value.map(r => r.url))
-    } catch (error) {
-      console.warn('Error closing pool connections:', error)
-    }
-  }
+  // Relay manager cleanup is handled by the manager itself
 })
 
 export function useNostrAuth() {
@@ -633,9 +563,8 @@ export function useNostrAuth() {
     validateRelayUrl,
     initAuthAndRelays,
     startUserEventListener,
-    stopUserEventListener,
     
     // Utilities
-    pool: computed(() => pool)
+    syncRelayStatuses
   }
 }
