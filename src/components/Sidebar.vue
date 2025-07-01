@@ -13,7 +13,6 @@ import {
   IconCreditCard,
   IconSettings 
 } from '@iconify-prerendered/vue-tabler'
-import logoSvg from '../assets/LOGO.svg'
 
 const currentPage = inject('currentPage')
 const zapData = inject('zapData')
@@ -70,11 +69,11 @@ const menuItems = [
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar },
   { id: 'wallet', label: 'Wallet', icon: IconWallet },
-  { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
-  { id: 'content', label: 'Content', icon: IconFileText },
-  { id: 'donations', label: 'Donations', icon: IconGift },
-  { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
-  { id: 'finances', label: 'Finances', icon: IconCreditCard },
+  // { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
+  // { id: 'content', label: 'Content', icon: IconFileText },
+  // { id: 'donations', label: 'Donations', icon: IconGift },
+  // { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
+  // { id: 'finances', label: 'Finances', icon: IconCreditCard },
   { id: 'settings', label: 'Settings', icon: IconSettings }
 ]
 
@@ -88,8 +87,12 @@ const handlePageChange = (pageId) => {
     <!-- Logo -->
     <div class="p-4 sm:p-6 border-b border-orange-100/50">
       <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 bg-gradient-to-r from-orange-400 to-amber-400 rounded-lg flex items-center justify-center shadow-sm">
-          <img :src="logoSvg" alt="ZapTracker Logo" class="w-5 h-5" />
+        <div class="w-12 h-12 flex items-center justify-center">
+          <img 
+            src="/nwc-logo/nwc_logo.png" 
+            alt="NWC Logo" 
+            class="w-10 h-10 object-contain"
+          />
         </div>
         <div>
           <h1 class="text-lg font-bold text-gray-800">ZapTracker</h1>
@@ -148,6 +151,23 @@ const handlePageChange = (pageId) => {
           </div>
         </div>
       </div>
+    </div>
+    
+    <!-- Bolt Logo Footer -->
+    <div class="p-3 sm:p-4 border-t border-orange-100/50">
+      <a 
+        href="https://bolt.new" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        class="flex items-center justify-center space-x-2 text-gray-500 hover:text-orange-600 transition-colors duration-200 group"
+      >
+        <img 
+          src="/bolt-logo/black_circle_360x360.png" 
+          alt="Bolt Logo" 
+          class="w-4 h-4 sm:w-5 sm:h-5 object-contain group-hover:scale-110 transition-transform duration-200"
+        />
+        <span class="text-xs sm:text-sm font-medium">Bolt Inside</span>
+      </a>
     </div>
   </div>
 </template>

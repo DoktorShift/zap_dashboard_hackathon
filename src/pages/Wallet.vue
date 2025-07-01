@@ -462,13 +462,13 @@ const extractTextFromArray = (noteArray) => {
 <template>
   <div class="space-y-6">
     <!-- Page Header -->
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
-        <IconWallet class="w-6 h-6 text-orange-600" />
-        <span>Wallet</span>
-      </h1>
-      <p class="text-gray-600">Manage your Lightning wallet and transactions</p>
-    </div>
+<!--    <div>-->
+<!--      <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
+<!--        <IconWallet class="w-6 h-6 text-orange-600" />-->
+<!--        <span>Wallet</span>-->
+<!--      </h1>-->
+<!--      <p class="text-gray-600">Manage your Lightning wallet and transactions</p>-->
+<!--    </div>-->
 
     <!-- Connection Status -->
     <div v-if="!isWalletConnected" class="bg-amber-50 border border-amber-200 rounded-lg p-4">

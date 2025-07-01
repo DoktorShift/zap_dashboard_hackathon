@@ -232,21 +232,21 @@ const testNotification = () => {
       </div>
       
       <!-- Test Notification -->
-      <div class="bg-gray-50 rounded-lg p-4 mt-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h5 class="font-medium text-gray-900">Test Notifications</h5>
-            <p class="text-sm text-gray-600">Send a test notification to verify your settings</p>
-          </div>
-          <button
-            @click="testNotification"
-            :disabled="!notificationSettings.enabled"
-            class="btn-secondary text-sm"
-          >
-            Test
-          </button>
-        </div>
-      </div>
+<!--      <div class="bg-gray-50 rounded-lg p-4 mt-6">-->
+<!--        <div class="flex items-center justify-between">-->
+<!--          <div>-->
+<!--            <h5 class="font-medium text-gray-900">Test Notifications</h5>-->
+<!--            <p class="text-sm text-gray-600">Send a test notification to verify your settings</p>-->
+<!--          </div>-->
+<!--          <button-->
+<!--            @click="testNotification"-->
+<!--            :disabled="!notificationSettings.enabled"-->
+<!--            class="btn-secondary text-sm"-->
+<!--          >-->
+<!--            Test-->
+<!--          </button>-->
+<!--        </div>-->
+<!--      </div>-->
     </div>
   </div>
 </template>

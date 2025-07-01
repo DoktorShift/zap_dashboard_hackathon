@@ -332,122 +332,134 @@ const formatDate = (dateString) => {
       </div>
     </div>
 
-    <!-- Simplified Add Connection Modal -->
-    <div v-if="showAddForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Add Connection</h3>
-          <button @click="closeAddForm" class="text-gray-500 hover:text-gray-700">
-            <IconX class="w-5 h-5" />
-          </button>
+    <!-- Add Connection Modal - Teleported to modal-root -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showAddForm" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-lg font-semibold text-gray-900">Add Connection</h3>
+              <button @click="closeAddForm" class="text-gray-500 hover:text-gray-700">
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div class="space-y-4">
+              <!-- Simplified Form Fields -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <input
+                  v-model="newConnectionName"
+                  type="text"
+                  placeholder="My Lightning Wallet"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Connection String</label>
+                <input
+                  v-model="newConnectionUrl"
+                  type="password"
+                  placeholder="nostr+walletconnect://..."
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                />
+                <p class="text-xs text-gray-500 mt-1">
+                  Get this from your wallet's NWC settings
+                </p>
+              </div>
+              
+              <!-- Error Message -->
+              <div v-if="formError" class="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p class="text-sm text-red-600">{{ formError }}</p>
+              </div>
+              
+              <!-- Simplified Actions -->
+              <div class="flex space-x-3 pt-2">
+                <button @click="closeAddForm" class="btn-secondary flex-1">Cancel</button>
+                <button @click="handleAddConnection" class="btn-primary flex-1">Add</button>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <div class="space-y-4">
-          <!-- Simplified Form Fields -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
-            <input
-              v-model="newConnectionName"
-              type="text"
-              placeholder="My Lightning Wallet"
-              class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-            />
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Connection String</label>
-            <input
-              v-model="newConnectionUrl"
-              type="password"
-              placeholder="nostr+walletconnect://..."
-              class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-            />
-            <p class="text-xs text-gray-500 mt-1">
-              Get this from your wallet's NWC settings
-            </p>
-          </div>
-          
-          <!-- Error Message -->
-          <div v-if="formError" class="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p class="text-sm text-red-600">{{ formError }}</p>
-          </div>
-          
-          <!-- Simplified Actions -->
-          <div class="flex space-x-3 pt-2">
-            <button @click="closeAddForm" class="btn-secondary flex-1">Cancel</button>
-            <button @click="handleAddConnection" class="btn-primary flex-1">Add</button>
-          </div>
-        </div>
-      </div>
-    </div>
+      </transition>
+    </Teleport>
 
-    <!-- Simplified Edit Connection Modal -->
-    <div v-if="showEditForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Edit Connection</h3>
-          <button @click="closeEditForm" class="text-gray-500 hover:text-gray-700">
-            <IconX class="w-5 h-5" />
-          </button>
+    <!-- Edit Connection Modal - Teleported to modal-root -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showEditForm" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-lg font-semibold text-gray-900">Edit Connection</h3>
+              <button @click="closeEditForm" class="text-gray-500 hover:text-gray-700">
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <input
+                  v-model="editConnectionName"
+                  type="text"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Connection String</label>
+                <input
+                  v-model="editConnectionUrl"
+                  type="password"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                />
+              </div>
+              
+              <div v-if="formError" class="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p class="text-sm text-red-600">{{ formError }}</p>
+              </div>
+              
+              <div class="flex space-x-3 pt-2">
+                <button @click="closeEditForm" class="btn-secondary flex-1">Cancel</button>
+                <button @click="handleEditConnection" class="btn-primary flex-1">Save</button>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
-            <input
-              v-model="editConnectionName"
-              type="text"
-              class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-            />
-          </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Connection String</label>
-            <input
-              v-model="editConnectionUrl"
-              type="password"
-              class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-            />
-          </div>
-          
-          <div v-if="formError" class="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p class="text-sm text-red-600">{{ formError }}</p>
-          </div>
-          
-          <div class="flex space-x-3 pt-2">
-            <button @click="closeEditForm" class="btn-secondary flex-1">Cancel</button>
-            <button @click="handleEditConnection" class="btn-primary flex-1">Save</button>
-          </div>
-        </div>
-      </div>
-    </div>
+      </transition>
+    </Teleport>
 
-    <!-- Simplified Delete Confirmation Modal -->
-    <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <div class="flex items-center space-x-3 mb-4">
-          <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <IconTrash class="w-5 h-5 text-red-600" />
+    <!-- Delete Confirmation Modal - Teleported to modal-root -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex items-center space-x-3 mb-4">
+              <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <IconTrash class="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Delete Connection</h3>
+                <p class="text-gray-600 text-sm">This cannot be undone.</p>
+              </div>
+            </div>
+            
+            <div class="bg-gray-50 rounded-lg p-3 mb-6">
+              <p class="text-sm text-gray-700">
+                Delete "<strong>{{ deletingConnection?.name }}</strong>"?
+              </p>
+            </div>
+            
+            <div class="flex space-x-3">
+              <button @click="closeDeleteConfirm" class="btn-secondary flex-1">Cancel</button>
+              <button @click="handleDeleteConnection" class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors flex-1">
+                Delete
+              </button>
+            </div>
           </div>
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900">Delete Connection</h3>
-            <p class="text-gray-600 text-sm">This cannot be undone.</p>
-          </div>
         </div>
-        
-        <div class="bg-gray-50 rounded-lg p-3 mb-6">
-          <p class="text-sm text-gray-700">
-            Delete "<strong>{{ deletingConnection?.name }}</strong>"?
-          </p>
-        </div>
-        
-        <div class="flex space-x-3">
-          <button @click="closeDeleteConfirm" class="btn-secondary flex-1">Cancel</button>
-          <button @click="handleDeleteConnection" class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors flex-1">
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
+      </transition>
+    </Teleport>
   </div>
 </template>

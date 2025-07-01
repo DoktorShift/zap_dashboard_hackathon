@@ -1,24 +1,160 @@
 <script setup>
 import { ref, inject, computed, onMounted, onUnmounted } from 'vue'
-import { IconSearch, IconUpload, IconBolt, IconMenu2, IconUser, IconSettings, IconLogout, IconChevronDown } from '@iconify-prerendered/vue-tabler'
+import { 
+  IconSearch, 
+  IconUpload, 
+  IconBolt, 
+  IconMenu2, 
+  IconUser, 
+  IconSettings, 
+  IconLogout, 
+  IconChevronDown, 
+  IconRefresh,
+  IconDashboard,
+  IconChartBar,
+  IconWallet,
+  IconMessageCircle,
+  IconFileText,
+  IconGift,
+  IconShoppingCart
+} from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
+import { useNostrAuth } from '../composables/useNostrAuth.js'
 
 const zapData = inject('zapData')
-const emit = defineEmits(['show-connection', 'toggle-mobile-menu'])
+const isRefreshingData = inject('isRefreshingData')
+const refreshZapData = inject('refreshZapData')
+const isWalletConnected = inject('isWalletConnected')
+const currentPage = inject('currentPage')
+
+const emit = defineEmits(['show-connection', 'toggle-mobile-menu', 'change-page'])
+
+// Use Nostr authentication
+const { isAuthenticated, userProfile, currentUser } = useNostrAuth()
 
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
 
-const userProfile = ref({
-  name: 'Creator',
-  email: 'creator@example.com',
-  pubkey: 'npub1...',
-  avatar: 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+// Page title, description, and icon mapping
+const pageInfo = computed(() => {
+  const pageMap = {
+    'dashboard': {
+      title: 'Dashboard',
+      description: 'Welcome back, track your lightning earnings',
+      icon: IconDashboard
+    },
+    'zap-feed': {
+      title: 'Zap Feed',
+      description: 'Real-time zap activity and notifications',
+      icon: IconBolt
+    },
+    'analytics': {
+      title: 'Analytics',
+      description: 'Deep insights into your zap performance',
+      icon: IconChartBar
+    },
+    'wallet': {
+      title: 'Wallet',
+      description: 'Manage your Lightning wallet and transactions',
+      icon: IconWallet
+    },
+    'chat-zaps': {
+      title: 'Chat + Zaps',
+      description: 'Interactive chat with zap integration',
+      icon: IconMessageCircle
+    },
+    'content': {
+      title: 'Content',
+      description: 'Manage and analyze your content performance',
+      icon: IconFileText
+    },
+    'donations': {
+      title: 'Donations',
+      description: 'Manage donation campaigns and goals',
+      icon: IconGift
+    },
+    'mini-pos': {
+      title: 'Mini PoS',
+      description: 'Point of Sale system for lightning payments',
+      icon: IconShoppingCart
+    },
+    'finances': {
+      title: 'Finances',
+      description: 'Financial overview and reporting',
+      icon: IconWallet
+    },
+    'settings': {
+      title: 'Settings',
+      description: 'Manage your zap dashboard preferences and integrations',
+      icon: IconSettings
+    }
+  }
+  
+  return pageMap[currentPage.value] || {
+    title: 'Dashboard',
+    description: 'Welcome back, track your lightning earnings',
+    icon: IconDashboard
+  }
 })
 
 // Watch for connection status based on zapData
 const hasConnection = computed(() => {
   return localStorage.getItem('nwc_url') !== null
+})
+
+// Get user avatar with Nostr profile fallback
+const getUserAvatar = computed(() => {
+  if (isAuthenticated.value && userProfile.value?.picture) {
+    return userProfile.value.picture
+  }
+  // Fallback to default avatar
+  return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+})
+
+// Get user name with Nostr profile fallback
+const getUserName = computed(() => {
+  if (isAuthenticated.value && userProfile.value?.name) {
+    return userProfile.value.name
+  }
+  return 'Creator'
+})
+
+// Get user email/identifier with Nostr profile fallback
+const getUserIdentifier = computed(() => {
+  if (isAuthenticated.value) {
+    if (userProfile.value?.nip05) {
+      return userProfile.value.nip05
+    }
+    if (currentUser.value?.npub) {
+      return currentUser.value.npub.substring(0, 20) + '...'
+    }
+  }
+  return 'creator@example.com'
+})
+
+// Data status for header display
+const dataStatus = computed(() => {
+  if (!isWalletConnected.value) {
+    return {
+      show: false,
+      text: '',
+      color: ''
+    }
+  }
+
+  if (zapData.value.length > 0) {
+    return {
+      show: true,
+      text: `${zapData.value.length} zaps loaded`,
+      color: 'text-green-600'
+    }
+  }
+
+  return {
+    show: true,
+    text: 'No data yet',
+    color: 'text-gray-500'
+  }
 })
 
 // Close dropdown when clicking outside
@@ -45,10 +181,10 @@ const handleProfileAction = (action) => {
   
   switch (action) {
     case 'profile':
-      console.log('Navigate to profile')
+      emit('change-page', 'settings', 'nostr')
       break
     case 'settings':
-      console.log('Navigate to settings')
+      emit('change-page', 'settings', 'alerts')
       break
     case 'account':
       console.log('Navigate to account')
@@ -56,6 +192,12 @@ const handleProfileAction = (action) => {
     case 'signout':
       console.log('Sign out user')
       break
+  }
+}
+
+const handleRefresh = () => {
+  if (refreshZapData && !isRefreshingData.value) {
+    refreshZapData()
   }
 }
 </script>
@@ -75,23 +217,49 @@ const handleProfileAction = (action) => {
         
         <!-- Page Title -->
         <div>
-          <h2 class="text-lg sm:text-xl font-semibold text-gray-800">Dashboard</h2>
-          <p class="text-xs sm:text-sm text-gray-600 hidden sm:block">Welcome back, track your lightning earnings</p>
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 flex items-center space-x-2">
+            <component :is="pageInfo.icon" class="w-5 h-5 text-orange-600" />
+            <span>{{ pageInfo.title }}</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-gray-600 hidden sm:block">{{ pageInfo.description }}</p>
         </div>
       </div>
       
       <!-- Right Side Actions -->
-      <div class="flex items-center space-x-2 sm:space-x-4">
+      <div class="flex items-center space-x-2 sm:space-x-3">
         <!-- Search - Hidden on mobile, shown on tablet+ -->
-        <div class="relative hidden md:block">
-          <input
-            type="text"
-            placeholder="Search zaps..."
-            class="w-48 lg:w-64 pl-10 pr-4 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm transition-all text-sm hover:shadow-sm"
-          />
-          <IconSearch class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+<!--        <div class="relative hidden md:block">-->
+<!--          <input-->
+<!--            type="text"-->
+<!--            placeholder="Search zaps..."-->
+<!--            class="w-48 lg:w-64 pl-10 pr-4 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm transition-all text-sm hover:shadow-sm"-->
+<!--          />-->
+<!--          <IconSearch class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />-->
+<!--        </div>-->
+
+        <!-- Data Status & Refresh (when connected) -->
+        <div v-if="dataStatus.show" class="flex items-center space-x-3">
+<!--          <div class="hidden sm:flex items-center space-x-2">-->
+<!--            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>-->
+<!--            <span :class="['text-xs font-medium', dataStatus.color]">-->
+<!--              {{ dataStatus.text }}-->
+<!--            </span>-->
+<!--          </div>-->
+
+          <!-- Refresh Button with Consistent Styling -->
+          <button
+            @click="handleRefresh"
+            :disabled="isRefreshingData"
+            :title="isRefreshingData ? 'Refreshing...' : 'Refresh data'"
+            class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target group disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <IconRefresh :class="[
+              'w-5 h-5 transition-all duration-200 group-hover:scale-110',
+              isRefreshingData ? 'animate-spin' : ''
+            ]" />
+          </button>
         </div>
-        
+
         <!-- Action Buttons -->
         <div class="flex items-center space-x-2">
           <!-- Connection Button -->
@@ -106,8 +274,10 @@ const handleProfileAction = (action) => {
             <span class="hidden sm:inline">{{ hasConnection ? 'Connected' : 'Connect' }}</span>
           </button>
           
-          <!-- Notifications -->
-          <NotificationDropdown />
+          <!-- Notifications with Consistent Hover Effect -->
+          <div class="p-2 hover:bg-orange-50 rounded-lg transition-all duration-200 group">
+            <NotificationDropdown />
+          </div>
         </div>
         
         <!-- Enhanced Profile Dropdown -->
@@ -115,13 +285,14 @@ const handleProfileAction = (action) => {
           <!-- Profile Trigger Button -->
           <button 
             @click="toggleProfileDropdown"
-            class="flex items-center space-x-2 sm:space-x-3 p-1 sm:p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group touch-target"
+            class="flex items-center space-x-2 sm:space-x-3 p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group touch-target"
           >
             <div class="relative">
               <img 
-                :src="userProfile.avatar" 
-                alt="Profile"
+                :src="getUserAvatar"
+                :alt="getUserName"
                 class="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-orange-200 group-hover:border-orange-300 transition-all duration-200"
+                @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
               />
               <!-- Online indicator -->
               <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
@@ -130,13 +301,13 @@ const handleProfileAction = (action) => {
             <!-- Profile Info - Hidden on mobile -->
             <div class="hidden sm:block text-left">
               <div class="flex items-center space-x-1">
-                <span class="text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors duration-200">{{ userProfile.name }}</span>
+                <span class="text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors duration-200">{{ getUserName }}</span>
                 <IconChevronDown :class="[
                   'w-3 h-3 text-gray-400 group-hover:text-orange-500 transition-all duration-200',
                   showProfileDropdown ? 'rotate-180' : ''
                 ]" />
               </div>
-              <div class="text-xs text-gray-500 truncate max-w-[100px]">{{ userProfile.email }}</div>
+              <div class="text-xs text-gray-500 truncate max-w-[100px]">{{ getUserIdentifier }}</div>
             </div>
           </button>
           
@@ -150,13 +321,14 @@ const handleProfileAction = (action) => {
               <div class="px-4 py-3 border-b border-gray-100">
                 <div class="flex items-center space-x-3">
                   <img 
-                    :src="userProfile.avatar" 
-                    alt="Profile"
+                    :src="getUserAvatar"
+                    :alt="getUserName"
                     class="w-10 h-10 rounded-full border-2 border-orange-200"
+                    @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
                   />
                   <div class="flex-1 min-w-0">
-                    <div class="font-medium text-gray-900 truncate">{{ userProfile.name }}</div>
-                    <div class="text-sm text-gray-500 truncate">{{ userProfile.email }}</div>
+                    <div class="font-medium text-gray-900 truncate">{{ getUserName }}</div>
+                    <div class="text-sm text-gray-500 truncate">{{ getUserIdentifier }}</div>
                   </div>
                 </div>
               </div>

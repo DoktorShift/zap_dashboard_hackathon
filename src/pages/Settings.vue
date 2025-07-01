@@ -1,29 +1,52 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { IconSettings, IconBolt, IconBell, IconShield, IconUser } from '@iconify-prerendered/vue-tabler'
 import SettingsConnections from '../components/SettingsConnections.vue'
 import NotificationSettings from '../components/NotificationSettings.vue'
+import NostrSettings from '../components/NostrSettings.vue'
 
-const activeTab = ref('wallet')
+// Define props to receive the initial tab from parent
+const props = defineProps({
+  initialTab: {
+    type: String,
+    default: 'nostr'
+  }
+})
+
+const activeTab = ref('nostr')
 
 const tabs = [
   { id: 'nostr', label: 'Nostr', icon: IconUser },
   { id: 'wallet', label: 'Wallet', icon: IconBolt },
   { id: 'alerts', label: 'Notifications', icon: IconBell },
-  { id: 'privacy', label: 'Privacy', icon: IconShield }
+  // { id: 'privacy', label: 'Privacy', icon: IconShield }
 ]
+
+// Set initial tab on mount
+onMounted(() => {
+  if (props.initialTab) {
+    activeTab.value = props.initialTab
+  }
+})
+
+// Watch for changes to initialTab prop and update activeTab
+watch(() => props.initialTab, (newTab) => {
+  if (newTab) {
+    activeTab.value = newTab
+  }
+})
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Page Header -->
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
-        <IconSettings class="w-6 h-6 text-orange-600" />
-        <span>Settings</span>
-      </h1>
-      <p class="text-gray-600">Manage your zap dashboard preferences and integrations</p>
-    </div>
+<!--    <div>-->
+<!--      <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
+<!--        <IconSettings class="w-6 h-6 text-orange-600" />-->
+<!--        <span>Settings</span>-->
+<!--      </h1>-->
+<!--      <p class="text-gray-600">Manage your zap dashboard preferences and integrations</p>-->
+<!--    </div>-->
     
     <!-- Settings Tabs -->
     <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
@@ -50,21 +73,8 @@ const tabs = [
       <!-- Tab Content -->
       <div class="p-6">
         <!-- Nostr Settings -->
-        <div v-if="activeTab === 'nostr'" class="space-y-6">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Nostr Profile</h3>
-            <p class="text-gray-600 text-sm mb-4">Manage your Nostr identity and profile information</p>
-            
-            <div class="bg-gray-50 rounded-lg p-8 text-center">
-              <IconUser class="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <h4 class="text-lg font-medium text-gray-900 mb-2">Nostr Profile Settings</h4>
-              <p class="text-gray-600 mb-4">Configure your Nostr identity, relays, and profile information.</p>
-              <button class="btn-primary">
-                <IconSettings class="w-4 h-4" />
-                Configure Profile
-              </button>
-            </div>
-          </div>
+        <div v-if="activeTab === 'nostr'">
+          <NostrSettings />
         </div>
         
         <!-- Wallet Settings -->
