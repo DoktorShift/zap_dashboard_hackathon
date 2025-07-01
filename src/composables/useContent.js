@@ -1,6 +1,6 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
-import { nostrRelayManager, publishToNostr } from '../utils/nostrRelayManager.js'
+import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 
 // Content types

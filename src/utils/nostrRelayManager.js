@@ -1,11 +1,11 @@
-import { SimplePool, Relay } from 'nostr-tools/pool'
+import { SimplePool } from 'nostr-tools/pool'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 
 // Relay connection manager following nostr-tools best practices
 class NostrRelayManager {
   constructor() {
     this.pool = new SimplePool()
-    this.relays = new Map() // Map of URL -> Relay instance
+    this.relayConnections = new Map() // Map of URL -> connection info
     this.relayStatuses = new Map() // Map of URL -> status info
     this.connectionPromises = new Map() // Map of URL -> connection promise
     this.eventListeners = new Set()
@@ -128,39 +128,44 @@ class NostrRelayManager {
     this.connectionPromises.set(url, connectionPromise)
 
     try {
-      const relay = await connectionPromise
+      const result = await connectionPromise
       this.connectionPromises.delete(url)
-      return relay
+      return result
     } catch (error) {
       this.connectionPromises.delete(url)
       throw error
     }
   }
 
-  // Attempt connection to a relay
+  // Attempt connection to a relay using pool.ensureRelay
   async _attemptConnection(url, config, retryCount) {
     try {
       console.log(`🔌 Attempting to connect to ${url} (attempt ${retryCount + 1})`)
       
-      // Use pool.ensureRelay for proper connection management
-      const relay = await Promise.race([
-        this.pool.ensureRelay(url),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Connection timeout')), this.connectionTimeout)
-        )
-      ])
-
-      // Store the relay instance
-      this.relays.set(url, relay)
-      this.setRelayStatus(url, 'connected', config)
+      // Use pool.ensureRelay which returns a promise that resolves when connected
+      const relayPromise = this.pool.ensureRelay(url)
       
-      // Set up event listeners for this relay
-      this.setupRelayEventListeners(url, relay)
+      // Add timeout to the connection attempt
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Connection timeout')), this.connectionTimeout)
+      )
+      
+      // Wait for either connection or timeout
+      await Promise.race([relayPromise, timeoutPromise])
+
+      // Store connection info
+      this.relayConnections.set(url, {
+        url,
+        config,
+        connectedAt: new Date().toISOString()
+      })
+      
+      this.setRelayStatus(url, 'connected', config)
       
       console.log(`✅ Successfully connected to ${url}`)
       this.emitEvent('relayConnected', { url, config })
       
-      return relay
+      return { url, config }
       
     } catch (error) {
       console.warn(`❌ Connection attempt ${retryCount + 1} failed for ${url}:`, error.message)
@@ -178,28 +183,6 @@ class NostrRelayManager {
     }
   }
 
-  // Set up event listeners for relay connection status
-  setupRelayEventListeners(url, relay) {
-    // Listen for disconnect events
-    relay.on('disconnect', () => {
-      console.warn(`🔌 Relay ${url} disconnected`)
-      this.setRelayStatus(url, 'disconnected')
-      this.emitEvent('relayDisconnected', { url })
-      
-      // Attempt to reconnect after a delay
-      setTimeout(() => {
-        this.reconnectRelay(url)
-      }, this.retryDelay)
-    })
-
-    // Listen for error events
-    relay.on('error', (error) => {
-      console.error(`❌ Relay ${url} error:`, error)
-      this.setRelayStatus(url, 'error', undefined, error.message)
-      this.emitEvent('relayError', { url, error: error.message })
-    })
-  }
-
   // Reconnect to a specific relay
   async reconnectRelay(url) {
     const status = this.relayStatuses.get(url)
@@ -208,8 +191,8 @@ class NostrRelayManager {
     console.log(`🔄 Attempting to reconnect to ${url}`)
     
     try {
-      // Remove old relay instance
-      this.relays.delete(url)
+      // Remove old connection info
+      this.relayConnections.delete(url)
       
       // Attempt new connection
       await this.connectToRelay(url, status.config)
@@ -253,7 +236,7 @@ class NostrRelayManager {
     return this.getConnectedRelays().filter(relay => relay.config?.read === true)
   }
 
-  // Publish event to write relays
+  // Publish event to write relays using the correct pool.publish API
   async publishEvent(event, targetRelays = null) {
     if (!this.isInitialized) {
       throw new Error('Relay manager not initialized')
@@ -273,18 +256,20 @@ class NostrRelayManager {
     }
 
     const relayUrls = relaysToUse.map(relay => relay.url)
-    console.log(`📤 Publishing event to ${relayUrls.length} relays:`, relayUrls)
+    console.log(`📤 Publishing event ${event.id} to ${relayUrls.length} relays:`, relayUrls)
 
     try {
-      // Use pool.publish for reliable publishing
+      // Use pool.publish which returns an array of promises
       const publishPromises = this.pool.publish(relayUrls, event)
       
       // Wait for all publish attempts with timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Publishing timeout after 30 seconds')), 30000)
+      )
+      
       const results = await Promise.race([
         Promise.allSettled(publishPromises),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Publishing timeout after 30 seconds')), 30000)
-        )
+        timeoutPromise
       ])
 
       // Count successful publications
@@ -292,6 +277,11 @@ class NostrRelayManager {
       const failed = results.filter(result => result.status === 'rejected')
 
       console.log(`📊 Publishing results: ${successful.length} successful, ${failed.length} failed`)
+
+      // Log failed attempts for debugging
+      failed.forEach((result, index) => {
+        console.warn(`❌ Failed to publish to ${relayUrls[index]}:`, result.reason?.message)
+      })
 
       if (successful.length === 0) {
         throw new Error('Failed to publish to any relays')
@@ -380,15 +370,14 @@ class NostrRelayManager {
     const relayStatuses = this.getRelayStatuses()
     const healthPromises = relayStatuses.map(async (relayStatus) => {
       try {
-        const relay = this.relays.get(relayStatus.url)
-        if (!relay) {
-          // Relay not in our map, try to reconnect
+        const connection = this.relayConnections.get(relayStatus.url)
+        if (!connection) {
+          // Connection not in our map, try to reconnect
           await this.reconnectRelay(relayStatus.url)
           return
         }
 
-        // Check if relay is still responsive
-        // We can do this by trying to get relay info or sending a simple query
+        // Check if relay is still responsive by doing a simple query
         const testFilters = { kinds: [0], limit: 1 }
         const timeout = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Health check timeout')), 5000)
@@ -464,15 +453,12 @@ class NostrRelayManager {
   removeRelay(url) {
     console.log(`➖ Removing relay: ${url}`)
     
-    const relay = this.relays.get(url)
-    if (relay) {
-      relay.close()
-      this.relays.delete(url)
-    }
-    
+    // Remove from our tracking
+    this.relayConnections.delete(url)
     this.relayStatuses.delete(url)
     this.connectionPromises.delete(url)
     
+    // The pool will handle closing the actual connection
     this.emitEvent('relayRemoved', { url })
   }
 
@@ -500,21 +486,14 @@ class NostrRelayManager {
     
     this.stopHealthCheck()
     
-    // Close all relay connections
-    for (const [url, relay] of this.relays) {
-      try {
-        relay.close()
-      } catch (error) {
-        console.warn(`Failed to close relay ${url}:`, error)
-      }
+    // Close the pool with all relay URLs
+    const allUrls = Array.from(this.relayStatuses.keys())
+    if (allUrls.length > 0) {
+      this.pool.close(allUrls)
     }
     
-    // Close the pool
-    const allUrls = Array.from(this.relayStatuses.keys())
-    this.pool.close(allUrls)
-    
     // Clear all data
-    this.relays.clear()
+    this.relayConnections.clear()
     this.relayStatuses.clear()
     this.connectionPromises.clear()
     this.eventListeners.clear()
