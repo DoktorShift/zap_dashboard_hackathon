@@ -1,5 +1,8 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
+import { SimplePool } from 'nostr-tools/pool'
+import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { bytesToHex } from '@noble/hashes/utils'
 
 // Content types
 const CONTENT_TYPES = {
@@ -51,6 +54,10 @@ const selectedContent = ref(null)
 const isLoading = ref(false)
 const error = ref('')
 
+// Publishing state
+const publishingStatus = ref('')
+const publishingProgress = ref(0)
+
 // Load content from localStorage
 const loadContentFromStorage = () => {
   try {
@@ -83,7 +90,7 @@ watch(contentItems, saveContentToStorage, { deep: true })
 loadContentFromStorage()
 
 export function useContent() {
-  const { currentUser, isAuthenticated, userProfile } = useNostrAuth()
+  const { currentUser, isAuthenticated, userProfile, writeRelays, pool } = useNostrAuth()
 
   // Filter content by current user
   const userContentItems = computed(() => {
@@ -282,7 +289,7 @@ export function useContent() {
     return duplicate
   }
 
-  // Nostr publishing functionality
+  // Enhanced Nostr publishing functionality with proper relay broadcasting
   const publishToNostr = async (contentId) => {
     if (!isAuthenticated.value || !window.nostr) {
       throw new Error('Nostr authentication required')
@@ -295,9 +302,11 @@ export function useContent() {
 
     try {
       isLoading.value = true
+      publishingStatus.value = 'Preparing content for Nostr...'
+      publishingProgress.value = 10
 
-      // Create Nostr event for the content
-      const event = {
+      // Create NIP-23 long-form content event
+      const eventTemplate = {
         kind: 30023, // Long-form content (NIP-23)
         created_at: Math.floor(Date.now() / 1000),
         tags: [
@@ -312,32 +321,118 @@ export function useContent() {
 
       // Add price tag if monetized
       if (content.monetizationModel !== MONETIZATION_MODELS.FREE) {
-        event.tags.push(['price', content.price.toString(), 'sats'])
+        eventTemplate.tags.push(['price', content.price.toString(), 'sats'])
       }
 
       // Add cover image if available
       if (content.coverImage) {
-        event.tags.push(['image', content.coverImage])
+        eventTemplate.tags.push(['image', content.coverImage])
       }
 
-      // Sign the event
-      const signedEvent = await window.nostr.signEvent(event)
+      publishingStatus.value = 'Signing event with your Nostr key...'
+      publishingProgress.value = 30
 
-      // Publish to relays (this would need relay integration)
-      console.log('Content published to Nostr:', signedEvent)
+      // Sign the event using the browser extension
+      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      
+      // Verify the signed event
+      const isValid = verifyEvent(signedEvent)
+      if (!isValid) {
+        throw new Error('Event signature verification failed')
+      }
 
-      // Update content status
-      await updateContent(contentId, {
-        status: CONTENT_STATUS.PUBLISHED,
-        nostrEventId: signedEvent.id
+      publishingStatus.value = 'Broadcasting to Nostr relays...'
+      publishingProgress.value = 50
+
+      // Get write-enabled relays
+      const relaysToPublish = writeRelays.value.map(relay => relay.url)
+      
+      if (relaysToPublish.length === 0) {
+        throw new Error('No write-enabled relays available. Please check your relay configuration.')
+      }
+
+      console.log('Publishing to relays:', relaysToPublish)
+
+      // Use the pool from useNostrAuth to publish to relays
+      const currentPool = pool.value
+      if (!currentPool) {
+        throw new Error('Nostr pool not available. Please check your connection.')
+      }
+
+      // Publish to all write relays
+      const publishPromises = relaysToPublish.map(async (relayUrl) => {
+        try {
+          console.log(`Publishing to relay: ${relayUrl}`)
+          
+          // Use pool.publish method to send the event
+          const relay = await currentPool.ensureRelay(relayUrl)
+          await relay.publish(signedEvent)
+          
+          console.log(`✅ Successfully published to ${relayUrl}`)
+          return { relay: relayUrl, success: true }
+        } catch (error) {
+          console.error(`❌ Failed to publish to ${relayUrl}:`, error)
+          return { relay: relayUrl, success: false, error: error.message }
+        }
       })
 
-      return signedEvent
+      publishingStatus.value = 'Waiting for relay confirmations...'
+      publishingProgress.value = 80
+
+      // Wait for all publishing attempts to complete
+      const results = await Promise.allSettled(publishPromises)
+      
+      // Count successful publications
+      const successfulPublications = results
+        .filter(result => result.status === 'fulfilled' && result.value.success)
+        .length
+
+      const failedPublications = results.length - successfulPublications
+
+      publishingProgress.value = 100
+
+      if (successfulPublications === 0) {
+        throw new Error('Failed to publish to any relays. Please check your relay connections.')
+      }
+
+      // Update content status with Nostr event information
+      await updateContent(contentId, {
+        status: CONTENT_STATUS.PUBLISHED,
+        nostrEventId: signedEvent.id,
+        publishedToRelays: successfulPublications,
+        publishedAt: new Date().toISOString()
+      })
+
+      publishingStatus.value = `Successfully published to ${successfulPublications} relay${successfulPublications !== 1 ? 's' : ''}!`
+      
+      if (failedPublications > 0) {
+        publishingStatus.value += ` (${failedPublications} relay${failedPublications !== 1 ? 's' : ''} failed)`
+      }
+
+      console.log('✅ Content published to Nostr successfully:', {
+        eventId: signedEvent.id,
+        successfulRelays: successfulPublications,
+        failedRelays: failedPublications
+      })
+
+      return {
+        event: signedEvent,
+        successfulRelays: successfulPublications,
+        failedRelays: failedPublications
+      }
+
     } catch (err) {
       error.value = 'Failed to publish to Nostr: ' + err.message
+      publishingStatus.value = 'Publishing failed: ' + err.message
+      console.error('❌ Nostr publishing error:', err)
       throw err
     } finally {
       isLoading.value = false
+      // Clear publishing status after 5 seconds
+      setTimeout(() => {
+        publishingStatus.value = ''
+        publishingProgress.value = 0
+      }, 5000)
     }
   }
 
@@ -417,6 +512,8 @@ export function useContent() {
     selectedContent,
     isLoading,
     error,
+    publishingStatus,
+    publishingProgress,
 
     // Computed
     totalRevenue,

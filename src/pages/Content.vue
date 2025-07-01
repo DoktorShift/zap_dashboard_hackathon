@@ -9,7 +9,10 @@ import {
   IconUser,
   IconLock,
   IconBolt,
-  IconShare
+  IconShare,
+  IconLoader,
+  IconCheck,
+  IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
 import { useContent } from '../composables/useContent.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -29,6 +32,8 @@ const {
   selectedContent,
   isLoading,
   error,
+  publishingStatus,
+  publishingProgress,
 
   // Computed
   contentStats,
@@ -111,8 +116,16 @@ const handleShareContent = (content) => {
 
 const handlePublishToNostr = async (content) => {
   try {
-    await publishToNostr(content.id)
-    alert('Content published to Nostr successfully!')
+    const result = await publishToNostr(content.id)
+    
+    // Show success message with details
+    const message = `Content published successfully!\n\nEvent ID: ${result.event.id}\nPublished to ${result.successfulRelays} relay${result.successfulRelays !== 1 ? 's' : ''}`
+    
+    if (result.failedRelays > 0) {
+      message += `\n\nNote: ${result.failedRelays} relay${result.failedRelays !== 1 ? 's' : ''} failed to publish`
+    }
+    
+    alert(message)
   } catch (error) {
     console.error('Failed to publish to Nostr:', error)
     alert('Failed to publish to Nostr: ' + error.message)
@@ -211,9 +224,35 @@ const setActiveTab = (tab) => {
         </div>
       </div>
 
+      <!-- Publishing Status -->
+      <div v-if="publishingStatus" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex items-center space-x-3">
+          <IconLoader v-if="isLoading" class="w-5 h-5 text-blue-600 animate-spin" />
+          <IconCheck v-else-if="publishingStatus.includes('Successfully')" class="w-5 h-5 text-green-600" />
+          <IconAlertCircle v-else-if="publishingStatus.includes('failed')" class="w-5 h-5 text-red-600" />
+          <IconShare v-else class="w-5 h-5 text-blue-600" />
+          
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-900">{{ publishingStatus }}</p>
+            <div v-if="publishingProgress > 0 && publishingProgress < 100" class="mt-2">
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                  :style="{ width: publishingProgress + '%' }"
+                ></div>
+              </div>
+              <p class="text-xs text-gray-600 mt-1">{{ publishingProgress }}% complete</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Error Message -->
       <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p class="text-red-600">{{ error }}</p>
+        <div class="flex items-center space-x-2">
+          <IconAlertCircle class="w-5 h-5 text-red-600" />
+          <p class="text-red-600">{{ error }}</p>
+        </div>
       </div>
 
       <!-- Main Content -->
@@ -279,10 +318,12 @@ const setActiveTab = (tab) => {
                 <button
                   v-if="selectedContent.status === 'draft'"
                   @click="handlePublishToNostr(selectedContent)"
-                  class="btn-secondary text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                  :disabled="isLoading"
+                  class="btn-secondary text-purple-600 hover:text-purple-700 hover:bg-purple-50 disabled:opacity-50"
                 >
-                  <IconShare class="w-4 h-4" />
-                  Publish to Nostr
+                  <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+                  <IconShare v-else class="w-4 h-4" />
+                  {{ isLoading ? 'Publishing...' : 'Publish to Nostr' }}
                 </button>
                 <button @click="setView('list')" class="btn-secondary">
                   <IconArrowLeft class="w-4 h-4" />
@@ -326,6 +367,9 @@ const setActiveTab = (tab) => {
                 </span>
                 <span v-if="selectedContent.nostrEventId" class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
                   Published on Nostr
+                </span>
+                <span v-if="selectedContent.publishedToRelays" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  {{ selectedContent.publishedToRelays }} relay{{ selectedContent.publishedToRelays !== 1 ? 's' : '' }}
                 </span>
               </div>
             </div>
@@ -372,6 +416,27 @@ const setActiveTab = (tab) => {
                 >
                   {{ tag }}
                 </span>
+              </div>
+            </div>
+
+            <!-- Nostr Event Details -->
+            <div v-if="selectedContent.nostrEventId" class="mt-6 bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <h4 class="text-sm font-medium text-purple-900 mb-2">Nostr Event Details</h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center justify-between">
+                  <span class="text-purple-700">Event ID:</span>
+                  <code class="text-purple-800 bg-purple-100 px-2 py-1 rounded text-xs">
+                    {{ selectedContent.nostrEventId.substring(0, 16) }}...
+                  </code>
+                </div>
+                <div v-if="selectedContent.publishedToRelays" class="flex items-center justify-between">
+                  <span class="text-purple-700">Published to:</span>
+                  <span class="text-purple-800">{{ selectedContent.publishedToRelays }} relay{{ selectedContent.publishedToRelays !== 1 ? 's' : '' }}</span>
+                </div>
+                <div v-if="selectedContent.publishedAt" class="flex items-center justify-between">
+                  <span class="text-purple-700">Published at:</span>
+                  <span class="text-purple-800">{{ new Date(selectedContent.publishedAt).toLocaleString() }}</span>
+                </div>
               </div>
             </div>
           </div>
