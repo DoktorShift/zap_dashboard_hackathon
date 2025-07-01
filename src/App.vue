@@ -50,6 +50,7 @@ const selectedFilters = ref({
 })
 
 const currentPage = ref('dashboard')
+const activeSettingsTab = ref('nostr')
 const showConnectionModal = ref(false)
 const isMobileMenuOpen = ref(false)
 const isRefreshingData = ref(false)
@@ -60,6 +61,7 @@ provide('selectedTimeRange', selectedTimeRange)
 provide('searchQuery', searchQuery)
 provide('selectedFilters', selectedFilters)
 provide('currentPage', currentPage)
+provide('activeSettingsTab', activeSettingsTab)
 provide('isMobileMenuOpen', isMobileMenuOpen)
 
 // Provide connection management
@@ -159,10 +161,15 @@ onMounted(async () => {
   }
 })
 
-// Close mobile menu when page changes
-const changePage = (page) => {
+// Enhanced page change function to handle tab navigation
+const changePage = (page, tab = null) => {
   currentPage.value = page
   isMobileMenuOpen.value = false
+  
+  // If navigating to settings and a specific tab is provided, set it
+  if (page === 'settings' && tab) {
+    activeSettingsTab.value = tab
+  }
 }
 
 // Enhanced connection success handler with notifications
@@ -237,6 +244,7 @@ watch(connectionError, (error) => {
         <TopBar 
           @show-connection="showConnectionModal = true" 
           @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen"
+          @change-page="changePage"
         />
       </header>
       
@@ -308,37 +316,43 @@ watch(connectionError, (error) => {
           
           <!-- Page Content with Transition -->
           <transition name="page-fade" mode="out-in">
-            <component :is="components[currentPage]" :key="currentPage" />
+            <component 
+              :is="components[currentPage]" 
+              :key="currentPage"
+              :initial-tab="currentPage === 'settings' ? activeSettingsTab : undefined"
+            />
           </transition>
         </div>
       </main>
     </div>
     
-    <!-- Connection Modal -->
-    <transition name="modal-transition">
-      <div v-if="showConnectionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full mx-4 transform animate-modal-content">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg sm:text-xl font-bold text-gray-800">Connect Your Wallet</h2>
-            <button 
-              v-if="isWalletConnected"
-              @click="showConnectionModal = false"
-              class="text-gray-500 hover:text-gray-700 p-1 touch-target hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110"
-            >
-              <IconX class="w-5 h-5" />
-            </button>
-          </div>
-          <NWCConnection @connection-success="handleConnectionSuccess" />
-          <div v-if="isWalletConnected" class="mt-4 flex justify-end">
-            <button 
-              @click="showConnectionModal = false"
-              class="btn-secondary"
-            >
-              Close
-            </button>
+    <!-- Connection Modal - Teleported to modal-root -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showConnectionModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full transform animate-modal-content max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-lg sm:text-xl font-bold text-gray-800">Connect Your Wallet</h2>
+              <button 
+                v-if="isWalletConnected"
+                @click="showConnectionModal = false"
+                class="text-gray-500 hover:text-gray-700 p-1 touch-target hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
+            <NWCConnection @connection-success="handleConnectionSuccess" />
+            <div v-if="isWalletConnected" class="mt-4 flex justify-end">
+              <button 
+                @click="showConnectionModal = false"
+                class="btn-secondary"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </transition>
+      </transition>
+    </Teleport>
   </div>
 </template>

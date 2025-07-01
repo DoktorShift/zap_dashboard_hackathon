@@ -27,7 +27,7 @@ const refreshZapData = inject('refreshZapData')
 const isWalletConnected = inject('isWalletConnected')
 const currentPage = inject('currentPage')
 
-const emit = defineEmits(['show-connection', 'toggle-mobile-menu'])
+const emit = defineEmits(['show-connection', 'toggle-mobile-menu', 'change-page'])
 
 // Use Nostr authentication
 const { isAuthenticated, userProfile, currentUser } = useNostrAuth()
@@ -181,10 +181,10 @@ const handleProfileAction = (action) => {
   
   switch (action) {
     case 'profile':
-      console.log('Navigate to profile')
+      emit('change-page', 'settings', 'nostr')
       break
     case 'settings':
-      console.log('Navigate to settings')
+      emit('change-page', 'settings', 'alerts')
       break
     case 'account':
       console.log('Navigate to account')
