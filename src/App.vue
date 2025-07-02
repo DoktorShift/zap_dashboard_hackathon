@@ -13,6 +13,7 @@ import MiniPoS from './pages/MiniPoS.vue'
 import Wallet from './pages/Wallet.vue'
 import Finances from './pages/Finances.vue'
 import Settings from './pages/Settings.vue'
+import InvoiceShare from './pages/InvoiceShare.vue'
 import NWCConnection from './components/NWCConnection.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
@@ -84,7 +85,8 @@ const components = {
   'mini-pos': MiniPoS,
   wallet: Wallet,
   finances: Finances,
-  settings: Settings
+  settings: Settings,
+  'invoice-share': InvoiceShare
 }
 
 // Enhanced data refresh function with better error handling
@@ -157,6 +159,14 @@ onMounted(async () => {
     console.error('❌ Failed to initialize relay manager:', error)
   }
   
+  // Check URL parameters for page navigation
+  const urlParams = new URLSearchParams(window.location.search)
+  const pageParam = urlParams.get('page')
+  
+  if (pageParam && components[pageParam]) {
+    currentPage.value = pageParam
+  }
+  
   // Check if we need to show connection modal
   if (!isWalletConnected.value) {
     console.log('No wallet connected, showing connection modal')
@@ -179,7 +189,19 @@ const changePage = (page, tab = null) => {
   if (page === 'settings' && tab) {
     activeSettingsTab.value = tab
   }
+  
+  // Update URL without page reload
+  const url = new URL(window.location)
+  if (page !== 'dashboard') {
+    url.searchParams.set('page', page)
+  } else {
+    url.searchParams.delete('page')
+  }
+  window.history.pushState({}, '', url)
 }
+
+// Provide changePage function to child components
+provide('changePage', changePage)
 
 // Enhanced connection success handler with notifications
 const handleConnectionSuccess = async () => {
@@ -329,6 +351,7 @@ watch(connectionError, (error) => {
               :is="components[currentPage]" 
               :key="currentPage"
               :initial-tab="currentPage === 'settings' ? activeSettingsTab : undefined"
+              @change-page="changePage"
             />
           </transition>
         </div>
