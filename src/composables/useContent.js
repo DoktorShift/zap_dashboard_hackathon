@@ -125,15 +125,17 @@ export function useContent() {
         zapCount: zapData.count,
         zapAmount: zapData.totalAmount,
         zaps: zapData.zaps,
-        // Update revenue to include zaps if it's published to Nostr
-        revenue: item.nostrEventId ? zapData.totalAmount : item.revenue
+        // 🔥 FIX: Keep original revenue separate from zaps
+        // Don't overwrite revenue with zapAmount - they are different revenue streams
+        traditionalRevenue: item.revenue || 0, // Store original revenue as traditionalRevenue
+        totalRevenue: (item.revenue || 0) + zapData.totalAmount // Combined revenue
       }
     })
   })
 
   // Computed properties based on user's content
   const totalRevenue = computed(() => {
-    return userContentItemsWithZaps.value.reduce((sum, item) => sum + (item.zapAmount || item.revenue), 0)
+    return userContentItemsWithZaps.value.reduce((sum, item) => sum + item.totalRevenue, 0)
   })
 
   const totalUnlocks = computed(() => {
@@ -170,7 +172,7 @@ export function useContent() {
 
   const topPerformingContent = computed(() => {
     return [...userContentItemsWithZaps.value]
-      .sort((a, b) => (b.zapAmount || b.revenue) - (a.zapAmount || a.revenue))
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 3)
   })
 
@@ -523,6 +525,20 @@ export function useContent() {
     currentView.value = 'preview'
   }
 
+  // Initialize zap tracking when the composable is used
+  if (isAuthenticated.value) {
+    initializeZapTracking()
+  }
+
+  // Watch for authentication changes to initialize zap tracking
+  watch(isAuthenticated, (authenticated) => {
+    if (authenticated) {
+      setTimeout(() => {
+        initializeZapTracking()
+      }, 1000) // Small delay to ensure content is loaded
+    }
+  })
+
   // Utility functions
   const formatPrice = (price) => {
     return price.toLocaleString() + ' sats'
@@ -552,20 +568,6 @@ export function useContent() {
     }
     return colors[status] || 'text-gray-600 bg-gray-100'
   }
-
-  // Initialize zap tracking when the composable is used
-  if (isAuthenticated.value) {
-    initializeZapTracking()
-  }
-
-  // Watch for authentication changes to initialize zap tracking
-  watch(isAuthenticated, (authenticated) => {
-    if (authenticated) {
-      setTimeout(() => {
-        initializeZapTracking()
-      }, 1000) // Small delay to ensure content is loaded
-    }
-  })
 
   return {
     // State

@@ -74,25 +74,17 @@ const formatZapAmount = (amount) => {
   return amount.toString()
 }
 
-// Calculate total revenue (zaps + traditional revenue)
+// 🔥 FIX: Use totalRevenue which combines both zaps and traditional revenue
 const getTotalRevenue = (item) => {
-  const zapAmount = item.zapAmount || 0
-  const traditionalRevenue = item.revenue || 0
-  
-  // If published to Nostr, prioritize zap amount
-  if (item.nostrEventId) {
-    return zapAmount + traditionalRevenue
-  }
-  
-  return traditionalRevenue
+  return item.totalRevenue || 0
 }
 
-// Check if we should show revenue breakdown
+// 🔥 FIX: Check if we should show revenue breakdown (both zaps AND traditional revenue exist)
 const shouldShowBreakdown = (item) => {
   const zapAmount = item.zapAmount || 0
-  const traditionalRevenue = item.revenue || 0
+  const traditionalRevenue = item.traditionalRevenue || 0
   
-  // Show breakdown if both zaps and traditional revenue exist
+  // Show breakdown only if BOTH zaps and traditional revenue exist and are > 0
   return zapAmount > 0 && traditionalRevenue > 0
 }
 
@@ -108,7 +100,7 @@ const getZapTooltip = (item) => {
 
 // Generate tooltip text for traditional sales
 const getSalesTooltip = (item) => {
-  const revenue = item.revenue || 0
+  const revenue = item.traditionalRevenue || 0
   const unlocks = item.unlocks || 0
   
   if (unlocks === 0) return 'No direct sales or subscriptions yet'
@@ -245,7 +237,7 @@ const getSalesTooltip = (item) => {
             <p class="text-lg font-bold text-gray-900">
               {{ getTotalRevenue(item).toLocaleString() }} sats
             </p>
-            <!-- 🔥 REVENUE BREAKDOWN WITH TOOLTIPS - Show breakdown if both zaps and traditional revenue exist -->
+            <!-- 🔥 REVENUE BREAKDOWN WITH TOOLTIPS - Show breakdown only if BOTH zaps AND traditional revenue exist -->
             <div v-if="shouldShowBreakdown(item)" class="text-xs text-gray-500 mt-1 space-y-1">
               <div class="flex items-center justify-center space-x-1">
                 <!-- Zap Amount with Tooltip -->
@@ -273,7 +265,7 @@ const getSalesTooltip = (item) => {
                   class="flex items-center space-x-1 cursor-help relative group"
                   :title="getSalesTooltip(item)"
                 >
-                  <span>💰{{ (item.revenue || 0).toLocaleString() }}</span>
+                  <span>💰{{ (item.traditionalRevenue || 0).toLocaleString() }}</span>
                   
                   <!-- Sales Tooltip -->
                   <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
