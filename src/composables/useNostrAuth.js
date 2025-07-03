@@ -536,6 +536,12 @@ onUnmounted(() => {
 })
 
 export function useNostrAuth() {
+  // Initialize auth and relays when the composable is first used
+  onMounted(async () => {
+    console.log('🚀 useNostrAuth: Initializing auth and relays on mount...')
+    await initAuthAndRelays()
+  })
+
   return {
     // State
     currentUser,
