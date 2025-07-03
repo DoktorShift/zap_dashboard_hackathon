@@ -386,8 +386,8 @@ const formatZapTime = (timestamp) => {
                 <span>•</span>
                 <span>{{ selectedContent.unlocks }} unlocks</span>
                 <span>•</span>
-                <span>{{ selectedContent.views }} views</span>
-                <span>•</span>
+<!--                <span>{{ selectedContent.views }} views</span>-->
+<!--                <span>•</span>-->
                 <span class="flex items-center space-x-1">
                   <span>By {{ userProfile?.name || 'You' }}</span>
                   <IconUser class="w-3 h-3" />
