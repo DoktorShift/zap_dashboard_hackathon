@@ -11,6 +11,7 @@ import {
 import VChart from 'vue-echarts'
 import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
+import { useNostrAuth } from '../composables/useNostrAuth.js'
 
 use([
   CanvasRenderer,
@@ -23,10 +24,21 @@ use([
 const zapData = inject('zapData')
 const selectedTimeRange = inject('selectedTimeRange')
 
+// Use Nostr authentication to get user profile
+const { isAuthenticated, userProfile } = useNostrAuth()
+
 // Real-time wallet data
 const walletBalance = ref(0)
 const walletInfo = ref(null)
 const isLoading = ref(false)
+
+// Computed property for personalized welcome message
+const welcomeMessage = computed(() => {
+  if (isAuthenticated.value && userProfile.value?.name) {
+    return `Welcome back, ${userProfile.value.name}!`
+  }
+  return 'Welcome back, Creator!'
+})
 
 // Fetch real wallet data
 async function fetchWalletData() {
@@ -260,7 +272,7 @@ const getPercentageChange = (current, type) => {
         <div>
           <h1 class="text-xl sm:text-2xl font-bold mb-2 flex items-center space-x-2">
             <IconBolt class="w-6 h-6" />
-            <span>{{ zapData.length > 0 ? 'Welcome back, Creator!' : 'Connect your wallet to get started!' }}</span>
+            <span>{{ zapData.length > 0 ? welcomeMessage : 'Connect your wallet to get started!' }}</span>
           </h1>
           <p class="text-orange-50 text-sm sm:text-base">
             <span v-if="zapData.length > 0">
