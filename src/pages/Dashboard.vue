@@ -77,18 +77,43 @@ onMounted(() => {
   fetchWalletData()
 })
 
-// Dynamic stats based on real data
-const stats = computed(() => {
-  const zaps = zapData.value
-  const totalSats = zaps.reduce((sum, zap) => sum + zap.amount, 0)
-  const totalUSD = totalSats * 0.0003
-  const avgZap = zaps.length > 0 ? totalSats / zaps.length : 0
+// Helper function to filter zaps by time range
+const filterZapsByTimeRange = (zaps, timeRange) => {
+  const now = new Date()
+  let cutoffTime
   
-  // Get unique supporters
-  const uniqueSupporters = new Set(zaps.map(zap => zap.sender.pubkey)).size
+  switch (timeRange) {
+    case '24h':
+      cutoffTime = new Date(now - 24 * 60 * 60 * 1000)
+      break
+    case '7d':
+      cutoffTime = new Date(now - 7 * 24 * 60 * 60 * 1000)
+      break
+    case '30d':
+      cutoffTime = new Date(now - 30 * 24 * 60 * 60 * 1000)
+      break
+    case 'all':
+    default:
+      return zaps // Return all zaps for 'all' time range
+  }
+  
+  return zaps.filter(zap => new Date(zap.timestamp) > cutoffTime)
+}
+
+// Dynamic stats based on real data and time range
+const stats = computed(() => {
+  const allZaps = zapData.value
+  const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
+  
+  const totalSats = filteredZaps.reduce((sum, zap) => sum + zap.amount, 0)
+  const totalUSD = totalSats * 0.0003
+  const avgZap = filteredZaps.length > 0 ? totalSats / filteredZaps.length : 0
+  
+  // Get unique supporters from filtered zaps
+  const uniqueSupporters = new Set(filteredZaps.map(zap => zap.sender.pubkey)).size
   
   return {
-    totalZaps: zaps.length,
+    totalZaps: filteredZaps.length,
     totalSats,
     totalUSD,
     avgZap: Math.round(avgZap),
@@ -230,10 +255,13 @@ const chartOption = computed(() => {
   }
 })
 
-// Recent zaps from real data
+// Recent zaps from real data - NOW FILTERED BY TIME RANGE
 const recentZaps = computed(() => {
-  return zapData.value
-    .slice(0, 5)
+  const allZaps = zapData.value
+  const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
+  
+  return filteredZaps
+    .slice(0, 5) // Take only the first 5 after filtering
     .map(zap => ({
       ...zap,
       timeAgo: formatTimeAgo(zap.timestamp)
@@ -277,6 +305,9 @@ const getPercentageChange = (current, type) => {
           <p class="text-orange-50 text-sm sm:text-base">
             <span v-if="zapData.length > 0">
               You've received {{ stats.totalZaps }} zaps worth {{ stats.totalSats.toLocaleString() }} sats
+              <span v-if="selectedTimeRange !== 'all'" class="opacity-75">
+                ({{ selectedTimeRange === '24h' ? 'last 24 hours' : selectedTimeRange === '7d' ? 'last 7 days' : 'last 30 days' }})
+              </span>
             </span>
             <span v-else>
               Connect your Lightning wallet to view your real zap data and earnings
@@ -390,13 +421,20 @@ const getPercentageChange = (current, type) => {
         <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
           <IconBolt class="w-5 h-5 text-orange-600" />
           <span>Recent Zaps</span>
+          <span v-if="selectedTimeRange !== 'all'" class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            {{ selectedTimeRange === '24h' ? '24h' : selectedTimeRange === '7d' ? '7d' : '30d' }}
+          </span>
         </h3>
         <div v-if="recentZaps.length === 0" class="text-center py-8">
           <div class="text-gray-400 text-4xl mb-2">
             <IconBolt class="w-12 h-12 mx-auto" />
           </div>
-          <p class="text-gray-500 text-sm">No zaps yet</p>
-          <p class="text-gray-400 text-xs mt-1">Connect your wallet to see activity</p>
+          <p class="text-gray-500 text-sm">
+            {{ zapData.length === 0 ? 'No zaps yet' : `No zaps in ${selectedTimeRange === '24h' ? 'last 24 hours' : selectedTimeRange === '7d' ? 'last 7 days' : 'last 30 days'}` }}
+          </p>
+          <p class="text-gray-400 text-xs mt-1">
+            {{ zapData.length === 0 ? 'Connect your wallet to see activity' : 'Try selecting a different time range' }}
+          </p>
         </div>
         <div v-else class="space-y-4">
           <div v-for="zap in recentZaps" :key="zap.id" class="flex items-center space-x-3 p-3 bg-orange-50/50 rounded-lg">
