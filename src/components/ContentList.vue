@@ -73,6 +73,28 @@ const formatZapAmount = (amount) => {
   }
   return amount.toString()
 }
+
+// Calculate total revenue (zaps + traditional revenue)
+const getTotalRevenue = (item) => {
+  const zapAmount = item.zapAmount || 0
+  const traditionalRevenue = item.revenue || 0
+  
+  // If published to Nostr, prioritize zap amount
+  if (item.nostrEventId) {
+    return zapAmount + traditionalRevenue
+  }
+  
+  return traditionalRevenue
+}
+
+// Check if we should show revenue breakdown
+const shouldShowBreakdown = (item) => {
+  const zapAmount = item.zapAmount || 0
+  const traditionalRevenue = item.revenue || 0
+  
+  // Show breakdown if both zaps and traditional revenue exist
+  return zapAmount > 0 && traditionalRevenue > 0
+}
 </script>
 
 <template>
@@ -199,12 +221,18 @@ const formatZapAmount = (amount) => {
           <div class="text-center">
             <p class="text-sm font-medium text-green-600">Revenue</p>
             <p class="text-lg font-bold text-gray-900">
-              {{ (item.zapAmount || item.revenue).toLocaleString() }} sats
+              {{ getTotalRevenue(item).toLocaleString() }} sats
             </p>
-            <!-- Show breakdown if both zaps and traditional revenue exist -->
-            <p v-if="item.zapAmount > 0 && item.revenue > 0" class="text-xs text-gray-500">
-              ⚡{{ item.zapAmount }} + 💰{{ item.revenue }}
-            </p>
+            <!-- 🔥 REVENUE BREAKDOWN - Show breakdown if both zaps and traditional revenue exist -->
+            <div v-if="shouldShowBreakdown(item)" class="text-xs text-gray-500 mt-1 space-y-1">
+              <div class="flex items-center justify-center space-x-1">
+                <IconBolt class="w-3 h-3 text-orange-500" />
+                <span>{{ (item.zapAmount || 0).toLocaleString() }}</span>
+                <span class="text-gray-400">+</span>
+                <span>💰{{ (item.revenue || 0).toLocaleString() }}</span>
+              </div>
+              <div class="text-xs text-gray-400">zaps + sales</div>
+            </div>
           </div>
           <div class="text-center">
             <p class="text-sm font-medium text-blue-600">Views</p>
