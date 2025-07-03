@@ -45,7 +45,6 @@ export async function fetchTransactions() {
   try {
     const response = await nwcClient.listTransactions({
       limit: 100,
-      type: 'incoming', // Only fetch incoming zaps
       timeout: 30000 // 30 seconds timeout
     })
     
