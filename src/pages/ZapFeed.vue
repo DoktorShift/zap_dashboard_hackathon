@@ -135,6 +135,21 @@ const getSenderName = (sender) => {
   return sender?.name || sender?.pubkey?.substring(0, 8) || 'Anonymous'
 }
 
+// Get transaction type display text
+const getTransactionTypeText = (zap) => {
+  return zap.type === 'outgoing' ? 'Sent' : 'Received'
+}
+
+// Get transaction type color class
+const getTransactionTypeColor = (zap) => {
+  return zap.type === 'outgoing' ? 'text-red-600' : 'text-green-600'
+}
+
+// Get transaction type background color class
+const getTransactionTypeBgColor = (zap) => {
+  return zap.type === 'outgoing' ? 'from-red-100 to-pink-100' : 'from-orange-100 to-amber-100'
+}
+
 // Get note type icon component
 const getNoteTypeIcon = (type) => {
   switch (type) {
@@ -214,13 +229,17 @@ const truncateNote = (note, maxLength = 120) => {
                     <span v-if="zap.sender?.nip05" class="text-xs text-gray-500 truncate max-w-[100px]">
                       {{ zap.sender.nip05 }}
                     </span>
+                    <span class="text-xs text-gray-400">•</span>
+                    <span :class="['text-xs font-medium', getTransactionTypeColor(zap)]">
+                      {{ getTransactionTypeText(zap) }}
+                    </span>
                   </div>
                   
                   <div class="flex items-center space-x-2 flex-shrink-0">
                     <!-- Compact Zap Amount -->
-                    <div class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-2 py-1 rounded-full">
-                      <IconBolt class="w-3 h-3 text-orange-600" />
-                      <span class="font-bold text-orange-600 text-sm">{{ zap.amount?.toLocaleString() || 0 }}</span>
+                    <div :class="['flex items-center space-x-1 px-2 py-1 rounded-full bg-gradient-to-r', getTransactionTypeBgColor(zap)]">
+                      <IconBolt class="w-3 h-3" :class="getTransactionTypeColor(zap)" />
+                      <span class="font-bold text-sm" :class="getTransactionTypeColor(zap)">{{ zap.amount?.toLocaleString() || 0 }}</span>
                     </div>
                     <span class="text-xs text-gray-400">{{ formatDate(zap.timestamp) }}</span>
                   </div>
