@@ -43,7 +43,7 @@ const {
 
 // Global state
 const zapData = ref([])
-const selectedTimeRange = ref('7d')
+const selectedTimeRange = ref('all') // Changed from '7d' to 'all'
 const searchQuery = ref('')
 const selectedFilters = ref({
   minAmount: 0,
