@@ -36,7 +36,7 @@ const error = ref('')
 onMounted(() => {
   const urlParams = new URLSearchParams(window.location.search)
   const invoiceParam = urlParams.get('invoice')
-  
+  console.log(invoiceParam)
   if (invoiceParam) {
     invoice.value = decodeURIComponent(invoiceParam)
     parseInvoice()
@@ -64,6 +64,7 @@ const parseInvoice = () => {
 
 // Computed properties
 const qrCodeValue = computed(() => {
+  console.log(invoice.value)
   // For Lightning invoices, we can use lightning: URI scheme
   return `lightning:${invoice.value}`
 })
@@ -265,7 +266,9 @@ const openInWallet = () => {
         
         <!-- QR Code -->
         <div class="qr-code-container bg-white p-6 rounded-lg border-2 border-gray-200 mb-6 inline-block">
+
           <QRCodeVue3
+            :key="qrCodeValue"
             :value="qrCodeValue"
             :size="250"
             color="#000000"
