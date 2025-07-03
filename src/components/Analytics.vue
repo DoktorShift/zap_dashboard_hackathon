@@ -366,8 +366,9 @@ const insights = computed(() => {
     .sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A'
   
   // Calculate engagement rate (mock calculation)
-  const totalNotes = zaps.length * 2 // Assume 2x more notes than zaps
-  const engagementRate = totalNotes > 0 ? ((zaps.length / totalNotes) * 100).toFixed(1) : '0.0'
+  // COMMENTED OUT - No reliable data to calculate engagement rate
+  // const totalNotes = zaps.length * 2 // Assume 2x more notes than zaps
+  // const engagementRate = totalNotes > 0 ? ((zaps.length / totalNotes) * 100).toFixed(1) : '0.0'
   
   // Calculate repeat supporters
   const supporterCounts = new Map()
@@ -392,12 +393,13 @@ const insights = computed(() => {
       description: 'Content type with highest zap amounts',
       icon: IconBook
     },
-    {
-      title: 'Engagement Rate',
-      value: `${engagementRate}%`,
-      description: 'Percentage of content that gets zapped',
-      icon: IconChartLine
-    },
+    // COMMENTED OUT - Engagement Rate insight removed due to lack of reliable data
+    // {
+    //   title: 'Engagement Rate',
+    //   value: `${engagementRate}%`,
+    //   description: 'Percentage of content that gets zapped',
+    //   icon: IconChartLine
+    // },
     {
       title: 'Repeat Supporters',
       value: `${repeatPercentage}%`,
@@ -476,7 +478,7 @@ const summaryStats = computed(() => {
           No Data
         </span>
       </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div
           v-for="insight in insights"
           :key="insight.title"
