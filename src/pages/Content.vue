@@ -343,7 +343,8 @@ const setActiveTab = (tab) => {
               <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4">
                 <span>{{ selectedContent.type.charAt(0).toUpperCase() + selectedContent.type.slice(1) }}</span>
                 <span>•</span>
-                <span>{{ selectedContent.price.toLocaleString() }} sats</span>
+                <span v-if="selectedContent.monetizationModel === 'free'">Free Content</span>
+                <span v-else>{{ selectedContent.price.toLocaleString() }} sats</span>
                 <span>•</span>
                 <span>{{ selectedContent.unlocks }} unlocks</span>
                 <span>•</span>
@@ -371,6 +372,9 @@ const setActiveTab = (tab) => {
                 <span v-if="selectedContent.publishedToRelays" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                   {{ selectedContent.publishedToRelays }} relay{{ selectedContent.publishedToRelays !== 1 ? 's' : '' }}
                 </span>
+                <span v-if="selectedContent.monetizationModel === 'free'" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                  Free Content
+                </span>
               </div>
             </div>
 
@@ -389,8 +393,8 @@ const setActiveTab = (tab) => {
               <p class="text-gray-700 leading-relaxed">{{ selectedContent.previewText }}</p>
             </div>
 
-            <!-- Gated Content -->
-            <div class="bg-orange-50 border border-orange-200 rounded-lg p-6">
+            <!-- Gated Content (only show for paid content) -->
+            <div v-if="selectedContent.monetizationModel !== 'free'" class="bg-orange-50 border border-orange-200 rounded-lg p-6">
               <div class="text-center">
                 <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <IconLock class="w-8 h-8 text-orange-600" />
@@ -401,6 +405,24 @@ const setActiveTab = (tab) => {
                 </p>
                 <div class="bg-white p-4 rounded-lg border border-orange-200 max-h-40 overflow-y-auto">
                   <p class="text-sm text-gray-700 text-left">{{ selectedContent.fullContent }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Free Content (show full content for free items) -->
+            <div v-else class="bg-green-50 border border-green-200 rounded-lg p-6">
+              <div class="text-center mb-4">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <IconBolt class="w-8 h-8 text-green-600" />
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Free Content</h3>
+                <p class="text-gray-600 mb-4">
+                  This content is freely accessible to all users
+                </p>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-green-200 max-h-60 overflow-y-auto">
+                <div class="prose prose-sm max-w-none">
+                  <p class="text-gray-700 text-left whitespace-pre-wrap">{{ selectedContent.fullContent }}</p>
                 </div>
               </div>
             </div>

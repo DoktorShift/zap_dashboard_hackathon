@@ -312,8 +312,8 @@ export function useContent() {
 
       console.log(`Publishing to ${stats.writeEnabled} write-enabled relays`)
 
-      // Create NIP-23 long-form content event
-      const eventTemplate = {
+      // Create NIP-23 long-form content event - using let instead of const
+      let eventTemplate = {
         kind: 30023, // Long-form content (NIP-23)
         created_at: Math.floor(Date.now() / 1000),
         tags: [
@@ -326,8 +326,8 @@ export function useContent() {
         content: content.fullContent
       }
 
-      // Add price tag if monetized
-      if (content.monetizationModel !== MONETIZATION_MODELS.FREE) {
+      // Add price tag if monetized (not free)
+      if (content.monetizationModel !== MONETIZATION_MODELS.FREE && content.price > 0) {
         eventTemplate.tags.push(['price', content.price.toString(), 'sats'])
       }
 
@@ -335,6 +335,12 @@ export function useContent() {
       if (content.coverImage) {
         eventTemplate.tags.push(['image', content.coverImage])
       }
+
+      // Add content type tag
+      eventTemplate.tags.push(['content-type', content.type])
+
+      // Add monetization model tag
+      eventTemplate.tags.push(['monetization', content.monetizationModel])
 
       publishingStatus.value = 'Signing event with your Nostr key...'
       publishingProgress.value = 30
