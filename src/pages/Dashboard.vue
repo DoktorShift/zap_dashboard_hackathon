@@ -12,6 +12,7 @@ import VChart from 'vue-echarts'
 import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText } from '../utils/timeFilter.js'
 
 use([
   CanvasRenderer,
@@ -77,29 +78,6 @@ onMounted(() => {
   fetchWalletData()
 })
 
-// Helper function to filter zaps by time range
-const filterZapsByTimeRange = (zaps, timeRange) => {
-  const now = new Date()
-  let cutoffTime
-  
-  switch (timeRange) {
-    case '24h':
-      cutoffTime = new Date(now - 24 * 60 * 60 * 1000)
-      break
-    case '7d':
-      cutoffTime = new Date(now - 7 * 24 * 60 * 60 * 1000)
-      break
-    case '30d':
-      cutoffTime = new Date(now - 30 * 24 * 60 * 60 * 1000)
-      break
-    case 'all':
-    default:
-      return zaps // Return all zaps for 'all' time range
-  }
-  
-  return zaps.filter(zap => new Date(zap.timestamp) > cutoffTime)
-}
-
 // Dynamic stats based on real data and time range
 const stats = computed(() => {
   const allZaps = zapData.value
@@ -124,9 +102,10 @@ const stats = computed(() => {
 
 // Dynamic chart data based on real zap timestamps
 const chartOption = computed(() => {
-  const zaps = zapData.value
+  const allZaps = zapData.value
+  const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
   
-  if (zaps.length === 0) {
+  if (filteredZaps.length === 0) {
     // Show empty chart with sample data
     const last30Days = Array.from({ length: 30 }, (_, i) => {
       const date = new Date()
@@ -195,8 +174,8 @@ const chartOption = computed(() => {
     }
   })
   
-  // Count zaps per day
-  zaps.forEach(zap => {
+  // Count zaps per day from filtered data
+  filteredZaps.forEach(zap => {
     const zapDate = new Date(zap.timestamp).toDateString()
     const dayData = last30Days.find(day => day.fullDate === zapDate)
     if (dayData) {
@@ -306,7 +285,7 @@ const getPercentageChange = (current, type) => {
             <span v-if="zapData.length > 0">
               You've received {{ stats.totalZaps }} zaps worth {{ stats.totalSats.toLocaleString() }} sats
               <span v-if="selectedTimeRange !== 'all'" class="opacity-75">
-                ({{ selectedTimeRange === '24h' ? 'last 24 hours' : selectedTimeRange === '7d' ? 'last 7 days' : 'last 30 days' }})
+                ({{ getTimeRangeDisplayText(selectedTimeRange) }})
               </span>
             </span>
             <span v-else>
@@ -422,7 +401,7 @@ const getPercentageChange = (current, type) => {
           <IconBolt class="w-5 h-5 text-orange-600" />
           <span>Recent Zaps</span>
           <span v-if="selectedTimeRange !== 'all'" class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-            {{ selectedTimeRange === '24h' ? '24h' : selectedTimeRange === '7d' ? '7d' : '30d' }}
+            {{ getShortTimeRangeText(selectedTimeRange) }}
           </span>
         </h3>
         <div v-if="recentZaps.length === 0" class="text-center py-8">
@@ -430,7 +409,7 @@ const getPercentageChange = (current, type) => {
             <IconBolt class="w-12 h-12 mx-auto" />
           </div>
           <p class="text-gray-500 text-sm">
-            {{ zapData.length === 0 ? 'No zaps yet' : `No zaps in ${selectedTimeRange === '24h' ? 'last 24 hours' : selectedTimeRange === '7d' ? 'last 7 days' : 'last 30 days'}` }}
+            {{ zapData.length === 0 ? 'No zaps yet' : `No zaps in ${getTimeRangeDisplayText(selectedTimeRange)}` }}
           </p>
           <p class="text-gray-400 text-xs mt-1">
             {{ zapData.length === 0 ? 'Connect your wallet to see activity' : 'Try selecting a different time range' }}

@@ -2,6 +2,7 @@
 import { computed, inject } from 'vue'
 import { IconBolt, IconFileText, IconMessageCircle, IconRepeat, IconDeviceMobile, IconUser } from '@iconify-prerendered/vue-tabler'
 import Filters from '../components/Filters.vue'
+import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 
 const zapData = inject('zapData')
 const searchQuery = inject('searchQuery')
@@ -35,6 +36,9 @@ const filteredZaps = computed(() => {
   if (selectedFilters.value.noteType !== 'all') {
     zaps = zaps.filter(zap => zap.noteType === selectedFilters.value.noteType)
   }
+  
+  // Apply time range filter using centralized utility
+  zaps = filterZapsByTimeRange(zaps, selectedTimeRange.value)
   
   return zaps.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 })
@@ -170,15 +174,6 @@ const truncateNote = (note, maxLength = 120) => {
 
 <template>
   <div class="space-y-4 sm:space-y-6">
-    <!-- Page Header -->
-<!--    <div class="animate-fade-in">-->
-<!--      <h1 class="text-xl sm:text-2xl font-bold text-gray-800 mb-2 flex items-center space-x-2">-->
-<!--        <IconBolt class="w-6 h-6 text-orange-600" />-->
-<!--        <span>Zap Feed</span>-->
-<!--      </h1>-->
-<!--      <p class="text-gray-600 text-sm sm:text-base">Real-time feed of all your lightning tips</p>-->
-<!--    </div>-->
-    
     <!-- Filters -->
     <div class="animate-fade-in" style="animation-delay: 0.1s;">
       <Filters />
@@ -259,9 +254,6 @@ const truncateNote = (note, maxLength = 120) => {
                     <span v-if="zap.client" class="bg-blue-100 px-1.5 py-0.5 rounded text-xs text-blue-700 flex items-center space-x-1">
                       <IconDeviceMobile class="w-3 h-3" />
                     </span>
-<!--                    <button class="text-xs text-orange-600 hover:text-orange-700 font-medium hover:underline transition-all duration-200">-->
-<!--                      View →-->
-<!--                    </button>-->
                   </div>
                 </div>
               </div>
