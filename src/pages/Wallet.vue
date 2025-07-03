@@ -18,7 +18,8 @@ import {
   IconQrcode,
   IconScan,
   IconCamera,
-  IconCameraOff
+  IconCameraOff,
+  IconShare
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
@@ -37,6 +38,9 @@ const QrStream = defineAsyncComponent(() => import('qrcode-reader-vue3').then(m 
 
 const { isWalletConnected, activeConnection } = useNostrConnections()
 const { handleZapSent, handlePaymentSuccess, handlePaymentError } = useNotifications()
+
+// Inject the changePage function from App.vue
+const changePage = inject('changePage')
 
 // State management
 const balance = ref(0)
@@ -252,6 +256,22 @@ const copyInvoice = async () => {
   }
 }
 
+// NEW: Share invoice method
+const shareInvoice = () => {
+  if (!createdInvoice.value) return
+  
+  // Navigate to the invoice share page with the invoice as a parameter
+  const invoiceParam = encodeURIComponent(createdInvoice.value.invoice)
+  const shareUrl = `${window.location.origin}${window.location.pathname}?page=invoice-share&invoice=${invoiceParam}`
+  
+  // Update the URL and navigate
+  window.history.pushState({}, '', shareUrl)
+  changePage('invoice-share')
+  
+  // Close the modal
+  closeCreateInvoice()
+}
+
 // Payment sending methods
 const openSendPayment = () => {
   showSendPayment.value = true
@@ -461,15 +481,6 @@ const extractTextFromArray = (noteArray) => {
 
 <template>
   <div class="space-y-6">
-    <!-- Page Header -->
-<!--    <div>-->
-<!--      <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
-<!--        <IconWallet class="w-6 h-6 text-orange-600" />-->
-<!--        <span>Wallet</span>-->
-<!--      </h1>-->
-<!--      <p class="text-gray-600">Manage your Lightning wallet and transactions</p>-->
-<!--    </div>-->
-
     <!-- Connection Status -->
     <div v-if="!isWalletConnected" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
       <div class="flex items-center space-x-2">
@@ -682,16 +693,27 @@ const extractTextFromArray = (noteArray) => {
               <p class="text-sm font-mono break-all">{{ truncateInvoice(createdInvoice.invoice, 50) }}</p>
             </div>
             
-            <button
-              @click="copyInvoice"
-              class="btn-secondary w-full mb-4"
-            >
-              <IconCheck v-if="copySuccess" class="w-4 h-4 text-green-600" />
-              <IconCopy v-else class="w-4 h-4" />
-              {{ copySuccess ? 'Copied!' : 'Copy Invoice' }}
-            </button>
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                @click="copyInvoice"
+                class="btn-secondary"
+              >
+                <IconCheck v-if="copySuccess" class="w-4 h-4 text-green-600" />
+                <IconCopy v-else class="w-4 h-4" />
+                {{ copySuccess ? 'Copied!' : 'Copy' }}
+              </button>
+              
+              <button
+                @click="shareInvoice"
+                class="btn-secondary"
+              >
+                <IconShare class="w-4 h-4" />
+                Share
+              </button>
+            </div>
             
-            <p class="text-xs text-gray-500">
+            <p class="text-xs text-gray-500 mt-4">
               Waiting for payment... (checking every 5 seconds)
             </p>
           </div>

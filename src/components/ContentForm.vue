@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { 
   IconFileText, 
   IconMail, 
@@ -52,6 +52,16 @@ const monetizationModels = [
 ]
 
 const newTag = ref('')
+
+// Watch for monetization model changes to automatically set price to 0 for free content
+watch(() => props.form.monetizationModel, (newModel) => {
+  if (newModel === 'free') {
+    props.form.price = 0
+  } else if (props.form.price === 0) {
+    // Set default price when switching from free to paid
+    props.form.price = 1000
+  }
+})
 
 const isFormValid = computed(() => {
   return props.form.title.trim() &&
@@ -175,6 +185,19 @@ const handleSaveDraft = () => {
         </div>
       </div>
 
+      <!-- Free Content Notice -->
+      <div v-if="form.monetizationModel === 'free'" class="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div class="flex items-center space-x-3">
+          <IconBolt class="w-5 h-5 text-green-600" />
+          <div>
+            <h3 class="font-medium text-green-800">Free Content</h3>
+            <p class="text-sm text-green-700 mt-1">
+              This content will be freely accessible to all users without payment.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- Description -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
@@ -197,7 +220,9 @@ const handleSaveDraft = () => {
           :disabled="!isAuthenticated"
           class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
         ></textarea>
-        <p class="text-xs text-gray-500 mt-1">This is what users see before purchasing</p>
+        <p class="text-xs text-gray-500 mt-1">
+          {{ form.monetizationModel === 'free' ? 'This is what users see as a preview' : 'This is what users see before purchasing' }}
+        </p>
       </div>
 
       <!-- Full Content -->
@@ -210,7 +235,9 @@ const handleSaveDraft = () => {
           :disabled="!isAuthenticated"
           class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base disabled:bg-gray-50 disabled:text-gray-500"
         ></textarea>
-        <p class="text-xs text-gray-500 mt-1">This content is unlocked after payment</p>
+        <p class="text-xs text-gray-500 mt-1">
+          {{ form.monetizationModel === 'free' ? 'This is the full content that will be freely accessible' : 'This content is unlocked after payment' }}
+        </p>
       </div>
 
       <!-- Tags -->
@@ -298,8 +325,9 @@ const handleSaveDraft = () => {
         :disabled="!isFormValid || isLoading || !isAuthenticated"
         class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <IconLock class="w-4 h-4" />
-        {{ isLoading ? 'Publishing...' : 'Create Gated Content' }}
+        <IconLock v-if="form.monetizationModel !== 'free'" class="w-4 h-4" />
+        <IconBolt v-else class="w-4 h-4" />
+        {{ isLoading ? 'Publishing...' : (form.monetizationModel === 'free' ? 'Create Free Content' : 'Create Gated Content') }}
       </button>
     </div>
   </div>

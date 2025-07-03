@@ -63,6 +63,52 @@ const formatDate = (dateString) => {
     year: 'numeric'
   })
 }
+
+// Format zap amount for display
+const formatZapAmount = (amount) => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}k`
+  }
+  return amount.toString()
+}
+
+// 🔥 FIX: Use totalRevenue which combines both zaps and traditional revenue
+const getTotalRevenue = (item) => {
+  return item.totalRevenue || 0
+}
+
+// 🔥 FIX: Check if we should show revenue breakdown (both zaps AND traditional revenue exist)
+const shouldShowBreakdown = (item) => {
+  const zapAmount = item.zapAmount || 0
+  const traditionalRevenue = item.traditionalRevenue || 0
+  
+  // Show breakdown only if BOTH zaps and traditional revenue exist and are > 0
+  return zapAmount > 0 && traditionalRevenue > 0
+}
+
+// Generate tooltip text for zaps
+const getZapTooltip = (item) => {
+  const zapAmount = item.zapAmount || 0
+  const zapCount = item.zapCount || 0
+  
+  if (zapCount === 0) return 'No Lightning zaps received yet'
+  if (zapCount === 1) return `${zapAmount.toLocaleString()} sats from 1 Lightning zap`
+  return `${zapAmount.toLocaleString()} sats from ${zapCount} Lightning zaps`
+}
+
+// Generate tooltip text for traditional sales
+const getSalesTooltip = (item) => {
+  const revenue = item.traditionalRevenue || 0
+  const unlocks = item.unlocks || 0
+  
+  if (unlocks === 0) return 'No direct sales or subscriptions yet'
+  if (item.monetizationModel === 'subscription') {
+    return `${revenue.toLocaleString()} sats from ${unlocks} subscription${unlocks !== 1 ? 's' : ''}`
+  }
+  return `${revenue.toLocaleString()} sats from ${unlocks} direct purchase${unlocks !== 1 ? 's' : ''}`
+}
 </script>
 
 <template>
@@ -104,11 +150,27 @@ const formatDate = (dateString) => {
                 <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
                   On Nostr
                 </span>
+                
+                <!-- 🔥 ZAP INDICATOR - Show if content has received zaps -->
+                <div v-if="item.nostrEventId && (item.zapCount > 0 || item.zapAmount > 0)" 
+                     class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-orange-100 to-amber-100 rounded-full">
+                  <IconBolt class="w-3 h-3 text-orange-600" />
+                  <span class="text-xs font-bold text-orange-700">
+                    {{ formatZapAmount(item.zapAmount || 0) }}
+                  </span>
+                  <span class="text-xs text-orange-600">sats</span>
+                  <span v-if="item.zapCount > 1" class="text-xs text-orange-500">
+                    ({{ item.zapCount }})
+                  </span>
+                </div>
               </div>
               <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ item.description }}</p>
               <div class="flex items-center space-x-4 text-xs text-gray-500">
                 <span>Updated {{ formatDate(item.updatedAt) }}</span>
                 <span>By {{ item.creatorName || 'You' }}</span>
+                <span v-if="item.nostrEventId && item.zapCount === 0" class="text-orange-500">
+                  ⚡ Ready for zaps
+                </span>
               </div>
             </div>
           </div>
@@ -172,7 +234,51 @@ const formatDate = (dateString) => {
           </div>
           <div class="text-center">
             <p class="text-sm font-medium text-green-600">Revenue</p>
-            <p class="text-lg font-bold text-gray-900">{{ item.revenue.toLocaleString() }} sats</p>
+            <p class="text-lg font-bold text-gray-900">
+              {{ getTotalRevenue(item).toLocaleString() }} sats
+            </p>
+            <!-- 🔥 REVENUE BREAKDOWN WITH TOOLTIPS - Show breakdown only if BOTH zaps AND traditional revenue exist -->
+            <div v-if="shouldShowBreakdown(item)" class="text-xs text-gray-500 mt-1 space-y-1">
+              <div class="flex items-center justify-center space-x-1">
+                <!-- Zap Amount with Tooltip -->
+                <div 
+                  class="flex items-center space-x-1 cursor-help relative group"
+                  :title="getZapTooltip(item)"
+                >
+                  <IconBolt class="w-3 h-3 text-orange-500" />
+                  <span>{{ (item.zapAmount || 0).toLocaleString() }}</span>
+                  
+                  <!-- Zap Tooltip -->
+                  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                    <div class="font-medium">⚡ Lightning Zaps</div>
+                    <div>{{ getZapTooltip(item) }}</div>
+                    <div class="text-gray-300 mt-1">Instant, decentralized payments</div>
+                    <!-- Tooltip arrow -->
+                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </div>
+                
+                <span class="text-gray-400">+</span>
+                
+                <!-- Traditional Sales with Tooltip -->
+                <div 
+                  class="flex items-center space-x-1 cursor-help relative group"
+                  :title="getSalesTooltip(item)"
+                >
+                  <span>💰{{ (item.traditionalRevenue || 0).toLocaleString() }}</span>
+                  
+                  <!-- Sales Tooltip -->
+                  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                    <div class="font-medium">💰 Direct Sales</div>
+                    <div>{{ getSalesTooltip(item) }}</div>
+                    <div class="text-gray-300 mt-1">Traditional purchases & subscriptions</div>
+                    <!-- Tooltip arrow -->
+                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="text-xs text-gray-400">zaps + sales</div>
+            </div>
           </div>
           <div class="text-center">
             <p class="text-sm font-medium text-blue-600">Views</p>
@@ -197,5 +303,39 @@ const formatDate = (dateString) => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Enhanced tooltip styling */
+.group:hover .group-hover\:opacity-100 {
+  opacity: 1;
+}
+
+/* Ensure tooltips appear above other elements */
+.z-10 {
+  z-index: 10;
+}
+
+/* Smooth tooltip transitions */
+.transition-opacity {
+  transition-property: opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.duration-200 {
+  transition-duration: 200ms;
+}
+
+/* Tooltip positioning */
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+/* Cursor styling for interactive elements */
+.cursor-help {
+  cursor: help;
 }
 </style>

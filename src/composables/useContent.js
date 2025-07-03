@@ -1,7 +1,10 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
+import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { contentService } from '../utils/contentService.js'
+import { contentEncryption } from '../utils/contentEncryption.js'
 
 // Content types
 const CONTENT_TYPES = {
@@ -90,6 +93,14 @@ loadContentFromStorage()
 
 export function useContent() {
   const { currentUser, isAuthenticated, userProfile, writeRelays, connectedRelays } = useNostrAuth()
+  const { 
+    startZapTracking, 
+    getZapsForContent, 
+    getTotalZapAmount, 
+    getZapCount,
+    getAllContentZaps,
+    trackMultipleContent 
+  } = useContentZaps()
 
   // Filter content by current user
   const userContentItems = computed(() => {
@@ -102,21 +113,41 @@ export function useContent() {
     )
   })
 
+  // Enhanced content items with zap data
+  const userContentItemsWithZaps = computed(() => {
+    const allZaps = getAllContentZaps.value
+    
+    return userContentItems.value.map(item => {
+      const zapData = allZaps[item.nostrEventId] || { zaps: [], totalAmount: 0, count: 0 }
+      
+      return {
+        ...item,
+        zapCount: zapData.count,
+        zapAmount: zapData.totalAmount,
+        zaps: zapData.zaps,
+        // 🔥 FIX: Keep original revenue separate from zaps
+        // Don't overwrite revenue with zapAmount - they are different revenue streams
+        traditionalRevenue: item.revenue || 0, // Store original revenue as traditionalRevenue
+        totalRevenue: (item.revenue || 0) + zapData.totalAmount // Combined revenue
+      }
+    })
+  })
+
   // Computed properties based on user's content
   const totalRevenue = computed(() => {
-    return userContentItems.value.reduce((sum, item) => sum + item.revenue, 0)
+    return userContentItemsWithZaps.value.reduce((sum, item) => sum + item.totalRevenue, 0)
   })
 
   const totalUnlocks = computed(() => {
-    return userContentItems.value.reduce((sum, item) => sum + item.unlocks, 0)
+    return userContentItemsWithZaps.value.reduce((sum, item) => sum + item.unlocks, 0)
   })
 
   const publishedItems = computed(() => {
-    return userContentItems.value.filter(item => item.status === CONTENT_STATUS.PUBLISHED)
+    return userContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.PUBLISHED)
   })
 
   const draftItems = computed(() => {
-    return userContentItems.value.filter(item => item.status === CONTENT_STATUS.DRAFT)
+    return userContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.DRAFT)
   })
 
   const revenueInUSD = computed(() => {
@@ -126,8 +157,8 @@ export function useContent() {
   const contentStats = computed(() => {
     const published = publishedItems.value.length
     const drafts = draftItems.value.length
-    const totalViews = userContentItems.value.reduce((sum, item) => sum + item.views, 0)
-    const totalSubscribers = userContentItems.value.reduce((sum, item) => sum + item.subscribers, 0)
+    const totalViews = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.views, 0)
+    const totalSubscribers = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.subscribers, 0)
 
     return {
       published,
@@ -140,10 +171,23 @@ export function useContent() {
   })
 
   const topPerformingContent = computed(() => {
-    return [...userContentItems.value]
-      .sort((a, b) => b.revenue - a.revenue)
+    return [...userContentItemsWithZaps.value]
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 3)
   })
+
+  // Start tracking zaps for all published content on initialization
+  const initializeZapTracking = async () => {
+    const publishedContent = userContentItems.value.filter(item => 
+      item.status === CONTENT_STATUS.PUBLISHED && item.nostrEventId
+    )
+    
+    if (publishedContent.length > 0) {
+      const eventIds = publishedContent.map(item => item.nostrEventId)
+      console.log(`🔍 Starting zap tracking for ${eventIds.length} published content items`)
+      await trackMultipleContent(eventIds)
+    }
+  }
 
   // Content management functions
   const createContent = async (contentData) => {
@@ -177,7 +221,7 @@ export function useContent() {
         description: '',
         type: CONTENT_TYPES.ARTICLE,
         monetizationModel: MONETIZATION_MODELS.ONE_TIME,
-        price: 1000,
+        price: 5000, // More reasonable default price
         previewText: '',
         fullContent: '',
         tags: [],
@@ -280,6 +324,7 @@ export function useContent() {
       revenue: 0,
       views: 0,
       subscribers: 0,
+      nostrEventId: null, // Clear Nostr event ID for duplicate
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -313,7 +358,7 @@ export function useContent() {
       console.log(`Publishing to ${stats.writeEnabled} write-enabled relays`)
 
       // Create NIP-23 long-form content event
-      const eventTemplate = {
+      let eventTemplate = {
         kind: 30023, // Long-form content (NIP-23)
         created_at: Math.floor(Date.now() / 1000),
         tags: [
@@ -323,18 +368,49 @@ export function useContent() {
           ['published_at', Math.floor(new Date(content.createdAt).getTime() / 1000).toString()],
           ...content.tags.map(tag => ['t', tag])
         ],
-        content: content.fullContent
+        content: content.previewText // Only publish preview, not full content
       }
 
-      // Add price tag if monetized
-      if (content.monetizationModel !== MONETIZATION_MODELS.FREE) {
-        eventTemplate.tags.push(['price', content.price.toString(), 'sats'])
+      // Add price tag if monetized (not free)
+      if (content.monetizationModel !== MONETIZATION_MODELS.FREE && content.price > 0) {
+        eventTemplate.tags.push(['price_sats', content.price.toString()])
+        eventTemplate.tags.push(['unlock_via', 'zap'])
+        
+        // Encrypt the full content
+        const encryptionKey = contentEncryption.generateEncryptionKey()
+        const encryptedContent = await contentEncryption.encryptContent(content.fullContent, encryptionKey)
+        
+        // Store encrypted content and key
+        contentService.storeFullContent(contentId, {
+          encryptedContent,
+          encryptionKey: Array.from(encryptionKey),
+          originalContent: content.fullContent // For demo purposes, in production only store encrypted
+        })
+        
+        // Add encrypted content hash to tags (for verification)
+        const contentHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(encryptedContent))
+        const hashHex = Array.from(new Uint8Array(contentHash))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('')
+        
+        eventTemplate.tags.push(['content_hash', hashHex])
+        eventTemplate.tags.push(['encrypted', 'true'])
+        
+        // Add a reference to where the full content can be accessed (gated)
+        const fullContentUrl = `${window.location.origin}?page=content-unlock&eventId=${contentId}`
+        eventTemplate.tags.push(['full_content_url_gated', fullContentUrl])
       }
 
       // Add cover image if available
       if (content.coverImage) {
         eventTemplate.tags.push(['image', content.coverImage])
       }
+
+      // Add content type tag
+      eventTemplate.tags.push(['content-type', content.type])
+
+      // Add monetization model tag
+      eventTemplate.tags.push(['monetization', content.monetizationModel])
 
       publishingStatus.value = 'Signing event with your Nostr key...'
       publishingProgress.value = 30
@@ -373,11 +449,17 @@ export function useContent() {
         publishedAt: new Date().toISOString()
       })
 
-      publishingStatus.value = `Successfully published to ${result.successful} relay${result.successful !== 1 ? 's' : ''}!`
+      // 🔥 START ZAP TRACKING FOR THIS CONTENT
+      console.log(`🔍 Starting zap tracking for newly published content: ${signedEvent.id}`)
+      await startZapTracking(signedEvent.id)
+
+      let statusMessage = `Successfully published to ${result.successful} relay${result.successful !== 1 ? 's' : ''}!`
       
       if (result.failed > 0) {
-        publishingStatus.value += ` (${result.failed} relay${result.failed !== 1 ? 's' : ''} failed)`
+        statusMessage += ` (${result.failed} relay${result.failed !== 1 ? 's' : ''} failed)`
       }
+      
+      publishingStatus.value = statusMessage
 
       console.log('✅ Content published to Nostr successfully:', {
         eventId: signedEvent.id,
@@ -443,6 +525,20 @@ export function useContent() {
     currentView.value = 'preview'
   }
 
+  // Initialize zap tracking when the composable is used
+  if (isAuthenticated.value) {
+    initializeZapTracking()
+  }
+
+  // Watch for authentication changes to initialize zap tracking
+  watch(isAuthenticated, (authenticated) => {
+    if (authenticated) {
+      setTimeout(() => {
+        initializeZapTracking()
+      }, 1000) // Small delay to ensure content is loaded
+    }
+  })
+
   // Utility functions
   const formatPrice = (price) => {
     return price.toLocaleString() + ' sats'
@@ -475,7 +571,7 @@ export function useContent() {
 
   return {
     // State
-    contentItems: userContentItems,
+    contentItems: userContentItemsWithZaps,
     contentForm,
     currentView,
     editingContent,
@@ -504,6 +600,7 @@ export function useContent() {
     purchaseContent,
     subscribeToContent,
     publishToNostr,
+    initializeZapTracking,
     
     // View management
     setView,
@@ -515,6 +612,11 @@ export function useContent() {
     formatRevenue,
     getContentTypeIcon,
     getStatusColor,
+    
+    // Zap functions
+    getZapsForContent,
+    getTotalZapAmount,
+    getZapCount,
     
     // Constants
     CONTENT_TYPES,
