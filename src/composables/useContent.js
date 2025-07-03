@@ -177,7 +177,7 @@ export function useContent() {
         description: '',
         type: CONTENT_TYPES.ARTICLE,
         monetizationModel: MONETIZATION_MODELS.ONE_TIME,
-        price: 1000,
+        price: 5000, // More reasonable default price
         previewText: '',
         fullContent: '',
         tags: [],
@@ -379,11 +379,13 @@ export function useContent() {
         publishedAt: new Date().toISOString()
       })
 
-      publishingStatus.value = `Successfully published to ${result.successful} relay${result.successful !== 1 ? 's' : ''}!`
+      let statusMessage = `Successfully published to ${result.successful} relay${result.successful !== 1 ? 's' : ''}!`
       
       if (result.failed > 0) {
-        publishingStatus.value += ` (${result.failed} relay${result.failed !== 1 ? 's' : ''} failed)`
+        statusMessage += ` (${result.failed} relay${result.failed !== 1 ? 's' : ''} failed)`
       }
+      
+      publishingStatus.value = statusMessage
 
       console.log('✅ Content published to Nostr successfully:', {
         eventId: signedEvent.id,

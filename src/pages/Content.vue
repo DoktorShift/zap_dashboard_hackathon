@@ -119,7 +119,7 @@ const handlePublishToNostr = async (content) => {
     const result = await publishToNostr(content.id)
     
     // Show success message with details
-    const message = `Content published successfully!\n\nEvent ID: ${result.event.id}\nPublished to ${result.successfulRelays} relay${result.successfulRelays !== 1 ? 's' : ''}`
+    let message = `Content published successfully!\n\nEvent ID: ${result.event.id}\nPublished to ${result.successfulRelays} relay${result.successfulRelays !== 1 ? 's' : ''}`
     
     if (result.failedRelays > 0) {
       message += `\n\nNote: ${result.failedRelays} relay${result.failedRelays !== 1 ? 's' : ''} failed to publish`
