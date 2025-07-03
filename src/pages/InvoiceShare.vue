@@ -310,7 +310,7 @@ const openInWallet = () => {
       </div>
 
       <!-- Invoice Details -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6 mt-4">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Invoice Details</h3>
         
         <!-- Parsed Details -->
@@ -336,9 +336,9 @@ const openInWallet = () => {
               {{ invoice }}
             </code>
           </div>
-          <p class="text-xs text-gray-500 mt-2">
-            {{ truncateInvoice(invoice, 100) }}
-          </p>
+<!--          <p class="text-xs text-gray-500 mt-2">-->
+<!--            {{ truncateInvoice(invoice, 100) }}-->
+<!--          </p>-->
         </div>
       </div>
 
@@ -351,7 +351,7 @@ const openInWallet = () => {
       </div>
 
       <!-- Instructions -->
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
         <h4 class="font-medium text-blue-900 mb-2">How to Pay</h4>
         <ul class="text-sm text-blue-800 space-y-1">
           <li>• Scan the QR code with any Lightning wallet</li>
