@@ -89,6 +89,11 @@ const components = {
   'invoice-share': InvoiceShare
 }
 
+// Check if current page is standalone
+const isStandalonePage = computed(() => {
+  return currentPage.value === 'invoice-share'
+})
+
 // Enhanced data refresh function with better error handling
 const refreshZapData = async (force = false) => {
   if (!activeConnection.value && !force) {
@@ -167,11 +172,11 @@ onMounted(async () => {
     currentPage.value = pageParam
   }
   
-  // Check if we need to show connection modal
-  if (!isWalletConnected.value) {
+  // Check if we need to show connection modal (only for non-standalone pages)
+  if (!isWalletConnected.value && !isStandalonePage.value) {
     console.log('No wallet connected, showing connection modal')
     showConnectionModal.value = true
-  } else {
+  } else if (isWalletConnected.value) {
     console.log('Wallet already connected, refreshing data...')
     // Give a moment for everything to initialize
     setTimeout(() => {
@@ -250,7 +255,17 @@ watch(connectionError, (error) => {
 </script>
 
 <template>
-  <div class="h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25 flex overflow-hidden">
+  <!-- Standalone Invoice Share Page -->
+  <div v-if="isStandalonePage" class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
+    <component 
+      :is="components[currentPage]" 
+      :key="currentPage"
+      @change-page="changePage"
+    />
+  </div>
+
+  <!-- Main Application Layout -->
+  <div v-else class="h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25 flex overflow-hidden">
     <!-- Mobile Menu Overlay -->
     <transition name="overlay-fade">
       <div 

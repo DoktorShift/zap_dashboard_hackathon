@@ -145,13 +145,48 @@ const copyUrl = async () => {
 }
 
 const downloadQR = () => {
-  // Create a canvas element to convert QR code to image
-  const qrElement = document.querySelector('.qr-code-container canvas')
-  if (qrElement) {
-    const link = document.createElement('a')
-    link.download = 'lightning-invoice-qr.png'
-    link.href = qrElement.toDataURL()
-    link.click()
+  try {
+    // Find the QR code canvas element
+    const qrContainer = document.querySelector('.qr-code-container')
+    if (!qrContainer) {
+      console.error('QR code container not found')
+      return
+    }
+
+    const canvas = qrContainer.querySelector('canvas')
+    if (!canvas) {
+      console.error('QR code canvas not found')
+      return
+    }
+
+    console.log('Found QR code canvas, generating download...')
+
+    // Convert canvas to blob and download
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        console.error('Failed to generate blob from canvas')
+        return
+      }
+
+      // Create download link
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'lightning-invoice-qr.png'
+      
+      // Temporarily add to DOM, click, and remove
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(url)
+      
+      console.log('QR code download initiated')
+    }, 'image/png', 1.0)
+
+  } catch (error) {
+    console.error('Error downloading QR code:', error)
   }
 }
 
@@ -186,7 +221,8 @@ const payThisInvoice = async () => {
 }
 
 const goBack = () => {
-  emit('change-page', 'wallet')
+  // Navigate back to the main app
+  window.history.back()
 }
 
 const openInWallet = () => {
@@ -197,39 +233,34 @@ const openInWallet = () => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <button
-        @click="goBack"
-        class="btn-secondary"
-      >
-        <IconArrowLeft class="w-4 h-4" />
-        Back to Wallet
-      </button>
-      
-      <h1 class="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-        <IconBolt class="w-5 h-5 text-orange-600" />
-        <span>Lightning Invoice</span>
-      </h1>
-      
-      <div class="w-24"></div> <!-- Spacer for centering -->
+  <div class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <!-- Standalone Header -->
+    <div class="max-w-4xl mx-auto mb-8">
+      <div class="text-center">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 flex items-center justify-center space-x-2">
+          <IconBolt class="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
+          <span>Lightning Invoice</span>
+        </h1>
+        <p class="text-gray-600">Scan or copy the invoice to make a Lightning payment</p>
+      </div>
     </div>
 
     <!-- Error State -->
-    <div v-if="error && !parsedInvoice" class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-      <IconAlertCircle class="w-12 h-12 mx-auto text-red-600 mb-4" />
-      <h3 class="text-lg font-semibold text-red-900 mb-2">Invalid Invoice</h3>
-      <p class="text-red-700">{{ error }}</p>
-      <button @click="goBack" class="btn-secondary mt-4">
-        Go Back
-      </button>
+    <div v-if="error && !parsedInvoice" class="max-w-2xl mx-auto">
+      <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <IconAlertCircle class="w-12 h-12 mx-auto text-red-600 mb-4" />
+        <h3 class="text-lg font-semibold text-red-900 mb-2">Invalid Invoice</h3>
+        <p class="text-red-700 mb-4">{{ error }}</p>
+        <button @click="goBack" class="btn-secondary">
+          Go Back
+        </button>
+      </div>
     </div>
 
     <!-- Main Content -->
     <div v-else class="max-w-2xl mx-auto">
       <!-- QR Code Section -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6 text-center">
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6 text-center mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-6">Scan to Pay</h2>
         
         <!-- QR Code -->
@@ -310,7 +341,7 @@ const openInWallet = () => {
       </div>
 
       <!-- Invoice Details -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6 mt-4">
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6 mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Invoice Details</h3>
         
         <!-- Parsed Details -->
@@ -336,14 +367,11 @@ const openInWallet = () => {
               {{ invoice }}
             </code>
           </div>
-<!--          <p class="text-xs text-gray-500 mt-2">-->
-<!--            {{ truncateInvoice(invoice, 100) }}-->
-<!--          </p>-->
         </div>
       </div>
 
       <!-- Error Message -->
-      <div v-if="error && paymentStatus === 'error'" class="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div v-if="error && paymentStatus === 'error'" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
         <div class="flex items-center space-x-2">
           <IconAlertCircle class="w-5 h-5 text-red-600" />
           <span class="text-red-800">{{ error }}</span>
@@ -351,7 +379,7 @@ const openInWallet = () => {
       </div>
 
       <!-- Instructions -->
-      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h4 class="font-medium text-blue-900 mb-2">How to Pay</h4>
         <ul class="text-sm text-blue-800 space-y-1">
           <li>• Scan the QR code with any Lightning wallet</li>
@@ -359,6 +387,16 @@ const openInWallet = () => {
           <li>• Use the "Open in Wallet" button to launch your default Lightning app</li>
           <li v-if="isWalletConnected">• Use the "Pay This Invoice" button to pay directly from this app</li>
         </ul>
+      </div>
+
+      <!-- Back to App Link -->
+      <div class="text-center mt-8">
+        <button
+          @click="goBack"
+          class="text-orange-600 hover:text-orange-700 font-medium text-sm"
+        >
+          ← Back to previous page
+        </button>
       </div>
     </div>
   </div>
