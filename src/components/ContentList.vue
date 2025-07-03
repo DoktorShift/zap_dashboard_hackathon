@@ -95,6 +95,28 @@ const shouldShowBreakdown = (item) => {
   // Show breakdown if both zaps and traditional revenue exist
   return zapAmount > 0 && traditionalRevenue > 0
 }
+
+// Generate tooltip text for zaps
+const getZapTooltip = (item) => {
+  const zapAmount = item.zapAmount || 0
+  const zapCount = item.zapCount || 0
+  
+  if (zapCount === 0) return 'No Lightning zaps received yet'
+  if (zapCount === 1) return `${zapAmount.toLocaleString()} sats from 1 Lightning zap`
+  return `${zapAmount.toLocaleString()} sats from ${zapCount} Lightning zaps`
+}
+
+// Generate tooltip text for traditional sales
+const getSalesTooltip = (item) => {
+  const revenue = item.revenue || 0
+  const unlocks = item.unlocks || 0
+  
+  if (unlocks === 0) return 'No direct sales or subscriptions yet'
+  if (item.monetizationModel === 'subscription') {
+    return `${revenue.toLocaleString()} sats from ${unlocks} subscription${unlocks !== 1 ? 's' : ''}`
+  }
+  return `${revenue.toLocaleString()} sats from ${unlocks} direct purchase${unlocks !== 1 ? 's' : ''}`
+}
 </script>
 
 <template>
@@ -223,13 +245,45 @@ const shouldShowBreakdown = (item) => {
             <p class="text-lg font-bold text-gray-900">
               {{ getTotalRevenue(item).toLocaleString() }} sats
             </p>
-            <!-- 🔥 REVENUE BREAKDOWN - Show breakdown if both zaps and traditional revenue exist -->
+            <!-- 🔥 REVENUE BREAKDOWN WITH TOOLTIPS - Show breakdown if both zaps and traditional revenue exist -->
             <div v-if="shouldShowBreakdown(item)" class="text-xs text-gray-500 mt-1 space-y-1">
               <div class="flex items-center justify-center space-x-1">
-                <IconBolt class="w-3 h-3 text-orange-500" />
-                <span>{{ (item.zapAmount || 0).toLocaleString() }}</span>
+                <!-- Zap Amount with Tooltip -->
+                <div 
+                  class="flex items-center space-x-1 cursor-help relative group"
+                  :title="getZapTooltip(item)"
+                >
+                  <IconBolt class="w-3 h-3 text-orange-500" />
+                  <span>{{ (item.zapAmount || 0).toLocaleString() }}</span>
+                  
+                  <!-- Zap Tooltip -->
+                  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                    <div class="font-medium">⚡ Lightning Zaps</div>
+                    <div>{{ getZapTooltip(item) }}</div>
+                    <div class="text-gray-300 mt-1">Instant, decentralized payments</div>
+                    <!-- Tooltip arrow -->
+                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </div>
+                
                 <span class="text-gray-400">+</span>
-                <span>💰{{ (item.revenue || 0).toLocaleString() }}</span>
+                
+                <!-- Traditional Sales with Tooltip -->
+                <div 
+                  class="flex items-center space-x-1 cursor-help relative group"
+                  :title="getSalesTooltip(item)"
+                >
+                  <span>💰{{ (item.revenue || 0).toLocaleString() }}</span>
+                  
+                  <!-- Sales Tooltip -->
+                  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                    <div class="font-medium">💰 Direct Sales</div>
+                    <div>{{ getSalesTooltip(item) }}</div>
+                    <div class="text-gray-300 mt-1">Traditional purchases & subscriptions</div>
+                    <!-- Tooltip arrow -->
+                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </div>
               </div>
               <div class="text-xs text-gray-400">zaps + sales</div>
             </div>
@@ -257,5 +311,39 @@ const shouldShowBreakdown = (item) => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Enhanced tooltip styling */
+.group:hover .group-hover\:opacity-100 {
+  opacity: 1;
+}
+
+/* Ensure tooltips appear above other elements */
+.z-10 {
+  z-index: 10;
+}
+
+/* Smooth tooltip transitions */
+.transition-opacity {
+  transition-property: opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.duration-200 {
+  transition-duration: 200ms;
+}
+
+/* Tooltip positioning */
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+/* Cursor styling for interactive elements */
+.cursor-help {
+  cursor: help;
 }
 </style>
