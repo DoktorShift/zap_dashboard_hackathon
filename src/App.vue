@@ -8,6 +8,7 @@ import ZapFeed from './pages/ZapFeed.vue'
 import Analytics from './pages/Analytics.vue'
 import ChatZaps from './pages/ChatZaps.vue'
 import Content from './pages/Content.vue'
+import ContentUnlock from './pages/ContentUnlock.vue'
 import Donations from './pages/Donations.vue'
 import MiniPoS from './pages/MiniPoS.vue'
 import Wallet from './pages/Wallet.vue'
@@ -81,6 +82,7 @@ const components = {
   analytics: Analytics,
   'chat-zaps': ChatZaps,
   content: Content,
+  'content-unlock': ContentUnlock,
   donations: Donations,
   'mini-pos': MiniPoS,
   wallet: Wallet,

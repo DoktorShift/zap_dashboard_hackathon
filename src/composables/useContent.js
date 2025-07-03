@@ -2,6 +2,8 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { contentService } from '../utils/contentService.js'
+import { contentEncryption } from '../utils/contentEncryption.js'
 
 // Content types
 const CONTENT_TYPES = {
@@ -312,7 +314,7 @@ export function useContent() {
 
       console.log(`Publishing to ${stats.writeEnabled} write-enabled relays`)
 
-      // Create NIP-23 long-form content event - using let instead of const
+      // Create NIP-23 long-form content event
       let eventTemplate = {
         kind: 30023, // Long-form content (NIP-23)
         created_at: Math.floor(Date.now() / 1000),
@@ -323,12 +325,37 @@ export function useContent() {
           ['published_at', Math.floor(new Date(content.createdAt).getTime() / 1000).toString()],
           ...content.tags.map(tag => ['t', tag])
         ],
-        content: content.fullContent
+        content: content.previewText // Only publish preview, not full content
       }
 
       // Add price tag if monetized (not free)
       if (content.monetizationModel !== MONETIZATION_MODELS.FREE && content.price > 0) {
-        eventTemplate.tags.push(['price', content.price.toString(), 'sats'])
+        eventTemplate.tags.push(['price_sats', content.price.toString()])
+        eventTemplate.tags.push(['unlock_via', 'zap'])
+        
+        // Encrypt the full content
+        const encryptionKey = contentEncryption.generateEncryptionKey()
+        const encryptedContent = await contentEncryption.encryptContent(content.fullContent, encryptionKey)
+        
+        // Store encrypted content and key
+        contentService.storeFullContent(contentId, {
+          encryptedContent,
+          encryptionKey: Array.from(encryptionKey),
+          originalContent: content.fullContent // For demo purposes, in production only store encrypted
+        })
+        
+        // Add encrypted content hash to tags (for verification)
+        const contentHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(encryptedContent))
+        const hashHex = Array.from(new Uint8Array(contentHash))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('')
+        
+        eventTemplate.tags.push(['content_hash', hashHex])
+        eventTemplate.tags.push(['encrypted', 'true'])
+        
+        // Add a reference to where the full content can be accessed (gated)
+        const fullContentUrl = `${window.location.origin}?page=content-unlock&eventId=${contentId}`
+        eventTemplate.tags.push(['full_content_url_gated', fullContentUrl])
       }
 
       // Add cover image if available
@@ -370,6 +397,8 @@ export function useContent() {
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays. Please check your relay connections.')
       }
+
+      // Note: Full content is now stored encrypted during the event creation process above
 
       // Update content status with Nostr event information
       await updateContent(contentId, {

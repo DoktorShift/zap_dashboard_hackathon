@@ -107,8 +107,11 @@ const handleDuplicateContent = async (content) => {
 }
 
 const handleShareContent = (content) => {
-  // Mock share functionality
-  const shareUrl = `${window.location.origin}/content/${content.id}`
+  // Create share URL for content unlock
+  const shareUrl = content.nostrEventId 
+    ? `${window.location.origin}?page=content-unlock&eventId=${content.nostrEventId}`
+    : `${window.location.origin}?page=content&id=${content.id}`
+  
   navigator.clipboard.writeText(shareUrl).then(() => {
     alert('Share link copied to clipboard!')
   })
@@ -369,6 +372,9 @@ const setActiveTab = (tab) => {
                 <span v-if="selectedContent.nostrEventId" class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
                   Published on Nostr
                 </span>
+                <span v-if="selectedContent.monetizationModel !== 'free'" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  🔒 Encrypted Content
+                </span>
                 <span v-if="selectedContent.publishedToRelays" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                   {{ selectedContent.publishedToRelays }} relay{{ selectedContent.publishedToRelays !== 1 ? 's' : '' }}
                 </span>
@@ -405,6 +411,11 @@ const setActiveTab = (tab) => {
                 </p>
                 <div class="bg-white p-4 rounded-lg border border-orange-200 max-h-40 overflow-y-auto">
                   <p class="text-sm text-gray-700 text-left">{{ selectedContent.fullContent }}</p>
+                </div>
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p class="text-xs text-blue-700">
+                    🔒 <strong>Security:</strong> This content is encrypted with AES-256-GCM and will only be accessible after payment verification.
+                  </p>
                 </div>
               </div>
             </div>
