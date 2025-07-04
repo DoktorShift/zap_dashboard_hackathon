@@ -161,27 +161,44 @@ export function useNostrChat() {
         return
       }
 
-      // Decrypt the message
+      // Decrypt the message content
       let decryptedContent
-      try {
-        if (isOutgoing) {
-          // For outgoing messages, decrypt using recipient's pubkey
-          decryptedContent = await nip04.decrypt(
-            currentUser.value.privkey || await window.nostr.nip04.decrypt(otherPartyPubkey, event.content),
-            otherPartyPubkey,
-            event.content
-          )
-        } else {
-          // For incoming messages, decrypt using sender's pubkey
-          decryptedContent = await nip04.decrypt(
-            currentUser.value.privkey || await window.nostr.nip04.decrypt(event.pubkey, event.content),
-            event.pubkey,
-            event.content
-          )
+      
+      // Check if content looks like encrypted data (base64 with ?iv=)
+      const isEncrypted = event.content.includes('?iv=') || event.content.includes('==')
+      
+      if (isEncrypted) {
+        try {
+          if (isOutgoing) {
+            // For outgoing messages, we need to decrypt with recipient's pubkey
+            const recipientPubkey = event.tags.find(tag => tag[0] === 'p')?.[1]
+            if (currentUser.value.privkey) {
+              decryptedContent = await nip04.decrypt(currentUser.value.privkey, recipientPubkey, event.content)
+            } else if (window.nostr?.nip04?.decrypt) {
+              decryptedContent = await window.nostr.nip04.decrypt(recipientPubkey, event.content)
+            } else {
+              throw new Error('No decryption method available')
+            }
+          } else {
+            // For incoming messages, we need to decrypt with sender's pubkey
+            if (currentUser.value.privkey) {
+              decryptedContent = await nip04.decrypt(currentUser.value.privkey, event.pubkey, event.content)
+            } else if (window.nostr?.nip04?.decrypt) {
+              decryptedContent = await window.nostr.nip04.decrypt(event.pubkey, event.content)
+            } else {
+              throw new Error('No decryption method available')
+            }
+          }
+          
+          console.log('🔓 Successfully decrypted message:', decryptedContent.substring(0, 50) + '...')
+        } catch (decryptError) {
+          console.warn('⚠️ Failed to decrypt message:', decryptError)
+          decryptedContent = '[Encrypted message - unable to decrypt]'
         }
-      } catch (decryptError) {
-        console.error('❌ Failed to decrypt message:', decryptError)
-        decryptedContent = '[Failed to decrypt message]'
+      } else {
+        // Content is already plain text
+        decryptedContent = event.content
+        console.log('📝 Using plain text message:', decryptedContent.substring(0, 50) + '...')
       }
 
       // Create message object
