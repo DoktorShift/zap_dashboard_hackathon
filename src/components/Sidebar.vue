@@ -156,20 +156,20 @@ const handlePageChange = (pageId) => {
     </div>
     
     <!-- Bolt Logo Footer -->
-    <div class="p-3 sm:p-4 border-t border-orange-100/50">
-      <a 
-        href="https://bolt.new" 
-        target="_blank" 
-        rel="noopener noreferrer"
-        class="flex items-center justify-center space-x-2 text-gray-500 hover:text-orange-600 transition-colors duration-200 group"
-      >
-        <img 
-          src="/bolt-logo/black_circle_360x360.png" 
-          alt="Bolt Logo" 
-          class="w-4 h-4 sm:w-5 sm:h-5 object-contain group-hover:scale-110 transition-transform duration-200"
-        />
-        <span class="text-xs sm:text-sm font-medium">Bolt Inside</span>
-      </a>
-    </div>
+<!--    <div class="p-3 sm:p-4 border-t border-orange-100/50">-->
+<!--      <a -->
+<!--        href="https://bolt.new" -->
+<!--        target="_blank" -->
+<!--        rel="noopener noreferrer"-->
+<!--        class="flex items-center justify-center space-x-2 text-gray-500 hover:text-orange-600 transition-colors duration-200 group"-->
+<!--      >-->
+<!--        <img -->
+<!--          src="/bolt-logo/black_circle_360x360.png" -->
+<!--          alt="Bolt Logo" -->
+<!--          class="w-4 h-4 sm:w-5 sm:h-5 object-contain group-hover:scale-110 transition-transform duration-200"-->
+<!--        />-->
+<!--        <span class="text-xs sm:text-sm font-medium">Bolt Inside</span>-->
+<!--      </a>-->
+<!--    </div>-->
   </div>
 </template>
