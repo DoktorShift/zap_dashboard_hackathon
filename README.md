@@ -6,40 +6,40 @@ A modern, real-time dashboard for managing and analyzing Lightning Network zaps 
 
 > **🔒 Privacy First**: We don't store any of your data on our servers. All data is stored locally in your browser's local storage, ensuring your privacy and data sovereignty.
 
-## 🌟 Features
+## Features
 
-### 📊 **Real-time Analytics**
+### **Real-time Analytics**
 - Live zap tracking and statistics
 - Interactive charts and visualizations
 - Performance metrics and insights
 - Daily, weekly, and monthly activity views
 
-### 💰 **Wallet Management**
+### **Wallet Management**
 - Nostr Wallet Connect (NWC) integration
 - Real-time balance monitoring
 - Send and receive Lightning payments
 - QR code generation and scanning
 - Transaction history
 
-### 💬 **Chat + Zaps**
+### **Chat + Zaps**
 - Interactive chat with zap integration
 - Real-time messaging with Lightning payments
 - Zap notifications within conversations
 - Seamless payment experience during chats
 
-### 📱 **Zap Feed**
+### **Zap Feed**
 - Real-time zap notifications
 - Advanced filtering and search
 - Content performance tracking
 - Supporter analytics
 
-### 📝 **Content Management**
+### **Content Management**
 - Create and manage content posts
 - Track content performance and engagement
 - Content monetization with zaps
 - Content analytics and insights
 
-### 🛠️ **Point of Sale (PoS)**
+### **Point of Sale (PoS)**
 - Coming soon: Mini PoS system for merchants
 
 [//]: # (### 📈 **Content Analytics**)
@@ -52,7 +52,7 @@ A modern, real-time dashboard for managing and analyzing Lightning Network zaps 
 
 [//]: # (- Creator insights dashboard)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+ 
@@ -152,7 +152,7 @@ Comprehensive analytics including:
 - Revenue performance metrics
 - Content engagement insights
 
-[//]: # (## 🛠️ Technology Stack)
+[//]: # (## Technology Stack)
 
 [//]: # ()
 [//]: # (### Frontend)
@@ -184,7 +184,7 @@ Comprehensive analytics including:
 [//]: # (- **Autoprefixer** - CSS vendor prefixing)
 
 [//]: # ()
-[//]: # (## 📁 Project Structure)
+[//]: # (## Project Structure)
 
 [//]: # ()
 [//]: # (```)
@@ -257,7 +257,7 @@ Comprehensive analytics including:
 
 [//]: # (```)
 
-[//]: # (## 🔧 Configuration)
+[//]: # (## Configuration)
 
 [//]: # ()
 [//]: # (### Environment Variables)
@@ -293,7 +293,7 @@ Comprehensive analytics including:
 
 [//]: # (- Responsive design utilities)
 
-[//]: # (## 🎨 Customization)
+[//]: # (## Customization)
 
 [//]: # ()
 [//]: # (### Styling)
@@ -336,7 +336,7 @@ Comprehensive analytics including:
 
 [//]: # (All components are modular and can be easily customized. Each component follows Vue 3 Composition API patterns.)
 
-[//]: # (## 🚀 Deployment)
+[//]: # (## Deployment)
 
 [//]: # ()
 [//]: # (### Vercel)
@@ -401,10 +401,6 @@ Comprehensive analytics including:
 
 [//]: # (- Test thoroughly before submitting PRs)
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🙏 Acknowledgments
 
 - **Nostr Wallet Connect** - For the wallet connection protocol
@@ -419,6 +415,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ⚡ by the Pratik and DoktorShift**
+**Made with ⚡ by the [Pratik](https://github.com/pratik227) and [DoktorShift](https://github.com/DoktorShift)**
 
+## 📄 License
 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
