@@ -98,7 +98,7 @@ The main dashboard provides:
 - **Activity Chart**: 30-day zap activity visualization
 
 ### Zap Feed
-![Zap Feed](/public/zap_feed.png)
+![Zap Feed](/public/zaps.png)
 
 Features:
 - Real-time zap notifications
@@ -230,27 +230,41 @@ Full wallet functionality:
 
 [//]: # (```)
 
-## 🔧 Configuration
+[//]: # (## 🔧 Configuration)
 
-### Environment Variables
+[//]: # ()
+[//]: # (### Environment Variables)
 
-Create a `.env` file in the root directory:
+[//]: # ()
+[//]: # (Create a `.env` file in the root directory:)
 
-```env
-# Development settings
-VITE_APP_TITLE=Zap Dashboard
-VITE_APP_VERSION=1.0.0
+[//]: # ()
+[//]: # (```env)
 
-# Lightning Network settings (if needed)
-VITE_LIGHTNING_NETWORK=mainnet
-```
+[//]: # (# Development settings)
 
-### Tailwind Configuration
+[//]: # (VITE_APP_TITLE=Zap Dashboard)
 
-The project uses a custom Tailwind configuration with:
-- Orange color scheme for Lightning Network branding
-- Custom animations and transitions
-- Responsive design utilities
+[//]: # (VITE_APP_VERSION=1.0.0)
+
+[//]: # ()
+[//]: # (# Lightning Network settings &#40;if needed&#41;)
+
+[//]: # (VITE_LIGHTNING_NETWORK=mainnet)
+
+[//]: # (```)
+
+[//]: # ()
+[//]: # (### Tailwind Configuration)
+
+[//]: # ()
+[//]: # (The project uses a custom Tailwind configuration with:)
+
+[//]: # (- Orange color scheme for Lightning Network branding)
+
+[//]: # (- Custom animations and transitions)
+
+[//]: # (- Responsive design utilities)
 
 [//]: # (## 🎨 Customization)
 
