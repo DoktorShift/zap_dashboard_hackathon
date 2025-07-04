@@ -345,7 +345,7 @@ onUnmounted(() => {
                   {{ connection.profile?.name || formatPubkey(connection.pubkey) }}
                 </div>
                 <div class="text-sm text-gray-500 truncate">
-                  {{ connection.profile?.nip05 || connection.pubkey }}
+                  {{ connection.profile?.lud16 || '' }}
                 </div>
                 <div v-if="connection.lastMessage" class="text-xs text-gray-400 truncate">
                   {{ connection.lastMessage }}
@@ -394,7 +394,7 @@ onUnmounted(() => {
                   {{ selectedConnection.profile?.name || formatPubkey(selectedConnection.pubkey) }}
                 </div>
                 <div class="text-xs sm:text-sm text-gray-500 truncate">
-                  {{ selectedConnection.profile?.nip05 || selectedConnection.pubkey }}
+                  {{ selectedConnection.profile?.lud16 || '' }}
                 </div>
               </div>
             </div>
