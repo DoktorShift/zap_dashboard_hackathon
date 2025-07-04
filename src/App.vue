@@ -15,6 +15,7 @@ import Wallet from './pages/Wallet.vue'
 import Finances from './pages/Finances.vue'
 import Settings from './pages/Settings.vue'
 import InvoiceShare from './pages/InvoiceShare.vue'
+import Notes from './pages/Notes.vue'
 import NWCConnection from './components/NWCConnection.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
@@ -88,7 +89,8 @@ const components = {
   wallet: Wallet,
   finances: Finances,
   settings: Settings,
-  'invoice-share': InvoiceShare
+  'invoice-share': InvoiceShare,
+  notes: Notes
 }
 
 // Check if current page is standalone
