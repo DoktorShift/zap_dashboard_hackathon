@@ -21,17 +21,36 @@ A modern, real-time dashboard for managing and analyzing Lightning Network zaps 
 - QR code generation and scanning
 - Transaction history
 
+### 💬 **Chat + Zaps**
+- Interactive chat with zap integration
+- Real-time messaging with Lightning payments
+- Zap notifications within conversations
+- Seamless payment experience during chats
+
 ### 📱 **Zap Feed**
 - Real-time zap notifications
 - Advanced filtering and search
 - Content performance tracking
 - Supporter analytics
 
+### 📝 **Content Management**
+- Create and manage content posts
+- Track content performance and engagement
+- Content monetization with zaps
+- Content analytics and insights
+
 ### 🛠️ **Point of Sale (PoS)**
 - Coming soon: Mini PoS system for merchants
 
-### 📈 **Content Analytics**
-- Coming soon: Content performance metrics
+[//]: # (### 📈 **Content Analytics**)
+
+[//]: # (- Content performance metrics)
+
+[//]: # (- Revenue analytics per content)
+
+[//]: # (- Engagement tracking)
+
+[//]: # (- Creator insights dashboard)
 
 ## 🚀 Quick Start
 
@@ -106,6 +125,24 @@ Features:
 - Search functionality
 - Compact and detailed view modes
 
+### Chat + Zaps
+![Chat + Zaps Interface](/public/chat_zap.png)
+
+Interactive chat with zap integration:
+- Real-time messaging with Lightning payments
+- Zap notifications within conversations
+- Seamless payment experience during chats
+- Connection management for chat participants
+
+### Content Management
+![Content Management](/public/image.png)
+
+Comprehensive content management system:
+- Create and manage content posts
+- Track content performance and engagement
+- Content monetization with zaps
+- Revenue analytics per content piece
+
 ### Analytics
 ![Analytics Dashboard](/public/analytics.png)
 
@@ -114,16 +151,6 @@ Comprehensive analytics including:
 - Top supporters analysis
 - Revenue performance metrics
 - Content engagement insights
-
-### Wallet Management
-![Wallet Interface](/public/wallet.png)
-
-Full wallet functionality:
-- Balance display and management
-- Send Lightning payments
-- Generate payment invoices
-- QR code scanning
-- Transaction history
 
 [//]: # (## 🛠️ Technology Stack)
 
