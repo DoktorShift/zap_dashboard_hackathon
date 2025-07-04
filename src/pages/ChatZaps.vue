@@ -221,7 +221,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
+  <div class="h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)] lg:h-[calc(100vh-200px)] flex flex-col bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
     <!-- Authentication Required Banner -->
     <div v-if="!isAuthenticated" class="p-4 sm:p-6">
       <div class="bg-gradient-to-r from-purple-400 to-pink-400 text-white p-4 sm:p-6 rounded-xl shadow-lg">
@@ -249,7 +249,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Main Chat Interface -->
-    <div v-else class="h-full flex flex-col lg:flex-row relative">
+    <div v-else class="flex-1 flex flex-col lg:flex-row relative min-h-0">
       <!-- Mobile Overlay -->
       <div
         v-if="showMobileSidebar"
@@ -259,7 +259,7 @@ onUnmounted(() => {
 
       <!-- Sidebar with connections -->
       <div :class="[
-        'w-full lg:w-80 border-r border-orange-100/50 bg-white backdrop-blur-sm flex flex-col',
+        'w-full lg:w-80 border-r border-orange-100/50 bg-white backdrop-blur-sm flex flex-col min-h-0',
         'fixed lg:relative top-0 left-0 h-full z-50 lg:z-auto transform transition-transform duration-300 ease-in-out lg:transform-none',
         showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       ]">
@@ -301,7 +301,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Connections List - Scrollable -->
-        <div class="flex-1 overflow-y-auto">
+        <div class="flex-1 overflow-y-auto min-h-0 max-h-[calc(100%-140px)]">
           <div v-if="filteredConnections.length === 0" class="p-4 sm:p-6 text-center text-gray-500">
             <IconMessageCircle class="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-gray-300" />
             <p class="text-sm sm:text-base mb-2">No connections found</p>
@@ -346,7 +346,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Chat Area -->
-      <div class="flex-1 flex flex-col h-full lg:ml-0">
+      <div class="flex-1 flex flex-col min-h-0">
         <!-- Chat Header - Fixed -->
         <div v-if="selectedConnection" class="p-3 sm:p-4 border-b border-orange-100/50 bg-white/50 backdrop-blur-sm flex-shrink-0">
           <div class="flex items-center justify-between">
@@ -385,7 +385,7 @@ onUnmounted(() => {
         </div>
 
         <!-- No Connection Selected -->
-        <div v-else class="flex-1 flex items-center justify-center p-4 sm:p-6">
+        <div v-else class="flex-1 flex items-center justify-center p-4 sm:p-6 min-h-0">
           <div class="text-center text-gray-500 max-w-sm">
             <!-- Mobile menu button when no connection selected -->
             <button
@@ -403,7 +403,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Messages Area - Scrollable -->
-        <div v-if="selectedConnection" class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4" ref="messagesContainer">
+        <div v-if="selectedConnection" class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 min-h-0 max-h-[calc(100%-120px)]" ref="messagesContainer">
           <div v-if="messages.length === 0" class="text-center text-gray-500 py-6 sm:py-8">
             <IconMessageCircle class="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-gray-300" />
             <p class="text-sm sm:text-base mb-1">No messages yet</p>
