@@ -70,7 +70,7 @@ const menuItems = [
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar },
   { id: 'wallet', label: 'Wallet', icon: IconWallet },
-  { id: 'notes', label: 'Notes', icon: IconEdit },
+  // { id: 'notes', label: 'Notes', icon: IconEdit },
   { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
   { id: 'content', label: 'Content', icon: IconFileText },
   // { id: 'donations', label: 'Donations', icon: IconGift },

@@ -37,7 +37,7 @@
 
       <!-- Sidebar with connections -->
       <div :class="[
-        'w-full lg:w-80 border-r border-orange-100/50 bg-white/50 backdrop-blur-sm flex flex-col',
+        'w-full lg:w-80 border-r border-orange-100/50 bg-white backdrop-blur-sm flex flex-col',
         'fixed lg:relative top-0 left-0 h-full z-50 lg:z-auto transform transition-transform duration-300 ease-in-out lg:transform-none',
         showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       ]">
