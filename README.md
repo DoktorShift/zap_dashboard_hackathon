@@ -252,55 +252,95 @@ The project uses a custom Tailwind configuration with:
 - Custom animations and transitions
 - Responsive design utilities
 
-## 🎨 Customization
+[//]: # (## 🎨 Customization)
 
-### Styling
-The application uses Tailwind CSS with a custom orange theme. You can customize colors in `tailwind.config.js`:
+[//]: # ()
+[//]: # (### Styling)
 
-```javascript
-module.exports = {
-  theme: {
-    extend: {
-      colors: {
-        orange: {
-          25: '#fff7ed',
-          50: '#ffedd5',
-          // ... other shades
-        }
-      }
-    }
-  }
-}
-```
+[//]: # (The application uses Tailwind CSS with a custom orange theme. You can customize colors in `tailwind.config.js`:)
 
-### Components
-All components are modular and can be easily customized. Each component follows Vue 3 Composition API patterns.
+[//]: # ()
+[//]: # (```javascript)
 
-## 🚀 Deployment
+[//]: # (module.exports = {)
 
-### Vercel
-1. Connect your repository to Vercel
-2. Set build command: `npm run build`
-3. Set output directory: `dist`
-4. Deploy
+[//]: # (  theme: {)
 
-### Netlify
-1. Connect your repository to Netlify
-2. Set build command: `npm run build`
-3. Set publish directory: `dist`
-4. Deploy
+[//]: # (    extend: {)
 
-### Docker
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "run", "preview"]
-```
+[//]: # (      colors: {)
+
+[//]: # (        orange: {)
+
+[//]: # (          25: '#fff7ed',)
+
+[//]: # (          50: '#ffedd5',)
+
+[//]: # (          // ... other shades)
+
+[//]: # (        })
+
+[//]: # (      })
+
+[//]: # (    })
+
+[//]: # (  })
+
+[//]: # (})
+
+[//]: # (```)
+
+[//]: # ()
+[//]: # (### Components)
+
+[//]: # (All components are modular and can be easily customized. Each component follows Vue 3 Composition API patterns.)
+
+[//]: # (## 🚀 Deployment)
+
+[//]: # ()
+[//]: # (### Vercel)
+
+[//]: # (1. Connect your repository to Vercel)
+
+[//]: # (2. Set build command: `npm run build`)
+
+[//]: # (3. Set output directory: `dist`)
+
+[//]: # (4. Deploy)
+
+[//]: # ()
+[//]: # (### Netlify)
+
+[//]: # (1. Connect your repository to Netlify)
+
+[//]: # (2. Set build command: `npm run build`)
+
+[//]: # (3. Set publish directory: `dist`)
+
+[//]: # (4. Deploy)
+
+[//]: # ()
+[//]: # (### Docker)
+
+[//]: # (```dockerfile)
+
+[//]: # (FROM node:18-alpine)
+
+[//]: # (WORKDIR /app)
+
+[//]: # (COPY package*.json ./)
+
+[//]: # (RUN npm ci --only=production)
+
+[//]: # (COPY . .)
+
+[//]: # (RUN npm run build)
+
+[//]: # (EXPOSE 3000)
+
+[//]: # (CMD ["npm", "run", "preview"])
+
+[//]: # (```)
 
 ## 🤝 Contributing
 
