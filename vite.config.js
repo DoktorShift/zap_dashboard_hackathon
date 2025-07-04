@@ -13,7 +13,7 @@ export default defineConfig({
                 name: 'Zap Dashboard',
                 short_name: 'ZapDash',
                 description: 'Lightning-powered dashboard for Nostr and more!',
-                theme_color: '#42b883',
+                theme_color: '#fb933c',
                 id: '/',
                 dir: 'ltr',
                 categories: ['productivity', 'finance', 'utilities'],
