@@ -202,57 +202,62 @@
     </div>
 
     <!-- New Connection Modal -->
-    <div v-if="showNewConnectionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Add New Connection</h3>
-          <button
-            @click="showNewConnectionModal = false"
-            class="text-gray-400 hover:text-gray-600"
-          >
-            <IconX class="w-5 h-5" />
-          </button>
-        </div>
-        
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Connection Name</label>
-            <input
-              v-model="newConnection.name"
-              type="text"
-              placeholder="Enter a name for this connection"
-              class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            />
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showNewConnectionModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-semibold text-gray-900">Add New Connection</h3>
+              <button
+                @click="showNewConnectionModal = false"
+                class="text-gray-400 hover:text-gray-600 p-1 rounded-lg transition-colors touch-target"
+                title="Close"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Connection Name</label>
+                <input
+                  v-model="newConnection.name"
+                  type="text"
+                  placeholder="Enter a name for this connection"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm text-base touch-target transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Public Key</label>
+                <input
+                  v-model="newConnection.pubkey"
+                  type="text"
+                  placeholder="Enter the Nostr public key"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm text-base touch-target transition-all duration-200"
+                />
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-3 mt-6">
+              <button
+                @click="showNewConnectionModal = false"
+                class="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                @click="addConnection"
+                :disabled="!newConnection.pubkey"
+                class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add Connection
+              </button>
+            </div>
           </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Public Key</label>
-            <input
-              v-model="newConnection.pubkey"
-              type="text"
-              placeholder="Enter the Nostr public key"
-              class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            />
-          </div>
         </div>
-        
-        <div class="flex items-center justify-end space-x-3 mt-6">
-          <button
-            @click="showNewConnectionModal = false"
-            class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            @click="addConnection"
-            :disabled="!newConnection.pubkey"
-            class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Add Connection
-          </button>
-        </div>
-      </div>
-    </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
