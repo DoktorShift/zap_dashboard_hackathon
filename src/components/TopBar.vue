@@ -16,7 +16,8 @@ import {
   IconMessageCircle,
   IconFileText,
   IconGift,
-  IconShoppingCart
+  IconShoppingCart,
+  IconEdit
 } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -87,6 +88,11 @@ const pageInfo = computed(() => {
       title: 'Settings',
       description: 'Manage your zap dashboard preferences and integrations',
       icon: IconSettings
+    },
+    'notes': {
+      title: 'Notes',
+      description: 'Keep track of your thoughts and ideas',
+      icon: IconEdit
     }
   }
   

@@ -17,6 +17,7 @@ import Settings from './pages/Settings.vue'
 import InvoiceShare from './pages/InvoiceShare.vue'
 import Notes from './pages/Notes.vue'
 import NWCConnection from './components/NWCConnection.vue'
+import ErrorBoundary from './components/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
@@ -58,6 +59,10 @@ const activeSettingsTab = ref('nostr')
 const showConnectionModal = ref(false)
 const isMobileMenuOpen = ref(false)
 const isRefreshingData = ref(false)
+
+// Add error handling for page loading
+const pageLoadingError = ref('')
+const isPageLoading = ref(false)
 
 // Provide data to child components
 provide('zapData', zapData)
@@ -190,23 +195,43 @@ onMounted(async () => {
 })
 
 // Enhanced page change function to handle tab navigation
-const changePage = (page, tab = null) => {
-  currentPage.value = page
-  isMobileMenuOpen.value = false
-  
-  // If navigating to settings and a specific tab is provided, set it
-  if (page === 'settings' && tab) {
-    activeSettingsTab.value = tab
+const changePage = async (page, tab = null) => {
+  if (!components[page]) {
+    console.error('Invalid page:', page)
+    pageLoadingError.value = `Page "${page}" not found`
+    return
   }
   
-  // Update URL without page reload
-  const url = new URL(window.location)
-  if (page !== 'dashboard') {
-    url.searchParams.set('page', page)
-  } else {
-    url.searchParams.delete('page')
+  isPageLoading.value = true
+  pageLoadingError.value = ''
+  
+  try {
+    currentPage.value = page
+    isMobileMenuOpen.value = false
+    
+    // If navigating to settings and a specific tab is provided, set it
+    if (page === 'settings' && tab) {
+      activeSettingsTab.value = tab
+    }
+    
+    // Update URL without page reload
+    const url = new URL(window.location)
+    if (page !== 'dashboard') {
+      url.searchParams.set('page', page)
+    } else {
+      url.searchParams.delete('page')
+    }
+    window.history.pushState({}, '', url)
+    
+    // Give the component a moment to load
+    await nextTick()
+    
+  } catch (error) {
+    console.error('Page change error:', error)
+    pageLoadingError.value = `Failed to load page: ${error.message}`
+  } finally {
+    isPageLoading.value = false
   }
-  window.history.pushState({}, '', url)
 }
 
 // Provide changePage function to child components
@@ -256,6 +281,10 @@ watch(connectionError, (error) => {
     handleConnectionError(new Error(error))
   }
 })
+
+// Provide error handling to child components
+provide('pageLoadingError', pageLoadingError)
+provide('isPageLoading', isPageLoading)
 </script>
 
 <template>
@@ -364,14 +393,48 @@ watch(connectionError, (error) => {
             </div>
           </transition>
           
+          <!-- Page Loading Error -->
+          <transition name="slide-down">
+            <div v-if="pageLoadingError" class="mb-4 lg:mb-6">
+              <div class="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div class="flex items-center space-x-2">
+                    <IconAlertTriangle class="w-5 h-5 text-red-600" />
+                    <span class="text-red-800 text-sm sm:text-base">{{ pageLoadingError }}</span>
+                  </div>
+                  <button 
+                    @click="changePage('dashboard')"
+                    class="btn-secondary text-sm whitespace-nowrap text-blue-600 hover:text-blue-700"
+                  >
+                    Go to Dashboard
+                  </button>
+                </div>
+              </div>
+            </div>
+          </transition>
+          
+          <!-- Page Loading State -->
+          <transition name="slide-down">
+            <div v-if="isPageLoading" class="mb-4 lg:mb-6">
+              <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+                <div class="flex items-center space-x-2">
+                  <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <span class="text-blue-800 text-sm sm:text-base">Loading page...</span>
+                </div>
+              </div>
+            </div>
+          </transition>
+          
           <!-- Page Content with Transition -->
           <transition name="page-fade" mode="out-in">
-            <component 
-              :is="components[currentPage]" 
-              :key="currentPage"
-              :initial-tab="currentPage === 'settings' ? activeSettingsTab : undefined"
-              @change-page="changePage"
-            />
+            <ErrorBoundary v-if="!pageLoadingError && !isPageLoading">
+              <component 
+                :is="components[currentPage]" 
+                :key="currentPage"
+                :initial-tab="currentPage === 'settings' ? activeSettingsTab : undefined"
+                @change-page="changePage"
+              />
+            </ErrorBoundary>
           </transition>
         </div>
       </main>

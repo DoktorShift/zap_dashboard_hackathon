@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { 
   IconFileText, 
   IconPlus, 
@@ -37,6 +37,10 @@ const {
   publishNote,
   updateNote,
   deleteNote,
+  cleanup,
+  debugState,
+  removeNoteFromLocalState,
+  cleanupDuplicateNotes,
   setView,
   viewNote,
   editNote,
@@ -62,12 +66,12 @@ const editor = useEditor({
     Underline,
     Placeholder.configure({
       placeholder: 'Start writing your note... Use # for headings, **bold**, *italic*, and [links](url)'
-    }),
-    Markdown.configure({
-      html: false,
-      transformCopiedText: true,
-      transformPastedText: true
     })
+    // Markdown.configure({
+    //   html: false,
+    //   transformCopiedText: true,
+    //   transformPastedText: true
+    // })
   ],
   editorProps: {
     attributes: {
@@ -79,11 +83,43 @@ const editor = useEditor({
   }
 })
 
+// View-only editor for popup
+const viewEditor = useEditor({
+  content: '',
+  extensions: [
+    StarterKit.configure({
+      heading: {
+        levels: [1, 2, 3]
+      }
+    }),
+    Link.configure({
+      openOnClick: true, // Allow clicking links in view mode
+      HTMLAttributes: {
+        class: 'text-orange-600 hover:text-orange-700 underline'
+      }
+    }),
+    Underline
+  ],
+  editorProps: {
+    attributes: {
+      class: 'prose prose-sm max-w-none focus:outline-none p-4'
+    }
+  },
+  editable: false // Make it read-only
+})
+
 // Watch for content changes when editing
 const updateEditorContent = (content) => {
   if (editor.value && content !== editor.value.getHTML()) {
     editor.value.commands.setContent(content)
   }
+}
+
+// HTML decode function
+const decodeHtml = (html) => {
+  const txt = document.createElement('textarea')
+  txt.innerHTML = html
+  return txt.value
 }
 
 // Handle form submission
@@ -131,12 +167,45 @@ const handleNostrLogin = async () => {
 // Set up editor content when editing
 const startEditing = (note) => {
   editNote(note)
-  updateEditorContent(note.content)
+  // Directly set the content without comparison
+  if (editor.value) {
+    console.log('Original content:', note.content)
+    
+    // Clear the editor first, then set content
+    editor.value.commands.clearContent()
+    
+    // Set content as HTML with a small delay to ensure editor is ready
+    setTimeout(() => {
+      editor.value.commands.setContent(note.content)
+    }, 50)
+  }
 }
 
 const startCreating = () => {
   createNewNote()
   editor.value?.commands.clearContent()
+}
+
+// Open view popup
+const openViewPopup = (note) => {
+  selectedNote.value = note
+  showViewPopup.value = true
+  
+  // Set content in view editor
+  if (viewEditor.value) {
+    viewEditor.value.commands.setContent(note.content)
+  }
+}
+
+// Close view popup
+const closeViewPopup = () => {
+  showViewPopup.value = false
+  selectedNote.value = null
+  
+  // Clear view editor content
+  if (viewEditor.value) {
+    viewEditor.value.commands.clearContent()
+  }
 }
 
 // Computed properties
@@ -155,8 +224,28 @@ const noteStats = computed(() => {
   }
 })
 
+// UI state
+const showViewPopup = ref(false)
+
 onMounted(() => {
   // Editor is automatically set up by useEditor
+  
+  // Expose debug function globally for console access
+  window.debugNotes = debugState
+})
+
+// Watch for selected note changes to update view editor
+watch(selectedNote, (newNote) => {
+  if (newNote && viewEditor.value) {
+    viewEditor.value.commands.setContent(newNote.content)
+  }
+})
+
+onUnmounted(() => {
+  // Clean up subscriptions when component unmounts
+  cleanup()
+  // Remove global debug function
+  delete window.debugNotes
 })
 </script>
 
@@ -191,17 +280,17 @@ onMounted(() => {
     <div v-else>
       <!-- Page Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
-            <IconFileText class="w-6 h-6 text-orange-600" />
-            <span>My Notes</span>
-          </h1>
-          <p class="text-gray-600">
-            Welcome back, {{ userProfile?.name || 'Creator' }}! Write and publish notes to the Nostr network.
-          </p>
-        </div>
+       <div>
+<!--&lt;!&ndash;          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">&ndash;&gt;-->
+<!--&lt;!&ndash;            <IconFileText class="w-6 h-6 text-orange-600" />&ndash;&gt;-->
+<!--&lt;!&ndash;            <span>My Notes</span>&ndash;&gt;-->
+<!--&lt;!&ndash;          </h1>&ndash;&gt;-->
+<!--          <p class="text-gray-600">-->
+<!--            Welcome back, {{ userProfile?.name || 'Creator' }}! Write and publish notes to the Nostr network.-->
+<!--          </p>-->
+       </div>
 
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-3 mb-4">
           <button
             v-if="currentView !== 'list'"
             @click="setView('list')"
@@ -218,6 +307,15 @@ onMounted(() => {
             <IconPlus class="w-4 h-4" />
             New Note
           </button>
+<!--          <button-->
+<!--            v-if="currentView === 'list'"-->
+<!--            @click="cleanupDuplicateNotes"-->
+<!--            class="btn-secondary text-sm"-->
+<!--            title="Clean up duplicate notes"-->
+<!--          >-->
+<!--            <IconLoader class="w-4 h-4" />-->
+<!--            Cleanup-->
+<!--          </button>-->
         </div>
       </div>
 
@@ -296,8 +394,12 @@ onMounted(() => {
             >
               <div class="flex items-start justify-between">
                 <div class="flex-1 min-w-0">
-                  <h4 class="font-semibold text-gray-900 mb-2 truncate">{{ note.title }}</h4>
-                  <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ note.preview }}</p>
+                  <h4 class="font-semibold text-gray-900 mb-2 truncate">
+                    <div v-html="note.title"></div>
+                  </h4>
+<!--                  <p class="text-sm text-gray-600 mb-3 line-clamp-2">-->
+<!--                    <div v-html="note.preview"></div>-->
+<!--                  </p>-->
                   
                   <div class="flex items-center space-x-4 text-xs text-gray-500">
                     <span class="flex items-center space-x-1">
@@ -313,6 +415,13 @@ onMounted(() => {
                 </div>
                 
                 <div class="flex items-center space-x-2 ml-4">
+<!--                  <button-->
+<!--                    @click.stop="openViewPopup(note)"-->
+<!--                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"-->
+<!--                    title="View note"-->
+<!--                  >-->
+<!--                    <IconEye class="w-4 h-4" />-->
+<!--                  </button>-->
                   <button
                     @click.stop="startEditing(note)"
                     class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
@@ -452,7 +561,9 @@ onMounted(() => {
           <div class="p-6 border-b border-orange-100/50">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="text-xl font-semibold text-gray-900 mb-2">{{ selectedNote.title }}</h2>
+                <h2 class="text-xl font-semibold text-gray-900 mb-2">
+                  <div v-html="selectedNote.title"></div>
+                </h2>
                 <div class="flex items-center space-x-4 text-sm text-gray-600">
                   <span class="flex items-center space-x-1">
                     <IconCalendar class="w-4 h-4" />
@@ -500,7 +611,9 @@ onMounted(() => {
             </div>
 
             <!-- Note Content -->
-            <div class="prose prose-sm max-w-none" v-html="selectedNote.content"></div>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+              <EditorContent :editor="viewEditor" class="min-h-[200px] bg-white" />
+            </div>
 
             <!-- Nostr Event Details -->
             <div class="mt-8 pt-6 border-t border-gray-200">
@@ -523,6 +636,105 @@ onMounted(() => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Note Popup -->
+  <div v-if="showViewPopup && selectedNote" class="fixed inset-0 z-50 overflow-y-auto">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="closeViewPopup"></div>
+    
+    <!-- Modal -->
+    <div class="flex min-h-full items-center justify-center p-4">
+      <div class="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+          <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              <div v-html="selectedNote.title"></div>
+            </h2>
+            <div class="flex items-center space-x-4 text-sm text-gray-600">
+              <span class="flex items-center space-x-1">
+                <IconCalendar class="w-4 h-4" />
+                <span>{{ formatDate(selectedNote.created_at) }}</span>
+              </span>
+              <span class="flex items-center space-x-1">
+                <IconUser class="w-4 h-4" />
+                <span>{{ userProfile?.name || 'You' }}</span>
+              </span>
+            </div>
+          </div>
+          
+          <div class="flex items-center space-x-2">
+            <button
+              @click="startEditing(selectedNote); closeViewPopup()"
+              class="btn-secondary"
+            >
+              <IconEdit class="w-4 h-4" />
+              Edit
+            </button>
+            <button
+              @click="handleDelete(selectedNote); closeViewPopup()"
+              class="btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <IconTrash class="w-4 h-4" />
+              Delete
+            </button>
+            <button
+              @click="closeViewPopup"
+              class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Close"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+          <!-- Hashtags -->
+          <div v-if="selectedNote.hashtags && selectedNote.hashtags.length > 0" class="mb-6">
+            <div class="flex flex-wrap gap-2">
+              <span
+                v-for="tag in selectedNote.hashtags"
+                :key="tag"
+                class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
+              >
+                <IconHash class="w-3 h-3" />
+                <span>{{ tag }}</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Note Content -->
+          <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <EditorContent :editor="viewEditor" class="min-h-[200px] bg-white" />
+          </div>
+
+          <!-- Nostr Event Details -->
+          <!-- <div class="mt-8 pt-6 border-t border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3">Nostr Event Details</h4>
+            <div class="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-gray-600">Event ID:</span>
+                <code class="text-gray-800 bg-gray-200 px-2 py-1 rounded text-xs">
+                  {{ selectedNote.id.substring(0, 16) }}...
+                </code>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-gray-600">Kind:</span>
+                <span class="text-gray-800">1 (Text Note)</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-gray-600">Published:</span>
+                <span class="text-gray-800">{{ new Date(selectedNote.created_at * 1000).toLocaleString() }}</span>
+              </div>
+            </div>
+          </div> -->
         </div>
       </div>
     </div>
@@ -597,5 +809,19 @@ onMounted(() => {
   background: none;
   padding: 0;
   color: inherit;
+}
+
+/* View-only editor styles */
+:deep(.ProseMirror[contenteditable="false"]) {
+  cursor: default;
+  user-select: text;
+}
+
+:deep(.ProseMirror[contenteditable="false"]:focus) {
+  outline: none;
+}
+
+:deep(.ProseMirror[contenteditable="false"] a) {
+  cursor: pointer;
 }
 </style>

@@ -1,27 +1,43 @@
 <script setup>
-import { computed, inject } from 'vue'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart, BarChart, PieChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent
-} from 'echarts/components'
-import VChart from 'vue-echarts'
-import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp } from '@iconify-prerendered/vue-tabler'
+import { computed, inject, ref, onMounted } from 'vue'
+import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 
-use([
-  CanvasRenderer,
-  LineChart,
-  BarChart,
-  PieChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent
-])
+// Lazy load ECharts to prevent issues
+const VChart = ref(null)
+const echartsError = ref(null)
+const isEchartsLoaded = ref(false)
+
+onMounted(async () => {
+  try {
+    const { use } = await import('echarts/core')
+    const { CanvasRenderer } = await import('echarts/renderers')
+    const { LineChart, BarChart, PieChart } = await import('echarts/charts')
+    const {
+      TitleComponent,
+      TooltipComponent,
+      LegendComponent,
+      GridComponent
+    } = await import('echarts/components')
+    const { default: VChartComponent } = await import('vue-echarts')
+    
+    use([
+      CanvasRenderer,
+      LineChart,
+      BarChart,
+      PieChart,
+      TitleComponent,
+      TooltipComponent,
+      LegendComponent,
+      GridComponent
+    ])
+    
+    VChart.value = VChartComponent
+    isEchartsLoaded.value = true
+  } catch (error) {
+    console.error('Failed to load ECharts:', error)
+    echartsError.value = error.message
+  }
+})
 
 const zapData = inject('zapData')
 const selectedTimeRange = inject('selectedTimeRange')
@@ -449,7 +465,16 @@ const summaryStats = computed(() => {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- ECharts Loading Error -->
+    <div v-if="echartsError" class="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div class="flex items-center space-x-2">
+        <IconAlertCircle class="w-5 h-5 text-red-600" />
+        <span class="text-red-800">Failed to load charts: {{ echartsError }}</span>
+      </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div v-else-if="isEchartsLoaded && VChart" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Daily Activity Chart -->
       <div class="card p-6">
         <VChart :option="dailyActivityOption" style="height: 300px;" />
@@ -463,6 +488,25 @@ const summaryStats = computed(() => {
       <!-- Amount Distribution Chart -->
       <div class="card p-6 lg:col-span-2">
         <VChart :option="amountDistributionOption" style="height: 300px;" />
+      </div>
+    </div>
+
+    <!-- ECharts Loading State -->
+    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="card p-6">
+        <div class="flex items-center justify-center h-[300px]">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        </div>
+      </div>
+      <div class="card p-6">
+        <div class="flex items-center justify-center h-[300px]">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        </div>
+      </div>
+      <div class="card p-6 lg:col-span-2">
+        <div class="flex items-center justify-center h-[300px]">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        </div>
       </div>
     </div>
     

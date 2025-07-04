@@ -1,26 +1,42 @@
 <script setup>
 import { computed, inject, ref, onMounted, watch } from 'vue'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  GridComponent
-} from 'echarts/components'
-import VChart from 'vue-echarts'
-import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText } from '../utils/timeFilter.js'
 
-use([
-  CanvasRenderer,
-  LineChart,
-  TitleComponent,
-  TooltipComponent,
-  GridComponent
-])
+// Lazy load ECharts to prevent issues
+const VChart = ref(null)
+const echartsError = ref(null)
+const isEchartsLoaded = ref(false)
+
+onMounted(async () => {
+  try {
+    const { use } = await import('echarts/core')
+    const { CanvasRenderer } = await import('echarts/renderers')
+    const { LineChart } = await import('echarts/charts')
+    const {
+      TitleComponent,
+      TooltipComponent,
+      GridComponent
+    } = await import('echarts/components')
+    const { default: VChartComponent } = await import('vue-echarts')
+    
+    use([
+      CanvasRenderer,
+      LineChart,
+      TitleComponent,
+      TooltipComponent,
+      GridComponent
+    ])
+    
+    VChart.value = VChartComponent
+    isEchartsLoaded.value = true
+  } catch (error) {
+    console.error('Failed to load ECharts:', error)
+    echartsError.value = error.message
+  }
+})
 
 const zapData = inject('zapData')
 const selectedTimeRange = inject('selectedTimeRange')
@@ -390,8 +406,22 @@ const getPercentageChange = (current, type) => {
           </h3>
           <div class="text-sm text-gray-500">Last 30 days</div>
         </div>
-        <div class="h-64 sm:h-80">
+        <!-- ECharts Loading Error -->
+        <div v-if="echartsError" class="h-64 sm:h-80 flex items-center justify-center">
+          <div class="text-center">
+            <IconAlertCircle class="w-8 h-8 text-red-500 mx-auto mb-2" />
+            <p class="text-red-600 text-sm">Failed to load chart</p>
+          </div>
+        </div>
+        
+        <!-- Chart -->
+        <div v-else-if="isEchartsLoaded && VChart" class="h-64 sm:h-80">
           <VChart :option="chartOption" class="w-full h-full" />
+        </div>
+        
+        <!-- Loading State -->
+        <div v-else class="h-64 sm:h-80 flex items-center justify-center">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
         </div>
       </div>
 
