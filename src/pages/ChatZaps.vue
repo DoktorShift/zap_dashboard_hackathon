@@ -48,7 +48,7 @@
             <div class="flex items-center space-x-2">
               <button
                 @click="showNewConnectionModal = true"
-                class="touch-target p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                class="touch-target p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors flex items-center justify-center"
                 title="Add new connection"
               >
                 <IconPlus class="w-4 h-4 sm:w-5 sm:h-5" />
@@ -233,7 +233,7 @@
             <button
               @click="sendMessage"
               :disabled="!newMessage.trim() || isSending"
-              class="touch-target p-2 sm:p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              class="touch-target p-2 sm:p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 flex items-center justify-center"
               title="Send message"
             >
               <IconLoader v-if="isSending" class="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
@@ -610,7 +610,7 @@ textarea {
     height: 100vh;
   }
 
-  .max-h-[90vh] {
+  .max-h-\[90vh\] {
     max-height: 85vh;
   }
 }
