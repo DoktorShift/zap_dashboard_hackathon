@@ -27,12 +27,12 @@ export default defineConfig({
                 },
                 icons: [
                     {
-                        src: 'dashboard.png',
+                        src: 'new_logo3.png',
                         sizes: '192x192',
                         type: 'image/png'
                     },
                     {
-                        src: 'dashboard.png',
+                        src: 'new_logo3.png',
                         sizes: '512x512',
                         type: 'image/png'
                     }
