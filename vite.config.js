@@ -57,7 +57,13 @@ export default defineConfig({
                         label: 'Analytics dashboard'
                     },
                     {
-                        src: 'zap_feed.png',
+                        src: 'zaps.png',
+                        sizes: '1280x720',
+                        type: 'image/png',
+                        label: 'Zap feed view'
+                    },
+                    {
+                        src: 'chat_zap_2.png',
                         sizes: '1280x720',
                         type: 'image/png',
                         label: 'Zap feed view'
