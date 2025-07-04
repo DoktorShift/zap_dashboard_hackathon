@@ -4,7 +4,6 @@ import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { contentService } from '../utils/contentService.js'
-import { contentEncryption } from '../utils/contentEncryption.js'
 
 // Content types
 const CONTENT_TYPES = {
@@ -377,6 +376,7 @@ export function useContent() {
         eventTemplate.tags.push(['unlock_via', 'zap'])
         
         // Encrypt the full content
+        const { contentEncryption } = await import('../utils/contentEncryption.js')
         const encryptionKey = contentEncryption.generateEncryptionKey()
         const encryptedContent = await contentEncryption.encryptContent(content.fullContent, encryptionKey)
         
