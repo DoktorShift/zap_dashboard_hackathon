@@ -125,61 +125,110 @@ Full wallet functionality:
 - QR code scanning
 - Transaction history
 
-## 🛠️ Technology Stack
+[//]: # (## 🛠️ Technology Stack)
 
-### Frontend
-- **Vue 3** - Progressive JavaScript framework
-- **Vite** - Fast build tool and dev server
-- **Tailwind CSS** - Utility-first CSS framework
-- **ECharts** - Interactive charting library
-- **Lucide Vue** - Beautiful icon library
+[//]: # ()
+[//]: # (### Frontend)
 
-### Lightning Network
-- **Nostr Wallet Connect** - Wallet connection protocol
-- **Alby SDK** - Lightning wallet integration
-- **QR Code** - Payment scanning and generation
+[//]: # (- **Vue 3** - Progressive JavaScript framework)
 
-### Development Tools
-- **PostCSS** - CSS processing
-- **Autoprefixer** - CSS vendor prefixing
+[//]: # (- **Vite** - Fast build tool and dev server)
 
-## 📁 Project Structure
+[//]: # (- **Tailwind CSS** - Utility-first CSS framework)
 
-```
-zap_dashboard/
-├── src/
-│   ├── components/          # Reusable Vue components
-│   │   ├── Analytics.vue    # Analytics charts and metrics
-│   │   ├── Filters.vue      # Search and filter components
-│   │   ├── NWCConnection.vue # Wallet connection interface
-│   │   ├── Sidebar.vue      # Navigation sidebar
-│   │   ├── TopBar.vue       # Top navigation bar
-│   │   └── ...
-│   ├── pages/               # Main application pages
-│   │   ├── Dashboard.vue    # Main dashboard view
-│   │   ├── ZapFeed.vue      # Zap feed and notifications
-│   │   ├── Analytics.vue    # Detailed analytics
-│   │   ├── Wallet.vue       # Wallet management
-│   │   ├── MiniPoS.vue      # Point of sale system
-│   │   └── ...
-│   ├── composables/         # Vue 3 composables
-│   │   ├── useContent.js    # Content management logic
-│   │   ├── useNostrConnections.js # Wallet connection logic
-│   │   └── useNotifications.js # Notification system
-│   ├── utils/               # Utility functions
-│   │   ├── nwcClient.js     # Nostr Wallet Connect client
-│   │   ├── dataMapper.js    # Data transformation utilities
-│   │   └── mockData.js      # Sample data for development
-│   └── assets/              # Static assets
-│       ├── LOGO.svg         # Application logo
-│       ├── nwc-logo.svg     # NWC logo
-│       └── ...
-├── public/                  # Public static files
-├── package.json             # Dependencies and scripts
-├── vite.config.js          # Vite configuration
-├── tailwind.config.js      # Tailwind CSS configuration
-└── README.md               # This file
-```
+[//]: # (- **ECharts** - Interactive charting library)
+
+[//]: # (- **Lucide Vue** - Beautiful icon library)
+
+[//]: # ()
+[//]: # (### Lightning Network)
+
+[//]: # (- **Nostr Wallet Connect** - Wallet connection protocol)
+
+[//]: # (- **Alby SDK** - Lightning wallet integration)
+
+[//]: # (- **QR Code** - Payment scanning and generation)
+
+[//]: # ()
+[//]: # (### Development Tools)
+
+[//]: # (- **PostCSS** - CSS processing)
+
+[//]: # (- **Autoprefixer** - CSS vendor prefixing)
+
+[//]: # ()
+[//]: # (## 📁 Project Structure)
+
+[//]: # ()
+[//]: # (```)
+
+[//]: # (zap_dashboard/)
+
+[//]: # (├── src/)
+
+[//]: # (│   ├── components/          # Reusable Vue components)
+
+[//]: # (│   │   ├── Analytics.vue    # Analytics charts and metrics)
+
+[//]: # (│   │   ├── Filters.vue      # Search and filter components)
+
+[//]: # (│   │   ├── NWCConnection.vue # Wallet connection interface)
+
+[//]: # (│   │   ├── Sidebar.vue      # Navigation sidebar)
+
+[//]: # (│   │   ├── TopBar.vue       # Top navigation bar)
+
+[//]: # (│   │   └── ...)
+
+[//]: # (│   ├── pages/               # Main application pages)
+
+[//]: # (│   │   ├── Dashboard.vue    # Main dashboard view)
+
+[//]: # (│   │   ├── ZapFeed.vue      # Zap feed and notifications)
+
+[//]: # (│   │   ├── Analytics.vue    # Detailed analytics)
+
+[//]: # (│   │   ├── Wallet.vue       # Wallet management)
+
+[//]: # (│   │   ├── MiniPoS.vue      # Point of sale system)
+
+[//]: # (│   │   └── ...)
+
+[//]: # (│   ├── composables/         # Vue 3 composables)
+
+[//]: # (│   │   ├── useContent.js    # Content management logic)
+
+[//]: # (│   │   ├── useNostrConnections.js # Wallet connection logic)
+
+[//]: # (│   │   └── useNotifications.js # Notification system)
+
+[//]: # (│   ├── utils/               # Utility functions)
+
+[//]: # (│   │   ├── nwcClient.js     # Nostr Wallet Connect client)
+
+[//]: # (│   │   ├── dataMapper.js    # Data transformation utilities)
+
+[//]: # (│   │   └── mockData.js      # Sample data for development)
+
+[//]: # (│   └── assets/              # Static assets)
+
+[//]: # (│       ├── LOGO.svg         # Application logo)
+
+[//]: # (│       ├── nwc-logo.svg     # NWC logo)
+
+[//]: # (│       └── ...)
+
+[//]: # (├── public/                  # Public static files)
+
+[//]: # (├── package.json             # Dependencies and scripts)
+
+[//]: # (├── vite.config.js          # Vite configuration)
+
+[//]: # (├── tailwind.config.js      # Tailwind CSS configuration)
+
+[//]: # (└── README.md               # This file)
+
+[//]: # (```)
 
 ## 🔧 Configuration
 
