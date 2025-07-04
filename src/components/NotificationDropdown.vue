@@ -110,7 +110,7 @@ const hasUnread = computed(() => unreadCount.value > 0)
     <!-- Notification Bell Button with Consistent Styling -->
     <button 
       @click="toggleDropdown"
-      class="relative text-gray-500 hover:text-orange-600 transition-all duration-200 touch-target group"
+      class="relative text-gray-500 hover:text-orange-600 transition-all duration-200 touch-target group flex items-center justify-center"
     >
       <IconBellRinging v-if="hasUnread" class="w-5 h-5 animate-bounce text-orange-600" />
       <IconBell v-else class="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />

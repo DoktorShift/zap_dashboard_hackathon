@@ -11,7 +11,8 @@ import {
   IconShoppingCart, 
   IconWallet, 
   IconCreditCard,
-  IconSettings 
+  IconSettings,
+  IconEdit
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -69,7 +70,8 @@ const menuItems = [
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar },
   { id: 'wallet', label: 'Wallet', icon: IconWallet },
-  // { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
+  // { id: 'notes', label: 'Notes', icon: IconEdit },
+  { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
   { id: 'content', label: 'Content', icon: IconFileText },
   // { id: 'donations', label: 'Donations', icon: IconGift },
   // { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
@@ -89,9 +91,9 @@ const handlePageChange = (pageId) => {
       <div class="flex items-center space-x-3">
         <div class="w-12 h-12 flex items-center justify-center">
           <img 
-            src="/nwc-logo/nwc_logo.png" 
+            src="/new_logo3.png"
             alt="NWC Logo" 
-            class="w-10 h-10 object-contain"
+            class="w-13 h-13 object-contain"
           />
         </div>
         <div>

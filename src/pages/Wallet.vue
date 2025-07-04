@@ -34,7 +34,17 @@ import {
 } from '../utils/nwcClient.js'
 
 // Dynamically import QrStream to avoid build issues
-const QrStream = defineAsyncComponent(() => import('qrcode-reader-vue3').then(m => m.default))
+const QrStream = defineAsyncComponent({
+  loader: () => import('qrcode-reader-vue3').then(m => m.default),
+  loadingComponent: {
+    template: '<div class="flex items-center justify-center p-4"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div></div>'
+  },
+  errorComponent: {
+    template: '<div class="text-center p-4 text-red-600">Failed to load QR scanner</div>'
+  },
+  delay: 200,
+  timeout: 10000
+})
 
 const { isWalletConnected, activeConnection } = useNostrConnections()
 const { handleZapSent, handlePaymentSuccess, handlePaymentError } = useNotifications()
