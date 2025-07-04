@@ -345,7 +345,10 @@ onUnmounted(() => {
                   {{ connection.profile?.name || formatPubkey(connection.pubkey) }}
                 </div>
                 <div class="text-sm text-gray-500 truncate">
-                  {{ connection.profile?.lud16 || '' }}
+                  <div v-if="connection.profile?.lud16" class="flex items-center space-x-1">
+                    <IconBolt class="w-3 h-3 text-yellow-500 flex-shrink-0" />
+                    <span class="truncate">{{ connection.profile.lud16 }}</span>
+                  </div>
                 </div>
                 <div v-if="connection.lastMessage" class="text-xs text-gray-400 truncate">
                   {{ connection.lastMessage }}
@@ -394,7 +397,10 @@ onUnmounted(() => {
                   {{ selectedConnection.profile?.name || formatPubkey(selectedConnection.pubkey) }}
                 </div>
                 <div class="text-xs sm:text-sm text-gray-500 truncate">
-                  {{ selectedConnection.profile?.lud16 || '' }}
+                  <div v-if="selectedConnection.profile?.lud16" class="flex items-center space-x-1">
+                    <IconBolt class="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500 flex-shrink-0" />
+                    <span class="truncate">{{ selectedConnection.profile.lud16 }}</span>
+                  </div>
                 </div>
               </div>
             </div>
