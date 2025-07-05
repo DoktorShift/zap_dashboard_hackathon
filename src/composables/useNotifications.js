@@ -30,6 +30,7 @@ const NOTIFICATION_TYPES = {
 const NOTIFICATION_SETTINGS_KEY = 'notification_settings'
 const LAST_TRANSACTION_KEY = 'last_transaction_timestamp'
 const LAST_BALANCE_KEY = 'last_balance'
+const PROCESSED_TRANSACTIONS_KEY = 'processed_transactions'
 
 // Generate unique notification ID
 const generateNotificationId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
@@ -278,6 +279,7 @@ const handlePaymentError = (error) => {
 let transactionPolling = null
 let lastTransactionTimestamp = null
 let lastBalance = null
+let processedTransactions = new Set()
 
 const startTransactionMonitoring = async () => {
   if (transactionPolling) return
@@ -286,6 +288,7 @@ const startTransactionMonitoring = async () => {
   try {
     const storedTimestamp = localStorage.getItem(LAST_TRANSACTION_KEY)
     const storedBalance = localStorage.getItem(LAST_BALANCE_KEY)
+    const storedProcessedTransactions = localStorage.getItem(PROCESSED_TRANSACTIONS_KEY)
     
     if (storedTimestamp) {
       lastTransactionTimestamp = parseInt(storedTimestamp)
@@ -294,31 +297,68 @@ const startTransactionMonitoring = async () => {
     if (storedBalance) {
       lastBalance = parseInt(storedBalance)
     }
+    
+    if (storedProcessedTransactions) {
+      processedTransactions = new Set(JSON.parse(storedProcessedTransactions))
+    }
   } catch (error) {
     console.warn('Failed to load last transaction state:', error)
   }
+
+  // Flag to prevent initial balance notification
+  let isInitialBalanceCheck = true
 
   transactionPolling = setInterval(async () => {
     try {
       // Check for new transactions
       const transactions = await fetchTransactions()
       if (transactions && transactions.length > 0) {
-        const latestTransaction = transactions[0]
-        const latestTimestamp = latestTransaction.settled_at || latestTransaction.created_at
+        let hasNewTransactions = false
         
-        if (lastTransactionTimestamp && latestTimestamp > lastTransactionTimestamp) {
-          // New transaction detected
-          if (latestTransaction.type === 'incoming') {
+        // Process each transaction to check if it's new
+        for (const transaction of transactions) {
+          const paymentHash = transaction.payment_hash
+          const timestamp = transaction.settled_at || transaction.created_at
+          
+          // Skip if we've already processed this transaction
+          if (processedTransactions.has(paymentHash)) {
+            continue
+          }
+          
+          // Skip if transaction is not settled
+          if (transaction.state !== 'settled') {
+            continue
+          }
+          
+          // Mark as processed to avoid duplicates
+          processedTransactions.add(paymentHash)
+          hasNewTransactions = true
+          
+          // Create notification for incoming transactions
+          if (transaction.type === 'incoming') {
             handleZapReceived({
-              amount: Math.floor(latestTransaction.amount / 1000),
+              amount: Math.floor(transaction.amount / 1000),
               sender: { name: 'Anonymous' }, // NWC doesn't provide sender info
-              timestamp: new Date(latestTimestamp * 1000).toISOString()
+              timestamp: new Date(timestamp * 1000).toISOString(),
+              paymentHash: paymentHash
             })
+          }
+          
+          // Update last transaction timestamp
+          if (!lastTransactionTimestamp || timestamp > lastTransactionTimestamp) {
+            lastTransactionTimestamp = timestamp
           }
         }
         
-        lastTransactionTimestamp = latestTimestamp
-        localStorage.setItem(LAST_TRANSACTION_KEY, lastTransactionTimestamp.toString())
+        // Save state if we processed new transactions
+        if (hasNewTransactions) {
+          localStorage.setItem(LAST_TRANSACTION_KEY, lastTransactionTimestamp.toString())
+          
+          // Keep only recent transaction hashes (last 1000 to avoid storage bloat)
+          const recentTransactions = Array.from(processedTransactions).slice(-1000)
+          processedTransactions = new Set(recentTransactions)
+          localStorage.setItem(PROCESSED_TRANSACTIONS_KEY, JSON.stringify(Array.from(processedTransactions)))
+        }
       }
 
       // Check for balance changes
@@ -326,12 +366,16 @@ const startTransactionMonitoring = async () => {
       if (balanceData && balanceData.balance !== undefined) {
         const currentBalance = Math.floor(balanceData.balance / 1000) // Convert to sats
         
-        if (lastBalance !== null && currentBalance !== lastBalance) {
+        if (lastBalance !== null && currentBalance !== lastBalance && !isInitialBalanceCheck) {
           handleBalanceChange(lastBalance, currentBalance)
         }
         
+        // Update lastBalance and save to localStorage
         lastBalance = currentBalance
         localStorage.setItem(LAST_BALANCE_KEY, lastBalance.toString())
+        
+        // After first balance check, allow balance change notifications
+        isInitialBalanceCheck = false
       }
     } catch (error) {
       console.warn('Transaction monitoring error:', error)
@@ -344,6 +388,9 @@ const stopTransactionMonitoring = () => {
     clearInterval(transactionPolling)
     transactionPolling = null
   }
+  
+  // Clear processed transactions when stopping monitoring
+  processedTransactions.clear()
 }
 
 // Initialize notification system

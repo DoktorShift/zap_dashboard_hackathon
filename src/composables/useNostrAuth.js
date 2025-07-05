@@ -389,6 +389,14 @@ const login = () => {
     isLoading.value = true
     authError.value = ''
     
+    // Check if user is already logged in
+    if (isAuthenticated.value && currentUser.value) {
+      console.log('User already logged in:', currentUser.value.npub)
+      isLoading.value = false
+      resolve(currentUser.value)
+      return
+    }
+    
     // Listen for auth events
     const handleAuth = async (event) => {
       try {
@@ -398,7 +406,30 @@ const login = () => {
           const pubkey = await window.nostr.getPublicKey()
           console.log('Got pubkey from nostr extension:', pubkey)
           
-          // Fetch and store profile
+          // Check if this user is already stored
+          const existingUser = localStorage.getItem(NOSTR_USER_KEY)
+          if (existingUser) {
+            try {
+              const userData = JSON.parse(existingUser)
+              if (userData.pubkey === pubkey) {
+                console.log('User already exists, using stored data:', userData.npub)
+                currentUser.value = userData
+                
+                // Start listening for user events
+                startUserEventListener(pubkey)
+                
+                // Clean up event listener
+                document.removeEventListener('nlAuth', handleAuth)
+                
+                resolve(userData)
+                return
+              }
+            } catch (error) {
+              console.warn('Failed to parse existing user data:', error)
+            }
+          }
+          
+          // Fetch and store profile for new user
           const userData = await fetchAndStoreProfile(pubkey)
           
           // Start listening for user events
