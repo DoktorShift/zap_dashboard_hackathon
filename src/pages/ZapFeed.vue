@@ -14,7 +14,6 @@ import Filters from '../components/Filters.vue'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import ZapEventModal from '../components/ZapEventModal.vue'
 import { useContentZaps } from '../composables/useContentZaps.js'
-import { IconWallet } from '@iconify-prerendered/vue-tabler'
 
 const zapData = inject('zapData')
 const searchQuery = inject('searchQuery')
