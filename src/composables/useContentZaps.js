@@ -436,9 +436,7 @@ export function useContentZaps() {
     getZapsForContent,
     getTotalZapAmount,
     getZapCount,
-    getAllContentZaps: computed(() => {
-      return result
-    }),
+    getAllContentZaps,
     fetchZapperProfile,
     
     // Utility functions
