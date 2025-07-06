@@ -22,6 +22,7 @@ import ErrorBoundary from './components/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
+import { useContentZaps } from './composables/useContentZaps.js'
 
 // Use the Nostr connections composable
 const {
@@ -48,6 +49,9 @@ const {
 
 // Use the content zaps composable to get NIP-57 zaps
 const { getAllContentZaps } = useContentZaps()
+
+// Initialize content zaps tracking
+const { initializeZapTracking } = useContentZaps()
 
 // Global state
 const zapData = ref([])
@@ -277,6 +281,14 @@ onMounted(async () => {
     // Initialize the relay manager first
     await nostrRelayManager.initialize()
     console.log('✅ Relay manager initialized successfully')
+    
+    // Initialize content zap tracking
+    if (isWalletConnected.value) {
+      console.log('Initializing content zap tracking...')
+      setTimeout(() => {
+        initializeZapTracking()
+      }, 2000) // Small delay to ensure relay manager is fully initialized
+    }
   } catch (error) {
     console.error('❌ Failed to initialize relay manager:', error)
   }
