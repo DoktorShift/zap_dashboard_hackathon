@@ -479,11 +479,34 @@ const logout = () => {
     // Clear state
     currentUser.value = null
     authError.value = ''
+    userRelays.value = []
     
-    // Clear storage
-    localStorage.removeItem(NOSTR_USER_KEY)
+    // Clear all Nostr-related localStorage data
+    const nostrKeys = [
+      // Authentication data
+      NOSTR_USER_KEY, // 'nostrUser'
+      NOSTR_RELAYS_KEY, // 'nostrRelays'
+      
+      // Connection data
+      'nostr_connections',
+      'active_connection_id',
+      'nwc_url',
+      
+      // Notification data
+      'notification_settings',
+      'last_transaction_timestamp',
+      'last_balance',
+      'processed_transactions',
+      
+      // Content data
+      'user_content_items'
+    ]
     
-    console.log('User logged out successfully')
+    nostrKeys.forEach(key => {
+      localStorage.removeItem(key)
+    })
+    
+    console.log('User logged out successfully - cleared all Nostr data from localStorage')
     return true
   } catch (error) {
     console.error('Logout error:', error)
