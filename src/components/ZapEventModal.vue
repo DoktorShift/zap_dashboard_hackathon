@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, onUnmounted } from 'vue'
 import { 
   IconX, 
   IconBolt, 
@@ -14,12 +14,14 @@ import {
   IconFileText,
   IconPhoto,
   IconVideo,
-  IconMicrophone,
-  IconLink,
-  IconHash
+  IconMicrophone, 
+  IconLink, 
+  IconHash,
+  IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import * as nip19 from 'nostr-tools/nip19'
 
 const props = defineProps({
   eventId: {
@@ -39,6 +41,8 @@ const isLoading = ref(false)
 const error = ref('')
 const event = ref(null)
 const eventAuthor = ref(null)
+const showClientDropdown = ref(false)
+const dropdownRef = ref(null)
 
 // Use Nostr auth to get user profile
 const { isAuthenticated } = useNostrAuth()
@@ -509,12 +513,50 @@ const getEngagementStats = () => {
               </div>
               
               <a 
-                v-if="isAuthenticated && event"
-                href="#"
-                class="text-sm text-orange-600 hover:text-orange-700 font-medium"
-                @click.prevent="$emit('open-in-client', event.id)"
+                v-if="isAuthenticated && event" 
+                class="relative"
+                ref="dropdownRef"
               >
-                Open in Nostr client
+                <button
+                  @click.prevent="toggleClientDropdown"
+                  class="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1"
+                >
+                  <span>Open in Nostr client</span>
+                  <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+                </button>
+                
+                <!-- Client Dropdown -->
+                <div 
+                  v-if="showClientDropdown"
+                  class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10"
+                >
+                  <div class="py-1">
+                    <a 
+                      :href="getNostrClientUrl('primal')"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700"
+                    >
+                      Primal.net
+                    </a>
+                    <a 
+                      :href="getNostrClientUrl('yakihonne')"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700"
+                    >
+                      Yakihonne
+                    </a>
+                    <a 
+                      :href="getNostrClientUrl('highlighter')"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700"
+                    >
+                      Highlighter
+                    </a>
+                  </div>
+                </div>
               </a>
             </div>
           </div>
@@ -576,5 +618,10 @@ const getEngagementStats = () => {
   .max-w-2xl {
     max-width: 100%;
   }
+
+/* Dropdown styling */
+.z-10 {
+  z-index: 10;
+}
 }
 </style>
