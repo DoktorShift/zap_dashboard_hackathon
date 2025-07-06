@@ -291,6 +291,36 @@ const extractAmountFromBolt11 = (bolt11) => {
 export function useContentZaps() {
   const { isAuthenticated, currentUser } = useNostrAuth()
 
+  // Initialize zap tracking for all published content
+  const initializeZapTracking = async () => {
+    try {
+      console.log('🔍 Initializing zap tracking for all published content...')
+      
+      // Get all content items from localStorage
+      const contentStorageKey = 'user_content_items'
+      const storedContent = localStorage.getItem(contentStorageKey)
+      
+      if (storedContent) {
+        const contentItems = JSON.parse(storedContent)
+        
+        // Filter for published content with Nostr event IDs
+        const publishedContent = contentItems.filter(item => 
+          item.status === 'published' && item.nostrEventId
+        )
+        
+        if (publishedContent.length > 0) {
+          const eventIds = publishedContent.map(item => item.nostrEventId)
+          console.log(`Found ${eventIds.length} published content items with Nostr event IDs`)
+          await trackMultipleContent(eventIds)
+        } else {
+          console.log('No published content items found with Nostr event IDs')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to initialize zap tracking:', error)
+    }
+  }
+
   // Start tracking zaps for a specific content item
   const startZapTracking = async (eventId) => {
     if (!eventId || activeSubscriptions.has(eventId)) {
@@ -437,6 +467,7 @@ export function useContentZaps() {
     getTotalZapAmount,
     getZapCount,
     getAllContentZaps,
+    initializeZapTracking,
     fetchZapperProfile,
     
     // Utility functions

@@ -49,6 +49,9 @@ const {
 // Use the content zaps composable to get NIP-57 zaps
 const { getAllContentZaps } = useContentZaps()
 
+// Initialize content zaps tracking
+const { initializeZapTracking } = useContentZaps()
+
 // Global state
 const zapData = ref([])
 const selectedTimeRange = ref('all') // Changed from '7d' to 'all'
@@ -277,6 +280,14 @@ onMounted(async () => {
     // Initialize the relay manager first
     await nostrRelayManager.initialize()
     console.log('✅ Relay manager initialized successfully')
+    
+    // Initialize content zap tracking
+    if (isWalletConnected.value) {
+      console.log('Initializing content zap tracking...')
+      setTimeout(() => {
+        initializeZapTracking()
+      }, 2000) // Small delay to ensure relay manager is fully initialized
+    }
   } catch (error) {
     console.error('❌ Failed to initialize relay manager:', error)
   }

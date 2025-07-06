@@ -95,10 +95,11 @@ export function useContent() {
   const { 
     startZapTracking, 
     getZapsForContent, 
-    getTotalZapAmount, 
+    getTotalZapAmount,
     getZapCount,
     getAllContentZaps,
-    trackMultipleContent 
+    trackMultipleContent,
+    initializeZapTracking
   } = useContentZaps()
 
   // Filter content by current user
@@ -174,19 +175,6 @@ export function useContent() {
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 3)
   })
-
-  // Start tracking zaps for all published content on initialization
-  const initializeZapTracking = async () => {
-    const publishedContent = userContentItems.value.filter(item => 
-      item.status === CONTENT_STATUS.PUBLISHED && item.nostrEventId
-    )
-    
-    if (publishedContent.length > 0) {
-      const eventIds = publishedContent.map(item => item.nostrEventId)
-      console.log(`🔍 Starting zap tracking for ${eventIds.length} published content items`)
-      await trackMultipleContent(eventIds)
-    }
-  }
 
   // Content management functions
   const createContent = async (contentData) => {
@@ -617,6 +605,7 @@ export function useContent() {
     getZapsForContent,
     getTotalZapAmount,
     getZapCount,
+    initializeZapTracking,
     
     // Constants
     CONTENT_TYPES,
