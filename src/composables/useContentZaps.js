@@ -6,6 +6,7 @@ import { useNostrAuth } from './useNostrAuth.js'
 const contentZaps = reactive(new Map()) // Map<eventId, zap[]>
 const activeSubscriptions = reactive(new Map()) // Map<eventId, subscription>
 const isTrackingZaps = ref(false)
+const allZapEvents = ref([]) // Store all zap events for reference
 
 // Zap data structure
 const createZapData = (zapEvent) => {
@@ -16,6 +17,7 @@ const createZapData = (zapEvent) => {
     const timestamp = zapEvent.created_at * 1000 // Convert to milliseconds
     const message = extractZapMessage(zapEvent)
     const bolt11 = extractBolt11(zapEvent)
+    const eventId = extractEventId(zapEvent)
     
     return {
       id: zapEvent.id,
@@ -24,6 +26,7 @@ const createZapData = (zapEvent) => {
       timestamp: new Date(timestamp).toISOString(),
       message,
       bolt11,
+      eventId,
       rawEvent: zapEvent
     }
   } catch (error) {
@@ -78,6 +81,34 @@ const extractZapMessage = (zapEvent) => {
 const extractBolt11 = (zapEvent) => {
   const bolt11Tag = zapEvent.tags.find(tag => tag[0] === 'bolt11')
   return bolt11Tag ? bolt11Tag[1] : null
+}
+
+// Extract event ID from zap receipt
+const extractEventId = (zapEvent) => {
+  try {
+    // First check for e tag in the zap receipt itself
+    const eTag = zapEvent.tags.find(tag => tag[0] === 'e')
+    if (eTag && eTag[1]) {
+      return eTag[1]
+    }
+    
+    // If not found, check in the description tag (zap request)
+    const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+    if (descriptionTag && descriptionTag[1]) {
+      const zapRequest = JSON.parse(descriptionTag[1])
+      
+      // Check for e tag in the zap request
+      const requestETag = zapRequest.tags?.find(tag => tag[0] === 'e')
+      if (requestETag && requestETag[1]) {
+        return requestETag[1]
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.warn('Failed to extract event ID from zap receipt:', error)
+    return null
+  }
 }
 
 // Simple bolt11 amount extraction (basic implementation)
@@ -135,6 +166,9 @@ export function useContentZaps() {
           const zapData = createZapData(zapEvent)
           if (zapData) {
             const existingZaps = contentZaps.get(eventId) || []
+            
+            // Store the zap event for reference
+            allZapEvents.value.push(zapEvent)
             
             // Check if we already have this zap (avoid duplicates)
             const exists = existingZaps.find(zap => zap.id === zapData.id)
@@ -235,6 +269,7 @@ export function useContentZaps() {
     contentZaps: computed(() => contentZaps),
     isTrackingZaps,
     activeSubscriptions: computed(() => activeSubscriptions),
+    allZapEvents: computed(() => allZapEvents.value),
     
     // Actions
     startZapTracking,
@@ -247,6 +282,9 @@ export function useContentZaps() {
     getZapsForContent,
     getTotalZapAmount,
     getZapCount,
-    getAllContentZaps
+    getAllContentZaps,
+    
+    // Utility functions
+    extractEventId
   }
 }
