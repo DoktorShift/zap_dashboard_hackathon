@@ -22,6 +22,7 @@ import {
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { useContentZaps } from '../composables/useContentZaps.js'
 
 const props = defineProps({
   eventId: {
@@ -46,6 +47,7 @@ const dropdownRef = ref(null)
 
 // Use Nostr auth to get user profile
 const { isAuthenticated } = useNostrAuth()
+const { getTotalZapAmount } = useContentZaps()
 
 // Fetch event when modal is shown
 watch(() => props.show, async (show) => {
@@ -388,15 +390,10 @@ const getEventHashtags = () => {
   return hashtags
 }
 
-// Get total zaps for this event
-const getTotalZaps = () => {
-  // In a real app, you would fetch actual zap data
-  // For now, we'll return a placeholder
-  return {
-    count: 1,
-    amount: 1000
-  }
-}
+// Get zap amount for this event
+const zapAmount = computed(() => {
+  return getTotalZapAmount(props.eventId) || 0
+})
 </script>
 
 <template>
@@ -468,23 +465,52 @@ const getTotalZaps = () => {
           </div>
           
           <!-- Zap Information -->
-          <div class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <IconBolt class="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <h4 class="font-medium text-gray-900">Zap Information</h4>
-                  <p class="text-sm text-gray-600">This content received zaps</p>
-                </div>
+          <div class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center justify-between">
+            <!-- Zap Info -->
+            <div class="flex items-center space-x-2">
+              <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                <IconBolt class="w-4 h-4 text-orange-600" />
               </div>
-              <div class="flex items-center space-x-2">
-                <div class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full flex items-center space-x-1">
-                  <IconBolt class="w-4 h-4" />
-                  <span class="font-bold">{{ getTotalZaps().amount }}</span>
-                  <span>sats</span>
-                </div>
+              <div class="bg-orange-100 text-orange-700 px-2 py-1 rounded-full flex items-center space-x-1">
+                <span class="font-bold">{{ zapAmount }}</span>
+                <span>sats</span>
+              </div>
+            </div>
+            
+            <!-- Open in Nostr Client -->
+            <div 
+              v-if="isAuthenticated && event" 
+              class="relative"
+              ref="dropdownRef"
+            >
+              <button
+                @click="toggleClientDropdown"
+                class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-1 rounded-lg hover:bg-orange-100 transition-colors"
+              >
+                <span>Open in client</span>
+                <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+              </button>
+              
+              <!-- Client Dropdown -->
+              <div 
+                v-if="showClientDropdown"
+                class="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+              >
+                <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
+                   class="block px-2 py-1 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
+                  <span>Primal.net</span>
+                </a>
+                <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
+                   class="block px-2 py-1 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
+                  <span>Yakihonne</span>
+                </a>
+                <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
+                   class="block px-2 py-1 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-4 h-4 flex items-center justify-center text-yellow-600">✨</span>
+                  <span>Highlighter</span>
+                </a>
               </div>
             </div>
           </div>
@@ -546,49 +572,6 @@ const getTotalZaps = () => {
                   <IconHash class="w-3 h-3" />
                   <span>{{ tag }}</span>
                 </span>
-              </div>
-            </div>
-            
-            <!-- Open in Nostr Client -->
-            <div class="flex items-center justify-end border-t border-gray-100 pt-3 mt-3">
-              <div 
-                v-if="isAuthenticated && event" 
-                class="relative"
-                ref="dropdownRef"
-              >
-                <button
-                  @click="toggleClientDropdown"
-                  class="text-xs sm:text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-1 rounded-lg hover:bg-orange-100 transition-colors"
-                >
-                  <span>Open in Nostr client</span>
-                  <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
-                </button>
-                
-                <!-- Client Dropdown -->
-                <div 
-                  v-if="showClientDropdown"
-                  class="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
-                >
-                  <div class="py-0">
-                    <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
-                       class="block px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2">
-                      <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
-                      <span>Primal.net</span></a>
-                    <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
-                       class="block px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2">
-                      <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
-                      <span>Yakihonne</span></a>
-                    <a 
-                      :href="getNostrClientUrl('highlighter')"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="block px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2"
-                    >
-                      <span class="w-4 h-4 flex items-center justify-center text-yellow-600">✨</span>
-                      <span>Highlighter</span>
-                    </a>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
