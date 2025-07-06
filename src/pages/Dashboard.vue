@@ -461,15 +461,17 @@ const getPercentageChange = (current, type) => {
               <p class="text-sm font-medium text-gray-900 truncate">
                 {{ zap.sender.name || 'Anonymous' }}
               </p>
-      <div v-if="!filteredZaps.length && combinedZapData.length > 0" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p class="text-xs text-gray-500">{{ zap.timeAgo }}</p>
             </div>
             <div class="text-right">
               <p class="text-sm font-semibold text-orange-600">{{ zap.amount }} sats</p>
-            <p class="text-sm text-amber-800">You have {{ combinedZapData.length }} zaps in your wallet, but none match your current filters.</p>
+              <p class="text-xs text-gray-500">{{ zap.timeAgo }}</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
     <!-- Wallet Balance Card -->
     <div v-if="walletBalance > 0" class="bg-gradient-to-r from-green-400 to-emerald-500 text-white p-4 sm:p-6 rounded-xl shadow-lg">
@@ -487,5 +489,4 @@ const getPercentageChange = (current, type) => {
         </div>
       </div>
     </div>
-  </div>
 </template>
