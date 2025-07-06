@@ -56,38 +56,44 @@ export function useBtcPrice() {
   // Fetch the latest BTC price
   const fetchPrice = async () => {
     if (isLoading.value) return
-    
+
     isLoading.value = true
     error.value = null
-    
+
     try {
-      console.log('Fetching BTC price from API...')
+      console.log('🔍 Fetching BTC price from API...')
       const response = await fetch('https://mempool.space/api/v1/prices')
-      
+      console.log('📡 API Response status:', response.status)
+
       if (!response.ok) {
         throw new Error(`API responded with status: ${response.status}`)
       }
-      
+
       const data = await response.json()
-      
+      console.log('📊 API Response data:', data)
+
       if (data && data.USD) {
+        console.log('💰 Previous BTC price:', btcPriceUSD.value)
         btcPriceUSD.value = data.USD
+        console.log('💰 Updated BTC price to:', btcPriceUSD.value)
         lastFetched.value = new Date()
-        console.log('Updated BTC price:', data.USD)
-        
+
         // Save to localStorage
         savePriceData()
+        console.log('💾 Saved BTC price data to localStorage')
         return data
       } else {
+        console.error('❌ Invalid API response format:', data)
         throw new Error('Invalid API response format')
       }
     } catch (err) {
-      console.error('Failed to fetch BTC price:', err)
+      console.error('❌ Failed to fetch BTC price:', err)
       error.value = err.message
-      
+
       // If we have a previously loaded price, keep using it
       if (btcPriceUSD.value === 0) {
-        loadSavedPriceData()
+        const loaded = loadSavedPriceData()
+        console.log('🔄 Attempted to load saved price data:', loaded ? 'success' : 'failed')
       }
     } finally {
       isLoading.value = false
@@ -116,28 +122,34 @@ export function useBtcPrice() {
   // Convert satoshis to USD
   const satsToUSD = (sats) => {
     if (!sats || !btcPriceUSD.value) return 0
-    
+    console.log('🧮 Converting', sats, 'sats to USD with BTC price:', btcPriceUSD.value)
     // 1 BTC = 100,000,000 sats
-    return (sats / 100000000) * btcPriceUSD.value
+    const usdValue = (sats / 100000000) * btcPriceUSD.value
+    console.log('💵 Converted value:', usdValue)
+    return usdValue
   }
   
   // Format USD amount
   const formatUSD = (amount, options = {}) => {
     const { decimals = 2, symbol = '$' } = options
-    
+    console.log('💲 Formatting USD amount:', amount)
     if (typeof amount !== 'number' || isNaN(amount)) return `${symbol}0.00`
-    
-    return `${symbol}${amount.toFixed(decimals)}`
+    const formatted = `${symbol}${amount.toFixed(decimals)}`
+    console.log('💲 Formatted USD:', formatted)
+    return formatted
   }
   
   // Initialize on mount
   onMounted(() => {
+    console.log('🚀 useBtcPrice composable mounted')
     // Try to load saved price first
     const hasSavedPrice = loadSavedPriceData()
-    
+    console.log('💾 Loaded saved price data:', hasSavedPrice ? 'success' : 'not found or expired')
+    console.log('💰 Initial BTC price value:', btcPriceUSD.value)
+
     // Fetch fresh price data
     fetchPrice()
-    
+
     // Start auto-refresh
     startAutoRefresh()
   })
