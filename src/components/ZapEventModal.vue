@@ -591,50 +591,14 @@ const getEventHashtags = () => {
                 v-if="isAuthenticated && event" 
                 class="relative"
                 ref="dropdownRef"
-                ref="dropdownRef"
               >
                 <button
-                  @click.prevent="toggleClientDropdown"
                   @click.prevent="toggleClientDropdown"
                   class="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1"
                 >
                   <span>Open in Nostr client</span>
                   <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
-                  <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
                 </button>
-                
-                <!-- Client Dropdown -->
-                <div 
-                  v-if="showClientDropdown"
-                  class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10"
-                >
-                  <div class="py-1">
-                    <a 
-                      :href="getNostrClientUrl('primal')"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700"
-                    >
-                      Primal.net
-                    </a>
-                    <a 
-                      :href="getNostrClientUrl('yakihonne')"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700"
-                    >
-                      Yakihonne
-                    </a>
-                    <a 
-                      :href="getNostrClientUrl('highlighter')"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700"
-                    >
-                      Highlighter
-                    </a>
-                  </div>
-                </div>
                 
                 <!-- Client Dropdown -->
                 <div 
