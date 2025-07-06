@@ -1,6 +1,15 @@
 <script setup>
 import { computed, inject, ref } from 'vue'
-import { IconBolt, IconFileText, IconMessageCircle, IconRepeat, IconDeviceMobile, IconUser } from '@iconify-prerendered/vue-tabler'
+import { 
+  IconBolt, 
+  IconFileText, 
+  IconMessageCircle, 
+  IconRepeat, 
+  IconDeviceMobile, 
+  IconUser,
+  IconWallet,
+  IconAlertCircle
+} from '@iconify-prerendered/vue-tabler'
 import Filters from '../components/Filters.vue'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import ZapEventModal from '../components/ZapEventModal.vue'
@@ -13,7 +22,7 @@ const selectedFilters = inject('selectedFilters')
 const selectedTimeRange = inject('selectedTimeRange')
 
 // Get zap data from useContentZaps
-const { getAllContentZaps, generateFallbackAvatar } = useContentZaps()
+const { getAllContentZaps } = useContentZaps()
 
 // State for event modal
 const showEventModal = ref(false)
@@ -39,7 +48,7 @@ const combinedZaps = computed(() => {
         id: zap.id,
         amount: zap.amount,
         timestamp: zap.timestamp,
-        sender: zap.sender || {
+        sender: {
           name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
           pubkey: zap.zapperPubkey,
           nip05: zap.sender?.nip05 || null,
@@ -66,7 +75,7 @@ const combinedZaps = computed(() => {
 })
 
 const filteredZaps = computed(() => {
-  let zaps = [...combinedZaps.value]
+  let zaps = combinedZaps.value
   
   // Apply search filter
   if (searchQuery.value) {
@@ -276,7 +285,7 @@ const truncateNote = (note, maxLength = 120) => {
       <div class="divide-y divide-orange-100/50">
         <transition-group name="list-item" tag="div">
           <div
-            v-for="(zap, index) in filteredZaps"
+            v-for="(zap, index) in filteredZaps.length ? filteredZaps : []"
             :key="zap.id"
             class="p-3 hover:bg-orange-25/50 transition-all duration-200 hover:shadow-sm cursor-pointer"
             @click="handleZapClick(zap)"
@@ -289,7 +298,7 @@ const truncateNote = (note, maxLength = 120) => {
                 <div class="w-8 h-8 rounded-full border-2 border-orange-200 transition-all duration-200 hover:border-orange-300 overflow-hidden">
                   <img
                     :src="zap.sender?.avatar || zap.sender?.picture || generateAvatar(zap.sender, index)"
-                    :alt="getSenderName(zap.sender)"
+                    :alt="getSenderName(zap.sender) || 'User'"
                     class="w-full h-full object-cover"
                     @error="$event.target.src = generateAvatar(zap.sender, index)"
                   />
@@ -350,7 +359,7 @@ const truncateNote = (note, maxLength = 120) => {
       </div>
       
       <!-- Empty State -->
-      <div v-if="filteredZaps.length === 0" class="text-center py-8 animate-fade-in">
+      <div v-if="!filteredZaps.length" class="text-center py-8 animate-fade-in">
         <div class="text-4xl mb-3 animate-bounce-subtle">
           <IconBolt class="w-12 h-12 mx-auto text-gray-300" />
         </div>
@@ -358,6 +367,16 @@ const truncateNote = (note, maxLength = 120) => {
         <p class="text-gray-600 text-sm px-4">
           {{ zapData.length === 0 ? 'Connect your wallet to see real zap data' : 'Try adjusting your filters or search terms.' }}
         </p>
+      </div>
+      
+      <!-- Debug Info -->
+      <div v-if="!filteredZaps.length && zapData.length > 0" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <div class="flex items-center space-x-2">
+          <IconAlertCircle class="w-5 h-5 text-amber-600" />
+          <div>
+            <p class="text-sm text-amber-800">You have {{ zapData.length }} zaps in your wallet, but none match your current filters.</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>

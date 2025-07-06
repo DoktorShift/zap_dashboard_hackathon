@@ -28,8 +28,12 @@ const createZapData = (zapEvent) => {
     const zapData = {
       id: zapEvent.id,
       amount,
-      zapperPubkey,
-      sender: senderProfile,
+      zapperPubkey: zapperPubkey,
+      sender: {
+        pubkey: zapperPubkey,
+        name: `User ${zapperPubkey.substring(0, 8)}`,
+        avatar: generateFallbackAvatar(zapperPubkey)
+      },
       timestamp: new Date(timestamp).toISOString(),
       message,
       bolt11,
@@ -41,9 +45,9 @@ const createZapData = (zapEvent) => {
     fetchZapperProfile(zapperPubkey).then(profile => {
       if (profile) {
         zapData.sender = {
-          ...senderProfile,
+          pubkey: zapperPubkey,
           name: profile.name || `user:${zapperPubkey.substring(0, 8)}`,
-          picture: profile.picture,
+          avatar: profile.picture || generateFallbackAvatar(zapperPubkey),
           nip05: profile.nip05
         }
       }
@@ -240,6 +244,8 @@ const _fetchProfileFromNostr = async (pubkey) => {
 
 // Generate a consistent fallback avatar based on pubkey
 const generateFallbackAvatar = (pubkey) => {
+  if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+  
   // Use a deterministic approach to generate avatar based on pubkey
   const avatars = [
     'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
@@ -430,7 +436,9 @@ export function useContentZaps() {
     getZapsForContent,
     getTotalZapAmount,
     getZapCount,
-    getAllContentZaps,
+    getAllContentZaps: computed(() => {
+      return result
+    }),
     fetchZapperProfile,
     
     // Utility functions
