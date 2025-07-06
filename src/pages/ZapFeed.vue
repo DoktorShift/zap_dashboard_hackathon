@@ -5,6 +5,7 @@ import Filters from '../components/Filters.vue'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import ZapEventModal from '../components/ZapEventModal.vue'
 import { useContentZaps } from '../composables/useContentZaps.js'
+import { IconWallet } from '@iconify-prerendered/vue-tabler'
 
 const zapData = inject('zapData')
 const searchQuery = inject('searchQuery')
@@ -12,7 +13,7 @@ const selectedFilters = inject('selectedFilters')
 const selectedTimeRange = inject('selectedTimeRange')
 
 // Get zap data from useContentZaps
-const { getAllContentZaps } = useContentZaps()
+const { getAllContentZaps, generateFallbackAvatar } = useContentZaps()
 
 // State for event modal
 const showEventModal = ref(false)
@@ -23,7 +24,7 @@ const combinedZaps = computed(() => {
   // Get NWC payments from zapData
   const nwcPayments = zapData.value.map(zap => ({
     ...zap,
-    source: 'nwc',
+    source: 'nwc', // Mark as NWC payment
     eventId: null // NWC payments don't have associated event IDs
   }))
   
@@ -38,10 +39,10 @@ const combinedZaps = computed(() => {
         id: zap.id,
         amount: zap.amount,
         timestamp: zap.timestamp,
-        sender: {
-          name: `User ${zap.zapperPubkey.substring(0, 8)}`,
+        sender: zap.sender || {
+          name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
           pubkey: zap.zapperPubkey,
-          nip05: null,
+          nip05: zap.sender?.nip05 || null,
           avatar: generateAvatar({ pubkey: zap.zapperPubkey }, nip57Zaps.length)
         },
         note: zap.message || 'Zap',
@@ -249,9 +250,6 @@ const truncateNote = (note, maxLength = 120) => {
   if (content.length <= maxLength) return content
   return content.substring(0, maxLength) + '...'
 }
-
-// Import IconWallet for source icon
-import { IconWallet } from '@iconify-prerendered/vue-tabler'
 </script>
 
 <template>
@@ -288,12 +286,14 @@ import { IconWallet } from '@iconify-prerendered/vue-tabler'
             <div class="flex items-center space-x-3">
               <!-- Smaller Avatar -->
               <div class="relative flex-shrink-0">
-                <img
-                  :src="generateAvatar(zap.sender, index)"
-                  :alt="getSenderName(zap.sender)"
-                  class="w-8 h-8 rounded-full border-2 border-orange-200 transition-all duration-200 hover:border-orange-300"
-                  @error="$event.target.src = generateAvatar(zap.sender, index)"
-                />
+                <div class="w-8 h-8 rounded-full border-2 border-orange-200 transition-all duration-200 hover:border-orange-300 overflow-hidden">
+                  <img
+                    :src="zap.sender?.avatar || zap.sender?.picture || generateAvatar(zap.sender, index)"
+                    :alt="getSenderName(zap.sender)"
+                    class="w-full h-full object-cover"
+                    @error="$event.target.src = generateAvatar(zap.sender, index)"
+                  />
+                </div>
               </div>
               
               <!-- Main Content - Single Row Layout -->

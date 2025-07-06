@@ -1,12 +1,17 @@
 import { ref, reactive, computed, watch, onUnmounted } from 'vue'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrAuth } from './useNostrAuth.js'
+import * as nip19 from 'nostr-tools/nip19'
 
 // Global state for content zaps
 const contentZaps = reactive(new Map()) // Map<eventId, zap[]>
 const activeSubscriptions = reactive(new Map()) // Map<eventId, subscription>
 const isTrackingZaps = ref(false)
 const allZapEvents = ref([]) // Store all zap events for reference
+
+// Profile cache to avoid repeated fetches
+const profileCache = new Map()
+const profileFetchPromises = new Map()
 
 // Zap data structure
 const createZapData = (zapEvent) => {
@@ -18,17 +23,35 @@ const createZapData = (zapEvent) => {
     const message = extractZapMessage(zapEvent)
     const bolt11 = extractBolt11(zapEvent)
     const eventId = extractEventId(zapEvent)
+    const senderProfile = { pubkey: zapperPubkey }
     
-    return {
+    const zapData = {
       id: zapEvent.id,
       amount,
       zapperPubkey,
+      sender: senderProfile,
       timestamp: new Date(timestamp).toISOString(),
       message,
       bolt11,
       eventId,
       rawEvent: zapEvent
     }
+    
+    // Fetch profile asynchronously - don't wait for it
+    fetchZapperProfile(zapperPubkey).then(profile => {
+      if (profile) {
+        zapData.sender = {
+          ...senderProfile,
+          name: profile.name || `user:${zapperPubkey.substring(0, 8)}`,
+          picture: profile.picture,
+          nip05: profile.nip05
+        }
+      }
+    }).catch(error => {
+      console.warn('Failed to fetch zapper profile:', error)
+    })
+    
+    return zapData
   } catch (error) {
     console.error('Failed to create zap data:', error)
     return null
@@ -109,6 +132,131 @@ const extractEventId = (zapEvent) => {
     console.warn('Failed to extract event ID from zap receipt:', error)
     return null
   }
+}
+
+// Enhanced profile fetching with caching
+const fetchZapperProfile = async (pubkey) => {
+  // Check cache first
+  if (profileCache.has(pubkey)) {
+    const cached = profileCache.get(pubkey)
+    // Use cached profile if it's less than 1 hour old
+    if (Date.now() - cached.timestamp < 3600000) {
+      return cached.profile
+    }
+  }
+
+  // Check if we're already fetching this profile
+  if (profileFetchPromises.has(pubkey)) {
+    return profileFetchPromises.get(pubkey)
+  }
+
+  // Create the fetch promise
+  const fetchPromise = _fetchProfileFromNostr(pubkey)
+  profileFetchPromises.set(pubkey, fetchPromise)
+
+  try {
+    const profile = await fetchPromise
+    
+    // Cache the result
+    profileCache.set(pubkey, {
+      profile,
+      timestamp: Date.now()
+    })
+    
+    return profile
+  } catch (error) {
+    console.warn(`Failed to fetch profile for ${pubkey.substring(0, 8)}:`, error)
+    // Return a fallback profile
+    return {
+      name: `user:${pubkey.substring(0, 8)}`,
+      picture: generateFallbackAvatar(pubkey),
+      nip05: null
+    }
+  } finally {
+    profileFetchPromises.delete(pubkey)
+  }
+}
+
+// Internal function to fetch profile from Nostr relays
+const _fetchProfileFromNostr = async (pubkey) => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Profile fetch timeout'))
+    }, 15000) // 15 second timeout
+
+    try {
+      console.log('🔍 Fetching profile for:', pubkey.substring(0, 8) + '...')
+      
+      const profileSub = nostrRelayManager.subscribeToEvents([
+        {
+          kinds: [0], // Profile metadata
+          authors: [pubkey],
+          limit: 1
+        }
+      ], {
+        onevent: (event) => {
+          try {
+            clearTimeout(timeout)
+            const profileData = JSON.parse(event.content)
+            
+            const profile = {
+              name: profileData.name || profileData.display_name || `user:${pubkey.substring(0, 8)}`,
+              picture: profileData.picture || profileData.avatar || generateFallbackAvatar(pubkey),
+              nip05: profileData.nip05 || null
+            }
+            
+            console.log('✅ Profile fetched successfully for:', profile.name)
+            profileSub.close()
+            resolve(profile)
+          } catch (error) {
+            console.warn('⚠️ Failed to parse profile data:', error)
+            clearTimeout(timeout)
+            profileSub.close()
+            reject(error)
+          }
+        },
+        oneose: () => {
+          // If no profile found, resolve with fallback after a short delay
+          setTimeout(() => {
+            clearTimeout(timeout)
+            profileSub.close()
+            resolve({
+              name: `user:${pubkey.substring(0, 8)}`,
+              picture: generateFallbackAvatar(pubkey),
+              nip05: null
+            })
+          }, 2000) // Wait 2 seconds for potential profile events
+        },
+        onclose: () => {
+          clearTimeout(timeout)
+        }
+      })
+    } catch (error) {
+      clearTimeout(timeout)
+      reject(error)
+    }
+  })
+}
+
+// Generate a consistent fallback avatar based on pubkey
+const generateFallbackAvatar = (pubkey) => {
+  // Use a deterministic approach to generate avatar based on pubkey
+  const avatars = [
+    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+  ]
+  
+  // Create a hash from the pubkey to consistently select an avatar
+  const hash = pubkey.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0)
+    return a & a
+  }, 0)
+  
+  return avatars[Math.abs(hash) % avatars.length]
 }
 
 // Simple bolt11 amount extraction (basic implementation)
@@ -283,8 +431,10 @@ export function useContentZaps() {
     getTotalZapAmount,
     getZapCount,
     getAllContentZaps,
+    fetchZapperProfile,
     
     // Utility functions
-    extractEventId
+    extractEventId,
+    generateFallbackAvatar
   }
 }
