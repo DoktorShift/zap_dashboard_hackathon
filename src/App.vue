@@ -22,7 +22,6 @@ import ErrorBoundary from './components/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
-import { useContentZaps } from './composables/useContentZaps.js'
 
 // Use the Nostr connections composable
 const {
