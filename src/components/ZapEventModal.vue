@@ -89,46 +89,16 @@ const getNostrClientUrl = (client) => {
   if (!event.value) return '#'
   
   try {
-    // Determine if this is a regular note or long-form content
-    const isLongForm = event.value.kind === 30023
-    
-    if (isLongForm) {
-      // For long-form content, use naddr encoding
-      const identifier = event.value.tags.find(tag => tag[0] === 'd')?.[1] || ''
-      const naddr = nip19.naddrEncode({
-        kind: 30023,
-        pubkey: event.value.pubkey,
-        identifier,
-        relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social']
-      })
-      
-      switch (client) {
-        case 'primal':
-          return `https://primal.net/a/${naddr}`
-        case 'yakihonne':
-          return `https://www.yakihonne.com/notes/${naddr}`
-        case 'highlighter':
-          return `https://highlighter.com/a/${naddr}`
-        default:
-          return `https://primal.net/a/${naddr}`
-      }
-    } else {
-      // For regular notes, use nevent encoding
-      const nevent = nip19.neventEncode({
-        id: event.value.id,
-        relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social']
-      })
-      
-      switch (client) {
-        case 'primal':
-          return `https://primal.net/e/${nevent}`
-        case 'yakihonne':
-          return `https://www.yakihonne.com/notes/${nevent}`
-        case 'highlighter':
-          return `https://highlighter.com/e/${nevent}`
-        default:
-          return `https://primal.net/e/${nevent}`
-      }
+    // For all clients, use the event ID directly
+    switch (client) {
+      case 'primal':
+        return `https://primal.net/e/${event.value.id}`
+      case 'yakihonne':
+        return `https://yakihonne.com/e/${event.value.id}`
+      case 'highlighter':
+        return `https://highlighter.com/e/${event.value.id}`
+      default:
+        return `https://primal.net/e/${event.value.id}`
     }
   } catch (error) {
     console.error('Failed to generate client URL:', error)
@@ -435,10 +405,10 @@ const getTotalZaps = () => {
     <div class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" @click="closeModal"></div>
     
     <!-- Modal -->
-    <div class="flex min-h-full items-center justify-center p-4">
-      <div class="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div class="flex min-h-full items-center justify-center p-2 sm:p-4">
+      <div class="relative bg-white rounded-xl shadow-xl max-w-md sm:max-w-lg md:max-w-xl w-full max-h-[90vh] overflow-hidden">
         <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
+        <div class="flex items-center justify-between p-3 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
           <div class="flex items-center space-x-2">
             <component :is="getEventKindIcon(event?.kind)" class="w-5 h-5 text-orange-600" />
             <h3 class="text-lg font-semibold text-gray-900">{{ getEventKindName(event?.kind) }}</h3>
@@ -453,13 +423,13 @@ const getTotalZaps = () => {
         </div>
 
         <!-- Loading State -->
-        <div v-if="isLoading" class="p-6 text-center">
+        <div v-if="isLoading" class="p-4 text-center">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p class="text-gray-600">Loading event...</p>
         </div>
 
         <!-- Error State -->
-        <div v-else-if="error" class="p-6">
+        <div v-else-if="error" class="p-4">
           <div class="bg-red-50 border border-red-200 rounded-lg p-4">
             <div class="flex items-start space-x-3">
               <IconAlertCircle class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -474,7 +444,7 @@ const getTotalZaps = () => {
         <!-- Event Content -->
         <div v-else-if="event" class="overflow-y-auto max-h-[calc(90vh-120px)]">
           <!-- Author Info -->
-          <div class="p-4 border-b border-gray-100 bg-white">
+          <div class="p-3 border-b border-gray-100 bg-white">
             <div class="flex items-center space-x-3">
               <img 
                 :src="eventAuthor?.picture" 
@@ -498,7 +468,7 @@ const getTotalZaps = () => {
           </div>
           
           <!-- Zap Information -->
-          <div class="p-4 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+          <div class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
@@ -520,14 +490,14 @@ const getTotalZaps = () => {
           </div>
           
           <!-- Main Content -->
-          <div class="p-4">
+          <div class="p-3">
             <!-- Content -->
-            <div class="mb-4 prose prose-sm max-w-none bg-white p-4 rounded-lg border border-gray-100 shadow-sm">
+            <div class="mb-3 prose prose-sm max-w-none bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
               <div v-html="getEventContent()"></div>
             </div>
             
             <!-- Media Attachments -->
-            <div v-if="getMediaAttachments().length > 0" class="mb-4 space-y-2">
+            <div v-if="getMediaAttachments().length > 0" class="mb-3 space-y-2">
               <div v-for="(attachment, index) in getMediaAttachments()" :key="index" class="rounded-lg overflow-hidden border border-gray-200">
                 <img 
                   v-if="attachment.type === 'image'" 
@@ -566,7 +536,7 @@ const getTotalZaps = () => {
             </div>
             
             <!-- Hashtags -->
-            <div v-if="getEventHashtags().length > 0" class="mb-4">
+            <div v-if="getEventHashtags().length > 0" class="mb-3">
               <div class="flex flex-wrap gap-2">
                 <span
                   v-for="tag in getEventHashtags()"
@@ -580,7 +550,7 @@ const getTotalZaps = () => {
             </div>
             
             <!-- Open in Nostr Client -->
-            <div class="flex items-center justify-end border-t border-gray-100 pt-4 mt-4">
+            <div class="flex items-center justify-end border-t border-gray-100 pt-3 mt-3">
               <div 
                 v-if="isAuthenticated && event" 
                 class="relative"
@@ -588,7 +558,7 @@ const getTotalZaps = () => {
               >
                 <button
                   @click="toggleClientDropdown"
-                  class="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-3 py-2 rounded-lg hover:bg-orange-100 transition-colors"
+                  class="text-xs sm:text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-1 rounded-lg hover:bg-orange-100 transition-colors"
                 >
                   <span>Open in Nostr client</span>
                   <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
@@ -597,34 +567,24 @@ const getTotalZaps = () => {
                 <!-- Client Dropdown -->
                 <div 
                   v-if="showClientDropdown"
-                  class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10"
+                  class="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
                 >
-                  <div class="py-1">
-                    <a 
-                      :href="getNostrClientUrl('primal')"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2"
-                    >
-                      <span class="w-5 h-5 flex items-center justify-center text-orange-600">🌐</span>
-                      <span>Primal.net</span>
-                    </a>
-                    <a 
-                      :href="getNostrClientUrl('yakihonne')"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2"
-                    >
-                      <span class="w-5 h-5 flex items-center justify-center text-purple-600">🍜</span>
-                      <span>Yakihonne</span>
-                    </a>
+                  <div class="py-0">
+                    <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
+                       class="block px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2">
+                      <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
+                      <span>Primal.net</span></a>
+                    <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
+                       class="block px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2">
+                      <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
+                      <span>Yakihonne</span></a>
                     <a 
                       :href="getNostrClientUrl('highlighter')"
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2"
+                      class="block px-3 py-1.5 text-xs sm:text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-2"
                     >
-                      <span class="w-5 h-5 flex items-center justify-center text-yellow-600">✨</span>
+                      <span class="w-4 h-4 flex items-center justify-center text-yellow-600">✨</span>
                       <span>Highlighter</span>
                     </a>
                   </div>
@@ -634,7 +594,7 @@ const getTotalZaps = () => {
           </div>
           
           <!-- Event Tags (Debug/Advanced Info) -->
-          <div class="p-4 border-t border-gray-100 bg-gray-50">
+          <div class="p-3 border-t border-gray-100 bg-gray-50">
             <details class="text-sm">
               <summary class="font-medium text-gray-700 cursor-pointer flex items-center space-x-1">
                 <span>Event Details</span>
