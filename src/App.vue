@@ -567,7 +567,7 @@ provide('isPageLoading', isPageLoading)
               >
                 <IconX class="w-5 h-5" />
               </button>
-            </div>
+            </div> 
             <NWCConnection @connection-success="handleConnectionSuccess" />
             <div v-if="isWalletConnected" class="mt-4 flex justify-end">
               <button 

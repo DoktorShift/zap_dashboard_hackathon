@@ -31,6 +31,7 @@ const NOTIFICATION_SETTINGS_KEY = 'notification_settings'
 const LAST_TRANSACTION_KEY = 'last_transaction_timestamp'
 const LAST_BALANCE_KEY = 'last_balance'
 const PROCESSED_TRANSACTIONS_KEY = 'processed_transactions'
+const NOTIFICATIONS_KEY = 'notifications_list'
 
 // Generate unique notification ID
 const generateNotificationId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
@@ -48,6 +49,32 @@ const loadNotificationSettings = () => {
   }
 }
 
+// Load notifications from localStorage
+const loadNotifications = () => {
+  try {
+    const stored = localStorage.getItem(NOTIFICATIONS_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      notifications.value = Array.isArray(parsed) ? parsed : []
+      console.log('Loaded notifications from storage:', notifications.value.length, 'notifications')
+    }
+  } catch (error) {
+    console.error('Failed to load notifications:', error)
+    notifications.value = []
+  }
+}
+
+// Save notifications to localStorage
+const saveNotifications = () => {
+  try {
+    // Only keep the last 50 notifications to avoid storage bloat
+    const notificationsToSave = notifications.value.slice(0, 50)
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notificationsToSave))
+  } catch (error) {
+    console.error('Failed to save notifications:', error)
+  }
+}
+
 // Save settings to localStorage
 const saveNotificationSettings = () => {
   try {
@@ -60,6 +87,9 @@ const saveNotificationSettings = () => {
 // Watch for settings changes and save
 watch(notificationSettings, saveNotificationSettings, { deep: true })
 
+// Watch for notification changes and save
+watch(notifications, saveNotifications, { deep: true })
+
 // Create notification object
 const createNotification = (type, title, message, data = {}) => {
   return {
@@ -69,13 +99,14 @@ const createNotification = (type, title, message, data = {}) => {
     message,
     timestamp: new Date().toISOString(),
     read: false,
+    played: false, // Track if sound was already played
     data,
     ...data
   }
 }
 
 // Add notification to the list
-const addNotification = (notification) => {
+const addNotification = (notification, isNewNotification = true) => {
   if (!notificationSettings.value.enabled) return
 
   notifications.value.unshift(notification)
@@ -85,14 +116,20 @@ const addNotification = (notification) => {
     notifications.value = notifications.value.slice(0, 50)
   }
 
-  // Show desktop notification if enabled
-  if (notificationSettings.value.desktop && 'Notification' in window) {
-    showDesktopNotification(notification)
-  }
+  // Only show desktop notification and play sound for truly new notifications
+  if (isNewNotification && !notification.played) {
+    // Show desktop notification if enabled
+    if (notificationSettings.value.desktop && 'Notification' in window) {
+      showDesktopNotification(notification)
+    }
 
-  // Play sound if enabled
-  if (notificationSettings.value.sound) {
-    playNotificationSound()
+    // Play sound if enabled
+    if (notificationSettings.value.sound) {
+      playNotificationSound()
+    }
+    
+    // Mark as played to prevent replay
+    notification.played = true
   }
 
   console.log('Notification added:', notification)
@@ -166,6 +203,7 @@ const markAllAsRead = () => {
 // Clear all notifications
 const clearAllNotifications = () => {
   notifications.value = []
+  saveNotifications() // Ensure empty state is saved
 }
 
 // Remove specific notification
@@ -396,6 +434,7 @@ const stopTransactionMonitoring = () => {
 // Initialize notification system
 const initializeNotifications = async () => {
   loadNotificationSettings()
+  loadNotifications()
   
   // Request desktop notification permission if enabled
   if (notificationSettings.value.desktop) {

@@ -497,6 +497,7 @@ const logout = () => {
       'last_transaction_timestamp',
       'last_balance',
       'processed_transactions',
+      'notifications_list',
       
       // Content data
       'user_content_items'
