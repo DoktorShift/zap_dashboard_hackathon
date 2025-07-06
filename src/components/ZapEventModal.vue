@@ -43,8 +43,6 @@ const event = ref(null)
 const eventAuthor = ref(null)
 const showClientDropdown = ref(false)
 const dropdownRef = ref(null)
-const showClientDropdown = ref(false)
-const dropdownRef = ref(null)
 
 // Use Nostr auth to get user profile
 const { isAuthenticated } = useNostrAuth()
