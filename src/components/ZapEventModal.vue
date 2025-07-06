@@ -98,7 +98,7 @@ const getNostrClientUrl = (client) => {
       case 'yakihonne':
         return `https://yakihonne.com/e/${event.value.id}`
       case 'highlighter':
-        return `https://highlighter.com/e/${event.value.id}`
+        return `https://highlighter.com/a/note1${nip19.noteEncode(event.value.id)}`
       default:
         return `https://primal.net/e/${event.value.id}`
     }
@@ -466,51 +466,53 @@ const zapAmount = computed(() => {
           
           <!-- Zap Information -->
           <div class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center justify-between">
-            <!-- Zap Info -->
-            <div class="flex items-center space-x-2">
-              <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <IconBolt class="w-4 h-4 text-orange-600" />
+            <div class="flex items-center justify-between w-full">
+              <!-- Zap Info -->
+              <div class="flex items-center space-x-2">
+                <div class="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                  <IconBolt class="w-3 h-3 text-orange-600" />
+                </div>
+                <div class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full flex items-center space-x-1 text-sm">
+                  <span class="font-bold">{{ zapAmount }}</span>
+                  <span>sats</span>
+                </div>
               </div>
-              <div class="bg-orange-100 text-orange-700 px-2 py-1 rounded-full flex items-center space-x-1">
-                <span class="font-bold">{{ zapAmount }}</span>
-                <span>sats</span>
-              </div>
-            </div>
-            
-            <!-- Open in Nostr Client -->
-            <div 
-              v-if="isAuthenticated && event" 
-              class="relative"
-              ref="dropdownRef"
-            >
-              <button
-                @click="toggleClientDropdown"
-                class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-1 rounded-lg hover:bg-orange-100 transition-colors"
-              >
-                <span>Open in client</span>
-                <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
-              </button>
               
-              <!-- Client Dropdown -->
+              <!-- Open in Nostr Client -->
               <div 
-                v-if="showClientDropdown"
-                class="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+                v-if="isAuthenticated && event" 
+                class="relative"
+                ref="dropdownRef"
               >
-                <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
-                   class="block px-2 py-1 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                  <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
-                  <span>Primal.net</span>
-                </a>
-                <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
-                   class="block px-2 py-1 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                  <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
-                  <span>Yakihonne</span>
-                </a>
-                <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
-                   class="block px-2 py-1 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                  <span class="w-4 h-4 flex items-center justify-center text-yellow-600">✨</span>
-                  <span>Highlighter</span>
-                </a>
+                <button
+                  @click="toggleClientDropdown"
+                  class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-0.5 rounded-lg hover:bg-orange-100 transition-colors"
+                >
+                  <span>Open in client</span>
+                  <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+                </button>
+                
+                <!-- Client Dropdown -->
+                <div 
+                  v-if="showClientDropdown"
+                  class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+                >
+                  <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
+                     class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                    <span class="w-3 h-3 flex items-center justify-center text-orange-600">🌐</span>
+                    <span>Primal.net</span>
+                  </a>
+                  <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
+                     class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                    <span class="w-3 h-3 flex items-center justify-center text-purple-600">🍜</span>
+                    <span>Yakihonne</span>
+                  </a>
+                  <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
+                     class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                    <span class="w-3 h-3 flex items-center justify-center text-yellow-600">✨</span>
+                    <span>Highlighter</span>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -518,12 +520,12 @@ const zapAmount = computed(() => {
           <!-- Main Content -->
           <div class="p-3">
             <!-- Content -->
-            <div class="mb-3 prose prose-sm max-w-none bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+            <div class="mb-2 prose prose-sm max-w-none bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
               <div v-html="getEventContent()"></div>
             </div>
             
             <!-- Media Attachments -->
-            <div v-if="getMediaAttachments().length > 0" class="mb-3 space-y-2">
+            <div v-if="getMediaAttachments().length > 0" class="mb-2 space-y-2">
               <div v-for="(attachment, index) in getMediaAttachments()" :key="index" class="rounded-lg overflow-hidden border border-gray-200">
                 <img 
                   v-if="attachment.type === 'image'" 
@@ -562,7 +564,7 @@ const zapAmount = computed(() => {
             </div>
             
             <!-- Hashtags -->
-            <div v-if="getEventHashtags().length > 0" class="mb-3">
+            <div v-if="getEventHashtags().length > 0" class="mb-2">
               <div class="flex flex-wrap gap-2">
                 <span
                   v-for="tag in getEventHashtags()"
