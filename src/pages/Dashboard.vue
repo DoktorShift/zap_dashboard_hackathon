@@ -3,6 +3,7 @@ import { computed, inject, ref, onMounted, watch } from 'vue'
 import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { useBtcPrice } from '../composables/useBtcPrice.js'
 import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText } from '../utils/timeFilter.js'
 
 // Lazy load ECharts to prevent issues
@@ -44,6 +45,9 @@ const selectedTimeRange = inject('selectedTimeRange')
 
 // Use Nostr authentication to get user profile
 const { isAuthenticated, userProfile } = useNostrAuth()
+
+// Use BTC price composable
+const { btcPriceUSD, satsToUSD, formatUSD } = useBtcPrice()
 
 // Real-time wallet data
 const walletBalance = ref(0)
@@ -101,7 +105,7 @@ const stats = computed(() => {
   const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
   
   const totalSats = filteredZaps.reduce((sum, zap) => sum + zap.amount, 0)
-  const totalUSD = totalSats * 0.0003
+  const totalUSD = satsToUSD(totalSats)
   const avgZap = filteredZaps.length > 0 ? totalSats / filteredZaps.length : 0
   
   // Get unique supporters from filtered zaps
@@ -353,7 +357,7 @@ const getPercentageChange = (current, type) => {
         </div>
         <div>
           <p class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{{ stats.totalSats.toLocaleString() }}</p>
-          <p class="text-gray-500 text-sm">Total Sats (~${{ stats.totalUSD.toFixed(2) }})</p>
+          <p class="text-gray-500 text-sm">Total Sats ({{ formatUSD(stats.totalUSD) }})</p>
         </div>
       </div>
 
