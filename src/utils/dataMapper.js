@@ -1,7 +1,10 @@
 // Map NWC transaction data to our application's zap data structure
 export function mapTransactionToZap(transaction, index) {
+  // Use payment_hash as the primary identifier for deduplication
+  const id = transaction.payment_hash || transaction.id || `tx-${index}`
+  
   // Generate dynamic sender info based on transaction data
-  const transactionHash = transaction.payment_hash || transaction.id || `tx-${index}`
+  const transactionHash = id
   const senderKey = transactionHash.substring(0, 8)
 
   // Create dynamic sender info
@@ -26,7 +29,7 @@ export function mapTransactionToZap(transaction, index) {
   const noteType = noteTypes[hashSum % noteTypes.length]
   
   return {
-    id: transaction.payment_hash || `mock-${index}`,
+    id: id, // Consistent ID for deduplication
     amount: Math.floor(transaction.amount / 1000), // Convert from msats to sats
     timestamp: transaction.settled_at ? new Date(transaction.settled_at * 1000).toISOString() : new Date().toISOString(),
     sender,
@@ -43,8 +46,29 @@ export function mapTransactionToZap(transaction, index) {
 }
 
 export function processTransactions(transactions) {
+  // Create a Set to track processed payment hashes
+  const processedHashes = new Set() 
+  
   return transactions
-    .filter(tx => tx.type === 'incoming' && tx.state === 'settled')
-    .map(mapTransactionToZap)
+    .filter(tx => {
+      // Only include incoming settled transactions
+      if (tx.type !== 'incoming' || tx.state !== 'settled') {
+        return false
+      }
+      
+      // Check if we've already processed this payment hash
+      const paymentHash = tx.payment_hash || tx.id
+      if (paymentHash && processedHashes.has(paymentHash)) {
+        console.log(`Skipping duplicate transaction with hash ${paymentHash?.substring(0, 16)}...`)
+        return false
+      }
+      
+      // Add to processed set and include this transaction
+      if (paymentHash) {
+        processedHashes.add(paymentHash)
+      }
+      return true
+    })
+    .map((tx, index) => mapTransactionToZap(tx, index))
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
 }

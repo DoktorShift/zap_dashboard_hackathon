@@ -15,6 +15,7 @@ import ZapEventModal from '../components/ZapEventModal.vue'
 import { useContentZaps } from '../composables/useContentZaps.js'
 
 const zapData = inject('zapData')
+const combinedZapData = inject('combinedZapData')
 const searchQuery = inject('searchQuery')
 const selectedFilters = inject('selectedFilters')
 const selectedTimeRange = inject('selectedTimeRange')
@@ -26,54 +27,11 @@ const { getAllContentZaps } = useContentZaps()
 const showEventModal = ref(false)
 const selectedEventId = ref(null)
 
-// Combine NWC payments and NIP-57 zaps
-const combinedZaps = computed(() => {
-  // Get NWC payments from zapData
-  const nwcPayments = zapData.value.map(zap => ({
-    ...zap,
-    source: 'nwc', // Mark as NWC payment
-    eventId: null // NWC payments don't have associated event IDs
-  }))
-  
-  // Get NIP-57 zaps from useContentZaps
-  const contentZapsMap = getAllContentZaps.value
-  const nip57Zaps = []
-  
-  // Convert the map of content zaps to an array
-  Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
-    zapData.zaps.forEach(zap => {
-      nip57Zaps.push({
-        id: zap.id,
-        amount: zap.amount,
-        timestamp: zap.timestamp,
-        sender: {
-          name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
-          pubkey: zap.zapperPubkey,
-          nip05: zap.sender?.nip05 || null,
-          avatar: generateAvatar({ pubkey: zap.zapperPubkey }, nip57Zaps.length)
-        },
-        note: zap.message || 'Zap',
-        noteType: 'original',
-        client: 'nostr',
-        source: 'nip57',
-        eventId: eventId, // Store the original event ID
-        engagement: {
-          replies: 0,
-          reposts: 0,
-          likes: 0
-        }
-      })
-    })
-  })
-  
-  // Combine and sort by timestamp
-  return [...nwcPayments, ...nip57Zaps].sort((a, b) => 
-    new Date(b.timestamp) - new Date(a.timestamp)
-  )
-})
-
 const filteredZaps = computed(() => {
-  let zaps = combinedZaps.value
+  let zaps = combinedZapData.value
+  
+  // Filter to only show zaps with eventId (NIP-57 zaps)
+  zaps = zaps.filter(zap => zap.eventId)
   
   // Apply search filter
   if (searchQuery.value) {
@@ -109,8 +67,11 @@ const filteredZaps = computed(() => {
 // Handle click on zap item
 const handleZapClick = (zap) => {
   if (zap.eventId) {
+    console.log('Opening event modal for eventId:', zap.eventId, 'source:', zap.source)
     selectedEventId.value = zap.eventId
     showEventModal.value = true
+  } else {
+    console.log('No eventId available for this zap:', zap.id, 'source:', zap.source)
   }
 }
 
@@ -379,7 +340,7 @@ const truncateNote = (note, maxLength = 120) => {
                     <span v-if="zap.noteType" class="bg-orange-100 px-1.5 py-0.5 rounded text-xs text-orange-700 flex items-center space-x-1">
                       <component :is="getNoteTypeIcon(zap.noteType)" class="w-3 h-3" />
                     </span>
-                    <span v-if="zap.client" class="bg-blue-100 px-1.5 py-0.5 rounded text-xs text-blue-700 flex items-center space-x-1">
+                    <span v-if="zap.client && !zap.eventId" class="bg-blue-100 px-1.5 py-0.5 rounded text-xs text-blue-700 flex items-center space-x-1">
                       <IconDeviceMobile class="w-3 h-3" />
                     </span>
                   </div>

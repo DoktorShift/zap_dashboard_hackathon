@@ -116,17 +116,18 @@ export function useContent() {
   // Enhanced content items with zap data
   const userContentItemsWithZaps = computed(() => {
     const allZaps = getAllContentZaps.value
+    console.log('Content zaps data:', allZaps)
     
     return userContentItems.value.map(item => {
+      console.log('Processing content item:', item.id, 'nostrEventId:', item.nostrEventId)
       const zapData = allZaps[item.nostrEventId] || { zaps: [], totalAmount: 0, count: 0 }
+      console.log('Zap data for item:', item.id, zapData)
       
       return {
         ...item,
         zapCount: zapData.count,
         zapAmount: zapData.totalAmount,
         zaps: zapData.zaps,
-        // 🔥 FIX: Keep original revenue separate from zaps
-        // Don't overwrite revenue with zapAmount - they are different revenue streams
         traditionalRevenue: item.revenue || 0, // Store original revenue as traditionalRevenue
         totalRevenue: (item.revenue || 0) + zapData.totalAmount // Combined revenue
       }

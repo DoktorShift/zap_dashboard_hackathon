@@ -76,6 +76,7 @@ const formatZapAmount = (amount) => {
 
 // 🔥 FIX: Use totalRevenue which combines both zaps and traditional revenue
 const getTotalRevenue = (item) => {
+  console.log('Getting total revenue for item:', item.id, 'zapAmount:', item.zapAmount, 'traditionalRevenue:', item.traditionalRevenue)
   return item.totalRevenue || 0
 }
 
@@ -83,6 +84,7 @@ const getTotalRevenue = (item) => {
 const shouldShowBreakdown = (item) => {
   const zapAmount = item.zapAmount || 0
   const traditionalRevenue = item.traditionalRevenue || 0
+  console.log('Checking breakdown for item:', item.id, 'zapAmount:', zapAmount, 'traditionalRevenue:', traditionalRevenue)
   
   // Show breakdown only if BOTH zaps and traditional revenue exist and are > 0
   return zapAmount > 0 && traditionalRevenue > 0

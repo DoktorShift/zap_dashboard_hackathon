@@ -117,3 +117,72 @@ export function truncateInvoice(invoice, maxLength = 50) {
   
   return `${invoice.substring(0, start)}...${invoice.substring(invoice.length - end)}`
 }
+
+/**
+ * Extract payment hash from a BOLT11 invoice
+ * @param {string} invoice - BOLT11 invoice string
+ * @returns {string|null} - Payment hash or null if not found
+ */
+export function getPaymentHashFromInvoice(invoice) {
+  if (!invoice || typeof invoice !== 'string') {
+    return null
+  }
+  
+  try {
+    // BOLT11 invoices encode the payment hash in a tag with prefix 'p'
+    // The format is typically base32 encoded and appears after removing the human-readable part
+
+    // First, check if it's a valid Lightning invoice
+    if (!invoice.toLowerCase().startsWith('ln')) {
+      return null
+    }
+
+    // Simple regex-based extraction - this is a simplified approach
+    // In production, you would use a full BOLT11 decoder library
+    const paymentHashRegex = /p([a-fA-F0-9]{64})/
+    const match = invoice.match(paymentHashRegex)
+
+    if (match && match[1]) {
+      return match[1]
+    }
+
+    // Alternative approach: look for payment hash in the data part
+    // This is a fallback and less reliable than a proper decoder
+    const parts = invoice.split('1')
+    if (parts.length > 1) {
+      // Look for a 64-character hex string that could be a payment hash
+      const hexHashRegex = /([a-fA-F0-9]{64})/
+      const hexMatch = parts[1].match(hexHashRegex)
+      if (hexMatch && hexMatch[1]) {
+        return hexMatch[1]
+      }
+    }
+
+    // If we can't find it with simple methods, generate a deterministic hash from the invoice
+    // This ensures we at least have a consistent ID for deduplication
+    return generateDeterministicHashFromInvoice(invoice)
+
+  } catch (error) {
+    console.warn('Failed to extract payment hash from invoice:', error)
+    return null
+  }
+}
+
+/**
+ * Generate a deterministic hash from an invoice when we can't extract the actual payment hash
+ * @param {string} invoice - BOLT11 invoice string
+ * @returns {string} - Deterministic hash
+ */
+function generateDeterministicHashFromInvoice(invoice) {
+  // Use a simple hash function to generate a consistent ID
+  let hash = 0
+  for (let i = 0; i < invoice.length; i++) {
+    const char = invoice.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  
+  // Convert to hex string and ensure it's 64 characters
+  const hexHash = Math.abs(hash).toString(16).padStart(16, '0')
+  return hexHash.repeat(4).substring(0, 64)
+}
