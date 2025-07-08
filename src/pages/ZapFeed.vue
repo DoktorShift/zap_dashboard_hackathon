@@ -133,8 +133,42 @@ const formatDate = (timestamp) => {
 
 // Enhanced note content parsing to handle both string and JSON array formats
 const parseNoteContent = (note) => {
+  console.log(note)
+  console.log(typeof note)
   if (typeof note === 'string') {
-    if (note.startsWith('[') && note.endsWith(']')) {
+    // Handle JSON object strings (like Nostr events)
+    if (note.startsWith('{') && note.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(note)
+        if (parsed && typeof parsed === 'object') {
+          // Handle Nostr zap events (kind 9734)
+          if (parsed.kind === 9734) {
+            const amountTag = parsed.tags?.find(tag => tag[0] === 'amount')
+            const amount = amountTag ? amountTag[1] : null
+            if (amount) {
+              return `Zap: ${Math.floor(amount / 1000)} sats`
+            }
+            return 'Zap payment'
+          }
+
+          // Handle other Nostr events with content
+          if (parsed.content) {
+            return parsed.content
+          }
+
+          // Handle other object types
+          if (parsed.description) {
+            return parsed.description
+          }
+
+          return `${parsed.kind ? `Event (kind ${parsed.kind})` : 'Event'}`
+        }
+      } catch (error) {
+        return note
+      }
+    }
+    // Handle JSON array strings
+    else if (note.startsWith('[') && note.endsWith(']')) {
       try {
         const parsed = JSON.parse(note)
         if (Array.isArray(parsed)) {
@@ -146,14 +180,14 @@ const parseNoteContent = (note) => {
     }
     return note
   }
-  
+
   if (Array.isArray(note)) {
     return extractTextFromArray(note)
   }
-  
+
   if (typeof note === 'object' && note !== null) {
     try {
-      return JSON.stringify(note)
+      return JSON.stringify(note.get('content'))
     } catch (error) {
       return 'Unable to display note content'
     }
