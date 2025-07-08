@@ -1,7 +1,8 @@
 <script setup>
 import { computed, inject, ref, onMounted } from 'vue'
-import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
+import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
 
+// Lazy load ECharts to prevent issues
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
 const echartsError = ref(null)
@@ -40,11 +41,13 @@ onMounted(async () => {
 })
 
 const zapData = inject('zapData')
+const combinedZapData = inject('combinedZapData')
 const selectedTimeRange = inject('selectedTimeRange')
 
 // Process real zap data for daily activity
 const dailyActivityOption = computed(() => {
-  const zaps = zapData.value
+  // Filter to only show zaps with eventId (NIP-57 zaps)
+  const zaps = combinedZapData.value.filter(zap => zap.eventId)
   
   if (zaps.length === 0) {
     // Show empty state with sample structure
@@ -175,7 +178,8 @@ const dailyActivityOption = computed(() => {
 
 // Process real data for top supporters
 const topSupportersOption = computed(() => {
-  const zaps = zapData.value
+  // Filter to only show zaps with eventId (NIP-57 zaps)
+  const zaps = combinedZapData.value.filter(zap => zap.eventId)
   
   if (zaps.length === 0) {
     return {
@@ -258,7 +262,8 @@ const topSupportersOption = computed(() => {
 
 // Process real data for amount distribution
 const amountDistributionOption = computed(() => {
-  const zaps = zapData.value
+  // Filter to only show zaps with eventId (NIP-57 zaps)
+  const zaps = combinedZapData.value.filter(zap => zap.eventId)
   
   const ranges = [
     { label: '1-10', min: 1, max: 10, count: 0 },
@@ -332,7 +337,8 @@ const amountDistributionOption = computed(() => {
 
 // Dynamic insights based on real data
 const insights = computed(() => {
-  const zaps = zapData.value
+  // Filter to only show zaps with eventId (NIP-57 zaps)
+  const zaps = combinedZapData.value.filter(zap => zap.eventId)
   
   if (zaps.length === 0) {
     return [
@@ -427,7 +433,8 @@ const insights = computed(() => {
 
 // Additional computed stats for summary
 const summaryStats = computed(() => {
-  const zaps = zapData.value
+  // Filter to only show zaps with eventId (NIP-57 zaps)
+  const zaps = combinedZapData.value.filter(zap => zap.eventId)
   const totalAmount = zaps.reduce((sum, zap) => sum + zap.amount, 0)
   const avgAmount = zaps.length > 0 ? Math.round(totalAmount / zaps.length) : 0
   const uniqueSupporters = new Set(zaps.map(zap => zap.sender?.pubkey || 'anonymous')).size
@@ -544,9 +551,13 @@ const summaryStats = computed(() => {
         <IconRefresh class="w-4 h-4 inline mr-2" />
         Connect your wallet to see real analytics data
       </div>
-      <div v-else class="text-green-600 text-sm">
+      <div v-else-if="combinedZapData.filter(zap => zap.eventId).length > 0" class="text-green-600 text-sm">
+        <IconBolt class="w-4 h-4 inline mr-2" />
+        Analytics updated with {{ combinedZapData.filter(zap => zap.eventId).length }} Nostr zaps
+      </div>
+      <div v-else class="text-amber-600 text-sm">
         <IconTrendingUp class="w-4 h-4 inline mr-2" />
-        Analytics updated with {{ zapData.length }} real zaps
+        Connect to Nostr to see zap analytics
       </div>
     </div>
   </div>
