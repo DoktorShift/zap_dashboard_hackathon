@@ -1,6 +1,7 @@
 import { ref, reactive, computed, watch, onUnmounted } from 'vue'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrAuth } from './useNostrAuth.js'
+import { getPaymentHashFromInvoice } from '../utils/invoiceUtils.js'
 import * as nip19 from 'nostr-tools/nip19'
 
 // Global state for content zaps
@@ -16,8 +17,18 @@ const profileFetchPromises = new Map()
 // Zap data structure
 const createZapData = (zapEvent) => {
   try {
-    // Extract payment hash/id from zap receipt
-    const id = zapEvent.id
+    // Get the bolt11 invoice from the zap receipt
+    const bolt11 = extractBolt11(zapEvent)
+    
+    // Extract payment hash from bolt11 invoice if available
+    let paymentHash = null
+    if (bolt11) {
+      paymentHash = getPaymentHashFromInvoice(bolt11)
+      console.log(`Extracted payment hash from bolt11: ${paymentHash?.substring(0, 16)}...`)
+    }
+    
+    // Use payment hash as ID if available, otherwise fall back to event ID
+    const id = paymentHash || zapEvent.id
     
     // Extract zap receipt data (kind 9735)
     const amount = extractZapAmount(zapEvent)
@@ -29,7 +40,7 @@ const createZapData = (zapEvent) => {
     const senderProfile = { pubkey: zapperPubkey }
     
     // Log the extracted data for debugging
-    console.log(`Creating zap data for event ${eventId}, payment hash: ${id}, amount: ${amount}`)
+    console.log(`Creating zap data for event ${eventId}, payment hash: ${id?.substring(0, 16)}..., amount: ${amount}`)
     
     const zapData = {
       id: id, // This should be the payment hash for deduplication
@@ -114,12 +125,12 @@ const extractZapMessage = (zapEvent) => {
 const extractBolt11 = (zapEvent) => {
   const bolt11Tag = zapEvent.tags.find(tag => tag[0] === 'bolt11')
   const bolt11 = bolt11Tag ? bolt11Tag[1] : null
-  
+
   // Log the bolt11 for debugging
   if (bolt11) {
-    console.log(`Found bolt11 invoice in zap event ${zapEvent.id}: ${bolt11.substring(0, 20)}...`)
+    console.log(`Found bolt11 invoice in zap event ${zapEvent.id.substring(0, 8)}...: ${bolt11.substring(0, 20)}...`)
   }
-  
+
   return bolt11
 }
 
