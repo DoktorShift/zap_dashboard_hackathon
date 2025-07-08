@@ -294,7 +294,7 @@ export function useContentZaps() {
   // Initialize zap tracking for all published content
   const initializeZapTracking = async () => {
     try {
-      console.log('🔍 Initializing zap tracking for all published content...')
+      console.log('🔍 Initializing zap tracking for all published content...', new Date().toISOString())
       
       // Get all content items from localStorage
       const contentStorageKey = 'user_content_items'
@@ -302,6 +302,7 @@ export function useContentZaps() {
       
       if (storedContent) {
         const contentItems = JSON.parse(storedContent)
+        console.log('Found content items in storage:', contentItems.length)
         
         // Filter for published content with Nostr event IDs
         const publishedContent = contentItems.filter(item => 
@@ -310,11 +311,13 @@ export function useContentZaps() {
         
         if (publishedContent.length > 0) {
           const eventIds = publishedContent.map(item => item.nostrEventId)
-          console.log(`Found ${eventIds.length} published content items with Nostr event IDs`)
+          console.log(`Found ${eventIds.length} published content items with Nostr event IDs:`, eventIds)
           await trackMultipleContent(eventIds)
         } else {
           console.log('No published content items found with Nostr event IDs')
         }
+      } else {
+        console.log('No content items found in storage')
       }
     } catch (error) {
       console.error('Failed to initialize zap tracking:', error)
@@ -324,12 +327,12 @@ export function useContentZaps() {
   // Start tracking zaps for a specific content item
   const startZapTracking = async (eventId) => {
     if (!eventId || activeSubscriptions.has(eventId)) {
-      console.log(`Zap tracking already active for ${eventId}`)
+      console.log(`Zap tracking already active for ${eventId || 'undefined eventId'}`)
       return
     }
 
     try {
-      console.log(`🔍 Starting zap tracking for content: ${eventId}`)
+      console.log(`🔍 Starting zap tracking for content: ${eventId}`, new Date().toISOString())
       
       // Initialize zaps array for this content if not exists
       if (!contentZaps.has(eventId)) {
@@ -345,7 +348,7 @@ export function useContentZaps() {
         }
       ], {
         onevent: (zapEvent) => {
-          console.log(`⚡ Received zap for ${eventId}:`, zapEvent)
+          console.log(`⚡ Received zap for ${eventId}:`, zapEvent.id)
           
           const zapData = createZapData(zapEvent)
           if (zapData) {
@@ -359,7 +362,7 @@ export function useContentZaps() {
             if (!exists) {
               existingZaps.unshift(zapData) // Add to beginning (newest first)
               contentZaps.set(eventId, existingZaps)
-              console.log(`✅ Added zap: ${zapData.amount} sats from ${zapData.zapperPubkey.substring(0, 8)}...`)
+              console.log(`✅ Added zap: ${zapData.amount} sats from ${zapData.zapperPubkey.substring(0, 8)}... for event ${eventId}`)
             }
           }
         },
@@ -434,7 +437,9 @@ export function useContentZaps() {
   // Track zaps for multiple content items
   const trackMultipleContent = async (eventIds) => {
     const promises = eventIds.map(eventId => startZapTracking(eventId))
-    await Promise.allSettled(promises)
+    const results = await Promise.allSettled(promises)
+    console.log(`Tracking results for ${eventIds.length} content items:`, 
+      results.map((r, i) => `${eventIds[i]}: ${r.status}`))
   }
 
   // Clear zaps for a content item

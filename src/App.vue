@@ -72,7 +72,11 @@ const isRefreshingData = ref(false)
 // Combine NWC payments (zapData) with NIP-57 zaps
 const combinedZapData = computed(() => {
   // Get NWC payments from zapData
-  const nwcPayments = zapData.value
+  const nwcPayments = zapData.value.map(zap => ({
+    ...zap,
+    source: 'nwc', // Explicitly mark as NWC payment
+    eventId: null // NWC payments don't have associated event IDs
+  }))
   
   // Get NIP-57 zaps from useContentZaps
   const contentZapsMap = getAllContentZaps.value
@@ -94,6 +98,7 @@ const combinedZapData = computed(() => {
         note: zap.message || 'Zap',
         noteType: 'original',
         client: 'nostr',
+        source: 'nip57', // Explicitly mark as NIP-57 zap
         source: 'nip57',
         eventId: eventId
       })
