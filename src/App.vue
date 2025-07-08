@@ -85,7 +85,7 @@ const combinedZapData = computed(() => {
   // Convert the map of content zaps to an array
   Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
     zapData.zaps.forEach(zap => {
-      // Add NIP-57 zap to the map with payment hash/id as key
+      // Always prioritize NIP-57 zaps (with eventId) over regular payments
       uniqueZapsMap.set(zap.id, {
         id: zap.id,
         amount: zap.amount,
@@ -107,7 +107,7 @@ const combinedZapData = computed(() => {
   
   // Now process NWC payments, only adding them if they don't already exist in the map
   zapData.value.forEach(zap => {
-    // Only add NWC payment if we don't already have a NIP-57 zap with the same ID
+    // Skip NWC payments that have the same ID as a NIP-57 zap
     if (!uniqueZapsMap.has(zap.id)) {
       uniqueZapsMap.set(zap.id, {
         ...zap,
@@ -115,7 +115,7 @@ const combinedZapData = computed(() => {
         eventId: null // NWC payments don't have associated event IDs
       })
     } else {
-      console.log(`Skipping duplicate NWC payment with id ${zap.id?.substring(0, 16)}... (already have NIP-57 zap)`)
+      console.log(`Skipping duplicate NWC payment with id ${zap.id?.substring(0, 16)}... (prioritizing NIP-57 zap)`)
     }
   })
   

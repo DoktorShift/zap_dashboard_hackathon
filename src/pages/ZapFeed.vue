@@ -337,7 +337,7 @@ const truncateNote = (note, maxLength = 120) => {
                     <span v-if="zap.noteType" class="bg-orange-100 px-1.5 py-0.5 rounded text-xs text-orange-700 flex items-center space-x-1">
                       <component :is="getNoteTypeIcon(zap.noteType)" class="w-3 h-3" />
                     </span>
-                    <span v-if="zap.client" class="bg-blue-100 px-1.5 py-0.5 rounded text-xs text-blue-700 flex items-center space-x-1">
+                    <span v-if="zap.client && !zap.eventId" class="bg-blue-100 px-1.5 py-0.5 rounded text-xs text-blue-700 flex items-center space-x-1">
                       <IconDeviceMobile class="w-3 h-3" />
                     </span>
                   </div>
