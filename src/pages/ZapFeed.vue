@@ -363,14 +363,14 @@ const truncateNote = (note, maxLength = 120) => {
       </div>
       
       <!-- Debug Info -->
-      <div v-if="!filteredZaps.length && zapData.length > 0" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-        <div class="flex items-center space-x-2">
-          <IconAlertCircle class="w-5 h-5 text-amber-600" />
-          <div>
-            <p class="text-sm text-amber-800">You have {{ zapData.length }} zaps in your wallet, but none match your current filters.</p>
-          </div>
-        </div>
-      </div>
+<!--      <div v-if="!filteredZaps.length && zapData.length > 0" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">-->
+<!--        <div class="flex items-center space-x-2">-->
+<!--          <IconAlertCircle class="w-5 h-5 text-amber-600" />-->
+<!--          <div>-->
+<!--            <p class="text-sm text-amber-800">You have {{ zapData.length }} zaps in your wallet, but none match your current filters.</p>-->
+<!--          </div>-->
+<!--        </div>-->
+<!--      </div>-->
     </div>
   </div>
   
