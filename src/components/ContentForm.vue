@@ -39,10 +39,10 @@ const emit = defineEmits(['submit', 'cancel', 'save-draft'])
 const contentTypes = [
   { value: 'article', label: 'Article', icon: IconFileText },
   { value: 'newsletter', label: 'Newsletter', icon: IconMail },
-  { value: 'podcast', label: 'Podcast', icon: IconMicrophone },
-  { value: 'video', label: 'Video', icon: IconVideo },
-  { value: 'image', label: 'Image', icon: IconPhoto },
-  { value: 'document', label: 'Document', icon: IconFile }
+  // { value: 'podcast', label: 'Podcast', icon: IconMicrophone },
+  // { value: 'video', label: 'Video', icon: IconVideo },
+  // { value: 'image', label: 'Image', icon: IconPhoto },
+  // { value: 'document', label: 'Document', icon: IconFile }
 ]
 
 const monetizationModels = [
