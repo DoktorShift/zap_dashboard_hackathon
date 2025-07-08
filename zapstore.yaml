@@ -1,0 +1,26 @@
+identifier: com.pratik.zaptracker
+version: 1.0.0
+name: Zap Tracker
+summary: Lightning-powered dashboard for Nostr and more!
+description: |
+  Zap Tracker is a Lightning-first progressive web app that combines the power of Nostr, Bitcoin, and decentralized finance tools.
+  View analytics, wallet insights, zap feeds, and more — all from a fast and beautiful interface.
+repository: https://github.com/pratik227/zap_dashboard
+homepage: https://zap-tracker.vercel.app/
+license: MIT
+tags: nostr lightning bitcoin zap tracker android
+icon: public/new_logo3.png
+images:
+  - public/dashboard.png
+  - public/wallet.png
+  - public/analytics.png
+  - public/zaps.png
+  - public/chat_zap_2.png
+changelog: CHANGELOG.md
+blossom_servers:
+  - https://cdn.zapstore.dev
+  - https://blossom.band
+assets:
+  - output/.*\.apk
+remote_metadata:
+  - github
