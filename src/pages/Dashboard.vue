@@ -126,7 +126,9 @@ const stats = computed(() => {
 // Dynamic chart data based on real zap timestamps
 const chartOption = computed(() => {
   const allZaps = combinedZapData.value
-  const filteredZaps = filterZapsByTimeRange(allZaps, selectedTimeRange.value)
+  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
+  const nip57Zaps = allZaps.filter(zap => zap.eventId)
+  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
   
   if (filteredZaps.length === 0) {
     // Show empty chart with sample data
@@ -304,10 +306,10 @@ const getPercentageChange = (current, type) => {
         <div>
           <h1 class="text-xl sm:text-2xl font-bold mb-2 flex items-center space-x-2">
             <IconBolt class="w-6 h-6" />
-            <span>{{ combinedZapData.length > 0 ? welcomeMessage : 'Connect your wallet to get started!' }}</span>
+            <span>{{ combinedZapData.filter(zap => zap.eventId).length > 0 ? welcomeMessage : 'Connect your wallet to get started!' }}</span>
           </h1>
           <p class="text-orange-50 text-sm sm:text-base">
-            <span v-if="combinedZapData.length > 0">
+            <span v-if="combinedZapData.filter(zap => zap.eventId).length > 0">
               You've received {{ stats.totalZaps }} zaps worth {{ stats.totalSats.toLocaleString() }} sats
               <span v-if="selectedTimeRange !== 'all'" class="opacity-75">
                 ({{ getTimeRangeDisplayText(selectedTimeRange) }})
