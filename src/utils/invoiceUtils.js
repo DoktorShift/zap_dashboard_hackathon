@@ -131,21 +131,21 @@ export function getPaymentHashFromInvoice(invoice) {
   try {
     // BOLT11 invoices encode the payment hash in a tag with prefix 'p'
     // The format is typically base32 encoded and appears after removing the human-readable part
-    
+
     // First, check if it's a valid Lightning invoice
     if (!invoice.toLowerCase().startsWith('ln')) {
       return null
     }
-    
+
     // Simple regex-based extraction - this is a simplified approach
     // In production, you would use a full BOLT11 decoder library
-    const paymentHashRegex = /p=([a-zA-Z0-9]{52})/
+    const paymentHashRegex = /p([a-fA-F0-9]{64})/
     const match = invoice.match(paymentHashRegex)
-    
+
     if (match && match[1]) {
       return match[1]
     }
-    
+
     // Alternative approach: look for payment hash in the data part
     // This is a fallback and less reliable than a proper decoder
     const parts = invoice.split('1')
@@ -157,11 +157,11 @@ export function getPaymentHashFromInvoice(invoice) {
         return hexMatch[1]
       }
     }
-    
+
     // If we can't find it with simple methods, generate a deterministic hash from the invoice
     // This ensures we at least have a consistent ID for deduplication
     return generateDeterministicHashFromInvoice(invoice)
-    
+
   } catch (error) {
     console.warn('Failed to extract payment hash from invoice:', error)
     return null
