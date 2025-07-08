@@ -23,6 +23,11 @@ import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
 
+// Track processed event IDs to prevent duplicates
+const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
+// Track processed payment hashes for deduplication across NWC and NIP-57
+const processedPaymentHashes = new Set()
+
 // Use the Nostr connections composable
 const {
   connections,
@@ -72,27 +77,35 @@ const isRefreshingData = ref(false)
 // Combine NWC payments (zapData) with NIP-57 zaps
 const combinedZapData = computed(() => {
   // Get NWC payments from zapData
-  const nwcPayments = zapData.value.map(zap => ({
-    ...zap,
-    source: 'nwc', // Explicitly mark as NWC payment
-    eventId: null // NWC payments don't have associated event IDs
-  }))
+  const nwcPayments = []
+  
+  // Process NWC payments first and track their payment hashes
+  zapData.value.forEach(zap => {
+    // Add to processed set to avoid duplicates
+    processedPaymentHashes.add(zap.id)
+    
+    nwcPayments.push({
+      ...zap,
+      source: 'nwc', // Explicitly mark as NWC payment
+      eventId: null // NWC payments don't have associated event IDs
+    })
+  })
   
   // Get NIP-57 zaps from useContentZaps
   const contentZapsMap = getAllContentZaps.value
   const nip57Zaps = []
-  
-  // Track payment hashes to avoid duplicates
-  const processedPaymentHashes = new Set(nwcPayments.map(zap => zap.id))
   
   // Convert the map of content zaps to an array
   Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
     zapData.zaps.forEach(zap => {
       // Skip if this zap is already in nwcPayments (by payment hash/id)
       if (processedPaymentHashes.has(zap.id)) {
-        console.log(`Skipping duplicate zap with id ${zap.id} - already in NWC payments`)
+        console.log(`Skipping duplicate zap with id ${zap.id?.substring(0, 16)}... for event ${eventId.substring(0, 8)}...`)
         return
       }
+      
+      // Add to processed set to avoid future duplicates
+      processedPaymentHashes.add(zap.id)
       
       nip57Zaps.push({
         id: zap.id,
