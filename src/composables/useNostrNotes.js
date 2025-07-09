@@ -51,14 +51,8 @@ export function useNostrNotes() {
 
   // Create note title from content
   const createNoteTitle = (content) => {
-    // Remove markdown formatting for title
-    const plainText = content
-      .replace(/#{1,6}\s+/g, '') // Remove heading markers
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic
-      .replace(/`(.*?)`/g, '$1') // Remove inline code
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links, keep text
-      .trim()
+    // Get plain text for title
+    const plainText = content.trim()
 
     // Get first line or first 50 characters
     const firstLine = plainText.split('\n')[0]
@@ -67,15 +61,8 @@ export function useNostrNotes() {
 
   // Create note preview from content
   const createNotePreview = (content) => {
-    // Remove markdown formatting for preview
-    const plainText = content
-      .replace(/#{1,6}\s+/g, '') // Remove heading markers
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic
-      .replace(/`(.*?)`/g, '$1') // Remove inline code
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links, keep text
-      .replace(/\n+/g, ' ') // Replace newlines with spaces
-      .trim()
+    // Get plain text for preview
+    const plainText = content.replace(/\n+/g, ' ').trim()
 
     return plainText.length > 200 ? plainText.substring(0, 200) + '...' : plainText
   }
