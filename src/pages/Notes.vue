@@ -247,10 +247,11 @@ onUnmounted(() => {
   <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
     <IconFileText class="w-6 h-6 text-orange-600" />
    <!-- <span>My Notes</span> -->
-  </h1>
-  <p class="text-gray-600">
+    <p class="text-gray-600">
     Welcome back, {{ userProfile?.name || 'Creator' }}! Write and publish notes to the Nostr network.
   </p>
+  </h1>
+  
 </div>
 
         <div class="flex items-center space-x-3 mb-4">
