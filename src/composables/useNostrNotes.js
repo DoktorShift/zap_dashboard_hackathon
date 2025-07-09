@@ -1,6 +1,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import { useContentZaps } from './useContentZaps.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 
 // Global state for notes
@@ -23,6 +24,7 @@ const editingNote = ref(null)
 
 export function useNostrNotes() {
   const { currentUser, isAuthenticated, writeRelays, readRelays } = useNostrAuth()
+  const { startZapTracking } = useContentZaps()
 
   // Computed properties
   const userNotes = computed(() => {
@@ -237,6 +239,9 @@ export function useNostrNotes() {
         failedRelays: result.failed
       })
 
+      // Start tracking zaps for this note
+      startZapTracking(signedEvent.id)
+
       // Add the note to our local state immediately
       const newNote = {
         ...signedEvent,
@@ -332,6 +337,9 @@ export function useNostrNotes() {
         successfulRelays: result.successful,
         failedRelays: result.failed
       })
+
+      // Start tracking zaps for the new note
+      startZapTracking(signedEvent.id)
 
       // Now publish a deletion event for the old note
       console.log('Publishing deletion event for old note:', noteId)

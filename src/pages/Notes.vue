@@ -14,10 +14,12 @@ import {
   IconHash,
   IconCalendar,
   IconEye,
+  IconUsers
   IconAlertTriangle
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { useContentZaps } from '../composables/useContentZaps.js'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -42,6 +44,15 @@ const {
   createNewNote,
   formatDate
 } = useNostrNotes()
+
+// Use content zaps composable to track zaps on notes
+const { 
+  startZapTracking, 
+  getZapsForContent, 
+  getTotalZapAmount,
+  getZapCount,
+  getAllContentZaps
+} = useContentZaps()
 
 
 // Handle form submission
@@ -129,10 +140,54 @@ const noteStats = computed(() => {
 // UI state
 const showViewPopup = ref(false)
 
+// Format zap amount for display
+const formatZapAmount = (amount) => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}k`
+  }
+  return amount.toString()
+}
+
+// Format zapper pubkey for display
+const formatZapperPubkey = (pubkey) => {
+  if (!pubkey) return 'Anonymous'
+  return pubkey.substring(0, 8) + '...' + pubkey.substring(pubkey.length - 8)
+}
+
+// Format zap timestamp
+const formatZapTime = (timestamp) => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diff = now - date
+  
+  if (diff < 60000) return 'now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  return `${Math.floor(diff / 86400000)}d ago`
+}
+
 onMounted(() => {
   // Expose debug function globally for console access
   window.debugNotes = debugState
+  
+  // Start tracking zaps for all notes
+  if (isAuthenticated.value && notes.value.length > 0) {
+    notes.value.forEach(note => {
+      startZapTracking(note.id)
+    })
+  }
 })
+
+// Watch for notes changes to track zaps on new notes
+watch(notes, (newNotes) => {
+  if (isAuthenticated.value && newNotes.length > 0) {
+    newNotes.forEach(note => {
+      startZapTracking(note.id)
+    })
+  }
+}, { deep: true })
 
 onUnmounted(() => {
   // Clean up subscriptions when component unmounts
@@ -299,6 +354,10 @@ onUnmounted(() => {
                       <IconCalendar class="w-3 h-3" />
                       <span>{{ formatDate(note.created_at) }}</span>
                     </span>
+                    <span v-if="getZapCount(note.id) > 0" class="flex items-center space-x-1 text-orange-600">
+                      <IconBolt class="w-3 h-3" />
+                      <span>{{ formatZapAmount(getTotalZapAmount(note.id)) }} sats</span>
+                    </span>
                     <span v-if="note.hashtags && note.hashtags.length > 0" class="flex items-center space-x-1">
                       <IconHash class="w-3 h-3" />
                       <span>{{ note.hashtags.slice(0, 2).join(', ') }}</span>
@@ -456,6 +515,10 @@ onUnmounted(() => {
                   <IconHash class="w-3 h-3" />
                   <span>{{ tag }}</span>
                 </span>
+                <span v-if="getZapCount(selectedNote.id) > 0" class="flex items-center space-x-1">
+                  <IconBolt class="w-4 h-4 text-orange-600" />
+                  <span class="text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }} sats</span>
+                </span>
               </div>
             </div>
 
@@ -564,6 +627,101 @@ onUnmounted(() => {
             <p class="whitespace-pre-wrap text-gray-800">{{ selectedNote?.content }}</p>
           </div>
 
+          <!-- Zap Information -->
+          <div v-if="selectedNote && getZapCount(selectedNote.id) > 0" class="mt-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <IconBolt class="w-5 h-5 text-orange-600" />
+                <span>Zaps Received</span>
+              </h3>
+              <div class="flex items-center space-x-4">
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-orange-600">{{ getZapCount(selectedNote.id) }}</div>
+                  <div class="text-xs text-gray-600">Total Zaps</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }}</div>
+                  <div class="text-xs text-gray-600">Total Sats</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zap List -->
+            <div class="space-y-3 max-h-60 overflow-y-auto">
+              <div
+                v-for="zap in getZapsForContent(selectedNote.id)"
+                :key="zap.id"
+                class="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100"
+              >
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 rounded-full overflow-hidden">
+                    <img 
+                      :src="zap.sender?.avatar || zap.sender?.picture" 
+                      :alt="zap.sender?.name || 'User'"
+                      class="w-full h-full object-cover"
+                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                    />
+                  </div>
+                  <div>
+                    <div class="font-medium text-gray-900">{{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}</div>
+                    <div class="text-sm text-gray-600">{{ formatZapTime(zap.timestamp) }}</div>
+                    <div v-if="zap.message" class="text-sm text-gray-700 italic">"{{ zap.message }}"</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Zap Information -->
+          <div v-if="selectedNote && getZapCount(selectedNote.id) > 0" class="mt-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <IconBolt class="w-5 h-5 text-orange-600" />
+                <span>Zaps Received</span>
+              </h3>
+              <div class="flex items-center space-x-4">
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-orange-600">{{ getZapCount(selectedNote.id) }}</div>
+                  <div class="text-xs text-gray-600">Total Zaps</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }}</div>
+                  <div class="text-xs text-gray-600">Total Sats</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zap List -->
+            <div class="space-y-3 max-h-60 overflow-y-auto">
+              <div
+                v-for="zap in getZapsForContent(selectedNote.id)"
+                :key="zap.id"
+                class="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100"
+              >
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 rounded-full overflow-hidden">
+                    <img 
+                      :src="zap.sender?.avatar || zap.sender?.picture" 
+                      :alt="zap.sender?.name || 'User'"
+                      class="w-full h-full object-cover"
+                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                    />
+                  </div>
+                  <div>
+                    <div class="font-medium text-gray-900">{{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}</div>
+                    <div class="text-sm text-gray-600">{{ formatZapTime(zap.timestamp) }}</div>
+                    <div v-if="zap.message" class="text-sm text-gray-700 italic">"{{ zap.message }}"</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Nostr Event Details -->
           <!-- <div class="mt-8 pt-6 border-t border-gray-200">
             <h4 class="text-sm font-medium text-gray-700 mb-3">Nostr Event Details</h4>
@@ -596,6 +754,32 @@ onUnmounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Scrollable areas */
+.max-h-60 {
+  max-height: 15rem;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(251, 146, 60, 0.3);
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(251, 146, 60, 0.5);
 }
 
 /* Plain text editor styles */
