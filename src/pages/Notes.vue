@@ -127,13 +127,19 @@ const isFormValid = computed(() => {
 })
 
 const noteStats = computed(() => {
+  // Calculate total zap revenue across all notes
+  const totalZapRevenue = notes.value.reduce((sum, note) => {
+    return sum + getTotalZapAmount(note.id)
+  }, 0)
+  
   return {
     total: notes.value.length,
     thisWeek: notes.value.filter(note => {
       const noteDate = new Date(note.created_at * 1000)
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       return noteDate > weekAgo
-    }).length
+    }).length,
+    totalZapRevenue
   }
 })
 
@@ -292,13 +298,24 @@ onUnmounted(() => {
           </div>
           
           <!-- This Week Card -->
-          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+          <!-- <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
             <div class="flex flex-col">
               <p class="text-gray-600 text-sm">This Week</p>
               <p class="text-3xl font-bold text-gray-900">{{ noteStats.thisWeek }}</p>
             </div>
             <div class="flex justify-end">
               <IconCalendar class="w-8 h-8 text-orange-600" />
+            </div>
+          </div> -->
+          
+          <!-- Total Zap Revenue Card -->
+          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-gray-600 text-sm">Total Zap Revenue</p>
+              <p class="text-3xl font-bold text-gray-900">{{ noteStats.totalZapRevenue.toLocaleString() }}</p>
+            </div>
+            <div class="flex justify-end">
+              <IconBolt class="w-8 h-8 text-orange-600" />
             </div>
           </div>
           
