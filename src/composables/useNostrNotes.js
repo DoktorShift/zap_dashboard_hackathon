@@ -504,31 +504,46 @@ export function useNostrNotes() {
     return date.toLocaleDateString()
   }
 
+  // Watch for notes changes to track zaps on new notes
+  watch(notes, (newNotes) => {
+    if (isAuthenticated.value && newNotes.length > 0) {
+      // Use setTimeout to ensure this runs after the relay manager is fully initialized
+      setTimeout(() => {
+        newNotes.forEach(note => {
+          startZapTracking(note.id)
+        })
+      }, 1000)
+    }
+  }, { deep: true })
+
   // Initialize notes when authenticated
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
-      // Clean up any existing subscription
-      if (currentSubscription) {
-        currentSubscription.close()
-        currentSubscription = null
+      // Only fetch if we don't already have notes
+      if (notes.value.length === 0) {
+        // Clean up any existing subscription
+        if (currentSubscription) {
+          currentSubscription.close()
+          currentSubscription = null
+        }
+        processedEventIds.clear() // Clear processed event IDs
+        
+        setTimeout(() => {
+          fetchUserNotes()
+          
+          // Set up periodic cleanup of duplicate notes
+          const cleanupInterval = setInterval(() => {
+            if (isAuthenticated.value) {
+              cleanupDuplicateNotes()
+            } else {
+              clearInterval(cleanupInterval)
+            }
+          }, 30000) // Clean up every 30 seconds
+          
+          // Store interval for cleanup
+          window.notesCleanupInterval = cleanupInterval
+        }, 1000) // Small delay to ensure relay manager is ready
       }
-      processedEventIds.clear() // Clear processed event IDs
-      
-      setTimeout(() => {
-        fetchUserNotes()
-        
-        // Set up periodic cleanup of duplicate notes
-        const cleanupInterval = setInterval(() => {
-          if (isAuthenticated.value) {
-            cleanupDuplicateNotes()
-          } else {
-            clearInterval(cleanupInterval)
-          }
-        }, 30000) // Clean up every 30 seconds
-        
-        // Store interval for cleanup
-        window.notesCleanupInterval = cleanupInterval
-      }, 1000) // Small delay to ensure relay manager is ready
     } else {
       // Clean up subscription when not authenticated
       if (currentSubscription) {
