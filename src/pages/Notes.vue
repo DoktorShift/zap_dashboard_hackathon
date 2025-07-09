@@ -20,6 +20,7 @@ import {
 import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
+import { useBtcPrice } from '../composables/useBtcPrice.js'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -53,6 +54,9 @@ const {
   getZapCount,
   getAllContentZaps
 } = useContentZaps()
+
+// Use BTC price composable
+const { satsToUSD, formatUSD } = useBtcPrice()
 
 
 // Handle form submission
@@ -124,6 +128,11 @@ const closeViewPopup = () => {
 // Computed properties
 const isFormValid = computed(() => {
   return noteForm.content.trim().length > 0
+})
+
+// Calculate total zap revenue in USD
+const revenueInUSD = computed(() => {
+  return formatUSD(satsToUSD(noteStats.value.totalZapRevenue))
 })
 
 const noteStats = computed(() => {
@@ -289,8 +298,11 @@ onUnmounted(() => {
           <!-- Total Zap Revenue Card - Now Highlighted -->
           <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-4 rounded-xl shadow-sm">
             <div class="flex flex-col">
-              <p class="text-orange-100 text-sm">Total Zap Revenue</p>
-              <p class="text-3xl font-bold">{{ noteStats.totalZapRevenue.toLocaleString() }}</p>
+              <p class="text-orange-100 text-sm mb-1">Total Zap Revenue</p>
+              <p class="text-3xl font-bold mb-1">{{ noteStats.totalZapRevenue.toLocaleString() }}</p>
+              <p class="text-orange-100 text-xs">
+                ≈ {{ revenueInUSD }} USD
+              </p>
             </div>
             <div class="flex justify-end">
               <IconBolt class="w-8 h-8 text-orange-200" />
@@ -300,8 +312,8 @@ onUnmounted(() => {
           <!-- Total Notes Card - Now Regular -->
           <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
             <div class="flex flex-col">
-              <p class="text-gray-600 text-sm">Total Notes</p>
-              <p class="text-3xl font-bold text-gray-900">{{ noteStats.total }}</p>
+              <p class="text-gray-600 text-sm mb-1">Total Notes</p>
+              <p class="text-2xl font-bold text-gray-900">{{ noteStats.total }}</p>
             </div>
             <div class="flex justify-end">
               <IconFileText class="w-8 h-8 text-orange-600" />
@@ -322,8 +334,8 @@ onUnmounted(() => {
           <!-- On Nostr Card -->
           <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
             <div class="flex flex-col">
-              <p class="text-gray-600 text-sm">On Nostr</p>
-              <p class="text-3xl font-bold text-purple-600">{{ noteStats.total }}</p>
+              <p class="text-gray-600 text-sm mb-1">On Nostr</p>
+              <p class="text-2xl font-bold text-purple-600">{{ noteStats.total }}</p>
             </div>
             <div class="flex justify-end">
               <IconBolt class="w-8 h-8 text-purple-600" />
