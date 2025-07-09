@@ -14,7 +14,7 @@ import {
   IconHash,
   IconCalendar,
   IconEye,
-  IconUsers
+  IconUsers,
   IconAlertTriangle
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrNotes } from '../composables/useNostrNotes.js'
