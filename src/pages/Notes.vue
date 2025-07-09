@@ -286,18 +286,29 @@ onUnmounted(() => {
       <div v-if="currentView === 'list'">
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <!-- Total Notes Card -->
+          <!-- Total Zap Revenue Card - Now Highlighted -->
           <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-4 rounded-xl shadow-sm">
             <div class="flex flex-col">
-              <p class="text-orange-100 text-sm">Total Notes</p>
-              <p class="text-3xl font-bold">{{ noteStats.total }}</p>
+              <p class="text-orange-100 text-sm">Total Zap Revenue</p>
+              <p class="text-3xl font-bold">{{ noteStats.totalZapRevenue.toLocaleString() }}</p>
             </div>
             <div class="flex justify-end">
-              <IconFileText class="w-8 h-8 text-orange-200" />
+              <IconBolt class="w-8 h-8 text-orange-200" />
             </div>
           </div>
           
-          <!-- This Week Card -->
+          <!-- Total Notes Card - Now Regular -->
+          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-gray-600 text-sm">Total Notes</p>
+              <p class="text-3xl font-bold text-gray-900">{{ noteStats.total }}</p>
+            </div>
+            <div class="flex justify-end">
+              <IconFileText class="w-8 h-8 text-orange-600" />
+            </div>
+          </div>
+          
+          <!-- This Week Card - Commented Out -->
           <!-- <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
             <div class="flex flex-col">
               <p class="text-gray-600 text-sm">This Week</p>
@@ -307,17 +318,6 @@ onUnmounted(() => {
               <IconCalendar class="w-8 h-8 text-orange-600" />
             </div>
           </div> -->
-          
-          <!-- Total Zap Revenue Card -->
-          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
-            <div class="flex flex-col">
-              <p class="text-gray-600 text-sm">Total Zap Revenue</p>
-              <p class="text-3xl font-bold text-gray-900">{{ noteStats.totalZapRevenue.toLocaleString() }}</p>
-            </div>
-            <div class="flex justify-end">
-              <IconBolt class="w-8 h-8 text-orange-600" />
-            </div>
-          </div>
           
           <!-- On Nostr Card -->
           <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
