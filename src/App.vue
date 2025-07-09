@@ -2,6 +2,7 @@
 import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from 'vue'
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/Sidebar.vue'
+import { useNostrNotes } from './composables/useNostrNotes.js'
 import { useContentZaps } from './composables/useContentZaps.js'
 import TopBar from './components/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
@@ -56,6 +57,9 @@ const { getAllContentZaps } = useContentZaps()
 
 // Initialize content zaps tracking
 const { initializeZapTracking } = useContentZaps()
+
+// Initialize notes and their zaps tracking at application startup
+const { fetchUserNotes } = useNostrNotes()
 
 // Global state
 const zapData = ref([])
@@ -366,8 +370,10 @@ const startPeriodicHealthCheck = () => {
             console.log('Auto-reconnect successful')
           } catch (reconnectError) {
             console.error('Auto-reconnect failed:', reconnectError)
-            connectionError.value = 'Connection lost. Please reconnect your wallet.'
+        setTimeout(async () => {
           }
+          // Also fetch notes data to ensure zaps are loaded
+          await fetchUserNotes()
         }
       }
     }
