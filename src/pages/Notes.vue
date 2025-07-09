@@ -247,14 +247,15 @@ onUnmounted(() => {
             <IconArrowLeft class="w-4 h-4" />
             Back to Notes
           </button>
-          <button
-            v-if="currentView === 'list'"
-            @click="startCreating"
-            class="btn-primary"
-          >
-            <IconPlus class="w-4 h-4" />
-            New Note
-          </button>
+          <div v-if="currentView === 'list'" class="flex space-x-2">
+            <button
+              @click="setView('create')"
+              class="btn-primary"
+            >
+              <IconPlus class="w-4 h-4" />
+              New Note
+            </button>
+          </div>
 <!--          <button-->
 <!--            v-if="currentView === 'list'"-->
 <!--            @click="cleanupDuplicateNotes"-->
@@ -278,33 +279,36 @@ onUnmounted(() => {
       <!-- Notes List View -->
       <div v-if="currentView === 'list'">
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <!-- Total Notes Card -->
           <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-4 rounded-xl shadow-sm">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-orange-100 text-sm">Total Notes</p>
-                <p class="text-2xl font-bold">{{ noteStats.total }}</p>
-              </div>
+            <div class="flex flex-col">
+              <p class="text-orange-100 text-sm">Total Notes</p>
+              <p class="text-3xl font-bold">{{ noteStats.total }}</p>
+            </div>
+            <div class="flex justify-end">
               <IconFileText class="w-8 h-8 text-orange-200" />
             </div>
           </div>
           
-          <div class="bg-white/90 backdrop-blur-sm p-4 rounded-xl border border-orange-100/50 shadow-sm">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-gray-600 text-sm">This Week</p>
-                <p class="text-2xl font-bold text-gray-900">{{ noteStats.thisWeek }}</p>
-              </div>
+          <!-- This Week Card -->
+          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-gray-600 text-sm">This Week</p>
+              <p class="text-3xl font-bold text-gray-900">{{ noteStats.thisWeek }}</p>
+            </div>
+            <div class="flex justify-end">
               <IconCalendar class="w-8 h-8 text-orange-600" />
             </div>
           </div>
           
-          <div class="bg-white/90 backdrop-blur-sm p-4 rounded-xl border border-orange-100/50 shadow-sm">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-gray-600 text-sm">On Nostr</p>
-                <p class="text-2xl font-bold text-purple-600">{{ noteStats.total }}</p>
-              </div>
+          <!-- On Nostr Card -->
+          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-gray-600 text-sm">On Nostr</p>
+              <p class="text-3xl font-bold text-purple-600">{{ noteStats.total }}</p>
+            </div>
+            <div class="flex justify-end">
               <IconBolt class="w-8 h-8 text-purple-600" />
             </div>
           </div>
