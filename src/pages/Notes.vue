@@ -411,6 +411,21 @@ onUnmounted(() => {
             </p>
           </div>
 
+          <!-- Edit Note Info Alert - Only show when editing -->
+          <div v-if="currentView === 'edit'" class="px-6 pt-4">
+            <div class="p-3 bg-amber-50 rounded-lg mb-4 border border-amber-200">
+              <div class="flex items-start space-x-3">
+                <IconAlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 class="font-medium text-amber-900 mb-1">How Nostr Edits Work</h4>
+                  <p class="text-sm text-amber-800">
+                    Nostr doesn't support direct editing of events. When you "edit" a note, we'll publish a new note and mark the original for deletion. This creates a new event ID and resets engagement metrics.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="p-6">
             <!-- Plain Text Note Info -->
             <div class="p-3 bg-blue-50 rounded-lg mb-4 border border-blue-200">
