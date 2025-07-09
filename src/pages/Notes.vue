@@ -358,9 +358,9 @@ onUnmounted(() => {
                       <IconCalendar class="w-3 h-3" />
                       <span>{{ formatDate(note.created_at) }}</span>
                     </span>
-                    <span v-if="getZapCount(note.id) > 0" class="flex items-center space-x-1 text-orange-600">
+                    <span v-if="getZapCount(note.id) > 0" class="flex items-center space-x-1 text-orange-600 whitespace-nowrap">
                       <IconBolt class="w-3 h-3" />
-                      <span>{{ formatZapAmount(getTotalZapAmount(note.id)) }} sats</span>
+                      <span>{{ formatZapAmount(getTotalZapAmount(note.id)) }} sats ({{ getZapCount(note.id) }})</span>
                     </span>
                     <span v-if="note.hashtags && note.hashtags.length > 0" class="flex items-center space-x-1">
                       <IconHash class="w-3 h-3" />
