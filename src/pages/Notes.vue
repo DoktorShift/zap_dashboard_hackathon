@@ -344,7 +344,7 @@ onUnmounted(() => {
               {{ currentView === 'edit' ? 'Edit Note' : 'Create New Note' }}
             </h2>
             <p class="text-gray-600 text-sm mt-1">
-              Write your note using Markdown formatting. It will be published to the Nostr network.
+              Write down your thoughts. It will be published to the Nostr network.
             </p>
           </div>
 
