@@ -22,6 +22,8 @@ import ErrorBoundary from './components/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
+import { useNostrNotes } from './composables/useNostrNotes.js'
+import { useContentZaps } from './composables/useContentZaps.js'
 
 // Track processed event IDs to prevent duplicates
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
@@ -56,6 +58,9 @@ const { getAllContentZaps } = useContentZaps()
 
 // Initialize content zaps tracking
 const { initializeZapTracking } = useContentZaps()
+
+// Initialize notes and zaps tracking early
+const { notes, fetchUserNotes } = useNostrNotes()
 
 // Global state
 const zapData = ref([])
@@ -366,9 +371,11 @@ const startPeriodicHealthCheck = () => {
             console.log('Auto-reconnect successful')
           } catch (reconnectError) {
             console.error('Auto-reconnect failed:', reconnectError)
-            connectionError.value = 'Connection lost. Please reconnect your wallet.'
-          }
-        }
+        initializeZapTracking()
+        
+        // Also initialize notes tracking
+        console.log('Initializing notes tracking...')
+        fetchUserNotes()
       }
     }
   }, 120000) // 2 minutes
