@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
-import { 
+import {
   IconFileText, 
   IconPlus, 
   IconEdit, 
@@ -15,7 +15,12 @@ import {
   IconCalendar,
   IconEye,
   IconUsers,
-  IconAlertTriangle
+  IconAlertTriangle,
+  IconPhoto,
+  IconVideo, 
+  IconX,
+  IconExternalLink,
+  IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -154,6 +159,49 @@ const noteStats = computed(() => {
 
 // UI state
 const showViewPopup = ref(false)
+const showMediaUrlInput = ref(false)
+const showClientDropdown = ref(false)
+const showVideoUrlInput = ref(false)
+const mediaUrl = ref('')
+const noteTextarea = ref(null)
+const dropdownRef = ref(null)
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    showClientDropdown.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// Get URL for different Nostr clients
+const getNostrClientUrl = (client, noteId) => {
+  if (!noteId) return '#'
+  
+  try {
+    // For all clients, use the event ID directly
+    switch (client) {
+      case 'primal':
+        return `https://primal.net/e/${noteId}`
+      case 'yakihonne':
+        return `https://yakihonne.com/e/${noteId}`
+      case 'highlighter':
+        return `https://highlighter.com/a/note1${nip19.noteEncode(noteId)}`
+      default:
+        return `https://primal.net/e/${noteId}`
+    }
+  } catch (error) {
+    console.error('Failed to generate client URL:', error)
+    return '#'
+  }
+}
 
 // Format zap amount for display
 const formatZapAmount = (amount) => {
@@ -203,6 +251,48 @@ watch(notes, (newNotes) => {
     })
   }
 }, { deep: true })
+
+// Insert media URL at cursor position
+const insertMediaUrl = (type) => {
+  let url = mediaUrl.value.trim();
+  if (!url) {
+    showMediaUrlInput.value = false
+    showVideoUrlInput.value = false
+    return
+  }
+  
+  // Validate image URL if it's an image
+  if (type === 'image' && !url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+    alert('Please enter a valid image URL (ending with .jpg, .jpeg, .png, .gif, or .webp)');
+    return;
+  }
+  
+  const textarea = noteTextarea.value
+  
+  if (textarea) {
+    const cursorPos = textarea.selectionStart
+    const textBefore = noteForm.content.substring(0, cursorPos)
+    const textAfter = noteForm.content.substring(textarea.selectionEnd)
+    
+    // Just insert the raw URL with line breaks
+    const mediaText = `\n${url}\n`
+    
+    // Update content
+    noteForm.content = textBefore + mediaText + textAfter
+    
+    // Reset and close
+    mediaUrl.value = ''
+    showMediaUrlInput.value = false
+    showVideoUrlInput.value = false
+    
+    // Focus back on textarea
+    setTimeout(() => {
+      textarea.focus()
+      const newCursorPos = cursorPos + mediaText.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    }, 50)
+  }
+}
 
 onUnmounted(() => {
   // Clean up subscriptions when component unmounts
@@ -373,28 +463,32 @@ onUnmounted(() => {
             <div
               v-for="note in notes"
               :key="note.id"
-              class="p-4 hover:bg-orange-25/50 transition-colors cursor-pointer"
+              class="p-4 hover:bg-orange-25/80 transition-all duration-200 cursor-pointer rounded-lg border border-transparent hover:border-orange-200/50 hover:shadow-sm"
               @click="viewNote(note)"
             >
-              <div class="flex items-start justify-between">
-                <div class="flex-1 min-w-0">
-                  <h4 class="font-semibold text-gray-900 mb-2 truncate">
-                    <div v-html="note.title"></div>
-                  </h4>
-<!--                  <p class="text-sm text-gray-600 mb-3 line-clamp-2">-->
-<!--                    <div v-html="note.preview"></div>-->
-<!--                  </p>-->
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0 space-y-2">
+                  <div class="flex items-center gap-2">
+                    <h4 class="font-semibold text-gray-900 truncate">
+                      {{ note.title }}
+                    </h4>
+                    <span v-if="getZapCount(note.id) > 0" 
+                          class="flex items-center space-x-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">
+                      <IconBolt class="w-3 h-3" />
+                      <span>{{ formatZapAmount(getTotalZapAmount(note.id)) }}</span>
+                    </span>
+                  </div>
                   
-                  <div class="flex items-center space-x-4 text-xs text-gray-500">
-                    <span class="flex items-center space-x-1">
+                  <p class="text-sm text-gray-600 line-clamp-2">
+                    {{ note.preview }}
+                  </p>
+                  
+                  <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                    <span class="flex items-center gap-1">
                       <IconCalendar class="w-3 h-3" />
                       <span>{{ formatDate(note.created_at) }}</span>
                     </span>
-                    <span v-if="getZapCount(note.id) > 0" class="flex items-center space-x-1 text-orange-600 whitespace-nowrap">
-                      <IconBolt class="w-3 h-3" />
-                      <span>{{ formatZapAmount(getTotalZapAmount(note.id)) }} sats ({{ getZapCount(note.id) }})</span>
-                    </span>
-                    <span v-if="note.hashtags && note.hashtags.length > 0" class="flex items-center space-x-1">
+                    <span v-if="note.hashtags && note.hashtags.length > 0" class="flex items-center gap-1">
                       <IconHash class="w-3 h-3" />
                       <span>{{ note.hashtags.slice(0, 2).join(', ') }}</span>
                       <span v-if="note.hashtags.length > 2">+{{ note.hashtags.length - 2 }}</span>
@@ -402,28 +496,23 @@ onUnmounted(() => {
                   </div>
                 </div>
                 
-                <div class="flex items-center space-x-2 ml-4">
-<!--                  <button-->
-<!--                    @click.stop="openViewPopup(note)"-->
-<!--                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"-->
-<!--                    title="View note"-->
-<!--                  >-->
-<!--                    <IconEye class="w-4 h-4" />-->
-<!--                  </button>-->
-                  <button
-                    @click.stop="startEditing(note)"
-                    class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                    title="Edit note"
-                  >
-                    <IconEdit class="w-4 h-4" />
-                  </button>
-                  <button
-                    @click.stop="handleDelete(note)"
-                    class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete note"
-                  >
-                    <IconTrash class="w-4 h-4" />
-                  </button>
+                <div class="flex flex-col items-end space-y-2">
+                  <div class="flex items-center space-x-1">
+                    <button
+                      @click.stop="startEditing(note)"
+                      class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                      title="Edit note"
+                    >
+                      <IconEdit class="w-4 h-4" />
+                    </button>
+                    <button
+                      @click.stop="handleDelete(note)"
+                     class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                     title="Delete note"
+                   >
+                     <IconTrash class="w-4 h-4" />
+                   </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -438,19 +527,19 @@ onUnmounted(() => {
             <h2 class="text-xl font-semibold text-gray-900">
               {{ currentView === 'edit' ? 'Edit Note' : 'Create New Note' }}
             </h2>
-            <p class="text-gray-600 text-sm mt-1">
+            <p class="text-gray-600 text-sm mt-2">
               Write down your thoughts. It will be published to the Nostr network.
             </p>
           </div>
 
           <!-- Edit Note Info Alert - Only show when editing -->
           <div v-if="currentView === 'edit'" class="px-6 pt-4">
-            <div class="p-3 bg-amber-50 rounded-lg mb-4 border border-amber-200">
+            <div class="p-4 bg-amber-50/80 rounded-lg mb-5 border border-amber-200 shadow-sm">
               <div class="flex items-start space-x-3">
                 <IconAlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 class="font-medium text-amber-900 mb-1">How Nostr Edits Work</h4>
-                  <p class="text-sm text-amber-800">
+                  <p class="text-sm text-amber-800 leading-relaxed">
                     Nostr doesn't support direct editing of events. When you "edit" a note, we'll publish a new note and mark the original for deletion. This creates a new event ID and resets engagement metrics.
                   </p>
                 </div>
@@ -460,12 +549,12 @@ onUnmounted(() => {
 
           <div class="p-6">
             <!-- Plain Text Note Info -->
-            <div class="p-3 bg-blue-50 rounded-lg mb-4 border border-blue-200">
+            <div class="p-4 bg-blue-50/80 rounded-lg mb-5 border border-blue-200 shadow-sm">
               <div class="flex items-start space-x-3">
                 <IconAlertTriangle class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 class="font-medium text-blue-900 mb-1">Plain Text Notes</h4>
-                  <p class="text-sm text-blue-800">
+                  <p class="text-sm text-blue-800 leading-relaxed">
                     Nostr notes (kind:1) only support plain text. Formatting like bold, italic, or headings is not supported.
                     Use hashtags with # to make your notes discoverable.
                   </p>
@@ -474,36 +563,73 @@ onUnmounted(() => {
             </div>
 
             <!-- Plain Text Editor -->
-            <div class="border border-orange-200/50 rounded-lg overflow-hidden">
+            <div class="border border-orange-200/50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 focus-within:ring-2 focus-within:ring-orange-300 focus-within:border-orange-400 flex flex-col">
+              <!-- Media Toolbar -->
+              <div class="flex items-center px-3 py-2 border-b border-orange-100/50 bg-orange-50/30">
+                <button 
+                  @click="showMediaUrlInput = true"
+                  class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                  title="Add image URL"
+                >
+                  <IconPhoto class="w-5 h-5" />
+                  <span class="text-sm">Image</span>
+                </button>
+                <button 
+                  @click="showVideoUrlInput = true"
+                  class="p-2 ml-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                  title="Add video URL"
+                >
+                  <IconVideo class="w-5 h-5" />
+                  <span class="text-sm">Video</span>
+                </button>
+                <div class="h-5 mx-3 border-r border-orange-200/50"></div>
+                <button 
+                  class="p-2 text-gray-400 rounded transition-colors flex items-center space-x-1 cursor-not-allowed"
+                  title="Emoji support coming soon"
+                >
+                  <span class="text-xl leading-none">😊</span>
+                  <span class="text-sm">Emoji</span>
+                  <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Soon</span>
+                </button>
+              </div>
               <textarea
                 v-model="noteForm.content"
                 placeholder="Write your note here... Use #hashtags to make your note discoverable."
-                class="w-full min-h-[300px] p-4 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none"
                 rows="12"
+                ref="noteTextarea"
               ></textarea>
             </div>
 
             <!-- Hashtag Help -->
-            <div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-              <h4 class="font-medium text-orange-900 mb-2">Hashtag Tips</h4>
-              <div class="text-sm text-orange-800 space-y-1">
-                <p>Use <code>#hashtags</code> to categorize your notes and make them discoverable</p>
-                <p>Example: <code>Just had a great coffee! #coffee #morning</code></p>
+            <div class="mt-5 p-4 bg-orange-50/80 border border-orange-200 rounded-lg shadow-sm">
+              <h4 class="font-medium text-orange-900 mb-2 flex items-center">
+                <span class="mr-2">#</span>Hashtag Tips
+              </h4>
+              <div class="text-sm text-orange-800 space-y-2">
+                <p class="flex items-start">
+                  <span class="inline-block w-4 h-4 mr-2 text-orange-500">•</span>
+                  Use <code class="px-1.5 py-0.5 bg-orange-100 rounded text-orange-700 font-mono">#hashtags</code> to categorize your notes and make them discoverable
+                </p>
+                <p class="flex items-start">
+                  <span class="inline-block w-4 h-4 mr-2 text-orange-500">•</span>
+                  Example: <code class="px-1.5 py-0.5 bg-orange-100 rounded text-orange-700 font-mono">Just had a great coffee! #coffee #morning</code>
+                </p>
               </div>
             </div>
 
             <!-- Actions -->
-            <div class="flex justify-end space-x-3 mt-6">
+            <div class="flex justify-end space-x-4 mt-8">
               <button
                 @click="setView('list')"
-                class="btn-secondary"
+                class="btn-secondary px-6"
               >
                 Cancel
               </button>
               <button
                 @click="handleSubmit"
                 :disabled="!isFormValid || isLoading"
-                class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                class="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
                 <IconSend v-else class="w-4 h-4" />
@@ -517,25 +643,54 @@ onUnmounted(() => {
       <!-- View Note -->
       <div v-else-if="currentView === 'view' && selectedNote">
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm">
-          <div class="p-6 border-b border-orange-100/50">
+          <div class="p-4 sm:p-6 border-b border-orange-100/50">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="text-xl font-semibold text-gray-900 mb-2">
-                  <div v-html="selectedNote.title"></div>
+                <h2 class="text-xl font-semibold text-gray-900 mb-1">
+                  {{ selectedNote.title }}
                 </h2>
-                <div class="flex items-center space-x-4 text-sm text-gray-600">
-                  <span class="flex items-center space-x-1">
+                <div class="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                  <span class="flex items-center gap-1">
                     <IconCalendar class="w-4 h-4" />
                     <span>{{ formatDate(selectedNote.created_at) }}</span>
                   </span>
-                  <span class="flex items-center space-x-1">
+                  <span class="flex items-center gap-1">
                     <IconUser class="w-4 h-4" />
                     <span>{{ userProfile?.name || 'You' }}</span>
                   </span>
                 </div>
               </div>
               
-              <div class="flex items-center space-x-2">
+              <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                <!-- Nostr Client Dropdown -->
+                <div class="relative">
+                  <button
+                    @click="showClientDropdown = !showClientDropdown"
+                    class="btn-secondary text-sm flex items-center gap-1"
+                  >
+                    <IconExternalLink class="w-4 h-4" />
+                    <span class="hidden sm:inline">Open in Client</span>
+                    <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+                  </button>
+                  
+                  <!-- Client Dropdown -->
+                  <div 
+                    v-if="showClientDropdown"
+                    class="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+                  >
+                    <a :href="getNostrClientUrl('primal', selectedNote.id)" target="_blank" rel="noopener noreferrer" 
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2">
+                      <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
+                      <span>Primal.net</span>
+                    </a>
+                    <a :href="getNostrClientUrl('yakihonne', selectedNote.id)" target="_blank" rel="noopener noreferrer"
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2">
+                      <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
+                      <span>Yakihonne</span>
+                    </a>
+                  </div>
+                </div>
+                
                 <button
                   @click="startEditing(selectedNote)"
                   class="btn-secondary"
@@ -554,28 +709,33 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="p-6">
+          <div class="p-4 sm:p-6">
             <!-- Hashtags -->
             <div v-if="selectedNote.hashtags && selectedNote.hashtags.length > 0" class="mb-6">
-              <div class="flex flex-wrap gap-2">
+              <div class="flex flex-wrap gap-2 mb-2">
                 <span
                   v-for="tag in selectedNote.hashtags"
                   :key="tag"
-                  class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
+                  class="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm hover:bg-orange-200 transition-colors"
                 >
                   <IconHash class="w-3 h-3" />
                   <span>{{ tag }}</span>
                 </span>
-                <span v-if="getZapCount(selectedNote.id) > 0" class="flex items-center space-x-1">
+              </div>
+              <div v-if="getZapCount(selectedNote.id) > 0" class="flex items-center gap-2 mt-2">
+                <span class="flex items-center gap-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-1 rounded-full text-sm">
                   <IconBolt class="w-4 h-4 text-orange-600" />
-                  <span class="text-orange-600 whitespace-nowrap">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }} sats ({{ getZapCount(selectedNote.id) }})</span>
+                  <span class="whitespace-nowrap font-medium">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }} sats</span>
+                  <span class="text-orange-500">({{ getZapCount(selectedNote.id) }} zaps)</span>
                 </span>
               </div>
             </div>
 
             <!-- Note Content -->
-            <div class="border border-gray-200 rounded-lg p-4 min-h-[200px] bg-white">
-              <p class="whitespace-pre-wrap text-gray-800">{{ selectedNote?.content }}</p>
+            <div class="border border-gray-200 rounded-lg p-4 sm:p-6 min-h-[200px] bg-white shadow-sm">
+              <div class="whitespace-pre-wrap text-gray-800 prose prose-orange max-w-none">
+                {{ selectedNote?.content }}
+              </div>
             </div>
 
             <!-- Nostr Event Details -->
@@ -598,6 +758,72 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Media URL Input Modal -->
+  <div v-if="showMediaUrlInput || showVideoUrlInput" class="fixed inset-0 z-50 overflow-y-auto">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showMediaUrlInput = false; showVideoUrlInput = false"></div>
+    
+    <!-- Modal -->
+    <div class="flex min-h-full items-center justify-center p-4">
+      <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
+          <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+            <component :is="showMediaUrlInput ? IconPhoto : IconVideo" class="w-5 h-5 text-orange-600" />
+            <span>{{ showMediaUrlInput ? 'Add Image URL' : 'Add Video URL' }}</span>
+          </h3>
+          <button
+            @click="showMediaUrlInput = false; showVideoUrlInput = false"
+            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Close"
+          >
+            <IconX class="w-5 h-5" />
+          </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-4">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              {{ showMediaUrlInput ? 'Image URL (.jpg, .jpeg, .png, .gif, .webp)' : 'Video URL' }}
+            </label>
+            <input
+              v-model="mediaUrl"
+              type="url"
+              :placeholder="showMediaUrlInput ? 'https://example.com/image.jpg' : 'https://example.com/video.mp4'"
+              class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+              @keyup.enter="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
+            />
+          </div>
+          
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <p class="text-sm text-blue-800">
+              {{ showMediaUrlInput 
+                ? 'Enter the URL of an image (must end with .jpg, .jpeg, .png, .gif, or .webp)' 
+                : 'Enter the URL of a video you want to include in your note' }}
+            </p>
+          </div>
+          
+          <div class="flex justify-end space-x-3">
+            <button
+              @click="showMediaUrlInput = false; showVideoUrlInput = false"
+              class="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              @click="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
+              :disabled="!mediaUrl.trim()"
+              class="btn-primary disabled:opacity-50"
+            >
+              Insert
+            </button>
           </div>
         </div>
       </div>
@@ -801,10 +1027,11 @@ onUnmounted(() => {
 
 <style scoped>
 .line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 /* Scrollable areas */
@@ -843,5 +1070,36 @@ textarea {
 .whitespace-pre-wrap {
   white-space: pre-wrap;
   word-break: break-word;
+  line-height: 1.6;
+}
+
+/* Prose styling for content */
+.prose {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.prose a {
+  color: #f97316;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .flex-wrap {
+    flex-wrap: wrap;
+  }
+  
+  .gap-3 {
+    gap: 0.75rem;
+  }
 }
 </style>
