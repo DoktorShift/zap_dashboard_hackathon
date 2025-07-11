@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject } from 'vue'
 import { 
   IconRefresh, 
   IconTrash, 
@@ -11,7 +11,8 @@ import {
   IconKey,
   IconShield,
   IconPlugConnected,
-  IconPlugOff
+  IconPlugOff,
+  IconArrowLeft
 } from '@iconify-prerendered/vue-tabler'
 import { 
   performCompleteReset, 
@@ -20,7 +21,8 @@ import {
   verifyConnectionStatus
 } from '../utils/accountReset.js'
 
-const emit = defineEmits(['reset-complete'])
+const currentPage = inject('currentPage')
+const emit = defineEmits(['change-page'])
 
 // State
 const isResetting = ref(false)
@@ -35,6 +37,9 @@ const resetSteps = [
   'Validating storage integrity',
   'Finalizing reset'
 ]
+
+const resetComplete = ref(false)
+const resetResult = ref(null)
 
 // Status
 const connectionStatus = ref(null)
@@ -83,14 +88,21 @@ const handleReset = async () => {
     // Check final status
     connectionStatus.value = await verifyConnectionStatus()
     
+    resetResult.value = { success: true }
     resetComplete.value = true
-    emit('reset-complete', { success: true })
+    
+    // If reset was successful, we might want to redirect after a delay
+    if (resetResult.value.success) {
+      setTimeout(() => {
+        emit('change-page', 'dashboard')
+      }, 5000) // 5 second delay
+    }
     
   } catch (error) {
     console.error('Reset failed:', error)
     resetError.value = error.message || 'Reset failed'
     resetProgress.value = 0
-    emit('reset-complete', { success: false, error: resetError.value })
+    resetResult.value = { success: false, error: resetError.value }
   } finally {
     isResetting.value = false
   }
@@ -110,10 +122,33 @@ const checkStatus = async () => {
 onMounted(async () => {
   await checkStatus()
 })
+
+const goBack = () => {
+  emit('change-page', 'settings')
+}
 </script>
 
 <template>
-  <div class="space-y-6 max-w-3xl mx-auto">
+  <div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
+          <IconRefresh class="w-6 h-6 text-orange-600" />
+          <span>Account Reset</span>
+        </h1>
+        <p class="text-gray-600">Clear all local data and start fresh</p>
+      </div>
+      
+      <button
+        @click="goBack"
+        class="btn-secondary self-start sm:self-auto"
+      >
+        <IconArrowLeft class="w-4 h-4" />
+        Back to Settings
+      </button>
+    </div>
+    
     <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
       <div class="flex flex-col sm:flex-row sm:items-start sm:space-x-4">
         <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0 mb-4 sm:mb-0">
@@ -256,6 +291,23 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Post-Reset Message -->
+    <div v-if="resetComplete && resetResult?.success" class="bg-green-50 border border-green-200 rounded-xl shadow-sm p-6 text-center animate-fade-in">
+      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-subtle">
+        <IconRefresh class="w-8 h-8 text-green-600" />
+      </div>
+      <h3 class="text-xl font-semibold text-green-900 mb-2">Reset Complete</h3>
+      <p class="text-green-800 mb-4">
+        Your account data has been successfully reset. You will be redirected to the dashboard in a few seconds.
+      </p>
+      <button
+        @click="emit('change-page', 'dashboard')"
+        class="btn-primary mt-4"
+      >
+        Go to Dashboard Now
+      </button>
     </div>
     
     <!-- Security Notice -->

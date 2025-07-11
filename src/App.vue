@@ -15,7 +15,7 @@ import MiniPoS from './pages/MiniPoS.vue'
 import Wallet from './pages/Wallet.vue'
 import Finances from './pages/Finances.vue'
 import Settings from './pages/Settings.vue'
-import AccountResetPage from './pages/AccountResetPage.vue'
+import AccountReset from './components/AccountReset.vue'
 import InvoiceShare from './pages/InvoiceShare.vue'
 import Notes from './pages/Notes.vue'
 import NWCConnection from './components/NWCConnection.vue'
@@ -188,7 +188,7 @@ const components = {
   wallet: Wallet,
   finances: Finances,
   settings: Settings,
-  'account-reset': AccountResetPage,
+  'account-reset': AccountReset,
   'invoice-share': InvoiceShare,
   notes: Notes
 }
