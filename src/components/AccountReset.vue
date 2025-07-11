@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, inject } from 'vue'
+import { ref, onMounted } from 'vue'
 import { 
   IconRefresh, 
   IconTrash, 
@@ -20,9 +20,6 @@ import {
   clearNostrData, 
   verifyConnectionStatus
 } from '../utils/accountReset.js'
-
-const currentPage = inject('currentPage')
-const emit = defineEmits(['change-page'])
 
 // State
 const isResetting = ref(false)
@@ -89,14 +86,6 @@ const handleReset = async () => {
     
     resetResult.value = { success: true }
     resetComplete.value = true
-    
-    // If reset was successful, we might want to redirect after a delay
-    if (resetResult.value.success) {
-      setTimeout(() => {
-        emit('change-page', 'dashboard')
-      }, 5000) // 5 second delay
-    }
-    
   } catch (error) {
     console.error('Reset failed:', error)
     resetError.value = error.message || 'Reset failed'
@@ -121,33 +110,10 @@ const checkStatus = async () => {
 onMounted(async () => {
   await checkStatus()
 })
-
-const goBack = () => {
-  emit('change-page', 'settings')
-}
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
-          <IconRefresh class="w-6 h-6 text-orange-600" />
-          <span>Account Reset</span>
-        </h1>
-        <p class="text-gray-600">Clear all local data and start fresh</p>
-      </div>
-      
-      <button
-        @click="goBack"
-        class="btn-secondary self-start sm:self-auto"
-      >
-        <IconArrowLeft class="w-4 h-4" />
-        Back to Settings
-      </button>
-    </div>
-    
     <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
       <div class="flex flex-col sm:flex-row sm:items-start sm:space-x-4">
         <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0 mb-4 sm:mb-0">
