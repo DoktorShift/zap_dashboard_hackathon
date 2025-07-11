@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
-import { EmojiPicker } from 'vue3-emoji-picker'
+import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import {
   IconFileText, 
