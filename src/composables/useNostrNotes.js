@@ -76,6 +76,13 @@ export function useNostrNotes() {
       return
     }
 
+    // Check if relay manager is initialized
+    if (!nostrRelayManager.isInitialized) {
+      console.log('Relay manager not initialized, cannot fetch notes')
+      error.value = 'Relay manager not initialized'
+      return
+    }
+
     isLoading.value = true
     error.value = ''
 
@@ -528,21 +535,48 @@ export function useNostrNotes() {
         }
         processedEventIds.clear() // Clear processed event IDs
         
-        setTimeout(() => {
-          fetchUserNotes()
-          
-          // Set up periodic cleanup of duplicate notes
-          const cleanupInterval = setInterval(() => {
-            if (isAuthenticated.value) {
-              cleanupDuplicateNotes()
-            } else {
-              clearInterval(cleanupInterval)
+        // Wait for relay manager to be initialized
+        const initializeNotes = () => {
+          if (nostrRelayManager.isInitialized) {
+            fetchUserNotes()
+            
+            // Set up periodic cleanup of duplicate notes
+            const cleanupInterval = setInterval(() => {
+              if (isAuthenticated.value) {
+                cleanupDuplicateNotes()
+              } else {
+                clearInterval(cleanupInterval)
+              }
+            }, 30000) // Clean up every 30 seconds
+            
+            // Store interval for cleanup
+            window.notesCleanupInterval = cleanupInterval
+          } else {
+            // Listen for initialization event
+            const handleInitialized = () => {
+              fetchUserNotes()
+              
+              // Set up periodic cleanup of duplicate notes
+              const cleanupInterval = setInterval(() => {
+                if (isAuthenticated.value) {
+                  cleanupDuplicateNotes()
+                } else {
+                  clearInterval(cleanupInterval)
+                }
+              }, 30000) // Clean up every 30 seconds
+              
+              // Store interval for cleanup
+              window.notesCleanupInterval = cleanupInterval
+              
+              // Remove the event listener
+              nostrRelayManager.removeEventListener('initialized', handleInitialized)
             }
-          }, 30000) // Clean up every 30 seconds
-          
-          // Store interval for cleanup
-          window.notesCleanupInterval = cleanupInterval
-        }, 1000) // Small delay to ensure relay manager is ready
+            
+            nostrRelayManager.addEventListener('initialized', handleInitialized)
+          }
+        }
+        
+        initializeNotes()
       }
     } else {
       // Clean up subscription when not authenticated
