@@ -213,13 +213,19 @@ watch(notes, (newNotes) => {
 
 // Insert media URL at cursor position
 const insertMediaUrl = (type) => {
-  if (!mediaUrl.value.trim()) {
+  let url = mediaUrl.value.trim();
+  if (!url) {
     showMediaUrlInput.value = false
     showVideoUrlInput.value = false
     return
   }
   
-  const url = mediaUrl.value.trim()
+  // Validate image URL if it's an image
+  if (type === 'image' && !url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+    alert('Please enter a valid image URL (ending with .jpg, .jpeg, .png, .gif, or .webp)');
+    return;
+  }
+  
   const textarea = noteTextarea.value
   
   if (textarea) {
@@ -227,13 +233,8 @@ const insertMediaUrl = (type) => {
     const textBefore = noteForm.content.substring(0, cursorPos)
     const textAfter = noteForm.content.substring(textarea.selectionEnd)
     
-    // Format based on media type
-    let mediaText = ''
-    if (type === 'image') {
-      mediaText = `\n[Image: ${url}]\n`
-    } else if (type === 'video') {
-      mediaText = `\n[Video: ${url}]\n`
-    }
+    // Just insert the raw URL with line breaks
+    const mediaText = `\n${url}\n`
     
     // Update content
     noteForm.content = textBefore + mediaText + textAfter
@@ -716,7 +717,7 @@ onUnmounted(() => {
         <div class="p-4">
           <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-              {{ showMediaUrlInput ? 'Image URL' : 'Video URL' }}
+              {{ showMediaUrlInput ? 'Image URL (.jpg, .jpeg, .png, .gif, .webp)' : 'Video URL' }}
             </label>
             <input
               v-model="mediaUrl"
@@ -730,8 +731,8 @@ onUnmounted(() => {
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
             <p class="text-sm text-blue-800">
               {{ showMediaUrlInput 
-                ? 'Enter the URL of an image you want to include in your note.' 
-                : 'Enter the URL of a video you want to include in your note.' }}
+                ? 'Enter the URL of an image (must end with .jpg, .jpeg, .png, .gif, or .webp)' 
+                : 'Enter the URL of a video you want to include in your note' }}
             </p>
           </div>
           
