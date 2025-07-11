@@ -15,7 +15,10 @@ import {
   IconCalendar,
   IconEye,
   IconUsers,
-  IconAlertTriangle
+  IconAlertTriangle,
+  IconPhoto,
+  IconVideo,
+  IconX
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -154,6 +157,10 @@ const noteStats = computed(() => {
 
 // UI state
 const showViewPopup = ref(false)
+const showMediaUrlInput = ref(false)
+const showVideoUrlInput = ref(false)
+const mediaUrl = ref('')
+const noteTextarea = ref(null)
 
 // Format zap amount for display
 const formatZapAmount = (amount) => {
@@ -203,6 +210,47 @@ watch(notes, (newNotes) => {
     })
   }
 }, { deep: true })
+
+// Insert media URL at cursor position
+const insertMediaUrl = (type) => {
+  if (!mediaUrl.value.trim()) {
+    showMediaUrlInput.value = false
+    showVideoUrlInput.value = false
+    return
+  }
+  
+  const url = mediaUrl.value.trim()
+  const textarea = noteTextarea.value
+  
+  if (textarea) {
+    const cursorPos = textarea.selectionStart
+    const textBefore = noteForm.content.substring(0, cursorPos)
+    const textAfter = noteForm.content.substring(textarea.selectionEnd)
+    
+    // Format based on media type
+    let mediaText = ''
+    if (type === 'image') {
+      mediaText = `\n[Image: ${url}]\n`
+    } else if (type === 'video') {
+      mediaText = `\n[Video: ${url}]\n`
+    }
+    
+    // Update content
+    noteForm.content = textBefore + mediaText + textAfter
+    
+    // Reset and close
+    mediaUrl.value = ''
+    showMediaUrlInput.value = false
+    showVideoUrlInput.value = false
+    
+    // Focus back on textarea
+    setTimeout(() => {
+      textarea.focus()
+      const newCursorPos = cursorPos + mediaText.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    }, 50)
+  }
+}
 
 onUnmounted(() => {
   // Clean up subscriptions when component unmounts
@@ -474,12 +522,41 @@ onUnmounted(() => {
             </div>
 
             <!-- Plain Text Editor -->
-            <div class="border border-orange-200/50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 focus-within:ring-2 focus-within:ring-orange-300 focus-within:border-orange-400">
+            <div class="border border-orange-200/50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 focus-within:ring-2 focus-within:ring-orange-300 focus-within:border-orange-400 flex flex-col">
+              <!-- Media Toolbar -->
+              <div class="flex items-center px-3 py-2 border-b border-orange-100/50 bg-orange-50/30">
+                <button 
+                  @click="showMediaUrlInput = true"
+                  class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                  title="Add image URL"
+                >
+                  <IconPhoto class="w-5 h-5" />
+                  <span class="text-sm">Image</span>
+                </button>
+                <button 
+                  @click="showVideoUrlInput = true"
+                  class="p-2 ml-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                  title="Add video URL"
+                >
+                  <IconVideo class="w-5 h-5" />
+                  <span class="text-sm">Video</span>
+                </button>
+                <div class="h-5 mx-3 border-r border-orange-200/50"></div>
+                <button 
+                  class="p-2 text-gray-400 rounded transition-colors flex items-center space-x-1 cursor-not-allowed"
+                  title="Emoji support coming soon"
+                >
+                  <span class="text-xl leading-none">😊</span>
+                  <span class="text-sm">Emoji</span>
+                  <span class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Soon</span>
+                </button>
+              </div>
               <textarea
                 v-model="noteForm.content"
                 placeholder="Write your note here... Use #hashtags to make your note discoverable."
-                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed"
+                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none"
                 rows="12"
+                ref="noteTextarea"
               ></textarea>
             </div>
 
@@ -606,6 +683,72 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Media URL Input Modal -->
+  <div v-if="showMediaUrlInput || showVideoUrlInput" class="fixed inset-0 z-50 overflow-y-auto">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showMediaUrlInput = false; showVideoUrlInput = false"></div>
+    
+    <!-- Modal -->
+    <div class="flex min-h-full items-center justify-center p-4">
+      <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
+          <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+            <component :is="showMediaUrlInput ? IconPhoto : IconVideo" class="w-5 h-5 text-orange-600" />
+            <span>{{ showMediaUrlInput ? 'Add Image URL' : 'Add Video URL' }}</span>
+          </h3>
+          <button
+            @click="showMediaUrlInput = false; showVideoUrlInput = false"
+            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Close"
+          >
+            <IconX class="w-5 h-5" />
+          </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-4">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              {{ showMediaUrlInput ? 'Image URL' : 'Video URL' }}
+            </label>
+            <input
+              v-model="mediaUrl"
+              type="url"
+              :placeholder="showMediaUrlInput ? 'https://example.com/image.jpg' : 'https://example.com/video.mp4'"
+              class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+              @keyup.enter="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
+            />
+          </div>
+          
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <p class="text-sm text-blue-800">
+              {{ showMediaUrlInput 
+                ? 'Enter the URL of an image you want to include in your note.' 
+                : 'Enter the URL of a video you want to include in your note.' }}
+            </p>
+          </div>
+          
+          <div class="flex justify-end space-x-3">
+            <button
+              @click="showMediaUrlInput = false; showVideoUrlInput = false"
+              class="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              @click="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
+              :disabled="!mediaUrl.trim()"
+              class="btn-primary disabled:opacity-50"
+            >
+              Insert
+            </button>
           </div>
         </div>
       </div>
