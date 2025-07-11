@@ -507,11 +507,6 @@ onUnmounted(() => {
                     </button>
                     <button
                       @click.stop="handleDelete(note)"
-                      class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete note"
-                    >
-                      <IconTrash class="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
               </div>
@@ -687,11 +682,6 @@ onUnmounted(() => {
                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2">
                       <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
                       <span>Yakihonne</span>
-                    </a>
-                    <a :href="getNostrClientUrl('highlighter', selectedNote.id)" target="_blank" rel="noopener noreferrer"
-                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2">
-                      <span class="w-4 h-4 flex items-center justify-center text-yellow-600">✨</span>
-                      <span>Highlighter</span>
                     </a>
                   </div>
                 </div>
