@@ -292,7 +292,7 @@ onMounted(async () => {
           </p>
           <div class="w-full bg-gray-200 rounded-full h-2 mb-6">
             <div class="bg-green-600 h-2 rounded-full animate-countdown"></div>
-          </button>
+          </div>
         </div>
       </div>
     </transition>
