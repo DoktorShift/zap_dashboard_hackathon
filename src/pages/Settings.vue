@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { IconSettings, IconBolt, IconBell, IconShield, IconUser } from '@iconify-prerendered/vue-tabler'
+import { IconSettings, IconBolt, IconBell, IconShield, IconUser, IconRefresh } from '@iconify-prerendered/vue-tabler'
 import SettingsConnections from '../components/SettingsConnections.vue'
 import NotificationSettings from '../components/NotificationSettings.vue'
 import NostrSettings from '../components/NostrSettings.vue'
@@ -13,12 +13,15 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['change-page'])
+
 const activeTab = ref('nostr')
 
 const tabs = [
   { id: 'nostr', label: 'Nostr', icon: IconUser },
   { id: 'wallet', label: 'Wallet', icon: IconBolt },
   { id: 'alerts', label: 'Notifications', icon: IconBell },
+  { id: 'reset', label: 'Reset', icon: IconRefresh }
   // { id: 'privacy', label: 'Privacy', icon: IconShield }
 ]
 
@@ -74,17 +77,44 @@ watch(() => props.initialTab, (newTab) => {
       <div class="p-6">
         <!-- Nostr Settings -->
         <div v-if="activeTab === 'nostr'">
-          <NostrSettings />
+          <NostrSettings @change-page="emit('change-page', $event)" />
         </div>
         
         <!-- Wallet Settings -->
         <div v-if="activeTab === 'wallet'">
-          <SettingsConnections />
+          <SettingsConnections @change-page="emit('change-page', $event)" />
         </div>
         
         <!-- Notification Settings -->
         <div v-if="activeTab === 'alerts'">
           <NotificationSettings />
+        </div>
+        
+        <!-- Reset Settings -->
+        <div v-if="activeTab === 'reset'">
+          <div class="space-y-6">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">Account Reset</h3>
+              <p class="text-gray-600 text-sm mb-4">Reset all account data and start fresh</p>
+              
+              <div class="bg-white rounded-lg border border-gray-200 p-6 text-center">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <IconRefresh class="w-8 h-8 text-red-600" />
+                </div>
+                <h4 class="text-lg font-medium text-gray-900 mb-2">Reset Account Data</h4>
+                <p class="text-gray-600 mb-6">
+                  Clear all wallet connections, Nostr identity, and payment history from this device.
+                </p>
+                <button 
+                  @click="emit('change-page', 'account-reset')"
+                  class="btn-primary bg-red-600 hover:bg-red-700"
+                >
+                  <IconRefresh class="w-4 h-4" />
+                  Reset Account Data
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
         
         <!-- Privacy Settings -->
