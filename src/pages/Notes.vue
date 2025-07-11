@@ -610,23 +610,25 @@ onUnmounted(() => {
                   <span class="text-sm">Video</span>
                 </button>
                 <div class="h-5 mx-3 border-r border-orange-200/50"></div>
-                <button 
-                  class="p-2 text-gray-400 rounded transition-colors flex items-center space-x-1 cursor-not-allowed"
-                  title="Emoji support coming soon"
-                  @click="showEmojiPicker = !showEmojiPicker"
-                >
-                  <span class="text-xl leading-none">😊</span>
-                  <span class="text-sm">Emoji</span>
-                </button>
-                <!-- Emoji Picker -->
-                <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-1 z-10">
-                  <EmojiPicker @select="handleEmojiSelect" />
+                <div class="relative">
+                  <button 
+                    class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                    title="Insert emoji"
+                    @click="showEmojiPicker = !showEmojiPicker"
+                  >
+                    <span class="text-xl leading-none">😊</span>
+                    <span class="text-sm">Emoji</span>
+                  </button>
+                  <!-- Emoji Picker -->
+                  <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-20 shadow-xl rounded-lg border border-orange-200">
+                    <EmojiPicker @select="handleEmojiSelect" :native="true" />
+                  </div>
                 </div>
               </div>
               <textarea
                 v-model="noteForm.content"
                 placeholder="Write your note here... Use #hashtags to make your note discoverable."
-                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none"
+                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none emoji-textarea"
                 rows="12"
                 ref="noteTextarea"
               ></textarea>
