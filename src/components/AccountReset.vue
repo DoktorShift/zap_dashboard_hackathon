@@ -292,13 +292,6 @@ onMounted(async () => {
           </p>
           <div class="w-full bg-gray-200 rounded-full h-2 mb-6">
             <div class="bg-green-600 h-2 rounded-full animate-countdown"></div>
-          </div>
-          <button 
-            @click="window.location.reload()"
-            class="btn-primary w-full"
-          >
-            <IconRefresh class="w-4 h-4" />
-            Refresh Now
           </button>
         </div>
       </div>
