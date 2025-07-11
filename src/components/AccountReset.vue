@@ -264,12 +264,6 @@ onMounted(async () => {
       <p class="text-green-800 mb-4">
         Your account data has been successfully reset. You will be redirected to the dashboard in a few seconds.
       </p>
-      <button
-        @click="emit('change-page', 'dashboard')"
-        class="btn-primary mt-4"
-      >
-        Go to Dashboard Now
-      </button>
     </div>
     
     <!-- Security Notice -->
