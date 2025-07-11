@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { IconRefresh, IconShield, IconArrowLeft } from '@iconify-prerendered/vue-tabler'
+import { IconRefresh, IconArrowLeft } from '@iconify-prerendered/vue-tabler'
 import AccountReset from '../components/AccountReset.vue'
 
 const emit = defineEmits(['change-page'])
@@ -28,18 +28,18 @@ const goBack = () => {
 <template>
   <div class="space-y-6">
     <!-- Page Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
           <IconRefresh class="w-6 h-6 text-orange-600" />
           <span>Account Reset</span>
         </h1>
-        <p class="text-gray-600">Reset all account data and start fresh</p>
+        <p class="text-gray-600">Clear all local data and start fresh</p>
       </div>
       
       <button
         @click="goBack"
-        class="btn-secondary"
+        class="btn-secondary self-start sm:self-auto"
       >
         <IconArrowLeft class="w-4 h-4" />
         Back to Settings
@@ -50,8 +50,8 @@ const goBack = () => {
     <AccountReset @reset-complete="handleResetComplete" />
     
     <!-- Post-Reset Message -->
-    <div v-if="resetComplete && resetResult?.success" class="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+    <div v-if="resetComplete && resetResult?.success" class="bg-green-50 border border-green-200 rounded-xl shadow-sm p-6 text-center animate-fade-in">
+      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-subtle">
         <IconRefresh class="w-8 h-8 text-green-600" />
       </div>
       <h3 class="text-xl font-semibold text-green-900 mb-2">Reset Complete</h3>
@@ -60,7 +60,7 @@ const goBack = () => {
       </p>
       <button
         @click="emit('change-page', 'dashboard')"
-        class="btn-primary"
+        class="btn-primary mt-4"
       >
         Go to Dashboard Now
       </button>

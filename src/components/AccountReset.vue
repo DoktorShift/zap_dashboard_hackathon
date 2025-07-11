@@ -17,8 +17,6 @@ import {
   performCompleteReset, 
   clearNWCData, 
   clearNostrData, 
-  initializeNewNWCSession,
-  initializeNostrAccount,
   verifyConnectionStatus
 } from '../utils/accountReset.js'
 
@@ -37,12 +35,6 @@ const resetSteps = [
   'Validating storage integrity',
   'Finalizing reset'
 ]
-
-// Form state
-const showAdvancedOptions = ref(false)
-const nwcUrl = ref('')
-const nostrPubkey = ref('')
-const initializeAfterReset = ref(false)
 
 // Status
 const connectionStatus = ref(null)
@@ -88,17 +80,6 @@ const handleReset = async () => {
     resetStep.value = 4
     resetProgress.value = 100
     
-    // Initialize new accounts if requested
-    if (initializeAfterReset.value) {
-      if (nwcUrl.value) {
-        await initializeNewNWCSession(nwcUrl.value)
-      }
-      
-      if (nostrPubkey.value) {
-        await initializeNostrAccount(nostrPubkey.value)
-      }
-    }
-    
     // Check final status
     connectionStatus.value = await verifyConnectionStatus()
     
@@ -132,23 +113,23 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="bg-white rounded-xl border border-gray-200 p-6">
-      <div class="flex items-start space-x-4">
-        <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+  <div class="space-y-6 max-w-3xl mx-auto">
+    <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:space-x-4">
+        <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0 mb-4 sm:mb-0">
           <IconTrash class="w-6 h-6 text-red-600" />
         </div>
         <div class="flex-1">
-          <h2 class="text-xl font-semibold text-gray-900 mb-2">Account Data Reset</h2>
-          <p class="text-gray-600 mb-4">
-            This will clear all your account data, including wallet connections, Nostr identity, and payment history.
-            This action cannot be undone.
+          <h2 class="text-xl font-semibold text-gray-900 mb-2 text-center sm:text-left">Account Data Reset</h2>
+          <p class="text-gray-600 mb-6 text-center sm:text-left">
+            This will clear all your local account data, including wallet connections, Nostr identity, and payment history.
+            <span class="font-medium text-red-600">This action cannot be undone.</span>
           </p>
           
           <!-- Current Status -->
-          <div v-if="connectionStatus" class="bg-gray-50 rounded-lg p-4 mb-6">
-            <h3 class="font-medium text-gray-900 mb-2">Current Status</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div v-if="connectionStatus" class="bg-gray-50 rounded-lg p-4 mb-6 border border-gray-200">
+            <h3 class="font-medium text-gray-900 mb-3 text-center sm:text-left">Current Status</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <!-- NWC Status -->
               <div class="flex items-start space-x-3">
                 <div :class="[
@@ -163,7 +144,7 @@ onMounted(async () => {
                   <p class="text-sm text-gray-600">
                     {{ connectionStatus.nwc.connected ? 'Connected' : 'Not connected' }}
                   </p>
-                  <p v-if="connectionStatus.nwc.connections > 0" class="text-xs text-gray-500">
+                  <p v-if="connectionStatus.nwc.connections > 0" class="text-xs text-gray-500 mt-1">
                     {{ connectionStatus.nwc.connections }} connection(s) stored
                   </p>
                 </div>
@@ -183,7 +164,7 @@ onMounted(async () => {
                   <p class="text-sm text-gray-600">
                     {{ connectionStatus.nostr.authenticated ? 'Authenticated' : 'Not authenticated' }}
                   </p>
-                  <p v-if="connectionStatus.nostr.npub" class="text-xs text-gray-500">
+                  <p v-if="connectionStatus.nostr.npub" class="text-xs text-gray-500 mt-1">
                     {{ connectionStatus.nostr.npub.substring(0, 10) }}...
                   </p>
                 </div>
@@ -207,83 +188,10 @@ onMounted(async () => {
                         : 'No connected relays' 
                     }}
                   </p>
-                  <p v-if="connectionStatus.relayManager.totalRelays > 0" class="text-xs text-gray-500">
+                  <p v-if="connectionStatus.relayManager.totalRelays > 0" class="text-xs text-gray-500 mt-1">
                     {{ connectionStatus.relayManager.totalRelays }} total relays
                   </p>
                 </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Advanced Options Toggle -->
-          <div class="mb-6">
-            <button 
-              @click="showAdvancedOptions = !showAdvancedOptions"
-              class="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
-            >
-              <span>{{ showAdvancedOptions ? 'Hide' : 'Show' }} advanced options</span>
-              <IconChevronDown v-if="!showAdvancedOptions" class="w-4 h-4" />
-              <IconChevronUp v-else class="w-4 h-4" />
-            </button>
-          </div>
-          
-          <!-- Advanced Options -->
-          <div v-if="showAdvancedOptions" class="space-y-4 mb-6">
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <div class="flex items-start space-x-3">
-                <IconAlertTriangle class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 class="font-medium text-blue-900 mb-1">Advanced Options</h4>
-                  <p class="text-sm text-blue-800">
-                    You can optionally initialize new account data after reset. This is useful if you want to switch to a different wallet or Nostr identity.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div class="flex items-center space-x-2 mb-4">
-              <input 
-                type="checkbox" 
-                id="initialize-after-reset" 
-                v-model="initializeAfterReset"
-                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label for="initialize-after-reset" class="text-sm font-medium text-gray-700">
-                Initialize new accounts after reset
-              </label>
-            </div>
-            
-            <div v-if="initializeAfterReset" class="space-y-4">
-              <!-- NWC URL -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  New NWC URL (optional)
-                </label>
-                <input
-                  v-model="nwcUrl"
-                  type="password"
-                  placeholder="nostr+walletconnect://..."
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-                <p class="text-xs text-gray-500 mt-1">
-                  Get this from your wallet's NWC settings
-                </p>
-              </div>
-              
-              <!-- Nostr Pubkey -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  New Nostr Public Key (optional)
-                </label>
-                <input
-                  v-model="nostrPubkey"
-                  type="text"
-                  placeholder="Hex public key (not npub)"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-                <p class="text-xs text-gray-500 mt-1">
-                  Enter your Nostr public key in hex format (not npub)
-                </p>
               </div>
             </div>
           </div>
@@ -298,14 +206,14 @@ onMounted(async () => {
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2.5">
               <div 
-                class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+                class="bg-orange-600 h-2.5 rounded-full transition-all duration-300" 
                 :style="{ width: resetProgress + '%' }"
               ></div>
             </div>
           </div>
           
           <!-- Reset Success -->
-          <div v-if="resetComplete" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div v-if="resetComplete" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 animate-pulse-subtle">
             <div class="flex items-center space-x-3">
               <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                 <IconCheck class="w-4 h-4 text-green-600" />
@@ -320,7 +228,7 @@ onMounted(async () => {
           </div>
           
           <!-- Reset Error -->
-          <div v-if="resetError" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div v-if="resetError" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 error-shake">
             <div class="flex items-center space-x-3">
               <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
                 <IconX class="w-4 h-4 text-red-600" />
@@ -335,9 +243,15 @@ onMounted(async () => {
           </div>
           
           <!-- Action Buttons -->
-          <div class="flex space-x-3">
+          <div class="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0">
             <button
               @click="handleReset"
+              :disabled="isResetting"
+              class="btn-primary bg-red-600 hover:bg-red-700 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <IconRefresh v-if="!isResetting" class="w-4 h-4" />
+              <IconLoader v-else class="w-4 h-4 animate-spin" />
+              <span>{{ isResetting ? 'Resetting...' : 'Reset All Data' }}</span>
             </button>
           </div>
         </div>
@@ -345,12 +259,12 @@ onMounted(async () => {
     </div>
     
     <!-- Security Notice -->
-    <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+    <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 shadow-sm">
       <div class="flex items-start space-x-3">
         <IconShield class="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
         <div>
           <h4 class="font-medium text-orange-900 mb-1">Security Notice</h4>
-          <p class="text-sm text-orange-800">
+          <p class="text-sm text-orange-800 leading-relaxed">
             This reset only clears data stored in your browser's local storage. It does not affect your actual wallet or Nostr identity. Your funds remain safe in your wallet, and your Nostr keys remain in your Nostr client or extension.
           </p>
         </div>
