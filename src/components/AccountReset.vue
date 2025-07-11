@@ -16,8 +16,6 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { 
   performCompleteReset, 
-  clearNWCData, 
-  clearNostrData, 
   verifyConnectionStatus
 } from '../utils/accountReset.js'
 
@@ -60,25 +58,19 @@ const handleReset = async () => {
     resetProgress.value = 10
     await new Promise(resolve => setTimeout(resolve, 500)) // Small delay for UI
     
-    // Step 2: Clear NWC data
+    // Step 2: Perform complete reset
     resetStep.value = 1
     resetProgress.value = 30
-    await clearNWCData()
+    await performCompleteReset()
     await new Promise(resolve => setTimeout(resolve, 500)) // Small delay for UI
     
-    // Step 3: Clear Nostr data
+    // Step 3: Validate reset was successful
     resetStep.value = 2
-    resetProgress.value = 60
-    await clearNostrData()
+    resetProgress.value = 70
     await new Promise(resolve => setTimeout(resolve, 500)) // Small delay for UI
     
-    // Step 4: Validate storage integrity
+    // Step 4: Finalize
     resetStep.value = 3
-    resetProgress.value = 80
-    await new Promise(resolve => setTimeout(resolve, 500)) // Small delay for UI
-    
-    // Step 5: Finalize
-    resetStep.value = 4
     resetProgress.value = 100
     
     // Check final status
@@ -86,6 +78,11 @@ const handleReset = async () => {
     
     resetResult.value = { success: true }
     resetComplete.value = true
+    
+    // Force page reload after 3 seconds to ensure all components are reset
+    setTimeout(() => {
+      window.location.reload()
+    }, 3000)
   } catch (error) {
     console.error('Reset failed:', error)
     resetError.value = error.message || 'Reset failed'

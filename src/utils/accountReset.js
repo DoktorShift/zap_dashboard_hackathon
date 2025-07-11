@@ -189,16 +189,55 @@ export const performCompleteReset = async () => {
   try {
     console.log('🔄 Starting complete account reset...')
     
-    // Clear all data first
-    const nwcCleared = clearNWCData()
-    const nostrCleared = clearNostrData()
+    // List of all storage keys to clear
+    const keysToRemove = [
+      // NWC related
+      'nwc_url',
+      'nostr_connections',
+      'active_connection_id',
+      'last_transaction_timestamp',
+      'last_balance',
+      'processed_transactions',
+      
+      // Nostr related
+      'nostrUser',
+      'nostrRelays',
+      'user_content_items',
+      'notifications_list',
+      'notification_settings',
+      
+      // Content related
+      'user_content_items',
+      
+      // Other app data
+      'btc_price_data'
+    ]
     
-    if (!nwcCleared || !nostrCleared) {
-      throw new Error('Failed to clear existing data')
+    // Clear all keys
+    keysToRemove.forEach(key => {
+      try {
+        localStorage.removeItem(key)
+        console.log(`✅ Removed ${key} from localStorage`)
+      } catch (err) {
+        console.warn(`⚠️ Failed to remove ${key}:`, err)
+      }
+    })
+    
+    // Clear NWC client
+    try {
+      initializeNWC(null)
+      console.log('✅ Cleared NWC client')
+    } catch (err) {
+      console.warn('⚠️ Failed to clear NWC client:', err)
     }
     
-    // Clear any other app data
-    localStorage.removeItem('notification_settings')
+    // Clean up relay manager
+    try {
+      nostrRelayManager.cleanup()
+      console.log('✅ Cleaned up relay manager')
+    } catch (err) {
+      console.warn('⚠️ Failed to clean up relay manager:', err)
+    }
     
     console.log('✅ Complete account reset successful')
     return { success: true, message: 'All account data has been reset' }
@@ -215,15 +254,47 @@ export const performCompleteReset = async () => {
 export const verifyConnectionStatus = async () => {
   try {
     console.log('🔍 Verifying connection status...')
+
+    // Check if localStorage is empty for key items
+    const criticalKeys = [
+      'nostr_connections',
+      'nostrUser',
+      'active_connection_id'
+    ]
+    
+    const remainingKeys = criticalKeys.filter(key => localStorage.getItem(key) !== null)
+    if (remainingKeys.length > 0) {
+      console.warn('⚠️ Some keys still exist after reset:', remainingKeys)
+    }
     
     // Check NWC connection
-    const nwcConnections = JSON.parse(localStorage.getItem('nostr_connections') || '[]')
+    const nwcConnections = []
+    try {
+      const stored = localStorage.getItem('nostr_connections')
+      if (stored) nwcConnections.push(...JSON.parse(stored))
+    } catch (e) {
+      console.warn('Failed to parse NWC connections:', e)
+    }
+    
     const activeConnectionId = localStorage.getItem('active_connection_id')
     const hasActiveNWC = activeConnectionId && nwcConnections.some(conn => conn.id === activeConnectionId)
     
     // Check Nostr connection
-    const nostrUser = JSON.parse(localStorage.getItem('nostrUser') || 'null')
-    const nostrRelays = JSON.parse(localStorage.getItem('nostrRelays') || '[]')
+    let nostrUser = null
+    try {
+      const stored = localStorage.getItem('nostrUser')
+      if (stored) nostrUser = JSON.parse(stored)
+    } catch (e) {
+      console.warn('Failed to parse Nostr user:', e)
+    }
+    
+    let nostrRelays = []
+    try {
+      const stored = localStorage.getItem('nostrRelays')
+      if (stored) nostrRelays = JSON.parse(stored)
+    } catch (e) {
+      console.warn('Failed to parse Nostr relays:', e)
+    }
     
     // Check relay manager status
     const relayStats = nostrRelayManager.getConnectionStats()
