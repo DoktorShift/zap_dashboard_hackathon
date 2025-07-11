@@ -38,7 +38,6 @@ const resetSteps = [
   'Finalizing reset'
 ]
 
-const resetComplete = ref(false)
 const resetResult = ref(null)
 
 // Status
