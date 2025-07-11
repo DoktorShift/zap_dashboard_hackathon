@@ -438,19 +438,19 @@ onUnmounted(() => {
             <h2 class="text-xl font-semibold text-gray-900">
               {{ currentView === 'edit' ? 'Edit Note' : 'Create New Note' }}
             </h2>
-            <p class="text-gray-600 text-sm mt-1">
+            <p class="text-gray-600 text-sm mt-2">
               Write down your thoughts. It will be published to the Nostr network.
             </p>
           </div>
 
           <!-- Edit Note Info Alert - Only show when editing -->
           <div v-if="currentView === 'edit'" class="px-6 pt-4">
-            <div class="p-3 bg-amber-50 rounded-lg mb-4 border border-amber-200">
+            <div class="p-4 bg-amber-50/80 rounded-lg mb-5 border border-amber-200 shadow-sm">
               <div class="flex items-start space-x-3">
                 <IconAlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 class="font-medium text-amber-900 mb-1">How Nostr Edits Work</h4>
-                  <p class="text-sm text-amber-800">
+                  <p class="text-sm text-amber-800 leading-relaxed">
                     Nostr doesn't support direct editing of events. When you "edit" a note, we'll publish a new note and mark the original for deletion. This creates a new event ID and resets engagement metrics.
                   </p>
                 </div>
@@ -460,12 +460,12 @@ onUnmounted(() => {
 
           <div class="p-6">
             <!-- Plain Text Note Info -->
-            <div class="p-3 bg-blue-50 rounded-lg mb-4 border border-blue-200">
+            <div class="p-4 bg-blue-50/80 rounded-lg mb-5 border border-blue-200 shadow-sm">
               <div class="flex items-start space-x-3">
                 <IconAlertTriangle class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 class="font-medium text-blue-900 mb-1">Plain Text Notes</h4>
-                  <p class="text-sm text-blue-800">
+                  <p class="text-sm text-blue-800 leading-relaxed">
                     Nostr notes (kind:1) only support plain text. Formatting like bold, italic, or headings is not supported.
                     Use hashtags with # to make your notes discoverable.
                   </p>
@@ -474,36 +474,44 @@ onUnmounted(() => {
             </div>
 
             <!-- Plain Text Editor -->
-            <div class="border border-orange-200/50 rounded-lg overflow-hidden">
+            <div class="border border-orange-200/50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 focus-within:ring-2 focus-within:ring-orange-300 focus-within:border-orange-400">
               <textarea
                 v-model="noteForm.content"
                 placeholder="Write your note here... Use #hashtags to make your note discoverable."
-                class="w-full min-h-[300px] p-4 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed"
                 rows="12"
               ></textarea>
             </div>
 
             <!-- Hashtag Help -->
-            <div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-              <h4 class="font-medium text-orange-900 mb-2">Hashtag Tips</h4>
-              <div class="text-sm text-orange-800 space-y-1">
-                <p>Use <code>#hashtags</code> to categorize your notes and make them discoverable</p>
-                <p>Example: <code>Just had a great coffee! #coffee #morning</code></p>
+            <div class="mt-5 p-4 bg-orange-50/80 border border-orange-200 rounded-lg shadow-sm">
+              <h4 class="font-medium text-orange-900 mb-2 flex items-center">
+                <span class="mr-2">#</span>Hashtag Tips
+              </h4>
+              <div class="text-sm text-orange-800 space-y-2">
+                <p class="flex items-start">
+                  <span class="inline-block w-4 h-4 mr-2 text-orange-500">•</span>
+                  Use <code class="px-1.5 py-0.5 bg-orange-100 rounded text-orange-700 font-mono">#hashtags</code> to categorize your notes and make them discoverable
+                </p>
+                <p class="flex items-start">
+                  <span class="inline-block w-4 h-4 mr-2 text-orange-500">•</span>
+                  Example: <code class="px-1.5 py-0.5 bg-orange-100 rounded text-orange-700 font-mono">Just had a great coffee! #coffee #morning</code>
+                </p>
               </div>
             </div>
 
             <!-- Actions -->
-            <div class="flex justify-end space-x-3 mt-6">
+            <div class="flex justify-end space-x-4 mt-8">
               <button
                 @click="setView('list')"
-                class="btn-secondary"
+                class="btn-secondary px-6"
               >
                 Cancel
               </button>
               <button
                 @click="handleSubmit"
                 :disabled="!isFormValid || isLoading"
-                class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                class="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
                 <IconSend v-else class="w-4 h-4" />
