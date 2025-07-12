@@ -363,7 +363,7 @@ const startUserEventListener = (pubkey) => {
       }
     ], {
       onevent: (event) => {
-        console.log('Received user event:', event)
+        // console.log('Received user event:', event)
         // Emit custom event for other parts of the app
         document.dispatchEvent(new CustomEvent('nostr:event', { detail: event }))
       },

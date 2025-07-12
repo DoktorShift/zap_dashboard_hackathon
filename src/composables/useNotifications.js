@@ -6,12 +6,12 @@ import { fetchTransactions, getBalance } from '../utils/nwcClient.js'
 const notifications = ref([])
 const notificationSettings = ref({
   enabled: true,
-  sound: true,
+  sound: false,
   desktop: true,
   zapReceived: true,
   zapSent: true,
-  balanceChange: true,
-  connectionStatus: true
+  balanceChange: false,
+  connectionStatus: false
 })
 
 // Notification types

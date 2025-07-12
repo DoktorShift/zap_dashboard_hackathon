@@ -32,14 +32,29 @@ const createZapData = (zapEvent) => {
     
     // Extract zap receipt data (kind 9735)
     const amount = extractZapAmount(zapEvent)
-    const zapperPubkey = zapEvent.pubkey
+    
+    // Extract zapper pubkey from zap request in description tag
+    let zapperPubkey = zapEvent.pubkey // fallback to receipt pubkey
+    try {
+      const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+      if (descriptionTag && descriptionTag[1]) {
+        const zapRequest = JSON.parse(descriptionTag[1])
+        if (zapRequest.pubkey) {
+          zapperPubkey = zapRequest.pubkey
+          console.log(`✅ Extracted zapper pubkey from zap request: ${zapperPubkey.substring(0, 16)}...`)
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to extract zapper pubkey from zap request:', error)
+    }
+    
     const timestamp = zapEvent.created_at * 1000 // Convert to milliseconds
     const message = extractZapMessage(zapEvent)
     const eventId = extractEventId(zapEvent) 
     const senderProfile = { pubkey: zapperPubkey }
     
     // Log the extracted data for debugging
-    console.log(`Creating zap data for event ${eventId}, payment hash: ${id?.substring(0, 16)}..., amount: ${amount}`)
+    console.log(`Creating zap data for event ${eventId}, payment hash: ${id?.substring(0, 16)}..., amount: ${amount}, zapper: ${zapperPubkey.substring(0, 16)}...`)
     
     const zapData = {
       id: id, // This should be the payment hash for deduplication
@@ -383,6 +398,7 @@ export function useContentZaps() {
             // Check if we already have this zap (avoid duplicates)
             const exists = existingZaps.find(zap => zap.id === zapData.id)
             if (!exists) {
+              console.log('✅ Adding new zap:', zapData)
               existingZaps.unshift(zapData) // Add to beginning (newest first)
               contentZaps.set(eventId, existingZaps)
               console.log(`✅ Added zap: ${zapData.amount} sats from ${zapData.zapperPubkey.substring(0, 8)}... for event ${eventId}`)
