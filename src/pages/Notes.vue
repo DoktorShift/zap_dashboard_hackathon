@@ -367,9 +367,9 @@ onUnmounted(() => {
     
   </h1>
 
-<p class="text-gray-600">
-    Welcome back, {{ userProfile?.name || 'Creator' }}! Write and publish notes to the Nostr network.
-  </p>  
+<!--<p class="text-gray-600">-->
+<!--    Welcome back, {{ userProfile?.name || 'Creator' }}! Write and publish notes to the Nostr network.-->
+<!--  </p>  -->
 
 </div>
 

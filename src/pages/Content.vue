@@ -234,9 +234,9 @@ const formatZapTime = (timestamp) => {
 <!--            <IconFileText class="w-6 h-6 text-orange-600" />-->
 <!--            <span>Content Monetization</span>-->
 <!--          </h1>-->
-          <p class="text-gray-600">
-            Welcome back, {{ userProfile?.name || 'Creator' }}! Publish premium content gated by Lightning payments.
-          </p>
+<!--          <p class="text-gray-600">-->
+<!--            Welcome back, {{ userProfile?.name || 'Creator' }}! Publish premium content gated by Lightning payments.-->
+<!--          </p>-->
         </div>
 
         <div class="flex items-center space-x-3 mb-4">

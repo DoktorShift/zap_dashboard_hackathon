@@ -34,7 +34,7 @@ const revenueInUSD = computed(() => {
           <IconCurrencyBitcoin class="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
         <span class="text-xs sm:text-sm font-medium opacity-90">
-          ≈ ${{ revenueInUSD }} USD
+          ≈ {{ revenueInUSD }} USD
         </span>
       </div>
       <div>
