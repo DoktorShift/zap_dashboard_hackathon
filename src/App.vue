@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar.vue'
 import { useContentZaps } from './composables/useContentZaps.js'
 import TopBar from './components/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
+import { useNostrLongForm } from './composables/useNostrLongForm.js'
 import ZapFeed from './pages/ZapFeed.vue'
 import Analytics from './pages/Analytics.vue'
 import ChatZaps from './pages/ChatZaps.vue'
@@ -60,6 +61,7 @@ const { initializeZapTracking } = useContentZaps()
 
 // Initialize notes and zaps tracking early
 const { notes, fetchUserNotes } = useNostrNotes()
+const { fetchUserLongFormContent } = useNostrLongForm()
 
 // Global state
 const zapData = ref([])
@@ -378,7 +380,15 @@ const startPeriodicHealthCheck = () => {
         
         // Also initialize notes tracking
         console.log('Initializing notes tracking...')
-        fetchUserNotes()
+        fetchUserNotes().catch(err => {
+          console.error('Failed to fetch notes:', err)
+        })
+        
+        // Initialize long-form content tracking
+        console.log('Initializing long-form content tracking...')
+        fetchUserLongFormContent().catch(err => {
+          console.error('Failed to fetch long-form content:', err)
+        })
       }
     }
   }, 120000) // 2 minutes

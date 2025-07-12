@@ -133,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, inject } from 'vue'
+import { ref, onMounted, computed, inject, watch } from 'vue'
 import { 
   IconArrowLeft, 
   IconBolt, 
@@ -143,12 +143,15 @@ import {
   IconShare
 } from '@iconify-prerendered/vue-tabler'
 import { SimplePool } from 'nostr-tools/pool'
-import { LongFormArticle } from 'nostr-tools/kinds'
 import { nwcPaymentHandler } from '../utils/nwcPayment.js'
 import { contentService } from '../utils/contentService.js'
+import { useNostrLongForm } from '../composables/useNostrLongForm.js'
 
 // Inject currentPage from parent
 const currentPage = inject('currentPage')
+
+// Use the long-form content composable
+const { fetchContentById, isLoading: isContentLoading } = useNostrLongForm()
 
 // State
 const isLoading = ref(true)
@@ -207,7 +210,7 @@ const fetchFullContent = async (paymentProof) => {
 const loadingMessage = ref('Fetching article details from Nostr relays...')
 
 // Relays configuration
-const RELAYS = ['wss://relay.damus.io', 'wss://nostr.mom', 'wss://nos.lol']
+// No longer needed as we use the relay manager
 
 // Fetch article from Nostr
 const fetchArticle = async () => {
@@ -220,14 +223,31 @@ const fetchArticle = async () => {
   }
 
   try {
-    loadingMessage.value = 'Connecting to Nostr relays...'
-    const pool = new SimplePool()
+    loadingMessage.value = 'Fetching article from Nostr network...'
     
-    loadingMessage.value = 'Fetching article details...'
-    const event = await pool.get(RELAYS, { ids: [eventId] })
+    // Use our new composable to fetch the content
+    const contentItem = await fetchContentById(eventId)
     
-    if (!event || event.kind !== LongFormArticle) {
-      throw new Error('Article not found or invalid type')
+    if (!contentItem) {
+      throw new Error('Article not found')
+    }
+    
+    // Convert to event format for backward compatibility
+    const event = contentItem.rawEvent || {
+      id: contentItem.id,
+      pubkey: contentItem.pubkey || contentItem.creatorPubkey,
+      created_at: contentItem.created_at || Math.floor(new Date(contentItem.createdAt).getTime() / 1000),
+      kind: 30023,
+      tags: [
+        ['title', contentItem.title],
+        ['summary', contentItem.description],
+        ...(contentItem.tags.map(tag => ['t', tag])),
+        ...(contentItem.monetizationModel !== 'free' ? [['price_sats', contentItem.price.toString()]] : []),
+        ...(contentItem.coverImage ? [['image', contentItem.coverImage]] : []),
+        ['content-type', contentItem.type],
+        ['monetization', contentItem.monetizationModel]
+      ],
+      content: contentItem.fullContent || contentItem.previewText
     }
 
     articleEvent.value = event
@@ -307,7 +327,16 @@ const goBack = () => {
 
 // Lifecycle
 onMounted(() => {
-  fetchArticle()
+  fetchArticle().catch(err => {
+    console.error('Failed to fetch article:', err)
+    error.value = `Failed to load article: ${err.message}`
+    isLoading.value = false
+  })
+})
+
+// Watch for content loading state changes
+watch(isContentLoading, (loading) => {
+  isLoading.value = loading
 })
 </script>
 
