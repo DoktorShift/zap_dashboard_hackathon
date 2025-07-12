@@ -180,8 +180,57 @@ const extractTextFromArray = (noteArray) => {
   }
 }
 
-// Dynamic avatar generation based on sender info
+// Generate fallback avatar (same as ZapEventModal)
+const generateFallbackAvatar = (pubkey) => {
+  const avatars = [
+    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+  ]
+  
+  // Create a hash from the pubkey to consistently select an avatar
+  const hash = pubkey.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0)
+    return a & a
+  }, 0)
+  
+  return avatars[Math.abs(hash) % avatars.length]
+}
+
+// Inject profile store from parent
+const profileStore = inject('profileStore', ref(new Map()))
+
+// Dynamic avatar generation based on sender info with profile integration
 const generateAvatar = (sender, index) => {
+  const pubkey = sender?.pubkey || sender?.zapperPubkey
+  
+  // First check if we have a fetched profile
+  if (pubkey && profileStore.value.has(pubkey)) {
+    const profile = profileStore.value.get(pubkey)
+    if (profile?.picture) {
+      return profile.picture
+    }
+  }
+  
+  // Then check for picture (Nostr standard)
+  if (sender?.picture) {
+    return sender.picture
+  }
+  
+  // Then check for avatar (legacy)
+  if (sender?.avatar) {
+    return sender.avatar
+  }
+  
+  // If we have a pubkey, use it to generate consistent avatar
+  if (pubkey) {
+    return generateFallbackAvatar(pubkey)
+  }
+  
+  // Fallback to index-based avatar
   const avatars = [
     'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
     'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
@@ -193,11 +242,7 @@ const generateAvatar = (sender, index) => {
     'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
   ]
   
-  if (sender?.avatar) {
-    return sender.avatar
-  }
-  
-  const identifier = sender?.name || sender?.pubkey || `user-${index}`
+  const identifier = sender?.name || `user-${index}`
   const hash = identifier.split('').reduce((a, b) => {
     a = ((a << 5) - a) + b.charCodeAt(0)
     return a & a
@@ -206,9 +251,34 @@ const generateAvatar = (sender, index) => {
   return avatars[Math.abs(hash) % avatars.length]
 }
 
-// Get sender name with fallback
+// Get sender name with fallback and profile integration
 const getSenderName = (sender) => {
-  return sender?.name || sender?.pubkey?.substring(0, 8) || 'Anonymous'
+  const pubkey = sender?.pubkey || sender?.zapperPubkey
+  
+  // First check if we have a fetched profile
+  if (pubkey && profileStore.value.has(pubkey)) {
+    const profile = profileStore.value.get(pubkey)
+    if (profile?.name) {
+      return profile.name
+    }
+  }
+  
+  // Check for display_name first (Nostr standard)
+  if (sender?.display_name) {
+    return sender.display_name
+  }
+  
+  // Then check for name
+  if (sender?.name) {
+    return sender.name
+  }
+  
+  // Fallback to pubkey
+  if (pubkey) {
+    return `user:${pubkey.substring(0, 8)}`
+  }
+  
+  return 'Anonymous'
 }
 
 // Get transaction type display text
@@ -290,10 +360,9 @@ const truncateNote = (note, maxLength = 120) => {
               <div class="relative flex-shrink-0">
                 <div class="w-8 h-8 rounded-full border-2 border-orange-200 transition-all duration-200 hover:border-orange-300 overflow-hidden">
                   <img
-                    :src="zap.sender?.avatar || zap.sender?.picture || generateAvatar(zap.sender, index)"
+                    :src="generateAvatar(zap.sender, index)"
                     :alt="getSenderName(zap.sender) || 'User'"
                     class="w-full h-full object-cover"
-                    @error="$event.target.src = generateAvatar(zap.sender, index)"
                   />
                 </div>
               </div>

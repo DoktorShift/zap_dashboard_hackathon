@@ -17,12 +17,16 @@ import {
 import { useContent } from '../composables/useContent.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { useNostrLongForm } from '../composables/useNostrLongForm.js'
 import ContentStats from '../components/ContentStats.vue'
 import ContentList from '../components/ContentList.vue'
 import ContentForm from '../components/ContentForm.vue'
 import ContentPerformance from '../components/ContentPerformance.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
+
+// Use the long-form content composable
+const { fetchUserLongFormContent } = useNostrLongForm()
 
 const {
   // State
@@ -62,6 +66,7 @@ const {
 } = useContent()
 
 const { getAllContentZaps } = useContentZaps()
+
 
 const handleCreateContent = async () => {
   try {
@@ -229,9 +234,9 @@ const formatZapTime = (timestamp) => {
 <!--            <IconFileText class="w-6 h-6 text-orange-600" />-->
 <!--            <span>Content Monetization</span>-->
 <!--          </h1>-->
-          <p class="text-gray-600">
-            Welcome back, {{ userProfile?.name || 'Creator' }}! Publish premium content gated by Lightning payments.
-          </p>
+<!--          <p class="text-gray-600">-->
+<!--            Welcome back, {{ userProfile?.name || 'Creator' }}! Publish premium content gated by Lightning payments.-->
+<!--          </p>-->
         </div>
 
         <div class="flex items-center space-x-3 mb-4">

@@ -2,6 +2,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
 import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import { useNostrLongForm } from './useNostrLongForm.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { contentService } from '../utils/contentService.js'
 
@@ -101,6 +102,8 @@ export function useContent() {
     trackMultipleContent,
     initializeZapTracking
   } = useContentZaps()
+  
+  const { fetchUserLongFormContent, longFormContent } = useNostrLongForm()
 
   // Filter content by current user
   const userContentItems = computed(() => {
@@ -112,12 +115,29 @@ export function useContent() {
       item.creatorPubkey === currentUser.value.pubkey
     )
   })
+  
+  // Combine local storage content with content from relays
+  const combinedContentItems = computed(() => {
+    // Start with local storage content
+    const localItems = userContentItems.value
+    
+    // Add items from relays that aren't already in local storage
+    const relayItems = longFormContent.value.filter(relayItem => 
+      !localItems.some(localItem => 
+        localItem.id === relayItem.id || 
+        localItem.nostrEventId === relayItem.id
+      )
+    )
+    
+    return [...localItems, ...relayItems].sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
+    )
+  })
 
   // Enhanced content items with zap data
   const userContentItemsWithZaps = computed(() => {
     const allZaps = getAllContentZaps.value
     console.log('Content zaps data:', allZaps)
-    
+
     return userContentItems.value.map(item => {
       console.log('Processing content item:', item.id, 'nostrEventId:', item.nostrEventId)
       const zapData = allZaps[item.nostrEventId] || { zaps: [], totalAmount: 0, count: 0 }
@@ -136,7 +156,7 @@ export function useContent() {
 
   // Computed properties based on user's content
   const totalRevenue = computed(() => {
-    return userContentItemsWithZaps.value.reduce((sum, item) => sum + item.totalRevenue, 0)
+    return combinedContentItemsWithZaps.value.reduce((sum, item) => sum + item.totalRevenue, 0)
   })
 
   const totalUnlocks = computed(() => {
@@ -144,11 +164,11 @@ export function useContent() {
   })
 
   const publishedItems = computed(() => {
-    return userContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.PUBLISHED)
+    return combinedContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.PUBLISHED)
   })
 
   const draftItems = computed(() => {
-    return userContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.DRAFT)
+    return combinedContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.DRAFT)
   })
 
   const revenueInUSD = computed(() => {
@@ -156,7 +176,7 @@ export function useContent() {
   })
 
   const contentStats = computed(() => {
-    const published = publishedItems.value.length
+    const published = publishedItems.value.length 
     const drafts = draftItems.value.length
     const totalViews = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.views, 0)
     const totalSubscribers = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.subscribers, 0)
@@ -172,9 +192,28 @@ export function useContent() {
   })
 
   const topPerformingContent = computed(() => {
-    return [...userContentItemsWithZaps.value]
+    return [...combinedContentItemsWithZaps.value]
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 3)
+  })
+
+  // Combined content items with zaps
+  const combinedContentItemsWithZaps = computed(() => {
+    const allZaps = getAllContentZaps.value
+    
+    return combinedContentItems.value.map(item => {
+      const eventId = item.nostrEventId || item.id
+      const zapData = allZaps[eventId] || { zaps: [], totalAmount: 0, count: 0 }
+      
+      return {
+        ...item,
+        zapCount: zapData.count,
+        zapAmount: zapData.totalAmount,
+        zaps: zapData.zaps,
+        traditionalRevenue: item.revenue || 0,
+        totalRevenue: (item.revenue || 0) + zapData.totalAmount
+      }
+    })
   })
 
   // Content management functions
@@ -517,6 +556,13 @@ export function useContent() {
   // Initialize zap tracking when the composable is used
   if (isAuthenticated.value) {
     initializeZapTracking()
+    
+    // Also fetch long-form content from relays
+    setTimeout(() => {
+      fetchUserLongFormContent().catch(err => {
+        console.error('Failed to fetch long-form content:', err)
+      })
+    }, 2000)
   }
 
   // Watch for authentication changes to initialize zap tracking
@@ -524,6 +570,13 @@ export function useContent() {
     if (authenticated) {
       setTimeout(() => {
         initializeZapTracking()
+        
+        // Also fetch long-form content from relays
+        fetchUserLongFormContent().catch(err => {
+          console.error('Failed to fetch long-form content:', err)
+        })
+        
+        console.log('Initialized zap tracking and fetched long-form content')
       }, 1000) // Small delay to ensure content is loaded
     }
   })
@@ -560,7 +613,7 @@ export function useContent() {
 
   return {
     // State
-    contentItems: userContentItemsWithZaps,
+    contentItems: combinedContentItemsWithZaps,
     contentForm,
     currentView,
     editingContent,
@@ -571,7 +624,7 @@ export function useContent() {
     publishingProgress,
 
     // Computed
-    totalRevenue,
+    totalRevenue, 
     totalUnlocks,
     publishedItems,
     draftItems,

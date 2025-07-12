@@ -502,8 +502,8 @@ const handleProfileUpdated = () => {
               
               <button
                 @click="handleRemoveRelay(relay.url)"
-                class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 title="Remove relay"
+                class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <IconTrash class="w-4 h-4" />
               </button>

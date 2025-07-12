@@ -1,6 +1,8 @@
 <script setup>
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
-import { 
+import EmojiPicker from 'vue3-emoji-picker'
+import 'vue3-emoji-picker/css'
+import {
   IconFileText, 
   IconPlus, 
   IconEdit, 
@@ -13,16 +15,19 @@ import {
   IconBolt,
   IconHash,
   IconCalendar,
-  IconEye
+  IconEye,
+  IconUsers,
+  IconAlertTriangle,
+  IconPhoto,
+  IconVideo, 
+  IconX,
+  IconExternalLink,
+  IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
-import { useEditor, EditorContent } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import Link from '@tiptap/extension-link'
-import Placeholder from '@tiptap/extension-placeholder'
-import Underline from '@tiptap/extension-underline'
-import { Markdown } from 'tiptap-markdown'
 import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { useContentZaps } from '../composables/useContentZaps.js'
+import { useBtcPrice } from '../composables/useBtcPrice.js'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -48,84 +53,23 @@ const {
   formatDate
 } = useNostrNotes()
 
-// Editor setup
-const editor = useEditor({
-  content: '',
-  extensions: [
-    StarterKit.configure({
-      heading: {
-        levels: [1, 2, 3]
-      }
-    }),
-    Link.configure({
-      openOnClick: false,
-      HTMLAttributes: {
-        class: 'text-orange-600 hover:text-orange-700 underline'
-      }
-    }),
-    Underline,
-    Placeholder.configure({
-      placeholder: 'Start writing your note... Use # for headings, **bold**, *italic*, and [links](url)'
-    })
-    // Markdown.configure({
-    //   html: false,
-    //   transformCopiedText: true,
-    //   transformPastedText: true
-    // })
-  ],
-  editorProps: {
-    attributes: {
-      class: 'prose prose-sm max-w-none focus:outline-none min-h-[200px] p-4'
-    }
-  },
-  onUpdate: ({ editor }) => {
-    noteForm.content = editor.getHTML()
-  }
-})
+// Use content zaps composable to track zaps on notes
+const { 
+  startZapTracking, 
+  getZapsForContent, 
+  getTotalZapAmount,
+  getZapCount,
+  getAllContentZaps
+} = useContentZaps()
 
-// View-only editor for popup
-const viewEditor = useEditor({
-  content: '',
-  extensions: [
-    StarterKit.configure({
-      heading: {
-        levels: [1, 2, 3]
-      }
-    }),
-    Link.configure({
-      openOnClick: true, // Allow clicking links in view mode
-      HTMLAttributes: {
-        class: 'text-orange-600 hover:text-orange-700 underline'
-      }
-    }),
-    Underline
-  ],
-  editorProps: {
-    attributes: {
-      class: 'prose prose-sm max-w-none focus:outline-none p-4'
-    }
-  },
-  editable: false // Make it read-only
-})
+// Use BTC price composable
+const { satsToUSD, formatUSD } = useBtcPrice()
 
-// Watch for content changes when editing
-const updateEditorContent = (content) => {
-  if (editor.value && content !== editor.value.getHTML()) {
-    editor.value.commands.setContent(content)
-  }
-}
-
-// HTML decode function
-const decodeHtml = (html) => {
-  const txt = document.createElement('textarea')
-  txt.innerHTML = html
-  return txt.value
-}
 
 // Handle form submission
 const handleSubmit = async () => {
   if (!noteForm.content.trim()) return
-
+  
   try {
     if (editingNote.value) {
       await updateNote(editingNote.value.id, noteForm.content, noteForm.tags)
@@ -133,8 +77,8 @@ const handleSubmit = async () => {
       await publishNote(noteForm.content, noteForm.tags)
     }
     
-    // Reset editor and go back to list
-    editor.value?.commands.clearContent()
+    // Reset form and go back to list
+    noteForm.content = ''
     setView('list')
   } catch (err) {
     console.error('Failed to save note:', err)
@@ -167,45 +111,25 @@ const handleNostrLogin = async () => {
 // Set up editor content when editing
 const startEditing = (note) => {
   editNote(note)
-  // Directly set the content without comparison
-  if (editor.value) {
-    console.log('Original content:', note.content)
-    
-    // Clear the editor first, then set content
-    editor.value.commands.clearContent()
-    
-    // Set content as HTML with a small delay to ensure editor is ready
-    setTimeout(() => {
-      editor.value.commands.setContent(note.content)
-    }, 50)
-  }
+  // Set the content in the textarea
+  noteForm.content = note.content
 }
 
 const startCreating = () => {
   createNewNote()
-  editor.value?.commands.clearContent()
+  noteForm.content = ''
 }
 
 // Open view popup
 const openViewPopup = (note) => {
   selectedNote.value = note
   showViewPopup.value = true
-  
-  // Set content in view editor
-  if (viewEditor.value) {
-    viewEditor.value.commands.setContent(note.content)
-  }
 }
 
 // Close view popup
 const closeViewPopup = () => {
   showViewPopup.value = false
   selectedNote.value = null
-  
-  // Clear view editor content
-  if (viewEditor.value) {
-    viewEditor.value.commands.clearContent()
-  }
 }
 
 // Computed properties
@@ -213,33 +137,189 @@ const isFormValid = computed(() => {
   return noteForm.content.trim().length > 0
 })
 
+// Calculate total zap revenue in USD
+const revenueInUSD = computed(() => {
+  return formatUSD(satsToUSD(noteStats.value.totalZapRevenue))
+})
+
 const noteStats = computed(() => {
+  // Calculate total zap revenue across all notes
+  const totalZapRevenue = notes.value.reduce((sum, note) => {
+    return sum + getTotalZapAmount(note.id)
+  }, 0)
+  
   return {
     total: notes.value.length,
     thisWeek: notes.value.filter(note => {
       const noteDate = new Date(note.created_at * 1000)
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       return noteDate > weekAgo
-    }).length
+    }).length,
+    totalZapRevenue
   }
 })
 
 // UI state
 const showViewPopup = ref(false)
+const showMediaUrlInput = ref(false)
+const showClientDropdown = ref(false)
+const showEmojiPicker = ref(false)
+const showVideoUrlInput = ref(false)
+const mediaUrl = ref('')
+const noteTextarea = ref(null)
+const dropdownRef = ref(null)
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    showClientDropdown.value = false
+  }
+}
 
 onMounted(() => {
-  // Editor is automatically set up by useEditor
-  
-  // Expose debug function globally for console access
-  window.debugNotes = debugState
+  document.addEventListener('click', handleClickOutside)
 })
 
-// Watch for selected note changes to update view editor
-watch(selectedNote, (newNote) => {
-  if (newNote && viewEditor.value) {
-    viewEditor.value.commands.setContent(newNote.content)
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+// Get URL for different Nostr clients
+const getNostrClientUrl = (client, noteId) => {
+  if (!noteId) return '#'
+  
+  try {
+    // For all clients, use the event ID directly
+    switch (client) {
+      case 'primal':
+        return `https://primal.net/e/${noteId}`
+      case 'yakihonne':
+        return `https://yakihonne.com/e/${noteId}`
+      case 'highlighter':
+        return `https://highlighter.com/a/note1${nip19.noteEncode(noteId)}`
+      default:
+        return `https://primal.net/e/${noteId}`
+    }
+  } catch (error) {
+    console.error('Failed to generate client URL:', error)
+    return '#'
+  }
+}
+
+// Format zap amount for display
+const formatZapAmount = (amount) => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}k`
+  }
+  return amount.toString()
+}
+
+// Format zapper pubkey for display
+const formatZapperPubkey = (pubkey) => {
+  if (!pubkey) return 'Anonymous'
+  return pubkey.substring(0, 8) + '...' + pubkey.substring(pubkey.length - 8)
+}
+
+// Format zap timestamp
+const formatZapTime = (timestamp) => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diff = now - date
+  
+  if (diff < 60000) return 'now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  return `${Math.floor(diff / 86400000)}d ago`
+}
+
+onMounted(() => {
+  // Expose debug function globally for console access
+  window.debugNotes = debugState
+  
+  // Start tracking zaps for all notes
+  if (isAuthenticated.value && notes.value.length > 0) {
+    notes.value.forEach(note => {
+      startZapTracking(note.id)
+    })
   }
 })
+
+// Watch for notes changes to track zaps on new notes
+watch(notes, (newNotes) => {
+  if (isAuthenticated.value && newNotes.length > 0) {
+    newNotes.forEach(note => {
+      startZapTracking(note.id)
+    })
+  }
+}, { deep: true })
+
+// Insert media URL at cursor position
+const insertMediaUrl = (type) => {
+  let url = mediaUrl.value.trim();
+  if (!url) {
+    showMediaUrlInput.value = false
+    showVideoUrlInput.value = false
+    return
+  }
+  
+  // Validate image URL if it's an image
+  if (type === 'image' && !url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+    alert('Please enter a valid image URL (ending with .jpg, .jpeg, .png, .gif, or .webp)');
+    return;
+  }
+  
+  const textarea = noteTextarea.value
+  
+  if (textarea) {
+    const cursorPos = textarea.selectionStart
+    const textBefore = noteForm.content.substring(0, cursorPos)
+    const textAfter = noteForm.content.substring(textarea.selectionEnd)
+    
+    // Just insert the raw URL with line breaks
+    const mediaText = `\n${url}\n`
+    
+    // Update content
+    noteForm.content = textBefore + mediaText + textAfter
+    
+    // Reset and close
+    mediaUrl.value = ''
+    showMediaUrlInput.value = false
+    showVideoUrlInput.value = false
+    
+    // Focus back on textarea
+    setTimeout(() => {
+      textarea.focus()
+      const newCursorPos = cursorPos + mediaText.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    }, 50)
+  }
+}
+
+// Handle emoji selection
+const handleEmojiSelect = (emoji) => {
+  const textarea = noteTextarea.value
+  
+  if (textarea) {
+    const cursorPos = textarea.selectionStart
+    const textBefore = noteForm.content.substring(0, cursorPos)
+    const textAfter = noteForm.content.substring(textarea.selectionEnd)
+    
+    // Update content with emoji
+    noteForm.content = textBefore + emoji.i + textAfter
+    
+    // Reset emoji picker state
+    showEmojiPicker.value = false
+    
+    // Focus back on textarea and set cursor position after the emoji
+    setTimeout(() => {
+      textarea.focus()
+      const newCursorPos = cursorPos + emoji.i.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    }, 50)
+  }
+}
 
 onUnmounted(() => {
   // Clean up subscriptions when component unmounts
@@ -281,14 +361,17 @@ onUnmounted(() => {
       <!-- Page Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
        <div>
-<!--&lt;!&ndash;          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">&ndash;&gt;-->
-<!--&lt;!&ndash;            <IconFileText class="w-6 h-6 text-orange-600" />&ndash;&gt;-->
-<!--&lt;!&ndash;            <span>My Notes</span>&ndash;&gt;-->
-<!--&lt;!&ndash;          </h1>&ndash;&gt;-->
-<!--          <p class="text-gray-600">-->
-<!--            Welcome back, {{ userProfile?.name || 'Creator' }}! Write and publish notes to the Nostr network.-->
-<!--          </p>-->
-       </div>
+  <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
+   <!--  <IconFileText class="w-6 h-6 text-orange-600" /> -->
+   <!-- <span>My Notes</span> -->
+    
+  </h1>
+
+<!--<p class="text-gray-600">-->
+<!--    Welcome back, {{ userProfile?.name || 'Creator' }}! Write and publish notes to the Nostr network.-->
+<!--  </p>  -->
+
+</div>
 
         <div class="flex items-center space-x-3 mb-4">
           <button
@@ -299,14 +382,15 @@ onUnmounted(() => {
             <IconArrowLeft class="w-4 h-4" />
             Back to Notes
           </button>
-          <button
-            v-if="currentView === 'list'"
-            @click="startCreating"
-            class="btn-primary"
-          >
-            <IconPlus class="w-4 h-4" />
-            New Note
-          </button>
+          <div v-if="currentView === 'list'" class="flex space-x-2">
+            <button
+              @click="setView('create')"
+              class="btn-primary"
+            >
+              <IconPlus class="w-4 h-4" />
+              New Note
+            </button>
+          </div>
 <!--          <button-->
 <!--            v-if="currentView === 'list'"-->
 <!--            @click="cleanupDuplicateNotes"-->
@@ -330,33 +414,50 @@ onUnmounted(() => {
       <!-- Notes List View -->
       <div v-if="currentView === 'list'">
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <!-- Total Zap Revenue Card - Now Highlighted -->
           <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-4 rounded-xl shadow-sm">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-orange-100 text-sm">Total Notes</p>
-                <p class="text-2xl font-bold">{{ noteStats.total }}</p>
-              </div>
-              <IconFileText class="w-8 h-8 text-orange-200" />
+            <div class="flex flex-col">
+              <p class="text-orange-100 text-sm mb-1">Total Revenue</p>
+              <p class="text-3xl font-bold mb-1">{{ noteStats.totalZapRevenue.toLocaleString() }} sats </p>
+              <p class="text-orange-100 text-xs">
+                ≈ {{ revenueInUSD }} USD
+              </p>
+            </div>
+            <div class="flex justify-end">
+              <IconBolt class="w-8 h-8 text-orange-200" />
             </div>
           </div>
           
-          <div class="bg-white/90 backdrop-blur-sm p-4 rounded-xl border border-orange-100/50 shadow-sm">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-gray-600 text-sm">This Week</p>
-                <p class="text-2xl font-bold text-gray-900">{{ noteStats.thisWeek }}</p>
-              </div>
+          <!-- Total Notes Card - Now Regular -->
+          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-gray-600 text-sm mb-1">Total Notes</p>
+              <p class="text-2xl font-bold text-gray-900">{{ noteStats.total }}</p>
+            </div>
+            <div class="flex justify-end">
+              <IconFileText class="w-8 h-8 text-orange-600" />
+            </div>
+          </div>
+          
+          <!-- This Week Card - Commented Out -->
+          <!-- <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-gray-600 text-sm">This Week</p>
+              <p class="text-3xl font-bold text-gray-900">{{ noteStats.thisWeek }}</p>
+            </div>
+            <div class="flex justify-end">
               <IconCalendar class="w-8 h-8 text-orange-600" />
             </div>
-          </div>
+          </div> -->
           
-          <div class="bg-white/90 backdrop-blur-sm p-4 rounded-xl border border-orange-100/50 shadow-sm">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-gray-600 text-sm">On Nostr</p>
-                <p class="text-2xl font-bold text-purple-600">{{ noteStats.total }}</p>
-              </div>
+          <!-- On Nostr Card -->
+          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-gray-600 text-sm mb-1">On Nostr</p>
+              <p class="text-2xl font-bold text-purple-600">{{ noteStats.total }}</p>
+            </div>
+            <div class="flex justify-end">
               <IconBolt class="w-8 h-8 text-purple-600" />
             </div>
           </div>
@@ -389,24 +490,32 @@ onUnmounted(() => {
             <div
               v-for="note in notes"
               :key="note.id"
-              class="p-4 hover:bg-orange-25/50 transition-colors cursor-pointer"
+              class="p-4 hover:bg-orange-25/80 transition-all duration-200 cursor-pointer rounded-lg border border-transparent hover:border-orange-200/50 hover:shadow-sm"
               @click="viewNote(note)"
             >
-              <div class="flex items-start justify-between">
-                <div class="flex-1 min-w-0">
-                  <h4 class="font-semibold text-gray-900 mb-2 truncate">
-                    <div v-html="note.title"></div>
-                  </h4>
-<!--                  <p class="text-sm text-gray-600 mb-3 line-clamp-2">-->
-<!--                    <div v-html="note.preview"></div>-->
-<!--                  </p>-->
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0 space-y-2">
+                  <div class="flex items-center gap-2">
+                    <h4 class="font-semibold text-gray-900 truncate">
+                      {{ note.title }}
+                    </h4>
+                    <span v-if="getZapCount(note.id) > 0" 
+                          class="flex items-center space-x-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">
+                      <IconBolt class="w-3 h-3" />
+                      <span>{{ formatZapAmount(getTotalZapAmount(note.id)) }}</span>
+                    </span>
+                  </div>
                   
-                  <div class="flex items-center space-x-4 text-xs text-gray-500">
-                    <span class="flex items-center space-x-1">
+                  <p class="text-sm text-gray-600 line-clamp-2">
+                    {{ note.preview }}
+                  </p>
+                  
+                  <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                    <span class="flex items-center gap-1">
                       <IconCalendar class="w-3 h-3" />
                       <span>{{ formatDate(note.created_at) }}</span>
                     </span>
-                    <span v-if="note.hashtags && note.hashtags.length > 0" class="flex items-center space-x-1">
+                    <span v-if="note.hashtags && note.hashtags.length > 0" class="flex items-center gap-1">
                       <IconHash class="w-3 h-3" />
                       <span>{{ note.hashtags.slice(0, 2).join(', ') }}</span>
                       <span v-if="note.hashtags.length > 2">+{{ note.hashtags.length - 2 }}</span>
@@ -414,28 +523,23 @@ onUnmounted(() => {
                   </div>
                 </div>
                 
-                <div class="flex items-center space-x-2 ml-4">
-<!--                  <button-->
-<!--                    @click.stop="openViewPopup(note)"-->
-<!--                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"-->
-<!--                    title="View note"-->
-<!--                  >-->
-<!--                    <IconEye class="w-4 h-4" />-->
-<!--                  </button>-->
-                  <button
-                    @click.stop="startEditing(note)"
-                    class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                    title="Edit note"
-                  >
-                    <IconEdit class="w-4 h-4" />
-                  </button>
-                  <button
-                    @click.stop="handleDelete(note)"
-                    class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete note"
-                  >
-                    <IconTrash class="w-4 h-4" />
-                  </button>
+                <div class="flex flex-col items-end space-y-2">
+                  <div class="flex items-center space-x-1">
+                    <button
+                      @click.stop="startEditing(note)"
+                      class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                      title="Edit note"
+                    >
+                      <IconEdit class="w-4 h-4" />
+                    </button>
+                    <button
+                      @click.stop="handleDelete(note)"
+                     class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                     title="Delete note"
+                   >
+                     <IconTrash class="w-4 h-4" />
+                   </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -450,101 +554,115 @@ onUnmounted(() => {
             <h2 class="text-xl font-semibold text-gray-900">
               {{ currentView === 'edit' ? 'Edit Note' : 'Create New Note' }}
             </h2>
-            <p class="text-gray-600 text-sm mt-1">
-              Write your note using Markdown formatting. It will be published to the Nostr network.
+            <p class="text-gray-600 text-sm mt-2">
+              Write down your thoughts. It will be published to the Nostr network.
             </p>
           </div>
 
+          <!-- Edit Note Info Alert - Only show when editing -->
+          <div v-if="currentView === 'edit'" class="px-6 pt-4">
+            <div class="p-4 bg-amber-50/80 rounded-lg mb-5 border border-amber-200 shadow-sm">
+              <div class="flex items-start space-x-3">
+                <IconAlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 class="font-medium text-amber-900 mb-1">How Nostr Edits Work</h4>
+                  <p class="text-sm text-amber-800 leading-relaxed">
+                    Nostr doesn't support direct editing of events. When you "edit" a note, we'll publish a new note and mark the original for deletion. This creates a new event ID and resets engagement metrics.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="p-6">
-            <!-- Editor Toolbar -->
-            <div v-if="editor" class="flex flex-wrap items-center gap-2 p-3 bg-gray-50 rounded-lg mb-4 border">
-              <button
-                @click="editor.chain().focus().toggleBold().run()"
-                :class="{ 'bg-orange-200': editor.isActive('bold') }"
-                class="px-3 py-1 rounded text-sm font-medium hover:bg-orange-100 transition-colors"
-              >
-                Bold
-              </button>
-              <button
-                @click="editor.chain().focus().toggleItalic().run()"
-                :class="{ 'bg-orange-200': editor.isActive('italic') }"
-                class="px-3 py-1 rounded text-sm font-medium hover:bg-orange-100 transition-colors"
-              >
-                Italic
-              </button>
-              <button
-                @click="editor.chain().focus().toggleUnderline().run()"
-                :class="{ 'bg-orange-200': editor.isActive('underline') }"
-                class="px-3 py-1 rounded text-sm font-medium hover:bg-orange-100 transition-colors"
-              >
-                Underline
-              </button>
-              <div class="w-px h-6 bg-gray-300"></div>
-              <button
-                @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-                :class="{ 'bg-orange-200': editor.isActive('heading', { level: 1 }) }"
-                class="px-3 py-1 rounded text-sm font-medium hover:bg-orange-100 transition-colors"
-              >
-                H1
-              </button>
-              <button
-                @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-                :class="{ 'bg-orange-200': editor.isActive('heading', { level: 2 }) }"
-                class="px-3 py-1 rounded text-sm font-medium hover:bg-orange-100 transition-colors"
-              >
-                H2
-              </button>
-              <button
-                @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-                :class="{ 'bg-orange-200': editor.isActive('heading', { level: 3 }) }"
-                class="px-3 py-1 rounded text-sm font-medium hover:bg-orange-100 transition-colors"
-              >
-                H3
-              </button>
-              <div class="w-px h-6 bg-gray-300"></div>
-              <button
-                @click="editor.chain().focus().toggleBulletList().run()"
-                :class="{ 'bg-orange-200': editor.isActive('bulletList') }"
-                class="px-3 py-1 rounded text-sm font-medium hover:bg-orange-100 transition-colors"
-              >
-                List
-              </button>
-              <button
-                @click="editor.chain().focus().toggleCodeBlock().run()"
-                :class="{ 'bg-orange-200': editor.isActive('codeBlock') }"
-                class="px-3 py-1 rounded text-sm font-medium hover:bg-orange-100 transition-colors"
-              >
-                Code
-              </button>
+            <!-- Plain Text Note Info -->
+            <div class="p-4 bg-blue-50/80 rounded-lg mb-5 border border-blue-200 shadow-sm">
+              <div class="flex items-start space-x-3">
+                <IconAlertTriangle class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 class="font-medium text-blue-900 mb-1">Plain Text Notes</h4>
+                  <p class="text-sm text-blue-800 leading-relaxed">
+                    Nostr notes (kind:1) only support plain text. Formatting like bold, italic, or headings is not supported.
+                    Use hashtags with # to make your notes discoverable.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <!-- Editor -->
-            <div class="border border-orange-200/50 rounded-lg overflow-hidden">
-              <EditorContent :editor="editor" class="min-h-[300px] bg-white" />
+            <!-- Plain Text Editor -->
+            <div class="border border-orange-200/50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 focus-within:ring-2 focus-within:ring-orange-300 focus-within:border-orange-400 flex flex-col">
+              <!-- Media Toolbar -->
+              <div class="flex items-center px-3 py-2 border-b border-orange-100/50 bg-orange-50/30">
+                <button 
+                  @click="showMediaUrlInput = true"
+                  class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                  title="Add image URL"
+                >
+                  <IconPhoto class="w-5 h-5" />
+                  <span class="text-sm">Image</span>
+                </button>
+                <button 
+                  @click="showVideoUrlInput = true"
+                  class="p-2 ml-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                  title="Add video URL"
+                >
+                  <IconVideo class="w-5 h-5" />
+                  <span class="text-sm">Video</span>
+                </button>
+                <div class="h-5 mx-3 border-r border-orange-200/50"></div>
+                <div class="relative">
+                  <button 
+                    class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                    title="Insert emoji"
+                    @click="showEmojiPicker = !showEmojiPicker"
+                  >
+                    <span class="text-xl leading-none">😊</span>
+                    <span class="text-sm">Emoji</span>
+                  </button>
+                  <!-- Emoji Picker -->
+                  <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-20 shadow-xl rounded-lg border border-orange-200">
+                    <EmojiPicker @select="handleEmojiSelect" :native="true" />
+                  </div>
+                </div>
+              </div>
+              <textarea
+                v-model="noteForm.content"
+                placeholder="Write your note here... Use #hashtags to make your note discoverable."
+                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none emoji-textarea"
+                rows="12"
+                ref="noteTextarea"
+              ></textarea>
             </div>
 
-            <!-- Markdown Help -->
-            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 class="font-medium text-blue-900 mb-2">Markdown Quick Reference</h4>
-              <div class="text-sm text-blue-800 space-y-1">
-                <p><code># Heading 1</code> • <code>## Heading 2</code> • <code>### Heading 3</code></p>
-                <p><code>**bold**</code> • <code>*italic*</code> • <code>`code`</code> • <code>[link](url)</code></p>
-                <p><code>- List item</code> • <code>#hashtag</code> for tags</p>
+            <!-- Hashtag Help -->
+            <div class="mt-5 p-4 bg-orange-50/80 border border-orange-200 rounded-lg shadow-sm">
+              <h4 class="font-medium text-orange-900 mb-2 flex items-center">
+                <span class="mr-2">#</span>Hashtag Tips
+              </h4>
+              <div class="text-sm text-orange-800 space-y-2">
+                <p class="flex items-start">
+                  <span class="inline-block w-4 h-4 mr-2 text-orange-500">•</span>
+                  Use <code class="px-1.5 py-0.5 bg-orange-100 rounded text-orange-700 font-mono">#hashtags</code> to categorize your notes and make them discoverable
+                </p>
+                <p class="flex items-start">
+                  <span class="inline-block w-4 h-4 mr-2 text-orange-500">•</span>
+                  Example: <code class="px-1.5 py-0.5 bg-orange-100 rounded text-orange-700 font-mono">Just had a great coffee! #coffee #morning</code>
+                </p>
               </div>
             </div>
 
             <!-- Actions -->
-            <div class="flex justify-end space-x-3 mt-6">
+            <div class="flex justify-end space-x-4 mt-8">
               <button
                 @click="setView('list')"
-                class="btn-secondary"
+                class="btn-secondary px-6"
               >
                 Cancel
               </button>
               <button
                 @click="handleSubmit"
                 :disabled="!isFormValid || isLoading"
-                class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                class="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
                 <IconSend v-else class="w-4 h-4" />
@@ -558,25 +676,54 @@ onUnmounted(() => {
       <!-- View Note -->
       <div v-else-if="currentView === 'view' && selectedNote">
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm">
-          <div class="p-6 border-b border-orange-100/50">
+          <div class="p-4 sm:p-6 border-b border-orange-100/50">
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="text-xl font-semibold text-gray-900 mb-2">
-                  <div v-html="selectedNote.title"></div>
+                <h2 class="text-xl font-semibold text-gray-900 mb-1">
+                  {{ selectedNote.title }}
                 </h2>
-                <div class="flex items-center space-x-4 text-sm text-gray-600">
-                  <span class="flex items-center space-x-1">
+                <div class="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                  <span class="flex items-center gap-1">
                     <IconCalendar class="w-4 h-4" />
                     <span>{{ formatDate(selectedNote.created_at) }}</span>
                   </span>
-                  <span class="flex items-center space-x-1">
+                  <span class="flex items-center gap-1">
                     <IconUser class="w-4 h-4" />
                     <span>{{ userProfile?.name || 'You' }}</span>
                   </span>
                 </div>
               </div>
               
-              <div class="flex items-center space-x-2">
+              <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                <!-- Nostr Client Dropdown -->
+                <div class="relative">
+                  <button
+                    @click="showClientDropdown = !showClientDropdown"
+                    class="btn-secondary text-sm flex items-center gap-1"
+                  >
+                    <IconExternalLink class="w-4 h-4" />
+                    <span class="hidden sm:inline">Open in Client</span>
+                    <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+                  </button>
+                  
+                  <!-- Client Dropdown -->
+                  <div 
+                    v-if="showClientDropdown"
+                    class="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+                  >
+                    <a :href="getNostrClientUrl('primal', selectedNote.id)" target="_blank" rel="noopener noreferrer" 
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2">
+                      <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
+                      <span>Primal.net</span>
+                    </a>
+                    <a :href="getNostrClientUrl('yakihonne', selectedNote.id)" target="_blank" rel="noopener noreferrer"
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2">
+                      <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
+                      <span>Yakihonne</span>
+                    </a>
+                  </div>
+                </div>
+                
                 <button
                   @click="startEditing(selectedNote)"
                   class="btn-secondary"
@@ -595,24 +742,33 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="p-6">
+          <div class="p-4 sm:p-6">
             <!-- Hashtags -->
             <div v-if="selectedNote.hashtags && selectedNote.hashtags.length > 0" class="mb-6">
-              <div class="flex flex-wrap gap-2">
+              <div class="flex flex-wrap gap-2 mb-2">
                 <span
                   v-for="tag in selectedNote.hashtags"
                   :key="tag"
-                  class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
+                  class="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm hover:bg-orange-200 transition-colors"
                 >
                   <IconHash class="w-3 h-3" />
                   <span>{{ tag }}</span>
                 </span>
               </div>
+              <div v-if="getZapCount(selectedNote.id) > 0" class="flex items-center gap-2 mt-2">
+                <span class="flex items-center gap-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-1 rounded-full text-sm">
+                  <IconBolt class="w-4 h-4 text-orange-600" />
+                  <span class="whitespace-nowrap font-medium">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }} sats</span>
+                  <span class="text-orange-500">({{ getZapCount(selectedNote.id) }} zaps)</span>
+                </span>
+              </div>
             </div>
 
             <!-- Note Content -->
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-              <EditorContent :editor="viewEditor" class="min-h-[200px] bg-white" />
+            <div class="border border-gray-200 rounded-lg p-4 sm:p-6 min-h-[200px] bg-white shadow-sm">
+              <div class="whitespace-pre-wrap text-gray-800 prose prose-orange max-w-none">
+                {{ selectedNote?.content }}
+              </div>
             </div>
 
             <!-- Nostr Event Details -->
@@ -635,6 +791,72 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Media URL Input Modal -->
+  <div v-if="showMediaUrlInput || showVideoUrlInput" class="fixed inset-0 z-50 overflow-y-auto">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showMediaUrlInput = false; showVideoUrlInput = false"></div>
+    
+    <!-- Modal -->
+    <div class="flex min-h-full items-center justify-center p-4">
+      <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
+          <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+            <component :is="showMediaUrlInput ? IconPhoto : IconVideo" class="w-5 h-5 text-orange-600" />
+            <span>{{ showMediaUrlInput ? 'Add Image URL' : 'Add Video URL' }}</span>
+          </h3>
+          <button
+            @click="showMediaUrlInput = false; showVideoUrlInput = false"
+            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Close"
+          >
+            <IconX class="w-5 h-5" />
+          </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-4">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              {{ showMediaUrlInput ? 'Image URL (.jpg, .jpeg, .png, .gif, .webp)' : 'Video URL' }}
+            </label>
+            <input
+              v-model="mediaUrl"
+              type="url"
+              :placeholder="showMediaUrlInput ? 'https://example.com/image.jpg' : 'https://example.com/video.mp4'"
+              class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+              @keyup.enter="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
+            />
+          </div>
+          
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <p class="text-sm text-blue-800">
+              {{ showMediaUrlInput 
+                ? 'Enter the URL of an image (must end with .jpg, .jpeg, .png, .gif, or .webp)' 
+                : 'Enter the URL of a video you want to include in your note' }}
+            </p>
+          </div>
+          
+          <div class="flex justify-end space-x-3">
+            <button
+              @click="showMediaUrlInput = false; showVideoUrlInput = false"
+              class="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              @click="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
+              :disabled="!mediaUrl.trim()"
+              class="btn-primary disabled:opacity-50"
+            >
+              Insert
+            </button>
           </div>
         </div>
       </div>
@@ -711,8 +933,103 @@ onUnmounted(() => {
           </div>
 
           <!-- Note Content -->
-          <div class="border border-gray-200 rounded-lg overflow-hidden">
-            <EditorContent :editor="viewEditor" class="min-h-[200px] bg-white" />
+          <div class="border border-gray-200 rounded-lg p-4 min-h-[200px] bg-white">
+            <p class="whitespace-pre-wrap text-gray-800">{{ selectedNote?.content }}</p>
+          </div>
+
+          <!-- Zap Information -->
+          <div v-if="selectedNote && getZapCount(selectedNote.id) > 0" class="mt-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <IconBolt class="w-5 h-5 text-orange-600" />
+                <span>Zaps Received</span>
+              </h3>
+              <div class="flex items-center space-x-4">
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-orange-600">{{ getZapCount(selectedNote.id) }}</div>
+                  <div class="text-xs text-gray-600">Total Zaps</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }} ({{ getZapCount(selectedNote.id) }})</div>
+                  <div class="text-xs text-gray-600">Total Sats</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zap List -->
+            <div class="space-y-3 max-h-60 overflow-y-auto">
+              <div
+                v-for="zap in getZapsForContent(selectedNote.id)"
+                :key="zap.id"
+                class="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100"
+              >
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 rounded-full overflow-hidden">
+                    <img 
+                      :src="zap.sender?.avatar || zap.sender?.picture" 
+                      :alt="zap.sender?.name || 'User'"
+                      class="w-full h-full object-cover"
+                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                    />
+                  </div>
+                  <div>
+                    <div class="font-medium text-gray-900">{{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}</div>
+                    <div class="text-sm text-gray-600">{{ formatZapTime(zap.timestamp) }}</div>
+                    <div v-if="zap.message" class="text-sm text-gray-700 italic">"{{ zap.message }}"</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Zap Information -->
+          <div v-if="selectedNote && getZapCount(selectedNote.id) > 0" class="mt-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <IconBolt class="w-5 h-5 text-orange-600" />
+                <span>Zaps Received</span>
+              </h3>
+              <div class="flex items-center space-x-4">
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-orange-600">{{ getZapCount(selectedNote.id) }}</div>
+                  <div class="text-xs text-gray-600">Total Zaps</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-2xl font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }}</div>
+                  <div class="text-xs text-gray-600">Total Sats</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zap List -->
+            <div class="space-y-3 max-h-60 overflow-y-auto">
+              <div
+                v-for="zap in getZapsForContent(selectedNote.id)"
+                :key="zap.id"
+                class="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100"
+              >
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 rounded-full overflow-hidden">
+                    <img 
+                      :src="zap.sender?.avatar || zap.sender?.picture" 
+                      :alt="zap.sender?.name || 'User'"
+                      class="w-full h-full object-cover"
+                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                    />
+                  </div>
+                  <div>
+                    <div class="font-medium text-gray-900">{{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}</div>
+                    <div class="text-sm text-gray-600">{{ formatZapTime(zap.timestamp) }}</div>
+                    <div v-if="zap.message" class="text-sm text-gray-700 italic">"{{ zap.message }}"</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Nostr Event Details -->
@@ -743,85 +1060,79 @@ onUnmounted(() => {
 
 <style scoped>
 .line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
-/* Tiptap Editor Styles */
-:deep(.ProseMirror) {
-  outline: none;
+/* Scrollable areas */
+.max-h-60 {
+  max-height: 15rem;
 }
 
-:deep(.ProseMirror p.is-editor-empty:first-child::before) {
-  content: attr(data-placeholder);
-  float: left;
-  color: #9ca3af;
-  pointer-events: none;
-  height: 0;
+.overflow-y-auto {
+  overflow-y: auto;
 }
 
-:deep(.ProseMirror h1) {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 1rem 0 0.5rem 0;
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
 }
 
-:deep(.ProseMirror h2) {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 1rem 0 0.5rem 0;
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-:deep(.ProseMirror h3) {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 1rem 0 0.5rem 0;
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(251, 146, 60, 0.3);
+  border-radius: 3px;
 }
 
-:deep(.ProseMirror ul) {
-  padding-left: 1.5rem;
-  margin: 0.5rem 0;
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(251, 146, 60, 0.5);
 }
 
-:deep(.ProseMirror li) {
-  margin: 0.25rem 0;
+/* Plain text editor styles */
+textarea {
+  resize: none;
+  font-family: inherit;
+  line-height: 1.5;
 }
 
-:deep(.ProseMirror code) {
-  background-color: #f3f4f6;
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
+.whitespace-pre-wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
 }
 
-:deep(.ProseMirror pre) {
-  background-color: #1f2937;
-  color: #f9fafb;
-  padding: 1rem;
+/* Prose styling for content */
+.prose {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.prose a {
+  color: #f97316;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
   border-radius: 0.5rem;
   margin: 1rem 0;
-  overflow-x: auto;
 }
 
-:deep(.ProseMirror pre code) {
-  background: none;
-  padding: 0;
-  color: inherit;
-}
-
-/* View-only editor styles */
-:deep(.ProseMirror[contenteditable="false"]) {
-  cursor: default;
-  user-select: text;
-}
-
-:deep(.ProseMirror[contenteditable="false"]:focus) {
-  outline: none;
-}
-
-:deep(.ProseMirror[contenteditable="false"] a) {
-  cursor: pointer;
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .flex-wrap {
+    flex-wrap: wrap;
+  }
+  
+  .gap-3 {
+    gap: 0.75rem;
+  }
 }
 </style>

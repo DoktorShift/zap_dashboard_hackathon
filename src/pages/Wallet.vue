@@ -32,20 +32,7 @@ import {
   payInvoice, 
   lookupInvoice 
 } from '../utils/nwcClient.js'
-
-// Dynamically import QrStream to avoid build issues
-const QrStream = defineAsyncComponent({
-  loader: () => import('qrcode-reader-vue3').then(m => m.default),
-  loadingComponent: {
-    template: '<div class="flex items-center justify-center p-4"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div></div>'
-  },
-  errorComponent: {
-    template: '<div class="text-center p-4 text-red-600">Failed to load QR scanner</div>'
-  },
-  delay: 200,
-  timeout: 10000
-})
-
+import { QrcodeStream } from 'vue-qrcode-reader'
 const { isWalletConnected, activeConnection } = useNostrConnections()
 const { handleZapSent, handlePaymentSuccess, handlePaymentError, notifications } = useNotifications()
 
@@ -386,25 +373,21 @@ const closeQrScanner = () => {
   qrScannerError.value = ''
 }
 
-const onQrDecode = (decodedString) => {
+// Replace onQrDecode with decodeQR for vue-qrcode-reader
+const decodeQR = (results) => {
+  if (!results || !results.length) return
+  const decodedString = results[0].rawValue || results[0].text || ''
   try {
-    // Handle different QR code formats
     let invoice = decodedString
-    
-    // If it's a lightning: URI, extract the invoice
     if (decodedString.toLowerCase().startsWith('lightning:')) {
       invoice = decodedString.substring(10)
     }
-    
-    // If it's a bitcoin: URI with lightning parameter
     if (decodedString.toLowerCase().startsWith('bitcoin:') && decodedString.includes('lightning=')) {
       const lightningMatch = decodedString.match(/lightning=([^&]+)/)
       if (lightningMatch) {
         invoice = lightningMatch[1]
       }
     }
-    
-    // Validate that it looks like a Lightning invoice
     if (invoice.toLowerCase().startsWith('lnbc') || invoice.toLowerCase().startsWith('lntb')) {
       paymentForm.value.invoice = invoice
       closeQrScanner()
@@ -863,12 +846,11 @@ const extractTextFromArray = (noteArray) => {
           </div>
           
           <!-- QR Scanner -->
-          <div v-else class="relative">
-            <div class="bg-black rounded-lg overflow-hidden">
-              <QrStream
-                @decode="onQrDecode"
-                @error="onQrError"
-                class="w-full h-64"
+          <div v-else class="relative h-64">
+            <div class="bg-black rounded-lg overflow-hidden w-full h-full">
+              <qrcode-stream
+                @detect="decodeQR"
+                style="border-radius: 8px !important; width: 100%; height: 100%;"
               />
             </div>
             

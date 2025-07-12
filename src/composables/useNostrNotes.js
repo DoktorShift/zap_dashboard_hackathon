@@ -1,6 +1,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import { useContentZaps } from './useContentZaps.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 
 // Global state for notes
@@ -23,6 +24,7 @@ const editingNote = ref(null)
 
 export function useNostrNotes() {
   const { currentUser, isAuthenticated, writeRelays, readRelays } = useNostrAuth()
+  const { startZapTracking } = useContentZaps()
 
   // Computed properties
   const userNotes = computed(() => {
@@ -51,14 +53,8 @@ export function useNostrNotes() {
 
   // Create note title from content
   const createNoteTitle = (content) => {
-    // Remove markdown formatting for title
-    const plainText = content
-      .replace(/#{1,6}\s+/g, '') // Remove heading markers
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic
-      .replace(/`(.*?)`/g, '$1') // Remove inline code
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links, keep text
-      .trim()
+    // Get plain text for title
+    const plainText = content.trim()
 
     // Get first line or first 50 characters
     const firstLine = plainText.split('\n')[0]
@@ -67,15 +63,8 @@ export function useNostrNotes() {
 
   // Create note preview from content
   const createNotePreview = (content) => {
-    // Remove markdown formatting for preview
-    const plainText = content
-      .replace(/#{1,6}\s+/g, '') // Remove heading markers
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic
-      .replace(/`(.*?)`/g, '$1') // Remove inline code
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links, keep text
-      .replace(/\n+/g, ' ') // Replace newlines with spaces
-      .trim()
+    // Get plain text for preview
+    const plainText = content.replace(/\n+/g, ' ').trim()
 
     return plainText.length > 200 ? plainText.substring(0, 200) + '...' : plainText
   }
@@ -84,6 +73,13 @@ export function useNostrNotes() {
   const fetchUserNotes = async () => {
     if (!isAuthenticated.value || !currentUser.value?.pubkey) {
       console.log('Not authenticated, cannot fetch notes')
+      return
+    }
+
+    // Check if relay manager is initialized
+    if (!nostrRelayManager.isInitialized) {
+      console.log('Relay manager not initialized, cannot fetch notes')
+      error.value = 'Relay manager not initialized'
       return
     }
 
@@ -250,6 +246,9 @@ export function useNostrNotes() {
         failedRelays: result.failed
       })
 
+      // Start tracking zaps for this note
+      startZapTracking(signedEvent.id)
+
       // Add the note to our local state immediately
       const newNote = {
         ...signedEvent,
@@ -345,6 +344,9 @@ export function useNostrNotes() {
         successfulRelays: result.successful,
         failedRelays: result.failed
       })
+
+      // Start tracking zaps for the new note
+      startZapTracking(signedEvent.id)
 
       // Now publish a deletion event for the old note
       console.log('Publishing deletion event for old note:', noteId)
@@ -509,31 +511,73 @@ export function useNostrNotes() {
     return date.toLocaleDateString()
   }
 
+  // Watch for notes changes to track zaps on new notes
+  watch(notes, (newNotes) => {
+    if (isAuthenticated.value && newNotes.length > 0) {
+      // Use setTimeout to ensure this runs after the relay manager is fully initialized
+      setTimeout(() => {
+        newNotes.forEach(note => {
+          startZapTracking(note.id)
+        })
+      }, 1000)
+    }
+  }, { deep: true })
+
   // Initialize notes when authenticated
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
-      // Clean up any existing subscription
-      if (currentSubscription) {
-        currentSubscription.close()
-        currentSubscription = null
-      }
-      processedEventIds.clear() // Clear processed event IDs
-      
-      setTimeout(() => {
-        fetchUserNotes()
+      // Only fetch if we don't already have notes
+      if (notes.value.length === 0) {
+        // Clean up any existing subscription
+        if (currentSubscription) {
+          currentSubscription.close()
+          currentSubscription = null
+        }
+        processedEventIds.clear() // Clear processed event IDs
         
-        // Set up periodic cleanup of duplicate notes
-        const cleanupInterval = setInterval(() => {
-          if (isAuthenticated.value) {
-            cleanupDuplicateNotes()
+        // Wait for relay manager to be initialized
+        const initializeNotes = () => {
+          if (nostrRelayManager.isInitialized) {
+            fetchUserNotes()
+            
+            // Set up periodic cleanup of duplicate notes
+            const cleanupInterval = setInterval(() => {
+              if (isAuthenticated.value) {
+                cleanupDuplicateNotes()
+              } else {
+                clearInterval(cleanupInterval)
+              }
+            }, 30000) // Clean up every 30 seconds
+            
+            // Store interval for cleanup
+            window.notesCleanupInterval = cleanupInterval
           } else {
-            clearInterval(cleanupInterval)
+            // Listen for initialization event
+            const handleInitialized = () => {
+              fetchUserNotes()
+              
+              // Set up periodic cleanup of duplicate notes
+              const cleanupInterval = setInterval(() => {
+                if (isAuthenticated.value) {
+                  cleanupDuplicateNotes()
+                } else {
+                  clearInterval(cleanupInterval)
+                }
+              }, 30000) // Clean up every 30 seconds
+              
+              // Store interval for cleanup
+              window.notesCleanupInterval = cleanupInterval
+              
+              // Remove the event listener
+              nostrRelayManager.removeEventListener('initialized', handleInitialized)
+            }
+            
+            nostrRelayManager.addEventListener('initialized', handleInitialized)
           }
-        }, 30000) // Clean up every 30 seconds
+        }
         
-        // Store interval for cleanup
-        window.notesCleanupInterval = cleanupInterval
-      }, 1000) // Small delay to ensure relay manager is ready
+        initializeNotes()
+      }
     } else {
       // Clean up subscription when not authenticated
       if (currentSubscription) {

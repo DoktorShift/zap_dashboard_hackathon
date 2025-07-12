@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar.vue'
 import { useContentZaps } from './composables/useContentZaps.js'
 import TopBar from './components/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
+import { useNostrLongForm } from './composables/useNostrLongForm.js'
 import ZapFeed from './pages/ZapFeed.vue'
 import Analytics from './pages/Analytics.vue'
 import ChatZaps from './pages/ChatZaps.vue'
@@ -22,11 +23,97 @@ import ErrorBoundary from './components/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
+import { useNostrNotes } from './composables/useNostrNotes.js'
 
 // Track processed event IDs to prevent duplicates
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
 // Track processed payment hashes for deduplication across NWC and NIP-57
 const processedPaymentHashes = new Set()
+
+// Profile cache to avoid repeated fetches
+const profileCache = new Map()
+const profileFetchPromises = new Map()
+
+// Fetch author profile using relay manager
+const fetchAuthorProfile = async (pubkey, forceRefresh = false) => {
+  // Return cached profile if available (unless force refresh)
+  if (!forceRefresh && profileCache.has(pubkey)) {
+    return profileCache.get(pubkey)
+  }
+  
+  // If already fetching this profile, wait for the promise
+  if (profileFetchPromises.has(pubkey)) {
+    return profileFetchPromises.get(pubkey)
+  }
+  
+  // Create a new fetch promise
+  const fetchPromise = (async () => {
+    try {
+      const authorEvent = await nostrRelayManager.getEvent({
+        kinds: [0],
+        authors: [pubkey],
+        limit: 1
+      })
+      
+      let profile = null
+      
+      if (authorEvent) {
+        try {
+          profile = JSON.parse(authorEvent.content)
+        } catch (err) {
+          console.warn('Failed to parse author profile:', err)
+        }
+      }
+      
+      const profileData = {
+        pubkey,
+        name: profile?.name || profile?.display_name || `user:${pubkey.substring(0, 8)}`,
+        picture: profile?.picture || generateFallbackAvatar(pubkey),
+        nip05: profile?.nip05 || null,
+        about: profile?.about || null
+      }
+      
+      // Cache the profile
+      profileCache.set(pubkey, profileData)
+      return profileData
+      
+    } catch (err) {
+      console.warn('Failed to fetch author profile:', err)
+      const fallbackProfile = {
+        pubkey,
+        name: `user:${pubkey.substring(0, 8)}`,
+        picture: generateFallbackAvatar(pubkey),
+        nip05: null,
+        about: null
+      }
+      
+      // Cache the fallback profile
+      profileCache.set(pubkey, fallbackProfile)
+      return fallbackProfile
+    } finally {
+      // Clean up the promise
+      profileFetchPromises.delete(pubkey)
+    }
+  })()
+  
+  // Store the promise to prevent duplicate fetches
+  profileFetchPromises.set(pubkey, fetchPromise)
+  return fetchPromise
+}
+
+// Refresh profile for a specific pubkey
+const refreshProfile = async (pubkey) => {
+  if (!pubkey) return
+  
+  try {
+    const profile = await fetchAuthorProfile(pubkey, true) // Force refresh
+    profileStore.value.set(pubkey, profile)
+    return profile
+  } catch (error) {
+    console.error('Failed to refresh profile:', error)
+    throw error
+  }
+}
 
 // Use the Nostr connections composable
 const {
@@ -56,6 +143,10 @@ const { getAllContentZaps } = useContentZaps()
 
 // Initialize content zaps tracking
 const { initializeZapTracking } = useContentZaps()
+
+// Initialize notes and zaps tracking early
+const { notes, fetchUserNotes } = useNostrNotes()
+const { fetchUserLongFormContent } = useNostrLongForm()
 
 // Global state
 const zapData = ref([])
@@ -94,7 +185,9 @@ const combinedZapData = computed(() => {
           name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
           pubkey: zap.zapperPubkey,
           nip05: zap.sender?.nip05 || null,
-          avatar: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey)
+          avatar: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey),
+          // Add profile fetching capability
+          fetchProfile: () => fetchAuthorProfile(zap.zapperPubkey)
         },
         note: zap.message || 'Zap',
         noteType: 'original',
@@ -112,7 +205,12 @@ const combinedZapData = computed(() => {
       uniqueZapsMap.set(zap.id, {
         ...zap,
         source: 'nwc', // Explicitly mark as NWC payment
-        eventId: null // NWC payments don't have associated event IDs
+        eventId: null, // NWC payments don't have associated event IDs
+        // Add profile fetching capability for NWC payments if they have sender pubkey
+        sender: zap.sender?.pubkey ? {
+          ...zap.sender,
+          fetchProfile: () => fetchAuthorProfile(zap.sender.pubkey)
+        } : zap.sender
       })
     } else {
       console.log(`Skipping duplicate NWC payment with id ${zap.id?.substring(0, 16)}... (already have NIP-57 zap)`)
@@ -152,9 +250,59 @@ const generateFallbackAvatar = (pubkey) => {
 const pageLoadingError = ref('')
 const isPageLoading = ref(false)
 
+// Reactive profile store
+const profileStore = ref(new Map())
+
+// Watch for new zaps and fetch profiles
+watch(combinedZapData, async (newZaps) => {
+  const profilePromises = []
+  
+  newZaps.forEach(zap => {
+    const pubkey = zap.sender?.pubkey || zap.sender?.zapperPubkey
+    if (pubkey && !profileStore.value.has(pubkey)) {
+      profilePromises.push(
+        fetchAuthorProfile(pubkey).then(profile => {
+          profileStore.value.set(pubkey, profile)
+        }).catch(error => {
+          console.warn('Failed to fetch profile for pubkey:', pubkey, error)
+        })
+      )
+    }
+  })
+  
+  // Wait for all profile fetches to complete
+  if (profilePromises.length > 0) {
+    await Promise.allSettled(profilePromises)
+  }
+}, { immediate: true })
+
+// Enhanced combined zap data with profile integration
+const enhancedCombinedZapData = computed(() => {
+  return combinedZapData.value.map(zap => {
+    const pubkey = zap.sender?.pubkey || zap.sender?.zapperPubkey
+    const profile = pubkey ? profileStore.value.get(pubkey) : null
+    
+    if (profile && zap.sender) {
+      return {
+        ...zap,
+        sender: {
+          ...zap.sender,
+          name: profile.name,
+          picture: profile.picture,
+          avatar: profile.picture, // For backward compatibility
+          nip05: profile.nip05,
+          about: profile.about
+        }
+      }
+    }
+    
+    return zap
+  })
+})
+
 // Provide data to child components
 provide('zapData', zapData)
-provide('combinedZapData', combinedZapData)
+provide('combinedZapData', enhancedCombinedZapData)
 provide('selectedTimeRange', selectedTimeRange)
 provide('searchQuery', searchQuery)
 provide('selectedFilters', selectedFilters)
@@ -170,6 +318,11 @@ provide('connectionError', connectionError)
 provide('isWalletConnected', isWalletConnected)
 provide('setActiveConnection', setActiveConnection)
 provide('clearActiveConnection', clearActiveConnection)
+
+// Provide profile management
+provide('profileStore', profileStore)
+provide('fetchAuthorProfile', fetchAuthorProfile)
+provide('refreshProfile', refreshProfile)
 
 const components = {
   dashboard: Dashboard,
@@ -369,6 +522,20 @@ const startPeriodicHealthCheck = () => {
             connectionError.value = 'Connection lost. Please reconnect your wallet.'
           }
         }
+        
+        initializeZapTracking()
+        
+        // Also initialize notes tracking
+        console.log('Initializing notes tracking...')
+        fetchUserNotes().catch(err => {
+          console.error('Failed to fetch notes:', err)
+        })
+        
+        // Initialize long-form content tracking
+        console.log('Initializing long-form content tracking...')
+        fetchUserLongFormContent().catch(err => {
+          console.error('Failed to fetch long-form content:', err)
+        })
       }
     }
   }, 120000) // 2 minutes
