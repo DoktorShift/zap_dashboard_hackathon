@@ -18,6 +18,7 @@
     "qrcode-vue3": "^1.6.8",
     "vue": "^3.4.38",
     "vue-echarts": "^6.6.1",
+    "vue-qrcode-reader": "^5.7.2",
     "vue3-emoji-picker": "^1.1.8"
   },
   "devDependencies": {
