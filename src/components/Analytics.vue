@@ -409,12 +409,12 @@ const insights = computed(() => {
       description: 'Most active hour for receiving zaps',
       icon: IconClock
     },
-    {
-      title: 'Best Content Type',
-      value: bestType.charAt(0).toUpperCase() + bestType.slice(1),
-      description: 'Content type with highest zap amounts',
-      icon: IconBook
-    },
+  //  {
+  //    title: 'Best Content Type',
+  //   value: bestType.charAt(0).toUpperCase() + bestType.slice(1),
+  //    description: 'Content type with highest zap amounts',
+  //    icon: IconBook
+  //  },
     // COMMENTED OUT - Engagement Rate insight removed due to lack of reliable data
     // {
     //   title: 'Engagement Rate',
