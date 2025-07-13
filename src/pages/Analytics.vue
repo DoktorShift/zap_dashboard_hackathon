@@ -681,6 +681,26 @@ const summaryStats = computed(() => {
               <div class="flex-1 text-left min-w-0">
                 <p class="font-medium text-gray-900 text-sm truncate">{{ supporter.profile?.name || supporter.pubkey.substring(0, 8) + '...' }}</p>
                 <p class="text-xs text-orange-600">{{ supporter.totalAmount.toLocaleString() }} sats ({{ supporter.zapCount }})</p>
+                <p v-if="supporter.profile?.lud16" class="text-xs text-blue-600 flex items-center">
+                  <IconBolt class="w-3 h-3 mr-1 text-yellow-500" />
+                  {{ supporter.profile.lud16 }}
+                </p>
+                <div class="mt-1">
+                  <a 
+                    v-if="supporter.pubkey"
+                    :href="`https://yakihonne.com/p/${supporter.pubkey}`" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="text-xs text-purple-600 hover:text-purple-800 hover:underline inline-flex items-center"
+                  >
+                    <span>View on Yakihonne</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </a>
+                </div>
               </div>
             </div>
           </div>
