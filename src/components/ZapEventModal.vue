@@ -30,6 +30,11 @@ const props = defineProps({
     type: String,
     required: true
   },
+  specificZapId: {
+    type: String,
+    required: false,
+    default: null
+  },
   show: {
     type: Boolean,
     default: false
@@ -43,6 +48,7 @@ const isLoading = ref(false)
 const error = ref('')
 const event = ref(null)
 const eventAuthor = ref(null)
+const specificZap = ref(null)
 const showClientDropdown = ref(false)
 const dropdownRef = ref(null)
 const copiedItem = ref(null)
@@ -50,6 +56,7 @@ const copiedItem = ref(null)
 // Use Nostr auth to get user profile
 const { isAuthenticated } = useNostrAuth()
 const { getTotalZapAmount, getZapsForContent } = useContentZaps()
+const combinedZapData = inject('combinedZapData')
 
 // Fetch event when modal is shown
 watch(() => props.show, async (show) => {
@@ -118,6 +125,7 @@ const fetchEvent = async () => {
   error.value = ''
   event.value = null
   eventAuthor.value = null
+  specificZap.value = null
   
   try {
     console.log(`Fetching event: ${props.eventId}`)
@@ -136,6 +144,19 @@ const fetchEvent = async () => {
     
     // Fetch author profile
     await fetchAuthorProfile(fetchedEvent.pubkey)
+
+    // Find the specific zap if specificZapId is provided
+    if (props.specificZapId) {
+      console.log('Looking for specific zap:', props.specificZapId)
+      const zap = combinedZapData.value.find(z => z.id === props.specificZapId)
+      if (zap) {
+        console.log('Found specific zap:', zap)
+        specificZap.value = zap
+      } else {
+        console.warn('Specific zap not found:', props.specificZapId)
+      }
+    }
+    
     
   } catch (err) {
     console.error('Failed to fetch event:', err)
@@ -492,97 +513,61 @@ const zapAmount = computed(() => {
         <!-- Event Content -->
         <div v-else-if="event" class="overflow-y-auto max-h-[calc(90vh-120px)]">
           <!-- Zapper Info -->
-          <div class="p-4 border-b border-gray-100 bg-white">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-sm font-medium text-gray-700 flex items-center space-x-2">
-                <IconBolt class="w-4 h-4 text-orange-600" />
-                <span>Zaps Received</span>
-              </h3>
-              <div class="text-sm font-medium text-orange-600">
-                {{ formatZapAmount(zapAmount) }} sats
-              </div>
-            </div>
-            
-            <!-- Zapper List -->
-            <div class="space-y-3">
-              <div v-if="zapsForEvent.length === 0" class="text-center py-4">
-                <IconBolt class="w-8 h-8 mx-auto text-gray-300 mb-2" />
-                <p class="text-sm text-gray-500">No zaps received yet</p>
-              </div>
-              
-              <div
-                v-for="zap in zapsForEvent"
-                :key="zap.id"
-                class="flex items-center justify-between p-3 bg-orange-50/50 rounded-lg border border-orange-100/50 hover:bg-orange-100/50 transition-all"
-              >
-                <div class="flex items-center space-x-3">
-                  <img 
-                    :src="zap.sender?.picture || zap.sender?.avatar" 
-                    :alt="getSenderName(zap.sender)"
-                    class="w-10 h-10 rounded-full border-2 border-orange-200 object-cover"
-                    @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
-                  />
-                  <div>
-                    <div class="font-medium text-gray-900">{{ getSenderName(zap.sender) }}</div>
-                    <div class="text-xs text-gray-500">{{ formatDate(zap.timestamp) }}</div>
-                  </div>
+          <!-- Single Zapper Info -->
+          <div v-if="specificZap" class="p-4 border-b border-gray-100 bg-white">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <img 
+                  :src="specificZap.sender?.picture || specificZap.sender?.avatar" 
+                  :alt="getSenderName(specificZap.sender)"
+                  class="w-12 h-12 rounded-full border-2 border-orange-200 object-cover"
+                  @error="$event.target.src = generateFallbackAvatar(specificZap.zapperPubkey)"
+                />
+                <div>
+                  <div class="font-medium text-gray-900 text-lg">{{ getSenderName(specificZap.sender) }}</div>
+                  <div class="text-sm text-gray-500">{{ formatDate(specificZap.timestamp) }}</div>
                 </div>
-                <div class="text-right">
-                  <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
-                </div>
+              </div>
+              <div class="bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-2 rounded-lg">
+                <div class="font-bold text-orange-600 text-lg">{{ formatZapAmount(specificZap.amount) }} sats</div>
               </div>
             </div>
           </div>
           
-          <!-- Zap Information -->
-          <div class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center justify-between">
-            <div class="flex items-center justify-between w-full">
-              <!-- Zap Info -->
-              <div class="flex items-center space-x-2">
-                <div class="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
-                  <IconBolt class="w-3 h-3 text-orange-600" />
-                </div>
-                <div class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full flex items-center space-x-1 text-sm">
-                  <span class="font-bold">{{ zapAmount }}</span>
-                  <span>sats</span>
-                </div>
-              </div>
-              
-              <!-- Open in Nostr Client -->
-              <div 
-                v-if="isAuthenticated && event" 
-                class="relative"
-                ref="dropdownRef"
+          <!-- Open in Nostr Client -->
+          <div 
+            v-if="isAuthenticated && event" 
+            class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center justify-end"
+          >
+            <div class="relative" ref="dropdownRef">
+              <button
+                @click="toggleClientDropdown"
+                class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-0.5 rounded-lg hover:bg-orange-100 transition-colors"
               >
-                <button
-                  @click="toggleClientDropdown"
-                  class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-0.5 rounded-lg hover:bg-orange-100 transition-colors"
-                >
-                  <span>Open in client</span>
-                  <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
-                </button>
-                
-                <!-- Client Dropdown -->
-                <div 
-                  v-if="showClientDropdown"
-                  class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
-                >
-                  <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
-                     class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                    <span class="w-3 h-3 flex items-center justify-center text-orange-600">🌐</span>
-                    <span>Primal.net</span>
-                  </a>
-                  <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
-                     class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                    <span class="w-3 h-3 flex items-center justify-center text-purple-600">🍜</span>
-                    <span>Yakihonne</span>
-                  </a>
-                  <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
-                     class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
-                    <span class="w-3 h-3 flex items-center justify-center text-yellow-600">✨</span>
-                    <span>Highlighter</span>
-                  </a>
-                </div>
+                <span>Open in client</span>
+                <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+              </button>
+              
+              <!-- Client Dropdown -->
+              <div 
+                v-if="showClientDropdown"
+                class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+              >
+                <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-orange-600">🌐</span>
+                  <span>Primal.net</span>
+                </a>
+                <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-purple-600">🍜</span>
+                  <span>Yakihonne</span>
+                </a>
+                <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-yellow-600">✨</span>
+                  <span>Highlighter</span>
+                </a>
               </div>
             </div>
           </div>
