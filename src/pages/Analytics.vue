@@ -697,6 +697,8 @@ const summaryStats = computed(() => {
     </p>
   </div>
 </div> <!-- ✅ Closing tag for outer flex container -->
+            </div>
+          </div>
 
 
 
