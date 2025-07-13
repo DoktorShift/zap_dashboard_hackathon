@@ -688,7 +688,7 @@ const summaryStats = computed(() => {
                 </p>
                 <a 
                   v-if="supporter.pubkey"
-                  :href="`https://yakihonne.com/p/${supporter.pubkey}`" 
+                  :href="`https://yakihonne.com/users/${supporter.pubkey}`" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   class="inline-block mt-1 p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-full transition-colors"
