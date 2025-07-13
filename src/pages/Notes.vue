@@ -28,6 +28,7 @@ import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
+import { generateFallbackAvatar } from '../composables/useContentZaps.js'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -969,7 +970,7 @@ onUnmounted(() => {
                       :src="zap.sender?.avatar || zap.sender?.picture" 
                       :alt="zap.sender?.name || 'User'"
                       class="w-full h-full object-cover"
-                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                      @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
                     />
                   </div>
                   <div>
@@ -1016,7 +1017,7 @@ onUnmounted(() => {
                       :src="zap.sender?.avatar || zap.sender?.picture" 
                       :alt="zap.sender?.name || 'User'"
                       class="w-full h-full object-cover"
-                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                      @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
                     />
                   </div>
                   <div>
