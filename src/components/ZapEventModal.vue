@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, watch, onUnmounted, computed } from 'vue'
-import { 
+import {
   IconX, 
   IconBolt, 
   IconUser, 
@@ -21,9 +21,9 @@ import {
   IconCheck
 } from '@iconify-prerendered/vue-tabler'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import * as nip19 from 'nostr-tools/nip19'
+import { useNostrAuth } from '../composables/useNostrAuth.js' 
 import { useContentZaps } from '../composables/useContentZaps.js'
+import * as nip19 from 'nostr-tools/nip19'
 
 const props = defineProps({
   eventId: {
@@ -49,7 +49,7 @@ const copiedItem = ref(null)
 
 // Use Nostr auth to get user profile
 const { isAuthenticated } = useNostrAuth()
-const { getTotalZapAmount } = useContentZaps()
+const { getTotalZapAmount, getZapsForContent } = useContentZaps()
 
 // Fetch event when modal is shown
 watch(() => props.show, async (show) => {
@@ -221,6 +221,11 @@ const copyToClipboard = async (text) => {
     console.error('Failed to copy to clipboard:', error)
   }
 }
+
+// Get zaps for this event
+const zapsForEvent = computed(() => {
+  return getZapsForContent(props.eventId) || []
+})
 
 // Format date
 const formatDate = (timestamp) => {
@@ -405,6 +410,37 @@ const getEventHashtags = () => {
   return hashtags
 }
 
+// Format zap amount for display
+const formatZapAmount = (amount) => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}k`
+  }
+  return amount.toString()
+}
+
+// Get sender name with fallback
+const getSenderName = (sender) => {
+  // Check for display_name first (Nostr standard)
+  if (sender?.display_name) {
+    return sender.display_name
+  }
+  
+  // Then check for name
+  if (sender?.name) {
+    return sender.name
+  }
+  
+  // Fallback to pubkey
+  const pubkey = sender?.pubkey || sender?.zapperPubkey
+  if (pubkey) {
+    return `user:${pubkey.substring(0, 8)}`
+  }
+  
+  return 'Anonymous'
+}
+
 // Get zap amount for this event
 const zapAmount = computed(() => {
   return getTotalZapAmount(props.eventId) || 0
@@ -455,25 +491,44 @@ const zapAmount = computed(() => {
 
         <!-- Event Content -->
         <div v-else-if="event" class="overflow-y-auto max-h-[calc(90vh-120px)]">
-          <!-- Author Info -->
-          <div class="p-3 border-b border-gray-100 bg-white">
-            <div class="flex items-center space-x-3">
-              <img 
-                :src="eventAuthor?.picture" 
-                :alt="eventAuthor?.name"
-                class="w-10 h-10 rounded-full border-2 border-orange-200 object-cover"
-                @error="$event.target.src = generateFallbackAvatar(eventAuthor?.pubkey)"
-              />
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center space-x-2">
-                  <h4 class="font-medium text-gray-900 truncate">{{ eventAuthor?.name }}</h4>
-                  <span v-if="eventAuthor?.nip05" class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ eventAuthor?.nip05 }}</span>
+          <!-- Zapper Info -->
+          <div class="p-4 border-b border-gray-100 bg-white">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                <IconBolt class="w-4 h-4 text-orange-600" />
+                <span>Zaps Received</span>
+              </h3>
+              <div class="text-sm font-medium text-orange-600">
+                {{ formatZapAmount(zapAmount) }} sats
+              </div>
+            </div>
+            
+            <!-- Zapper List -->
+            <div class="space-y-3">
+              <div v-if="zapsForEvent.length === 0" class="text-center py-4">
+                <IconBolt class="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                <p class="text-sm text-gray-500">No zaps received yet</p>
+              </div>
+              
+              <div
+                v-for="zap in zapsForEvent"
+                :key="zap.id"
+                class="flex items-center justify-between p-3 bg-orange-50/50 rounded-lg border border-orange-100/50 hover:bg-orange-100/50 transition-all"
+              >
+                <div class="flex items-center space-x-3">
+                  <img 
+                    :src="zap.sender?.picture || zap.sender?.avatar" 
+                    :alt="getSenderName(zap.sender)"
+                    class="w-10 h-10 rounded-full border-2 border-orange-200 object-cover"
+                    @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                  />
+                  <div>
+                    <div class="font-medium text-gray-900">{{ getSenderName(zap.sender) }}</div>
+                    <div class="text-xs text-gray-500">{{ formatDate(zap.timestamp) }}</div>
+                  </div>
                 </div>
-                <div class="flex items-center space-x-2 text-xs text-gray-500">
-                  <span class="flex items-center space-x-1">
-                    <IconCalendar class="w-3 h-3" />
-                    <span>{{ formatDate(event.created_at) }}</span>
-                  </span>
+                <div class="text-right">
+                  <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
                 </div>
               </div>
             </div>
