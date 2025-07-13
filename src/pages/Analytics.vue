@@ -567,7 +567,7 @@ const summaryStats = computed(() => {
         </div>
         <div class="text-center">
           <div class="text-2xl font-bold">{{ summaryStats.uniqueSupporters }}</div>
-          <div class="text-orange-100 text-sm">Supporter</div>
+          <div class="text-orange-100 text-sm">Supporters</div>
         </div>
       </div>
     </div>
