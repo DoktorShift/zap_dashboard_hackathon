@@ -657,34 +657,24 @@ const summaryStats = computed(() => {
           
           <!-- Supporters List -->
           <div v-else-if="topSupporters.length > 0">
-            <div 
-              v-for="(supporter, index) in topSupporters.slice(0, 1)" 
-              :key="supporter.pubkey" 
-              @click="openUserProfile(supporter)" 
-              class="flex items-center p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer"
-            >
-              <!-- Rank -->
-              <!-- <div class="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center mr-2 flex-shrink-0">
-                <span class="text-xs font-bold text-orange-600">{{ index + 1 }}</span>
-              </div> -->
-              
+            <div v-if="topSupporters[0]" @click="openUserProfile(topSupporters[0])" class="flex flex-col items-center p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer">
               <!-- Avatar -->
-              <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200 mr-2 flex-shrink-0">
+              <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200 mb-2">
                 <img 
-                  :src="supporter.profile?.picture || generateFallbackAvatar(supporter.pubkey)" 
-                  :alt="supporter.profile?.name || 'Supporter'"
+                  :src="topSupporters[0].profile?.picture || generateFallbackAvatar(topSupporters[0].pubkey)" 
+                  :alt="topSupporters[0].profile?.name || 'Supporter'"
                   class="w-full h-full object-cover"
-                  @error="$event.target.src = generateFallbackAvatar(supporter.pubkey)"
+                  @error="$event.target.src = generateFallbackAvatar(topSupporters[0].pubkey)"
                 />
               </div>
               
               <!-- Name and Amount -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center">
-                  <p class="font-medium text-gray-900 truncate">{{ supporter.profile?.name || supporter.pubkey.substring(0, 8) + '...' }}</p>
+              <div class="text-center">
+                <div class="flex items-center justify-center">
+                  <p class="font-medium text-gray-900 truncate">{{ topSupporters[0].profile?.name || topSupporters[0].pubkey.substring(0, 8) + '...' }}</p>
                   <a 
-                    v-if="supporter.pubkey"
-                    :href="`https://yakihonne.com/users/${supporter.pubkey}`" 
+                    v-if="topSupporters[0].pubkey"
+                    :href="`https://yakihonne.com/users/${topSupporters[0].pubkey}`" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     class="ml-2 p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-full transition-colors"
@@ -694,10 +684,10 @@ const summaryStats = computed(() => {
                     <IconExternalLink class="w-3 h-3" />
                   </a>
                 </div>
-                <p class="text-sm font-bold text-orange-600">{{ supporter.totalAmount.toLocaleString() }} sats ({{ supporter.zapCount }})</p>
-                <p v-if="supporter.profile?.lud16" class="text-xs text-blue-600 flex items-center">
+                <p class="text-sm font-bold text-orange-600">{{ topSupporters[0].totalAmount.toLocaleString() }} sats ({{ topSupporters[0].zapCount }})</p>
+                <p v-if="topSupporters[0].profile?.lud16" class="text-xs text-blue-600 flex items-center justify-center">
                   <IconBolt class="w-3 h-3 mr-1 text-yellow-500" />
-                  {{ supporter.profile.lud16 }}
+                  {{ topSupporters[0].profile.lud16 }}
                 </p>
               </div>
             </div>
