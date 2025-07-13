@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, ref, onMounted } from 'vue'
 import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
+import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 
 // Lazy load ECharts to prevent issues
 // Lazy load ECharts to prevent issues
@@ -369,14 +370,23 @@ const insights = computed(() => {
     ]
   }
   
-  // Calculate peak zap time
-  const hourCounts = new Array(24).fill(0)
-  zaps.forEach(zap => {
-    const hour = new Date(zap.timestamp).getHours()
-    hourCounts[hour]++
-  })
-  const peakHour = hourCounts.indexOf(Math.max(...hourCounts))
-  const peakTimeFormatted = `${peakHour}:00 - ${peakHour + 1}:00`
+  // Calculate peak zap time with more detail
+  const hourCounts = new Array(24).fill(0);
+  const hourAmounts = new Array(24).fill(0);
+  
+  // Apply time range filter to zaps using the imported function
+  const filteredZaps = filterZapsByTimeRange(zaps, selectedTimeRange.value);
+  
+  filteredZaps.forEach(zap => {
+    const hour = new Date(zap.timestamp).getHours();
+    hourCounts[hour]++;
+    hourAmounts[hour] += zap.amount;
+  });
+  
+  const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+  const peakTimeFormatted = `${peakHour}:00 - ${(peakHour + 1) % 24}:00`;
+  const peakHourCount = hourCounts[peakHour];
+  const peakHourAmount = hourAmounts[peakHour];
   
   // Calculate best performing content type
   const noteTypeCounts = {}
@@ -393,27 +403,41 @@ const insights = computed(() => {
   // const engagementRate = totalNotes > 0 ? ((zaps.length / totalNotes) * 100).toFixed(1) : '0.0'
   
   // Calculate repeat supporters
-  const supporterCounts = new Map()
-  zaps.forEach(zap => {
-    const senderKey = zap.sender?.pubkey || 'anonymous'
-    supporterCounts.set(senderKey, (supporterCounts.get(senderKey) || 0) + 1)
-  })
-  const repeatSupporters = Array.from(supporterCounts.values()).filter(count => count > 1).length
-  const totalSupporters = supporterCounts.size
-  const repeatPercentage = totalSupporters > 0 ? Math.round((repeatSupporters / totalSupporters) * 100) : 0
+  const supporterCounts = new Map();
+  const supporterAmounts = new Map();
+  
+  filteredZaps.forEach(zap => {
+    const senderKey = zap.sender?.pubkey || zap.zapperPubkey || 'anonymous';
+    supporterCounts.set(senderKey, (supporterCounts.get(senderKey) || 0) + 1);
+    supporterAmounts.set(senderKey, (supporterAmounts.get(senderKey) || 0) + zap.amount);
+  });
+  
+  // Get repeat supporters (sent more than one zap)
+  const repeatSupporters = Array.from(supporterCounts.entries())
+    .filter(([_, count]) => count > 1)
+    .length;
+  
+  const totalSupporters = supporterCounts.size;
+  const repeatPercentage = totalSupporters > 0 ? Math.round((repeatSupporters / totalSupporters) * 100) : 0;
+  
+  // Get top supporter by amount
+  let topSupporter = { pubkey: 'anonymous', amount: 0, count: 0 };
+  supporterAmounts.forEach((amount, pubkey) => {
+    if (amount > topSupporter.amount) {
+      topSupporter = { 
+        pubkey, 
+        amount, 
+        count: supporterCounts.get(pubkey) || 0 
+      };
+    }
+  });
   
   return [
     {
       title: 'Peak Zap Time',
       value: peakTimeFormatted,
-      description: 'Most active hour for receiving zaps',
+      description: `${peakHourCount} zaps (${peakHourAmount.toLocaleString()} sats)`,
       icon: IconClock
-    },
-    {
-      title: 'Best Content Type',
-      value: bestType.charAt(0).toUpperCase() + bestType.slice(1),
-      description: 'Content type with highest zap amounts',
-      icon: IconBook
     },
     // COMMENTED OUT - Engagement Rate insight removed due to lack of reliable data
     // {
@@ -425,7 +449,7 @@ const insights = computed(() => {
     {
       title: 'Repeat Supporters',
       value: `${repeatPercentage}%`,
-      description: 'Supporters who zap multiple times',
+      description: `${repeatSupporters} of ${totalSupporters} supporters`,
       icon: IconUsers
     }
   ]
