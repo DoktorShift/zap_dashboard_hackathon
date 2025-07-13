@@ -696,7 +696,8 @@ const summaryStats = computed(() => {
       {{ topSupporters[0].profile.lud16 }}
     </p>
   </div>
-</div>
+</div> <!-- ✅ Closing tag for outer flex container -->
+
 
 
     <!-- Data Status Indicator -->
