@@ -281,7 +281,7 @@ const handleRefresh = () => {
           </button>
           
           <!-- Notifications with Consistent Hover Effect -->
-          <div class="p-2 hover:bg-orange-50 rounded-lg transition-all duration-200 group">
+          <div class="hover:bg-orange-50 rounded-lg transition-all duration-200 group">
             <NotificationDropdown />
           </div>
         </div>
