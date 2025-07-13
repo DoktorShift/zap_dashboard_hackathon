@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, ref, onMounted } from 'vue'
 import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
+import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 
 // Lazy load ECharts to prevent issues
 // Lazy load ECharts to prevent issues
@@ -373,7 +374,7 @@ const insights = computed(() => {
   const hourCounts = new Array(24).fill(0);
   const hourAmounts = new Array(24).fill(0);
   
-  // Apply time range filter to zaps
+  // Apply time range filter to zaps using the imported function
   const filteredZaps = filterZapsByTimeRange(zaps, selectedTimeRange.value);
   
   filteredZaps.forEach(zap => {
