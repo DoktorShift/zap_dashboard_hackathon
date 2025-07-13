@@ -436,58 +436,58 @@ const getSenderName = (sender) => {
   const pubkey = sender?.pubkey || sender?.zapperPubkey
   if (pubkey) {
     return `user:${pubkey.substring(0, 8)}`
-  }
-  
-  return 'Anonymous'
-}
-
-// Get zap amount for this event
-const zapAmount = computed(() => {
-  return getTotalZapAmount(props.eventId) || 0
-})
-</script>
-
-<template>
-  <div v-if="show" class="fixed inset-0 z-50 overflow-y-auto">
-    <!-- Backdrop with blur effect -->
-    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" @click="closeModal"></div>
-    
-    <!-- Modal -->
-    <div class="flex min-h-full items-center justify-center p-2 sm:p-4">
-      <div class="relative bg-white rounded-xl shadow-xl max-w-md sm:max-w-lg md:max-w-xl w-full max-h-[90vh] overflow-hidden">
-        <!-- Header -->
-        <div class="flex items-center justify-between p-3 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
-          <div class="flex items-center space-x-2">
-            <component :is="getEventKindIcon(event?.kind)" class="w-5 h-5 text-orange-600" />
-            <h3 class="text-lg font-semibold text-gray-900">{{ getEventKindName(event?.kind) }}</h3>
-          </div>
-          <button
-            @click="closeModal"
-            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Close"
-          >
-            <IconX class="w-5 h-5" />
-          </button>
-        </div>
-
-        <!-- Loading State -->
-        <div v-if="isLoading" class="p-4 text-center">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p class="text-gray-600">Loading event...</p>
-        </div>
-
-        <!-- Error State -->
-        <div v-else-if="error" class="p-4">
-          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="flex items-start space-x-3">
-              <IconAlertCircle class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h4 class="font-medium text-red-800 mb-1">Error Loading Event</h4>
-                <p class="text-sm text-red-700">{{ error }}</p>
+        <!-- Zapper Info - Commented out for later use -->
+        <!-- <div class="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 flex items-center justify-between">
+          <div class="flex items-center justify-between w-full">
+            <!-- Zap Info -->
+            <div class="flex items-center space-x-2">
+              <div class="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                <IconBolt class="w-3 h-3 text-orange-600" />
+              </div>
+              <div class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full flex items-center space-x-1 text-sm">
+                <span class="font-bold">{{ zapAmount }}</span>
+                <span>sats</span>
+              </div>
+            </div>
+            
+            <!-- Open in Nostr Client -->
+            <div 
+              v-if="isAuthenticated && event" 
+              class="relative"
+              ref="dropdownRef"
+            >
+              <button
+                @click="toggleClientDropdown"
+                class="text-xs text-orange-600 hover:text-orange-700 font-medium flex items-center space-x-1 bg-orange-50 px-2 py-0.5 rounded-lg hover:bg-orange-100 transition-colors"
+              >
+                <span>Open in client</span>
+                <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+              </button>
+              
+              <!-- Client Dropdown -->
+              <div 
+                v-if="showClientDropdown"
+                class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+              >
+                <a :href="getNostrClientUrl('primal')" target="_blank" rel="noopener noreferrer" 
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-orange-600">🌐</span>
+                  <span>Primal.net</span>
+                </a>
+                <a :href="getNostrClientUrl('yakihonne')" target="_blank" rel="noopener noreferrer"
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-purple-600">🍜</span>
+                  <span>Yakihonne</span>
+                </a>
+                <a :href="getNostrClientUrl('highlighter')" target="_blank" rel="noopener noreferrer"
+                   class="block px-2 py-0.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center space-x-1">
+                  <span class="w-3 h-3 flex items-center justify-center text-yellow-600">✨</span>
+                  <span>Highlighter</span>
+                </a>
               </div>
             </div>
           </div>
-        </div>
+        </div> -->
 
         <!-- Event Content -->
         <div v-else-if="event" class="overflow-y-auto max-h-[calc(90vh-120px)]">
