@@ -17,7 +17,8 @@ import {
   IconMicrophone, 
   IconLink, 
   IconHash,
-  IconChevronDown
+  IconChevronDown,
+  IconCheck
 } from '@iconify-prerendered/vue-tabler'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -44,6 +45,7 @@ const event = ref(null)
 const eventAuthor = ref(null)
 const showClientDropdown = ref(false)
 const dropdownRef = ref(null)
+const copiedItem = ref(null)
 
 // Use Nostr auth to get user profile
 const { isAuthenticated } = useNostrAuth()
@@ -205,6 +207,19 @@ const generateFallbackAvatar = (pubkey) => {
   }, 0)
   
   return avatars[Math.abs(hash) % avatars.length]
+}
+
+// Copy to clipboard with feedback
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    copiedItem.value = 'eventId'
+    setTimeout(() => {
+      copiedItem.value = null
+    }, 2000)
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error)
+  }
 }
 
 // Format date
@@ -586,8 +601,16 @@ const zapAmount = computed(() => {
                 <IconChevronDown class="w-3 h-3 transition-transform ui-open:rotate-180" />
               </summary>
               <div class="mt-2 space-y-2">
-                <div class="bg-gray-100 p-2 rounded">
-                  <p class="font-mono text-xs break-all">ID: {{ event.id }}</p>
+                <div class="flex items-center justify-between">
+                  <span class="text-gray-600">Event ID:</span>
+                  <div class="flex items-center space-x-2">
+                    <code class="text-gray-800 bg-gray-200 px-2 py-1 rounded text-xs cursor-pointer hover:bg-gray-300 transition-colors" @click="copyToClipboard(event.id)" title="Click to copy">
+                      {{ event.id.substring(0, 16) }}...
+                    </code>
+                    <span v-if="copiedItem === 'eventId'" class="text-xs text-green-600 flex items-center">
+                      <IconCheck class="w-3 h-3 mr-1" />Copied!
+                    </span>
+                  </div>
                 </div>
                 <div v-for="(tag, index) in getEventTags()" :key="index" class="bg-gray-100 p-2 rounded">
                   <p class="font-mono text-xs break-all">{{ tag[0] }}: {{ tag[1] }}</p>
