@@ -699,7 +699,7 @@ onUnmounted(() => {
                 <div class="relative">
                   <button
                     @click="showClientDropdown = !showClientDropdown"
-                    class="btn-secondary text-sm flex items-center gap-1"
+                    class="btn-secondary p-2 text-xs sm:text-sm flex items-center gap-1"
                   >
                     <IconExternalLink class="w-4 h-4" />
                     <span class="hidden sm:inline">Open in Client</span>
@@ -726,17 +726,17 @@ onUnmounted(() => {
                 
                 <button
                   @click="startEditing(selectedNote)"
-                  class="btn-secondary"
+                  class="btn-secondary p-2 text-xs sm:text-sm"
                 >
                   <IconEdit class="w-4 h-4" />
-                  Edit
+                  <span class="hidden sm:inline">Edit</span>
                 </button>
                 <button
                   @click="handleDelete(selectedNote)"
-                  class="btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50"
+                  class="btn-secondary p-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <IconTrash class="w-4 h-4" />
-                  Delete
+                  <span class="hidden sm:inline">Delete</span>
                 </button>
               </div>
             </div>
