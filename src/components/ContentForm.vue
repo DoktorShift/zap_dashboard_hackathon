@@ -13,7 +13,7 @@ import {
   IconLock,
   IconUser,
   IconBolt,
-  IconShare
+  IconShare,
   IconExternalLink,
   IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
