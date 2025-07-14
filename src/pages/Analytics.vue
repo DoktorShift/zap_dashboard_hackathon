@@ -2,6 +2,7 @@
 import { computed, inject, ref, onMounted } from 'vue'
 import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
+import * as nip19 from 'nostr-tools/nip19'
 import UserProfileModal from '../components/UserProfileModal.vue'
 import { generateFallbackAvatar } from '../composables/useContentZaps.js'
 import { IconExternalLink } from '@iconify-prerendered/vue-tabler'
@@ -674,7 +675,7 @@ const summaryStats = computed(() => {
                   <p class="font-medium text-gray-900 truncate">{{ topSupporters[0].profile?.name || topSupporters[0].pubkey.substring(0, 8) + '...' }}</p>
                   <a 
                     v-if="topSupporters[0].pubkey"
-                    :href="`https://yakihonne.com/users/${topSupporters[0].pubkey}`" 
+                    :href="`https://yakihonne.com/${nip19.npubEncode(topSupporters[0].pubkey)}`" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     class="ml-2 p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-full transition-colors"
