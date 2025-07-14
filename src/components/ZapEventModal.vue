@@ -24,7 +24,6 @@ import {
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js' 
 import { useContentZaps } from '../composables/useContentZaps.js'
-import * as nip19 from 'nostr-tools/nip19'
 
 const props = defineProps({
   eventId: {
