@@ -376,8 +376,20 @@ const getNostrClientUrl = (client, eventId) => {
   try {
     switch (client) {
       case 'yakihonne':
-        // For long-form content, use neventEncode
-        return `https://yakihonne.com/${nip19.neventEncode({ id: eventId })}`
+        // For long-form content (kind 30023), use naddrEncode if we have the necessary data
+        if (event.value.kind === 30023 && event.value.pubkey) {
+          // Get the d tag identifier (or fallback to event id)
+          const dTag = event.value.tags.find(tag => tag[0] === 'd')?.[1] || event.value.id
+          
+          // Create naddr format for long-form content
+          return `https://yakihonne.com/article/${nip19.naddrEncode({
+            pubkey: event.value.pubkey,
+            kind: 30023,
+            identifier: dTag
+          })}`
+        }
+        // Fallback to nevent format
+        return `https://yakihonne.com/${nip19.neventEncode({ id: event.value.id })}`
       case 'primal':
         return `https://primal.net/e/${eventId}`
       default:

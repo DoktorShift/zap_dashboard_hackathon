@@ -224,9 +224,9 @@ const getNostrClientUrl = (client, content) => {
   try {
     switch (client) {
       case 'yakihonne':
-        // For long-form content, use naddrEncode if we have the necessary data
-        if (content.creatorPubkey && content.tags && content.tags.length > 0) {
-          // Try to create naddr format for long-form content
+        // For long-form content (kind 30023), use naddrEncode if we have the necessary data
+        if (content.creatorPubkey && content.id && content.nostrEventId) {
+          // Create naddr format for long-form content
           return `https://yakihonne.com/article/${nip19.naddrEncode({
             pubkey: content.creatorPubkey,
             kind: 30023,
