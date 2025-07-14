@@ -6,6 +6,14 @@ import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { contentService } from '../utils/contentService.js'
 
 // Global state for long-form content
+// Helper function to extract d tag identifier from event
+const getDTagIdentifier = (event) => {
+  // Look for d tag in the event tags
+  const dTag = event.tags.find(tag => tag[0] === 'd')
+  // Return the d tag value if found, otherwise fall back to event id
+  return dTag && dTag[1] ? dTag[1] : event.id
+}
+
 const longFormContent = ref([])
 const isLoading = ref(false)
 const error = ref('')
@@ -250,7 +258,7 @@ export function useNostrLongForm() {
     
     // Create content object
     return {
-      id: event.id,
+      id: getDTagIdentifier(event), // Use d tag as primary identifier
       nostrEventId: event.id,
       title,
       description,
