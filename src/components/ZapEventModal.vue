@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, watch, onUnmounted, computed, inject } from 'vue'
+import * as nip19 from 'nostr-tools/nip19'
 import {
   IconX, 
   IconBolt, 
@@ -23,7 +24,6 @@ import {
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js' 
 import { useContentZaps } from '../composables/useContentZaps.js'
-import * as nip19 from 'nostr-tools/nip19'
 
 const props = defineProps({
   eventId: {
@@ -105,7 +105,7 @@ const getNostrClientUrl = (client) => {
       case 'primal':
         return `https://primal.net/e/${event.value.id}`
       case 'yakihonne':
-        return `https://yakihonne.com/e/${event.value.id}`
+        return `https://yakihonne.com/${nip19.neventEncode({ id: event.value.id })}`
       default:
         return `https://primal.net/e/${event.value.id}`
     }

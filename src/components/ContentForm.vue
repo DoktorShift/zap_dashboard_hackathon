@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import * as nip19 from 'nostr-tools/nip19'
 import { 
   IconFileText, 
   IconMail, 
@@ -12,7 +13,9 @@ import {
   IconLock,
   IconUser,
   IconBolt,
-  IconShare
+  IconShare,
+  IconExternalLink,
+  IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -52,6 +55,8 @@ const monetizationModels = [
 ]
 
 const newTag = ref('')
+const showClientDropdown = ref(false)
+const dropdownRef = ref(null)
 
 // Watch for monetization model changes to automatically set price to 0 for free content
 watch(() => props.form.monetizationModel, (newModel) => {
@@ -80,6 +85,47 @@ const addTag = () => {
 
 const removeTag = (index) => {
   props.form.tags.splice(index, 1)
+}
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    showClientDropdown.value = false
+  }
+}
+
+// Toggle client dropdown
+const toggleClientDropdown = () => {
+  showClientDropdown.value = !showClientDropdown.value
+}
+
+// Get URL for different Nostr clients for long-form content
+const getNostrClientUrl = (client, content) => {
+  if (!content || !content.nostrEventId) return '#'
+  
+  try {
+    switch (client) {
+      case 'yakihonne':
+        // For long-form content, use naddrEncode if we have the necessary data
+        if (content.creatorPubkey && content.tags && content.tags.length > 0) {
+          // Try to create naddr format for long-form content
+          return `https://yakihonne.com/article/${nip19.naddrEncode({
+            pubkey: content.creatorPubkey,
+            kind: 30023,
+            identifier: content.id
+          })}`
+        }
+        // Fallback to nevent format
+        return `https://yakihonne.com/${nip19.neventEncode({ id: content.nostrEventId })}`
+      case 'primal':
+        return `https://primal.net/e/${content.nostrEventId}`
+      default:
+        return `https://primal.net/e/${content.nostrEventId}`
+    }
+  } catch (error) {
+    console.error('Failed to generate client URL:', error)
+    return '#'
+  }
 }
 
 const handleSubmit = () => {

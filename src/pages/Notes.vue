@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
+import * as nip19 from 'nostr-tools/nip19'
 import {
   IconFileText, 
   IconPlus, 
@@ -195,7 +196,7 @@ const getNostrClientUrl = (client, noteId) => {
       case 'primal':
         return `https://primal.net/e/${noteId}`
       case 'yakihonne':
-        return `https://yakihonne.com/e/${noteId}`
+        return `https://yakihonne.com/${nip19.neventEncode({ id: noteId })}`
       case 'highlighter':
         return `https://highlighter.com/a/note1${nip19.noteEncode(noteId)}`
       default:
