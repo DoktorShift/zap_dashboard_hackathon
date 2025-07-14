@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, onUnmounted } from 'vue'
+import * as nip19 from 'nostr-tools/nip19'
 import { 
   IconFileText, 
   IconPlus, 
@@ -12,7 +13,9 @@ import {
   IconShare,
   IconLoader,
   IconCheck,
-  IconAlertCircle
+  IconAlertCircle,
+  IconExternalLink,
+  IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
 import { useContent } from '../composables/useContent.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
@@ -25,6 +28,10 @@ import ContentForm from '../components/ContentForm.vue'
 import ContentPerformance from '../components/ContentPerformance.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
+
+// UI state for dropdown
+const showClientDropdown = ref(false)
+const dropdownRef = ref(null)
 
 // Use the long-form content composable
 const { fetchUserLongFormContent } = useNostrLongForm()
@@ -197,6 +204,56 @@ const formatZapTime = (timestamp) => {
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
   return `${Math.floor(diff / 86400000)}d ago`
 }
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    showClientDropdown.value = false
+  }
+}
+
+// Toggle client dropdown
+const toggleClientDropdown = () => {
+  showClientDropdown.value = !showClientDropdown.value
+}
+
+// Get URL for different Nostr clients for long-form content
+const getNostrClientUrl = (client, content) => {
+  if (!content || !content.nostrEventId) return '#'
+  
+  try {
+    switch (client) {
+      case 'yakihonne':
+        // For long-form content, use naddrEncode if we have the necessary data
+        if (content.creatorPubkey && content.tags && content.tags.length > 0) {
+          // Try to create naddr format for long-form content
+          return `https://yakihonne.com/article/${nip19.naddrEncode({
+            pubkey: content.creatorPubkey,
+            kind: 30023,
+            identifier: content.id
+          })}`
+        }
+        // Fallback to nevent format
+        return `https://yakihonne.com/${nip19.neventEncode({ id: content.nostrEventId })}`
+      case 'primal':
+        return `https://primal.net/e/${content.nostrEventId}`
+      default:
+        return `https://primal.net/e/${content.nostrEventId}`
+    }
+  } catch (error) {
+    console.error('Failed to generate client URL:', error)
+    return '#'
+  }
+}
+
+// Add/remove event listener for dropdown
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
@@ -380,7 +437,39 @@ const formatZapTime = (timestamp) => {
           <div class="p-6">
             <!-- Content Header -->
             <div class="mb-6">
-              <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ selectedContent.title }}</h1>
+              <div class="flex items-center justify-between mb-4">
+                <h1 class="text-3xl font-bold text-gray-900">{{ selectedContent.title }}</h1>
+                
+                <!-- Open in Client Dropdown -->
+                <div v-if="selectedContent.nostrEventId" class="relative" ref="dropdownRef">
+                  <button
+                    @click="toggleClientDropdown"
+                    class="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center space-x-1 bg-purple-50 px-3 py-1 rounded-lg hover:bg-purple-100 transition-colors"
+                  >
+                    <IconExternalLink class="w-4 h-4" />
+                    <span>Open in client</span>
+                    <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+                  </button>
+                  
+                  <!-- Client Dropdown -->
+                  <div 
+                    v-if="showClientDropdown"
+                    class="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+                  >
+                    <a :href="getNostrClientUrl('primal', selectedContent)" target="_blank" rel="noopener noreferrer" 
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
+                      <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
+                      <span>Primal.net</span>
+                    </a>
+                    <a :href="getNostrClientUrl('yakihonne', selectedContent)" target="_blank" rel="noopener noreferrer"
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
+                      <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
+                      <span>Yakihonne</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+              
               <p class="text-lg text-gray-600 mb-4">{{ selectedContent.description }}</p>
 
               <!-- Content Meta -->

@@ -24,8 +24,40 @@
       <!-- Article Preview -->
       <div v-else-if="articleEvent && !isUnlocked" class="space-y-6">
         <!-- Article Header -->
-        <div class="text-center">
-          <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ articleTitle }}</h1>
+        <div class="text-center relative">
+          <div class="flex items-center justify-center mb-4">
+            <h1 class="text-3xl font-bold text-gray-900">{{ articleTitle }}</h1>
+            
+            <!-- Open in Client Dropdown -->
+            <div v-if="articleEvent" class="relative ml-3" ref="dropdownRef">
+              <button
+                @click="toggleClientDropdown"
+                class="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center space-x-1 bg-purple-50 px-3 py-1 rounded-lg hover:bg-purple-100 transition-colors"
+              >
+                <IconExternalLink class="w-4 h-4" />
+                <span>Open in client</span>
+                <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+              </button>
+              
+              <!-- Client Dropdown -->
+              <div 
+                v-if="showClientDropdown"
+                class="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+              >
+                <a :href="getNostrClientUrl('primal', articleEvent.id)" target="_blank" rel="noopener noreferrer" 
+                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
+                  <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
+                  <span>Primal.net</span>
+                </a>
+                <a :href="getNostrClientUrl('yakihonne', articleEvent.id)" target="_blank" rel="noopener noreferrer"
+                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
+                  <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
+                  <span>Yakihonne</span>
+                </a>
+              </div>
+            </div>
+          </div>
+          
           <p class="text-lg text-gray-600 mb-6">{{ articlePreview }}</p>
           
           <!-- Article Meta -->
@@ -134,13 +166,16 @@
 
 <script setup>
 import { ref, onMounted, computed, inject, watch } from 'vue'
+import * as nip19 from 'nostr-tools/nip19'
 import { 
   IconArrowLeft, 
   IconBolt, 
   IconLoader, 
   IconCheck, 
   IconAlertCircle,
-  IconShare
+  IconShare,
+  IconExternalLink,
+  IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
 import { SimplePool } from 'nostr-tools/pool'
 import { nwcPaymentHandler } from '../utils/nwcPayment.js'
@@ -162,6 +197,8 @@ const isProcessingPayment = ref(false)
 const paymentStatus = ref('')
 const paymentInvoice = ref('')
 const nwcUrl = ref('')
+const showClientDropdown = ref(false)
+const dropdownRef = ref(null)
 
 // Computed properties
 const articleTitle = computed(() => {
@@ -319,6 +356,47 @@ const initiatePayment = async () => {
 const goBack = () => {
   currentPage.value = 'content'
   // Update URL
+
+// Toggle client dropdown
+const toggleClientDropdown = () => {
+  showClientDropdown.value = !showClientDropdown.value
+}
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event) => {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    showClientDropdown.value = false
+  }
+}
+
+// Get URL for different Nostr clients for long-form content
+const getNostrClientUrl = (client, eventId) => {
+  if (!eventId) return '#'
+  
+  try {
+    switch (client) {
+      case 'yakihonne':
+        // For long-form content, use neventEncode
+        return `https://yakihonne.com/${nip19.neventEncode({ id: eventId })}`
+      case 'primal':
+        return `https://primal.net/e/${eventId}`
+      default:
+        return `https://primal.net/e/${eventId}`
+    }
+  } catch (error) {
+    console.error('Failed to generate client URL:', error)
+    return '#'
+  }
+}
+
+// Add/remove event listener for dropdown
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
   const url = new URL(window.location)
   url.searchParams.delete('page')
   url.searchParams.delete('eventId')
