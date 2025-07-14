@@ -583,17 +583,17 @@ const summaryStats = computed(() => {
     <div v-else-if="isEchartsLoaded && VChart" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Daily Activity Chart -->
       <div class="card p-6">
-        <VChart :option="dailyActivityOption" style="height: 300px;" />
+        <VChart :autoresize="true" :option="dailyActivityOption" style="height: 300px;" />
       </div>
       
       <!-- Top Supporters Chart -->
       <div class="card p-6">
-        <VChart :option="topSupportersOption" style="height: 300px;" />
+        <VChart :autoresize="true" :option="topSupportersOption" style="height: 300px;" />
       </div>
       
       <!-- Amount Distribution Chart -->
       <div class="card p-6 lg:col-span-2">
-        <VChart :option="amountDistributionOption" style="height: 300px;" />
+        <VChart :autoresize="true" :option="amountDistributionOption" style="height: 300px;" />
       </div>
     </div>
 

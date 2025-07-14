@@ -427,7 +427,7 @@ const getPercentageChange = (current, type) => {
         
         <!-- Chart -->
         <div v-else-if="isEchartsLoaded && VChart" class="h-64 sm:h-80">
-          <VChart :option="chartOption" class="w-full h-full" />
+          <VChart :autoresize="true" :option="chartOption" class="w-full h-full" />
         </div>
         
         <!-- Loading State -->

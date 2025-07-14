@@ -215,12 +215,12 @@ const insights = computed(() => {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Revenue Trend -->
       <div class="bg-white/90 backdrop-blur-sm p-6 rounded-xl border border-orange-100/50 shadow-sm">
-        <VChart :option="revenueChartOption" style="height: 300px;" />
+        <VChart :autoresize="true" :option="revenueChartOption" style="height: 300px;" />
       </div>
       
       <!-- Content Performance -->
       <div class="bg-white/90 backdrop-blur-sm p-6 rounded-xl border border-orange-100/50 shadow-sm">
-        <VChart :option="performanceChartOption" style="height: 300px;" />
+        <VChart :autoresize="true" :option="performanceChartOption" style="height: 300px;" />
       </div>
     </div>
     
