@@ -2,6 +2,7 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { SimplePool } from 'nostr-tools/pool'
 import * as nip19 from 'nostr-tools/nip19'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import { initializeNWC } from '../utils/nwcClient.js'
 
 // Global state for Nostr authentication
 const currentUser = ref(null)
@@ -507,7 +508,15 @@ const logout = () => {
       localStorage.removeItem(key)
     })
     
+    // Clean up NWC client and relay manager
+    initializeNWC(null)
+    nostrRelayManager.cleanup()
+    
     console.log('User logged out successfully - cleared all Nostr data from localStorage')
+    
+    // Reload the page to reset all components
+    window.location.reload()
+    
     return true
   } catch (error) {
     console.error('Logout error:', error)
