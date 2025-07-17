@@ -36,6 +36,7 @@ const progress = computed(() => {
 
 // Format amount in sats
 const formatAmount = (amount) => {
+  if (amount === undefined || amount === null) return '0'
   // Convert from millisats to sats
   const sats = Math.floor(amount / 1000)
   return sats.toLocaleString()
