@@ -281,7 +281,6 @@ const stopCampaignZapAggregation = () => {
 export function useCampaigns() {
   const { currentUser, isAuthenticated } = useNostrAuth()
   const auth = useNostrAuth()
-  const { isAuthenticated, currentUser } = auth
   const { handleZapReceived } = useNotifications()
 
   // Fetch user's campaigns from Nostr relays
