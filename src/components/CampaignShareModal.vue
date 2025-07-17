@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { 
   IconShare, 
   IconX, 
@@ -9,9 +9,16 @@ import {
   IconMessageCircle, 
   IconLoader, 
   IconAlertCircle,
-  IconLink
+  IconLink,
+  IconHash,
+  IconTarget,
+  IconCode,
+  IconEye
 } from '@iconify-prerendered/vue-tabler'
 import { useCampaigns } from '../composables/useCampaigns.js'
+import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 
 const props = defineProps({
   campaign: {
@@ -23,6 +30,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const { shareCampaignOnNostr, isLoading: campaignsLoading } = useCampaigns()
+const { isAuthenticated, currentUser } = useNostrAuth()
 
 // UI state
 const copySuccess = ref('')
@@ -30,6 +38,13 @@ const customMessage = ref('')
 const isSharing = ref(false)
 const shareSuccess = ref(false)
 const shareError = ref('')
+const includeHashtags = ref(true)
+const defaultHashtags = ref(['zapgoal', 'nostr', 'fundraising', 'ZapTracker'])
+const customHashtags = ref([])
+const newHashtag = ref('')
+const showAdvancedOptions = ref(false)
+const publishedNoteId = ref(null)
+const showPreview = ref(false)
 
 // Generate share URL
 const shareUrl = computed(() => {
@@ -39,6 +54,61 @@ const shareUrl = computed(() => {
 // Generate share text
 const shareText = computed(() => {
   return `⚡ I'm raising sats! Support my campaign: ${props.campaign.title}`
+})
+
+// Complete message with URL always included
+const completeMessage = computed(() => {
+  const baseMessage = customMessage.value || shareText.value
+  
+  // Check if URL is already included in the message
+  if (baseMessage.includes(shareUrl.value)) {
+    return baseMessage
+  }
+  
+  // Add URL on a new line if not already included
+  return `${baseMessage}\n\n${shareUrl.value}`
+})
+
+// Generate hashtags for the note
+const combinedHashtags = computed(() => {
+  const tags = []
+  
+  if (includeHashtags.value) {
+    tags.push(...defaultHashtags.value)
+  }
+  
+  if (customHashtags.value.length > 0) {
+    tags.push(...customHashtags.value)
+  }
+  
+  return [...new Set(tags)] // Remove duplicates
+})
+
+// Generate preview of the final post
+const postPreview = computed(() => {
+  let preview = completeMessage.value
+  
+  // Add hashtags if any
+  if (combinedHashtags.value.length > 0) {
+    preview += '\n\n' + combinedHashtags.value.map(tag => `#${tag}`).join(' ')
+  }
+  
+  return preview
+})
+
+// Generate code preview of the tags
+const tagsPreview = computed(() => {
+  const tags = [
+    ['e', props.campaign.id, '', 'mention'],
+    ['goal', props.campaign.id]
+  ]
+  
+  // Add hashtags
+  combinedHashtags.value.forEach(tag => {
+    tags.push(['t', tag])
+  })
+  
+  return JSON.stringify(tags, null, 2)
 })
 
 // Copy to clipboard
@@ -56,15 +126,79 @@ const copyToClipboard = async (text, type) => {
 
 // Share on Nostr
 const shareOnNostr = async () => {
+  if (!isAuthenticated.value || !window.nostr) {
+    shareError.value = 'Nostr authentication required'
+    return
+  }
+  
   isSharing.value = true
   shareError.value = ''
+  publishedNoteId.value = null
   
   try {
-    await shareCampaignOnNostr(props.campaign.id, customMessage.value)
+    console.log('Publishing note with zapgoal reference...')
+    
+    // Use the complete message that always includes the URL
+    const messageContent = completeMessage.value
+    
+    // Prepare tags
+    const tags = [
+      // Reference the campaign as a zapgoal with the "goal" tag
+      ['goal', props.campaign.id],
+      
+      // Also reference the campaign with an "e" tag for better client compatibility
+      ['e', props.campaign.id, '', 'mention'],
+      
+      // Add hashtags as "t" tags
+      ...combinedHashtags.value.map(tag => ['t', tag])
+    ]
+    
+    // Create event
+    const eventTemplate = {
+      kind: 1, // Text note
+      created_at: Math.floor(Date.now() / 1000),
+      tags,
+      content: messageContent
+    }
+    
+    // Sign the event
+    let signedEvent
+    if (window.nostr?.signEvent) {
+      try {
+        signedEvent = await window.nostr.signEvent(eventTemplate)
+        // Verify the signed event
+        if (!verifyEvent(signedEvent)) {
+          console.warn('Zap request signature verification failed, using unsigned request')
+          signedEvent = eventTemplate
+        }
+      } catch (err) {
+        console.warn('Failed to sign zap request:', err)
+        signedEvent = eventTemplate
+      }
+    } else {
+      signedEvent = eventTemplate
+    }
+    
+    // Publish to Nostr relays
+    const result = await nostrRelayManager.publishEvent(signedEvent)
+    
+    if (result.successful === 0) {
+      throw new Error('Failed to publish to any relays')
+    }
+    
+    console.log('✅ Note published successfully:', {
+      eventId: signedEvent.id,
+      successfulRelays: result.successful,
+      failedRelays: result.failed
+    })
+    
+    // Store the published note ID
+    publishedNoteId.value = signedEvent.id
     shareSuccess.value = true
     
     // Reset form
     customMessage.value = ''
+    newHashtag.value = ''
     
     // Close modal after 2 seconds
     setTimeout(() => {
@@ -75,6 +209,32 @@ const shareOnNostr = async () => {
     console.error('Failed to share on Nostr:', error)
   } finally {
     isSharing.value = false
+  }
+}
+
+// Add a custom hashtag
+const addHashtag = () => {
+  if (!newHashtag.value.trim()) return
+  
+  // Remove # if present
+  let tag = newHashtag.value.trim()
+  if (tag.startsWith('#')) {
+    tag = tag.substring(1)
+  }
+  
+  // Only add if not already in the list
+  if (!customHashtags.value.includes(tag) && !defaultHashtags.value.includes(tag)) {
+    customHashtags.value.push(tag)
+  }
+  
+  newHashtag.value = ''
+}
+
+// Remove a custom hashtag
+const removeHashtag = (tag) => {
+  const index = customHashtags.value.indexOf(tag)
+  if (index !== -1) {
+    customHashtags.value.splice(index, 1)
   }
 }
 
@@ -95,6 +255,11 @@ const nativeShare = () => {
   } else {
     copyToClipboard(shareUrl.value, 'url')
   }
+}
+
+// Toggle preview
+const togglePreview = () => {
+  showPreview.value = !showPreview.value
 }
 </script>
 
@@ -185,11 +350,109 @@ const nativeShare = () => {
               <textarea
                 v-model="customMessage"
                 rows="2"
-                :placeholder="shareText"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
+                :placeholder="`⚡ I'm raising sats! Support my campaign: ${props.campaign.title}`"
               ></textarea>
             </div>
           </details>
+          
+          <!-- Advanced Options Toggle -->
+          <div class="mt-3">
+            <button 
+              @click="showAdvancedOptions = !showAdvancedOptions"
+              class="text-sm text-gray-600 hover:text-gray-800 flex items-center space-x-1"
+            >
+              <span>{{ showAdvancedOptions ? 'Hide' : 'Show' }} advanced options</span>
+              <IconHash class="w-3 h-3" />
+            </button>
+          </div>
+          
+          <!-- Advanced Options -->
+          <div v-if="showAdvancedOptions" class="mt-3 space-y-3">
+            <!-- Hashtags -->
+            <div>
+              <div class="flex items-center space-x-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="include-hashtags"
+                  v-model="includeHashtags"
+                  class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                />
+                <label for="include-hashtags" class="text-sm text-gray-700">Include default hashtags</label>
+              </div>
+              
+              <!-- Default Hashtags -->
+              <div v-if="includeHashtags" class="flex flex-wrap gap-2 mb-3">
+                <span
+                  v-for="tag in defaultHashtags"
+                  :key="tag"
+                  class="inline-flex items-center space-x-1 bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs"
+                >
+                  <IconHash class="w-3 h-3" />
+                  <span>{{ tag }}</span>
+                </span>
+              </div>
+              
+              <!-- Custom Hashtags -->
+              <div class="flex flex-wrap gap-2 mb-3">
+                <span
+                  v-for="tag in customHashtags"
+                  :key="tag"
+                  class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs"
+                >
+                  <IconHash class="w-3 h-3" />
+                  <span>{{ tag }}</span>
+                  <button @click="removeHashtag(tag)" class="text-orange-500 hover:text-orange-700">
+                    <IconX class="w-3 h-3" />
+                  </button>
+                </span>
+              </div>
+              
+              <!-- Add Custom Hashtag -->
+              <div class="flex space-x-2">
+                <input
+                  v-model="newHashtag"
+                  type="text"
+                  placeholder="Add custom hashtag..."
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  @keyup.enter="addHashtag"
+                />
+                <button
+                  @click="addHashtag"
+                  class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+            
+            <!-- ZapGoal Info -->
+          <!-- Simple ZapGoal Info -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+            <p class="text-blue-800">
+              <IconTarget class="w-3 h-3 inline-block mr-1" />
+              Your note will include a reference to this campaign, allowing zaps to be tracked across both the campaign and related notes.
+            </p>
+            
+            <!-- Preview Button -->
+            <button 
+              @click="togglePreview" 
+              class="w-full flex items-center justify-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm transition-colors"
+            >
+              <IconEye class="w-4 h-4" />
+              <span>{{ showPreview ? 'Hide' : 'Show' }} Post Preview</span>
+            </button>
+            
+            <!-- Post Preview -->
+            <div v-if="showPreview" class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-sm font-medium text-gray-700">Post Preview</h4>
+              </div>
+              <div class="bg-white p-3 rounded border border-gray-200 text-sm whitespace-pre-wrap">
+                {{ postPreview }}
+              </div>
+            </div>
+          </div>
         </div>
         
         <!-- Success Indicator -->
@@ -197,7 +460,32 @@ const nativeShare = () => {
           <IconCheck class="w-4 h-4 mr-1" />
           Link copied to clipboard!
         </p>
-      </div>
+        
+        <!-- Published Note Success -->
+        <div v-if="publishedNoteId" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3">
+          <div class="flex items-start space-x-2">
+            <IconCheck class="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 class="text-sm font-medium text-green-800 mb-1">Note Published Successfully</h4>
+              <p class="text-xs text-green-700 mb-2">
+                Your note has been published to the Nostr network with a reference to this campaign.
+              </p>
+              <div class="flex space-x-2">
+                <a 
+                  :href="`https://primal.net/e/${publishedNoteId}`" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  class="text-xs text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors flex items-center space-x-1"
+                >
+                  <IconExternalLink class="w-3 h-3" />
+                  <span>View on Primal</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+  </div>
     </div>
   </div>
 </template>
