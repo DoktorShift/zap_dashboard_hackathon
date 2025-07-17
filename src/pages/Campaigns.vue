@@ -36,16 +36,7 @@ import CampaignShareModal from '../components/CampaignShareModal.vue'
 const changePage = inject('changePage')
 
 // Use composables
-const nostrAuth = useNostrAuth()
-const { currentUser, login } = nostrAuth
-
-// Create local ref for isAuthenticated to ensure it's always defined
-const isAuthenticated = ref(false)
-
-// Watch for changes in the composable's isAuthenticated value
-watch(() => nostrAuth.isAuthenticated, (newValue) => {
-  isAuthenticated.value = newValue
-}, { immediate: true })
+const { currentUser, login, isAuthenticated } = toRefs(useNostrAuth())
 
 const { 
   userCampaigns, 
