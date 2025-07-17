@@ -146,7 +146,7 @@ const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
   // Check for duplicates by zap ID
   const exists = existingZaps.find(zap => zap.id === zapData.id)
   if (exists) {
-    console.log('Duplicate zap found for campaign, skipping:', campaignId, zapData.id)
+    console.log(`⚠️ Duplicate zap found for campaign ${campaignId.substring(0, 16)}..., skipping: ${zapData.id.substring(0, 16)}...`)
     return
   }
   
@@ -154,7 +154,11 @@ const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
   existingZaps.unshift(zapData) // Add to beginning (newest first)
   campaignAggregatedZaps.set(campaignId, existingZaps)
   
-  console.log(`✅ Added zap to campaign ${campaignId}: ${zapData.amount} sats from ${zapData.zapperPubkey?.substring(0, 8)}...`)
+  console.log(`✅ Added zap to campaign ${campaignId.substring(0, 16)}...: ${zapData.amount} sats from ${zapData.zapperPubkey?.substring(0, 8)}...`)
+  console.log(`Campaign now has ${existingZaps.length} total zaps`)
+  
+  // Save to localStorage after adding
+  saveCampaignAggregatedZaps()
 }
 
 // Helper function to resolve campaign ID from a zapped event (kind:1 note)
@@ -163,7 +167,9 @@ const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
   if (kind1NotesCache.has(zappedEventId)) {
     const cachedNote = kind1NotesCache.get(zappedEventId)
     const goalTag = cachedNote.tags.find(tag => tag[0] === 'goal')
-    return goalTag ? goalTag[1] : null
+    const campaignId = goalTag ? goalTag[1] : null
+    console.log(`✅ Resolved campaign ID from cache: ${campaignId?.substring(0, 16)}... for note ${zappedEventId.substring(0, 16)}...`)
+    return campaignId
   }
 
   // Check if we're already fetching this note
@@ -182,7 +188,7 @@ const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
       })
       
       if (!noteEvent) {
-        console.log(`❌ Kind:1 note not found: ${zappedEventId}`)
+        console.log(`❌ Kind:1 note not found: ${zappedEventId.substring(0, 16)}...`)
         return null
       }
       
@@ -197,12 +203,13 @@ const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
       if (campaignId) {
         console.log(`✅ Resolved campaign ID from kind:1 note: ${campaignId.substring(0, 16)}...`)
       } else {
-        console.log(`⚠️ No goal tag found in kind:1 note: ${zappedEventId}`)
+        console.log(`⚠️ No goal tag found in kind:1 note: ${zappedEventId.substring(0, 16)}...`)
+        console.log('Note tags:', noteEvent.tags)
       }
       
       return campaignId
     } catch (error) {
-      console.error(`❌ Failed to fetch kind:1 note ${zappedEventId}:`, error)
+      console.error(`❌ Failed to fetch kind:1 note ${zappedEventId.substring(0, 16)}...:`, error)
       return null
     } finally {
       // Clean up the promise
@@ -218,6 +225,7 @@ const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
 // Helper function to fetch kind:1 notes linked to campaigns
 const fetchLinkedNotesForCampaigns = async () => {
   if (!isAuthenticated.value || userCampaigns.value.length === 0) {
+    console.log('Cannot fetch linked notes: not authenticated or no campaigns')
     return
   }
   
@@ -225,6 +233,7 @@ const fetchLinkedNotesForCampaigns = async () => {
     console.log('🔍 Fetching kind:1 notes linked to campaigns...')
     
     const campaignIds = userCampaigns.value.map(campaign => campaign.id)
+    console.log('Looking for notes with goal tags matching:', campaignIds.map(id => id.substring(0, 8) + '...'))
     
     // Subscribe to kind:1 notes authored by current user that reference our campaigns
     const linkedNotesSubscription = nostrRelayManager.subscribeToEvents([
@@ -237,6 +246,7 @@ const fetchLinkedNotesForCampaigns = async () => {
     ], {
       onevent: (noteEvent) => {
         console.log(`📝 Found linked kind:1 note: ${noteEvent.id.substring(0, 16)}...`)
+        console.log('Note tags:', noteEvent.tags)
         
         // Cache the note
         kind1NotesCache.set(noteEvent.id, noteEvent)
@@ -245,6 +255,7 @@ const fetchLinkedNotesForCampaigns = async () => {
         const goalTag = noteEvent.tags.find(tag => tag[0] === 'goal')
         if (goalTag && goalTag[1]) {
           const campaignId = goalTag[1]
+          console.log(`🎯 Note references campaign: ${campaignId.substring(0, 16)}...`)
           
           // Find the campaign and add this note ID to its linkedNoteIds
           const campaign = userCampaigns.value.find(c => c.id === campaignId)
@@ -257,8 +268,15 @@ const fetchLinkedNotesForCampaigns = async () => {
             if (!campaign.linkedNoteIds.includes(noteEvent.id)) {
               campaign.linkedNoteIds.push(noteEvent.id)
               console.log(`✅ Added linked note ${noteEvent.id.substring(0, 16)}... to campaign ${campaignId.substring(0, 16)}...`)
+              console.log(`Campaign "${campaign.title}" now has ${campaign.linkedNoteIds.length} linked notes`)
+            } else {
+              console.log(`⚠️ Note ${noteEvent.id.substring(0, 16)}... already linked to campaign`)
             }
+          } else {
+            console.log(`❌ Campaign not found for goal tag: ${campaignId.substring(0, 16)}...`)
           }
+        } else {
+          console.log(`⚠️ No goal tag found in note: ${noteEvent.id.substring(0, 16)}...`)
         }
       },
       oneose: () => {
@@ -313,26 +331,31 @@ const startCampaignZapAggregation = async () => {
       {
         kinds: [9735], // Zap receipts
         '#e': allRelevantEventIds, // Zap receipts that reference our campaigns OR linked notes
-        '#p': [currentUser.value.pubkey], // Only zaps to events authored by us
+        // Remove the #p filter to catch all zaps to our events, regardless of who sent them
         limit: 200 // Increased limit since we're being more specific
       }
     ], {
       onevent: async (zapEvent) => {
         // Deduplicate using processed receipt IDs
         if (processedCampaignZapReceiptIds.has(zapEvent.id)) {
+          console.log(`⚠️ Duplicate zap receipt, skipping: ${zapEvent.id.substring(0, 16)}...`)
           return
         }
         processedCampaignZapReceiptIds.add(zapEvent.id)
         
         console.log(`⚡ Processing zap receipt for campaign aggregation: ${zapEvent.id.substring(0, 16)}...`)
+        console.log('Zap receipt tags:', zapEvent.tags)
         
         try {
           // Extract the zapped event ID from the e tag
           const zappedEventId = extractEventId(zapEvent)
           if (!zappedEventId) {
-            console.log('No campaign ID found in zap receipt, skipping')
+            console.log('❌ No event ID found in zap receipt e tag, skipping')
+            console.log('Zap receipt tags:', zapEvent.tags)
             return
           }
+          
+          console.log(`🎯 Zapped event ID: ${zappedEventId.substring(0, 16)}...`)
           
           let campaignId = null
           
@@ -343,16 +366,19 @@ const startCampaignZapAggregation = async () => {
           }
           // Check if the zapped event is a linked note (kind:1)
           else if (linkedNoteIds.includes(zappedEventId)) {
+            console.log(`🔍 Zap to linked note, resolving campaign ID: ${zappedEventId.substring(0, 16)}...`)
             campaignId = await resolveCampaignIdFromZappedEvent(zappedEventId)
             if (campaignId) {
               console.log(`✅ Zap to linked note resolved to campaign: ${campaignId.substring(0, 16)}...`)
             } else {
-              console.log('Failed to resolve campaign ID from linked note, skipping')
+              console.log('❌ Failed to resolve campaign ID from linked note, skipping')
               return
             }
           }
           else {
-            console.log('Zap receipt references event not in our tracking list, skipping:', zappedEventId)
+            console.log('❌ Zap receipt references event not in our tracking list, skipping:', zappedEventId.substring(0, 16) + '...')
+            console.log('- Campaign IDs we track:', campaignIds.map(id => id.substring(0, 8) + '...'))
+            console.log('- Linked note IDs we track:', linkedNoteIds.map(id => id.substring(0, 8) + '...'))
             return
           }
           
@@ -363,6 +389,9 @@ const startCampaignZapAggregation = async () => {
           const message = extractZapMessage(zapEvent)
           const bolt11 = extractBolt11(zapEvent)
           
+          console.log(`💰 Zap amount: ${amount} sats`)
+          console.log(`💬 Zap message: "${message}"`)
+          
           // Extract zapper pubkey from zap request in description tag
           let zapperPubkey = zapEvent.pubkey // fallback to receipt pubkey
           try {
@@ -371,6 +400,7 @@ const startCampaignZapAggregation = async () => {
               const zapRequest = JSON.parse(descriptionTag[1])
               if (zapRequest.pubkey) {
                 zapperPubkey = zapRequest.pubkey
+                console.log(`👤 Zapper pubkey from request: ${zapperPubkey.substring(0, 16)}...`)
               }
             }
           } catch (error) {
@@ -389,6 +419,13 @@ const startCampaignZapAggregation = async () => {
             zappedEventId, // Track which event was actually zapped
             rawZapEvent: zapEvent
           }
+          
+          console.log(`📊 Created zap data:`, {
+            id: zapData.id.substring(0, 16) + '...',
+            amount: zapData.amount,
+            campaignId: zapData.campaignId.substring(0, 16) + '...',
+            zappedEventId: zapData.zappedEventId.substring(0, 16) + '...'
+          })
           
           // Add to campaign aggregated zaps
           addZapToCampaignAggregatedZaps(campaignId, zapData)
