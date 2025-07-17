@@ -793,15 +793,15 @@ export function useCampaigns() {
       // Create content with custom message or default
       const content = customMessage || 
         `I'm raising sats with #ZapTracker! Support my campaign: ${campaign.title}\n\n${shareUrl}`
-      
-      // Create event
-      const eventTemplate = {
-        kind: 1, // Text note
-        created_at: Math.floor(Date.now() / 1000),
         tags: [
-          ['goal', campaignId],
-          ['e', campaignId],
-          ['p', campaign.pubkey]
+          // CRITICAL: Reference the campaign as a zapgoal with the "goal" tag (NIP-75)
+          ['goal', props.campaign.id],
+          
+          // Also reference the campaign with an "e" tag for better client compatibility
+          ['e', props.campaign.id],
+          
+          // Reference the campaign creator
+          ['p', props.campaign.pubkey]
         ],
         content
       }
