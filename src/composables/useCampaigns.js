@@ -2,8 +2,8 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import { useContentZaps } from './useContentZaps.js'
 import { useNotifications } from './useNotifications.js'
+import { useNostrAuth } from './useNostrAuth.js'
 import { extractAmountFromBolt11 } from '../utils/invoiceUtils.js'
 
 // Global state for campaigns
@@ -281,7 +281,8 @@ const stopCampaignZapAggregation = () => {
 
 export function useCampaigns() {
   const { currentUser, isAuthenticated } = useNostrAuth()
-  const { startZapTracking, getZapsForContent, getTotalZapAmount } = useContentZaps()
+  const auth = useNostrAuth()
+  const { isAuthenticated, currentUser } = auth
   const { handleZapReceived } = useNotifications()
 
   // Fetch user's campaigns from Nostr relays
