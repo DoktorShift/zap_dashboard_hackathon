@@ -109,7 +109,7 @@ const shareOnTelegram = () => {
 
 // Native share if available
 const nativeShare = () => {
-  if (navigator.share) {
+  if (navigator && navigator.share) {
     navigator.share({
       title: props.campaign.title,
       text: shareText.value,
@@ -242,7 +242,7 @@ const getPreviewText = (platform) => {
           
           <!-- Native Share Button -->
           <button
-            v-if="navigator.share"
+            v-if="typeof navigator !== 'undefined' && navigator.share"
             @click="nativeShare"
             class="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transform hover:scale-105"
           >
