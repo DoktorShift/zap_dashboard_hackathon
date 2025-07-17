@@ -725,7 +725,7 @@ export function useCampaigns() {
       
       // Create content with custom message or default
       const content = customMessage || 
-        `⚡ I'm raising sats! Support my campaign: ${campaign.title}\n\n${shareUrl}`
+        `I'm raising sats with #ZapTracker! Support my campaign: ${campaign.title}\n\n${shareUrl}`
       
       // Create event
       const eventTemplate = {
