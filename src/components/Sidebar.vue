@@ -7,7 +7,7 @@ import {
   IconChartBar, 
   IconMessageCircle, 
   IconFileText, 
-  IconGift, 
+  IconTarget, 
   IconShoppingCart, 
   IconWallet, 
   IconCreditCard,

@@ -2,6 +2,7 @@
 import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from 'vue'
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/Sidebar.vue'
+import { IconTarget } from '@iconify-prerendered/vue-tabler'
 import { useContentZaps } from './composables/useContentZaps.js'
 import TopBar from './components/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
@@ -333,7 +334,7 @@ const components = {
   'chat-zaps': ChatZaps,
   content: Content,
   'content-unlock': ContentUnlock,
-  campaigns: Campaigns,
+  'campaigns': Campaigns,
   'campaign-view': CampaignView,
   'campaign-not-found': CampaignNotFound,
   'mini-pos': MiniPoS,

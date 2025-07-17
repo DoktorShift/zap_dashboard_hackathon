@@ -48,4 +48,4 @@ const goToDashboard = () => {
   error.value = null
   changePage('dashboard')
 }
-</script> 
+</script>
