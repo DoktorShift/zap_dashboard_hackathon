@@ -360,7 +360,7 @@ const nativeShare = () => {
                 v-model="customMessage"
                 rows="2"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
-                :placeholder="`⚡ I'm raising sats! Support my campaign: ${props.campaign.title}`"
+                :placeholder="`I'm raising sats with #ZapTracker! Support my campaign: ${props.campaign.title}`"
               ></textarea>
             </div>
           </details>
