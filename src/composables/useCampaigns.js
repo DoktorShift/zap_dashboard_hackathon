@@ -772,7 +772,7 @@ export function useCampaigns() {
   }
 
   // Initialize when the composable is used
-  onMounted(() => {
+  onMounted(async () => {
     // Load campaign aggregated zaps from storage
     loadCampaignAggregatedZaps()
     
@@ -784,7 +784,7 @@ export function useCampaigns() {
   })
 
   // Watch for authentication changes
-  watch(isAuthenticated, (authenticated) => {
+  watch(isAuthenticated, async (authenticated) => {
     if (authenticated) {
       fetchUserCampaigns()
       await startCampaignZapAggregation()
