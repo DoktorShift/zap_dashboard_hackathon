@@ -1,9 +1,10 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
+import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import { useContentZaps } from './useContentZaps.js'
 import { useNotifications } from './useNotifications.js'
+import { extractAmountFromBolt11 } from '../utils/invoiceUtils.js'
 
 // Global state for campaigns
 const userCampaigns = ref([])
@@ -18,18 +19,283 @@ const processedEventIds = new Set()
 // Campaign zaps tracking
 const campaignZaps = reactive(new Map()) // Map<eventId, zap[]>
 
+// NEW: Campaign-specific zap aggregation state (independent of useContentZaps)
+const campaignAggregatedZaps = reactive(new Map()) // Map<campaignId, zap[]>
+const processedCampaignZapReceiptIds = new Set() // Track processed zap receipt IDs
+let campaignZapSubscription = null // Track campaign zap subscription
+
+// Storage key for campaign aggregated zaps
+const CAMPAIGN_AGGREGATED_ZAPS_KEY = 'campaign_aggregated_zaps'
+
 // Campaign kind as per NIP-75
 const CAMPAIGN_KIND = 9041
 
+// Helper functions for zap data extraction (adapted from useContentZaps)
+const extractBolt11 = (zapEvent) => {
+  const bolt11Tag = zapEvent.tags.find(tag => tag[0] === 'bolt11')
+  return bolt11Tag ? bolt11Tag[1] : null
+}
+
+const extractZapAmount = (zapEvent) => {
+  try {
+    // Look for amount in description tag or bolt11
+    const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+    if (descriptionTag && descriptionTag[1]) {
+      const zapRequest = JSON.parse(descriptionTag[1])
+      
+      // Check for amount tag in the zap request
+      const amountTag = zapRequest.tags?.find(tag => tag[0] === 'amount')
+      if (amountTag && amountTag[1]) {
+        return Math.floor(parseInt(amountTag[1]) / 1000) // Convert msats to sats
+      }
+    }
+    
+    // Fallback: try to extract from bolt11
+    const bolt11Tag = zapEvent.tags.find(tag => tag[0] === 'bolt11')
+    if (bolt11Tag && bolt11Tag[1]) {
+      return extractAmountFromBolt11(bolt11Tag[1])
+    }
+    
+    return 0
+  } catch (error) {
+    console.warn('Failed to extract zap amount:', error)
+    return 0
+  }
+}
+
+const extractZapMessage = (zapEvent) => {
+  try {
+    const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+    if (descriptionTag && descriptionTag[1]) {
+      const zapRequest = JSON.parse(descriptionTag[1])
+      return zapRequest.content || ''
+    }
+    return ''
+  } catch (error) {
+    return ''
+  }
+}
+
+const extractEventId = (zapEvent) => {
+  try {
+    // First check for e tag in the zap receipt itself
+    const eTag = zapEvent.tags.find(tag => tag[0] === 'e')
+    if (eTag && eTag[1]) {
+      return eTag[1]
+    }
+    
+    // If not found, check in the description tag (zap request)
+    const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+    if (descriptionTag && descriptionTag[1]) {
+      const zapRequest = JSON.parse(descriptionTag[1])
+      
+      // Check for e tag in the zap request
+      const requestETag = zapRequest.tags?.find(tag => tag[0] === 'e')
+      if (requestETag && requestETag[1]) {
+        return requestETag[1]
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.warn('Failed to extract event ID from zap receipt:', error)
+    return null
+  }
+}
+
+// Load campaign aggregated zaps from localStorage
+const loadCampaignAggregatedZaps = () => {
+  try {
+    const stored = localStorage.getItem(CAMPAIGN_AGGREGATED_ZAPS_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Convert plain object back to Map
+      Object.entries(parsed).forEach(([campaignId, zaps]) => {
+        campaignAggregatedZaps.set(campaignId, zaps)
+      })
+      console.log('Loaded campaign aggregated zaps from storage:', campaignAggregatedZaps.size, 'campaigns')
+    }
+  } catch (error) {
+    console.error('Failed to load campaign aggregated zaps from storage:', error)
+  }
+}
+
+// Save campaign aggregated zaps to localStorage
+const saveCampaignAggregatedZaps = () => {
+  try {
+    // Convert Map to plain object for JSON serialization
+    const toSave = Object.fromEntries(campaignAggregatedZaps)
+    localStorage.setItem(CAMPAIGN_AGGREGATED_ZAPS_KEY, JSON.stringify(toSave))
+    console.log('Saved campaign aggregated zaps to storage:', campaignAggregatedZaps.size, 'campaigns')
+  } catch (error) {
+    console.error('Failed to save campaign aggregated zaps to storage:', error)
+  }
+}
+
+// Add zap to campaign aggregated zaps with deduplication
+const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
+  if (!campaignId || !zapData) return
+  
+  // Get existing zaps for this campaign
+  const existingZaps = campaignAggregatedZaps.get(campaignId) || []
+  
+  // Check for duplicates by zap ID
+  const exists = existingZaps.find(zap => zap.id === zapData.id)
+  if (exists) {
+    console.log('Duplicate zap found for campaign, skipping:', campaignId, zapData.id)
+    return
+  }
+  
+  // Add new zap
+  existingZaps.unshift(zapData) // Add to beginning (newest first)
+  campaignAggregatedZaps.set(campaignId, existingZaps)
+  
+  console.log(`✅ Added zap to campaign ${campaignId}: ${zapData.amount} sats from ${zapData.zapperPubkey?.substring(0, 8)}...`)
+}
+
+// Start campaign zap aggregation listener
+const startCampaignZapAggregation = async (authState) => {
+  if (!authState?.value || campaignZapSubscription) {
+    console.log('Campaign zap aggregation already active or not authenticated')
+    return
+  }
+
+  try {
+    console.log('🔍 Starting campaign zap aggregation listener...')
+    
+    // Subscribe to all zap receipts (kind 9735)
+    campaignZapSubscription = nostrRelayManager.subscribeToEvents([
+      {
+        kinds: [9735], // Zap receipts
+        limit: 100
+      }
+    ], {
+      onevent: async (zapEvent) => {
+        // Deduplicate using processed receipt IDs
+        if (processedCampaignZapReceiptIds.has(zapEvent.id)) {
+          return
+        }
+        processedCampaignZapReceiptIds.add(zapEvent.id)
+        
+        console.log(`⚡ Processing zap receipt for campaign aggregation: ${zapEvent.id.substring(0, 16)}...`)
+        
+        try {
+          // Extract the directly zapped event ID
+          const directZappedEventId = extractEventId(zapEvent)
+          if (!directZappedEventId) {
+            console.log('No event ID found in zap receipt, skipping')
+            return
+          }
+          
+          // Fetch the directly zapped event with timeout
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Fetch timeout')), 10000)
+          )
+          
+          const directZappedEvent = await Promise.race([
+            nostrRelayManager.getEvent({
+              ids: [directZappedEventId]
+            }),
+            timeoutPromise
+          ])
+          
+          if (!directZappedEvent) {
+            console.log('Could not fetch directly zapped event:', directZappedEventId)
+            return
+          }
+          
+          // Check if the zapped event has a goal tag pointing to a campaign
+          const goalTag = directZappedEvent.tags.find(tag => tag[0] === 'goal')
+          if (!goalTag || !goalTag[1]) {
+            console.log('No goal tag found in zapped event, not a campaign-related zap')
+            return
+          }
+          
+          const campaignId = goalTag[1]
+          console.log(`Found campaign reference in zapped event: ${campaignId}`)
+          
+          // Extract zap data
+          const amount = extractZapAmount(zapEvent)
+          const message = extractZapMessage(zapEvent)
+          const bolt11 = extractBolt11(zapEvent)
+          
+          // Extract zapper pubkey from zap request in description tag
+          let zapperPubkey = zapEvent.pubkey // fallback to receipt pubkey
+          try {
+            const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+            if (descriptionTag && descriptionTag[1]) {
+              const zapRequest = JSON.parse(descriptionTag[1])
+              if (zapRequest.pubkey) {
+                zapperPubkey = zapRequest.pubkey
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to extract zapper pubkey from zap request:', error)
+          }
+          
+          // Create zap data object
+          const zapData = {
+            id: zapEvent.id, // Use zap receipt ID as unique identifier
+            amount,
+            zapperPubkey,
+            timestamp: new Date(zapEvent.created_at * 1000).toISOString(),
+            message,
+            bolt11,
+            directZappedEventId,
+            campaignId,
+            rawZapEvent: zapEvent,
+            rawZappedEvent: directZappedEvent
+          }
+          
+          // Add to campaign aggregated zaps
+          addZapToCampaignAggregatedZaps(campaignId, zapData)
+          
+        } catch (error) {
+          console.error('Error processing zap for campaign aggregation:', error)
+        }
+      },
+      oneose: () => {
+        console.log('📡 End of stored zap events for campaign aggregation')
+      },
+      onclose: (reason) => {
+        console.log('🔌 Campaign zap aggregation subscription closed:', reason)
+        campaignZapSubscription = null
+      }
+    })
+    
+    console.log('✅ Campaign zap aggregation listener started')
+    
+  } catch (error) {
+    console.error('❌ Failed to start campaign zap aggregation:', error)
+  }
+}
+
+// Stop campaign zap aggregation listener
+const stopCampaignZapAggregation = () => {
+  if (campaignZapSubscription) {
+    campaignZapSubscription.close()
+    campaignZapSubscription = null
+    console.log('🛑 Stopped campaign zap aggregation listener')
+  }
+}
+
 export function useCampaigns() {
-  const { currentUser, isAuthenticated } = useNostrAuth()
-  const { startZapTracking, getZapsForContent, getTotalZapAmount } = useContentZaps()
+  const auth = useNostrAuth()
+  const { currentUser } = auth
+  const isAuthenticated = auth.isAuthenticated
+  const { startZapTracking } = useContentZaps()
   const { handleZapReceived } = useNotifications()
 
   // Fetch user's campaigns from Nostr relays
   const fetchUserCampaigns = async () => {
-    if (!isAuthenticated.value || !currentUser.value?.pubkey) {
+    if (!isAuthenticated.value) {
       console.log('Not authenticated, cannot fetch campaigns')
+      return
+    }
+    
+    // Prevent multiple simultaneous subscriptions
+    if (activeSubscriptions.has('user-campaigns')) {
+      console.log('Campaign subscription already active')
       return
     }
 
@@ -405,7 +671,9 @@ export function useCampaigns() {
     
     if (!campaign) return { current: 0, goal: 0, percentage: 0 }
     
-    const raisedAmount = getTotalZapAmount(campaignId) // in sats
+    // Use campaign aggregated zaps instead of content zaps
+    const campaignZaps = campaignAggregatedZaps.get(campaignId) || []
+    const raisedAmount = campaignZaps.reduce((sum, zap) => sum + zap.amount, 0) // in sats
     const goalAmount = Math.floor(campaign.goalAmount / 1000) // convert millisats to sats
     
     const percentage = goalAmount > 0 ? Math.min(100, Math.floor((raisedAmount / goalAmount) * 100)) : 0
@@ -465,7 +733,7 @@ export function useCampaigns() {
       
       // Create content with custom message or default
       const content = customMessage || 
-        `⚡ I'm raising sats! Support my campaign: ${campaign.title}\n\n${shareUrl}`
+        `I'm raising sats with #ZapTracker! Support my campaign: ${campaign.title}\n\n${shareUrl}`
       
       // Create event
       const eventTemplate = {
@@ -512,21 +780,43 @@ export function useCampaigns() {
   }
 
   // Initialize when the composable is used
-  onMounted(() => {
+  onMounted(async () => {
+    // Load campaign aggregated zaps from storage
+    loadCampaignAggregatedZaps()
+    
     if (isAuthenticated.value) {
-      fetchUserCampaigns()
+      // Add delay to prevent too many concurrent requests
+      setTimeout(() => {
+        fetchUserCampaigns()
+      }, 1000)
+      
+      // Start campaign zap aggregation
+      setTimeout(async () => {
+        await startCampaignZapAggregation(isAuthenticated)
+      }, 2000)
     }
   })
 
   // Watch for authentication changes
-  watch(isAuthenticated, (authenticated) => {
+  watch(isAuthenticated, async (authenticated) => {
     if (authenticated) {
-      fetchUserCampaigns()
+      // Add delays to prevent concurrent request overload
+      setTimeout(() => {
+        fetchUserCampaigns()
+      }, 500)
+      
+      setTimeout(async () => {
+        await startCampaignZapAggregation(isAuthenticated)
+      }, 1500)
     } else {
       // Clear campaigns when logged out
       userCampaigns.value = []
+      stopCampaignZapAggregation()
     }
   })
+  
+  // Watch for changes to campaign aggregated zaps and save to storage
+  watch(campaignAggregatedZaps, saveCampaignAggregatedZaps, { deep: true })
 
   // Cleanup on unmount
   onUnmounted(() => {
@@ -535,6 +825,9 @@ export function useCampaigns() {
       subscription.close()
     })
     activeSubscriptions.clear()
+    
+    // Stop campaign zap aggregation
+    stopCampaignZapAggregation()
   })
 
   return {
@@ -556,6 +849,11 @@ export function useCampaigns() {
     isCampaignExpired,
     isCampaignCompleted,
     getCampaignStatus,
+    
+    // NEW: Campaign zap aggregation
+    campaignAggregatedZaps: computed(() => campaignAggregatedZaps),
+    startCampaignZapAggregation,
+    stopCampaignZapAggregation,
     
     // Constants
     CAMPAIGN_KIND

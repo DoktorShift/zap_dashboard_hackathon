@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, inject, watch } from 'vue'
+import { ref, computed, onMounted, inject, watch, toRefs } from 'vue'
 import { 
   IconTarget, 
   IconPlus, 
@@ -21,7 +21,10 @@ import {
   IconClock,
   IconUsers,
   IconArrowRight,
-  IconEye
+  IconEye,
+  IconCheck,
+  IconGrid,
+  IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useCampaigns } from '../composables/useCampaigns.js'
@@ -36,7 +39,10 @@ import CampaignShareModal from '../components/CampaignShareModal.vue'
 const changePage = inject('changePage')
 
 // Use composables
-const { isAuthenticated, currentUser, login } = useNostrAuth()
+const auth = useNostrAuth()
+const { currentUser, login } = auth
+const isAuthenticated = auth.isAuthenticated
+
 const { 
   userCampaigns, 
   isLoading, 
@@ -613,6 +619,7 @@ watch(isAuthenticated, async (isAuth) => {
   <CampaignCreateModal
     v-if="showCreateModal"
     :campaign="selectedCampaign"
+    :isAuthenticated="isAuthenticated"
     @close="showCreateModal = false; selectedCampaign = null"
   />
 
@@ -628,6 +635,7 @@ watch(isAuthenticated, async (isAuth) => {
   <CampaignShareModal
     v-if="showShareModal"
     :campaign="selectedCampaign"
+    :isAuthenticated="isAuthenticated"
     @close="showShareModal = false; selectedCampaign = null"
   />
 </template>
