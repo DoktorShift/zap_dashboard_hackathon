@@ -154,8 +154,8 @@ const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
 }
 
 // Start campaign zap aggregation listener
-const startCampaignZapAggregation = async () => {
-  if (!isAuthenticated || campaignZapSubscription) {
+const startCampaignZapAggregation = async (authState) => {
+  if (!authState?.value || campaignZapSubscription) {
     console.log('Campaign zap aggregation already active or not authenticated')
     return
   }
@@ -280,15 +280,22 @@ const stopCampaignZapAggregation = () => {
 }
 
 export function useCampaigns() {
-  const { currentUser, isAuthenticated } = useNostrAuth()
   const auth = useNostrAuth()
+  const { currentUser } = auth
+  const isAuthenticated = auth.isAuthenticated
   const { startZapTracking } = useContentZaps()
   const { handleZapReceived } = useNotifications()
 
   // Fetch user's campaigns from Nostr relays
   const fetchUserCampaigns = async () => {
-    if (!isAuthenticated.value || campaignZapSubscription) {
+    if (!isAuthenticated.value) {
       console.log('Not authenticated, cannot fetch campaigns')
+      return
+    }
+    
+    // Prevent multiple simultaneous subscriptions
+    if (activeSubscriptions.has('user-campaigns')) {
+      console.log('Campaign subscription already active')
       return
     }
 
@@ -778,17 +785,29 @@ export function useCampaigns() {
     loadCampaignAggregatedZaps()
     
     if (isAuthenticated.value) {
-      fetchUserCampaigns()
+      // Add delay to prevent too many concurrent requests
+      setTimeout(() => {
+        fetchUserCampaigns()
+      }, 1000)
+      
       // Start campaign zap aggregation
-      await startCampaignZapAggregation()
+      setTimeout(async () => {
+        await startCampaignZapAggregation(isAuthenticated)
+      }, 2000)
     }
   })
 
   // Watch for authentication changes
   watch(isAuthenticated, async (authenticated) => {
     if (authenticated) {
-      fetchUserCampaigns()
-      await startCampaignZapAggregation()
+      // Add delays to prevent concurrent request overload
+      setTimeout(() => {
+        fetchUserCampaigns()
+      }, 500)
+      
+      setTimeout(async () => {
+        await startCampaignZapAggregation(isAuthenticated)
+      }, 1500)
     } else {
       // Clear campaigns when logged out
       userCampaigns.value = []
