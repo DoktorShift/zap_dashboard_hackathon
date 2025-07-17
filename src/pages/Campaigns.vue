@@ -39,7 +39,7 @@ import CampaignShareModal from '../components/CampaignShareModal.vue'
 const changePage = inject('changePage')
 
 // Use composables
-const { currentUser, login, isAuthenticated } = toRefs(useNostrAuth())
+const { currentUser, login, isAuthenticated } = useNostrAuth()
 
 const { 
   userCampaigns, 
