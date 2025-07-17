@@ -174,7 +174,7 @@ export function useCampaigns() {
   // Process campaign event into campaign object
   const processCampaignEvent = (event) => {
     // Extract campaign data from event
-    console.log('Processing campaign event:', event);
+    console.log('Processing campaign event with ID:', event.id);
     
     // Ensure we have a valid event
     if (!event || !event.id) {
@@ -225,6 +225,10 @@ export function useCampaigns() {
 
     isLoading.value = true
     error.value = ''
+    
+    // Generate a unique client-side ID to prevent duplicates
+    const clientId = `campaign_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    console.log(`Starting campaign publication with client ID: ${clientId}`)
 
     try {
       console.log('Creating new campaign:', campaignData.title)
@@ -283,6 +287,7 @@ export function useCampaigns() {
       // Log the complete event for debugging
       console.log('Publishing campaign event:', {
         id: signedEvent.id,
+        clientId,
         kind: signedEvent.kind,
         pubkey: signedEvent.pubkey,
         created_at: signedEvent.created_at,
@@ -295,22 +300,30 @@ export function useCampaigns() {
       
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
+      } else {
+        console.log(`✅ Campaign published successfully with client ID ${clientId}:`, {
+          eventId: signedEvent.id,
+          successfulRelays: result.successful,
+          failedRelays: result.failed
+        })
       }
-      
-      console.log('✅ Campaign published successfully:', {
-        eventId: signedEvent.id,
-        successfulRelays: result.successful,
-        failedRelays: result.failed
-      })
       
       // Log detailed information for debugging
       console.log('Campaign Event ID:', signedEvent.id);
       console.log('Campaign Event:', signedEvent);
       console.log('Publish Result:', result);
       
-      // Process and add to local state
-      const campaign = processCampaignEvent(signedEvent)
-      userCampaigns.value.push(campaign)
+      // Check if we already have this campaign in our local state
+      const existingCampaign = userCampaigns.value.find(c => c.id === signedEvent.id)
+      
+      if (!existingCampaign) {
+        // Process and add to local state only if it doesn't exist
+        const campaign = processCampaignEvent(signedEvent)
+        userCampaigns.value.push(campaign)
+        console.log(`Added campaign to local state with ID: ${campaign.id}`)
+      } else {
+        console.log(`Campaign already exists in local state with ID: ${existingCampaign.id}, skipping addition`)
+      }
       
       // Start tracking zaps for this campaign
       startZapTracking(signedEvent.id)

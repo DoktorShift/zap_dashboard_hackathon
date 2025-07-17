@@ -172,6 +172,7 @@ const updateImagePreview = () => {
 // Publish campaign
 const publishNewCampaign = async () => {
   if (!validateForm()) return
+  if (isPublishing.value) return // Prevent double submission
   
   isPublishing.value = true
   localError.value = ''
@@ -202,7 +203,7 @@ const publishNewCampaign = async () => {
     // Close modal after 2 seconds
     setTimeout(() => {
       emit('close')
-    }, 2000)
+    }, 3000) // Increased to 3 seconds to ensure state updates complete
     
   } catch (err) {
     localError.value = err.message
@@ -501,6 +502,7 @@ const getEndOfDayTimestamp = (dateString) => {
       <div class="p-6 border-t border-gray-200 flex justify-between">
         <!-- Back/Cancel Button -->
         <button
+          :disabled="isPublishing"
           v-if="currentStep > 1"
           @click="prevStep"
           class="btn-secondary"
@@ -528,7 +530,7 @@ const getEndOfDayTimestamp = (dateString) => {
         <button
           v-else
           @click="publishNewCampaign"
-          :disabled="isPublishing || !isFormValid"
+          :disabled="isPublishing || !isFormValid || publishSuccess"
           class="btn-primary"
         >
           <IconLoader v-if="isPublishing" class="w-4 h-4 animate-spin" />

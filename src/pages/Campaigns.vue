@@ -143,6 +143,7 @@ const handleNostrLogin = async () => {
 // Open create campaign modal
 const openCreateModal = () => {
   showCreateModal.value = true
+  selectedCampaign.value = null // Ensure we're creating a new campaign, not editing
 }
 
 // Open delete campaign modal
@@ -185,8 +186,10 @@ const editCampaign = (campaign) => {
 // Refresh campaigns
 const refreshCampaigns = async () => {
   isRefreshing.value = true
+  console.log('Refreshing campaigns...')
   try {
     await fetchUserCampaigns()
+    console.log(`Refreshed campaigns, found ${userCampaigns.value.length} campaigns`)
   } catch (error) {
     console.error('Failed to refresh campaigns:', error)
   } finally {
