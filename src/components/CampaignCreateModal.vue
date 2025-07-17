@@ -542,6 +542,19 @@ const getEndOfDayTimestamp = (dateString) => {
       </div>
     </div>
   </div>
+
+  <!-- User Feedback Toast -->
+  <Teleport to="body">
+    <transition name="toast-fade">
+      <div v-if="publishSuccess" class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 z-[10000]">
+        <IconCheck class="w-5 h-5" />
+        <div>
+          <p class="font-medium">Campaign Published!</p>
+          <p class="text-sm text-green-100">Your campaign is now live and ready to share</p>
+        </div>
+      </div>
+    </transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -564,6 +577,18 @@ input:focus, textarea:focus {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 300ms;
+}
+
+/* Toast animation */
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: all 0.5s ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(30px);
 }
 
 /* Mobile optimizations */
