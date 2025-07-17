@@ -207,7 +207,9 @@ const startCampaignZapAggregation = async (authState) => {
           // Check if the zapped event has a goal tag pointing to a campaign
           const goalTag = directZappedEvent.tags.find(tag => tag[0] === 'goal')
           if (!goalTag || !goalTag[1]) {
-            console.log('No goal tag found in zapped event, not a campaign-related zap')
+            console.log('No goal tag found in zapped event, not a campaign-related zap. Event tags:', directZappedEvent.tags)
+            console.log('Zapped event content:', directZappedEvent.content)
+            console.log('Zapped event kind:', directZappedEvent.kind)
             return
           }
           

@@ -1,485 +1,930 @@
-<script setup>
-import { ref, computed, watch } from 'vue'
-import { 
-  IconShare, 
-  IconX, 
-  IconCopy, 
-  IconCheck, 
-  IconBrandTwitter, 
-  IconMessageCircle, 
-  IconLoader, 
-  IconAlertCircle,
-  IconLink,
-  IconHash,
-  IconTarget,
-  IconCode,
-  IconEye
-} from '@iconify-prerendered/vue-tabler'
-import { useCampaigns } from '../composables/useCampaigns.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useNostrAuth } from './useNostrAuth.js'
+import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { useNotifications } from './useNotifications.js'
+import { extractAmountFromBolt11 } from '../utils/invoiceUtils.js'
 
-const props = defineProps({
-  campaign: {
-    type: Object,
-    required: true
-  }
-})
+// Global state for campaigns
+const userCampaigns = ref([])
+const publicCampaigns = ref([])
+const isLoading = ref(false)
+const error = ref('')
 
-const emit = defineEmits(['close'])
+// Track active subscriptions
+const activeSubscriptions = reactive(new Map())
+const processedEventIds = new Set()
 
-const { shareCampaignOnNostr, isLoading: campaignsLoading } = useCampaigns()
-const { isAuthenticated, currentUser } = useNostrAuth()
+// Campaign zaps tracking
+const campaignZaps = reactive(new Map()) // Map<eventId, zap[]>
 
-// UI state
-const copySuccess = ref('')
-const customMessage = ref('')
-const isSharing = ref(false)
-const shareSuccess = ref(false)
-const shareError = ref('')
-const includeHashtags = ref(true)
-const defaultHashtags = ref(['zapgoal', 'nostr', 'fundraising', 'ZapTracker'])
-const customHashtags = ref([])
-const newHashtag = ref('')
-const showAdvancedOptions = ref(false)
-const publishedNoteId = ref(null)
+// NEW: Campaign-specific zap aggregation state (independent of useContentZaps)
+const campaignAggregatedZaps = reactive(new Map()) // Map<campaignId, zap[]>
+const processedCampaignZapReceiptIds = new Set() // Track processed zap receipt IDs
+let campaignZapSubscription = null // Track campaign zap subscription
 
-// Extract hashtags from message content
-const extractHashtagsFromContent = (content) => {
-  if (!content) return []
-  
-  const hashtagRegex = /#(\w+)/g
-  const hashtags = []
-  let match
-  
-  while ((match = hashtagRegex.exec(content)) !== null) {
-    hashtags.push(match[1])
-  }
-  
-  return hashtags
+// Storage key for campaign aggregated zaps
+const CAMPAIGN_AGGREGATED_ZAPS_KEY = 'campaign_aggregated_zaps'
+
+// Campaign kind as per NIP-75
+const CAMPAIGN_KIND = 9041
+
+// Helper functions for zap data extraction (adapted from useContentZaps)
+const extractBolt11 = (zapEvent) => {
+  const bolt11Tag = zapEvent.tags.find(tag => tag[0] === 'bolt11')
+  return bolt11Tag ? bolt11Tag[1] : null
 }
 
-// Generate share URL
-const shareUrl = computed(() => {
-  return `${window.location.origin}?page=campaign-view&eventId=${props.campaign.id}`
-})
-
-// Generate share text
-const shareText = computed(() => {
-  return `⚡ I'm raising sats! Support my campaign: ${props.campaign.title}`
-})
-
-// Complete message with URL always included
-const completeMessage = computed(() => {
-  const baseMessage = customMessage.value || shareText.value
-  
-  // Check if URL is already included in the message
-  if (baseMessage.includes(shareUrl.value)) {
-    return baseMessage
-  }
-  
-  // Add URL on a new line if not already included
-  return `${baseMessage}\n\n${shareUrl.value}`
-})
-
-// Generate hashtags for the note
-const combinedHashtags = computed(() => {
-  const tags = []
-  
-  // Add hashtags extracted from the message content
-  const contentHashtags = extractHashtagsFromContent(completeMessage.value)
-  tags.push(...contentHashtags)
-  
-  if (includeHashtags.value) {
-    tags.push(...defaultHashtags.value)
-  }
-  
-  if (customHashtags.value.length > 0) {
-    tags.push(...customHashtags.value)
-  }
-  
-  return [...new Set(tags)] // Remove duplicates
-})
-
-// Generate preview of the final post
-const postPreview = computed(() => {
-  let preview = completeMessage.value
-  
-  // Add hashtags if any
-  if (combinedHashtags.value.length > 0) {
-    preview += '\n\n' + combinedHashtags.value.map(tag => `#${tag}`).join(' ')
-  }
-  
-  return preview
-})
-
-
-// Copy to clipboard
-const copyToClipboard = async (text, type) => {
+const extractZapAmount = (zapEvent) => {
   try {
-    await navigator.clipboard.writeText(text)
-    copySuccess.value = type
-    setTimeout(() => {
-      copySuccess.value = ''
-    }, 2000)
+    // Look for amount in description tag or bolt11
+    const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+    if (descriptionTag && descriptionTag[1]) {
+      const zapRequest = JSON.parse(descriptionTag[1])
+      
+      // Check for amount tag in the zap request
+      const amountTag = zapRequest.tags?.find(tag => tag[0] === 'amount')
+      if (amountTag && amountTag[1]) {
+        return Math.floor(parseInt(amountTag[1]) / 1000) // Convert msats to sats
+      }
+    }
+    
+    // Fallback: try to extract from bolt11
+    const bolt11Tag = zapEvent.tags.find(tag => tag[0] === 'bolt11')
+    if (bolt11Tag && bolt11Tag[1]) {
+      return extractAmountFromBolt11(bolt11Tag[1])
+    }
+    
+    return 0
   } catch (error) {
-    console.error('Failed to copy to clipboard:', error)
+    console.warn('Failed to extract zap amount:', error)
+    return 0
   }
 }
 
-// Share on Nostr
-const shareOnNostr = async () => {
-  if (!isAuthenticated.value || !window.nostr) {
-    shareError.value = 'Nostr authentication required'
+const extractZapMessage = (zapEvent) => {
+  try {
+    const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+    if (descriptionTag && descriptionTag[1]) {
+      const zapRequest = JSON.parse(descriptionTag[1])
+      return zapRequest.content || ''
+    }
+    return ''
+  } catch (error) {
+    return ''
+  }
+}
+
+const extractEventId = (zapEvent) => {
+  try {
+    // First check for e tag in the zap receipt itself
+    const eTag = zapEvent.tags.find(tag => tag[0] === 'e')
+    if (eTag && eTag[1]) {
+      return eTag[1]
+    }
+    
+    // If not found, check in the description tag (zap request)
+    const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+    if (descriptionTag && descriptionTag[1]) {
+      const zapRequest = JSON.parse(descriptionTag[1])
+      
+      // Check for e tag in the zap request
+      const requestETag = zapRequest.tags?.find(tag => tag[0] === 'e')
+      if (requestETag && requestETag[1]) {
+        return requestETag[1]
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.warn('Failed to extract event ID from zap receipt:', error)
+    return null
+  }
+}
+
+// Load campaign aggregated zaps from localStorage
+const loadCampaignAggregatedZaps = () => {
+  try {
+    const stored = localStorage.getItem(CAMPAIGN_AGGREGATED_ZAPS_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      // Convert plain object back to Map
+      Object.entries(parsed).forEach(([campaignId, zaps]) => {
+        campaignAggregatedZaps.set(campaignId, zaps)
+      })
+      console.log('Loaded campaign aggregated zaps from storage:', campaignAggregatedZaps.size, 'campaigns')
+    }
+  } catch (error) {
+    console.error('Failed to load campaign aggregated zaps from storage:', error)
+  }
+}
+
+// Save campaign aggregated zaps to localStorage
+const saveCampaignAggregatedZaps = () => {
+  try {
+    // Convert Map to plain object for JSON serialization
+    const toSave = Object.fromEntries(campaignAggregatedZaps)
+    localStorage.setItem(CAMPAIGN_AGGREGATED_ZAPS_KEY, JSON.stringify(toSave))
+    console.log('Saved campaign aggregated zaps to storage:', campaignAggregatedZaps.size, 'campaigns')
+  } catch (error) {
+    console.error('Failed to save campaign aggregated zaps to storage:', error)
+  }
+}
+
+// Add zap to campaign aggregated zaps with deduplication
+const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
+  if (!campaignId || !zapData) return
+  
+  // Get existing zaps for this campaign
+  const existingZaps = campaignAggregatedZaps.get(campaignId) || []
+  
+  // Check for duplicates by zap ID
+  const exists = existingZaps.find(zap => zap.id === zapData.id)
+  if (exists) {
+    console.log('Duplicate zap found for campaign, skipping:', campaignId, zapData.id)
     return
   }
   
-  isSharing.value = true
-  shareError.value = ''
-  publishedNoteId.value = null
+  // Add new zap
+  existingZaps.unshift(zapData) // Add to beginning (newest first)
+  campaignAggregatedZaps.set(campaignId, existingZaps)
   
+  console.log(`✅ Added zap to campaign ${campaignId}: ${zapData.amount} sats from ${zapData.zapperPubkey?.substring(0, 8)}...`)
+}
+
+// Start campaign zap aggregation listener
+const startCampaignZapAggregation = async (authState) => {
+  if (!authState?.value || campaignZapSubscription) {
+    console.log('Campaign zap aggregation already active or not authenticated')
+    return
+  }
+
   try {
-    console.log('Publishing note with zapgoal reference...')
+    console.log('🔍 Starting campaign zap aggregation listener...')
     
-    // Use the complete message that always includes the URL
-    const messageContent = completeMessage.value
-    
-    // Prepare tags
-    const tags = [
-      // Reference the campaign as a zapgoal with the "goal" tag
-      ['goal', props.campaign.id],
-      
-      // Also reference the campaign with an "e" tag for better client compatibility
-      ['e', props.campaign.id, '', 'mention'],
-      
-      // Public key of the campaign creator (used in zap receipts)
-      ['p', props.campaign.pubkey],
-      
-      // (Custom tag) Explicitly state that this post is zap-related
-      ['zap', props.campaign.pubkey],
-      
-      // (Optional) Human-readable fallback for accessibility and indexing
-      ['alt', `Support this campaign: ${props.campaign.title}`],
-      
-      // Add hashtags as "t" tags
-      ...combinedHashtags.value.map(tag => ['t', tag])
-    ]
-    
-    // Create event
-    const eventTemplate = {
-      kind: 1, // Text note
-      created_at: Math.floor(Date.now() / 1000),
-      tags,
-        // CRITICAL: Reference the campaign as a zapgoal with the "goal" tag (NIP-75)
-        ['goal', props.campaign.id],
-        
-        // Also reference the campaign with an "e" tag for better client compatibility
-        ['e', props.campaign.id, '', 'mention'],
-        
-        // Public key of the campaign creator (for zap routing)
-        ['p', props.campaign.pubkey],
-        console.warn('Failed to sign zap request:', err)
-        signedEvent = eventTemplate
+    // Subscribe to all zap receipts (kind 9735)
+    campaignZapSubscription = nostrRelayManager.subscribeToEvents([
+      {
+        kinds: [9735], // Zap receipts
+        limit: 100
       }
-    } else {
-      signedEvent = eventTemplate
-    }
-    
-    // Publish to Nostr relays
-    const result = await nostrRelayManager.publishEvent(signedEvent)
-    
-    if (result.successful === 0) {
-      throw new Error('Failed to publish to any relays')
-    }
-    
-    console.log('✅ Note published successfully:', {
-      eventId: signedEvent.id,
-      successfulRelays: result.successful,
-      failedRelays: result.failed
+    ], {
+      onevent: async (zapEvent) => {
+        // Deduplicate using processed receipt IDs
+        if (processedCampaignZapReceiptIds.has(zapEvent.id)) {
+          return
+        }
+        processedCampaignZapReceiptIds.add(zapEvent.id)
+        
+        console.log(`⚡ Processing zap receipt for campaign aggregation: ${zapEvent.id.substring(0, 16)}...`)
+        
+        try {
+          // Extract the directly zapped event ID
+          const directZappedEventId = extractEventId(zapEvent)
+          if (!directZappedEventId) {
+            console.log('No event ID found in zap receipt, skipping')
+            return
+          }
+          
+          // Fetch the directly zapped event with timeout
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Fetch timeout')), 10000)
+          )
+          
+          const directZappedEvent = await Promise.race([
+            nostrRelayManager.getEvent({
+              ids: [directZappedEventId]
+            }),
+            timeoutPromise
+          ])
+          
+          if (!directZappedEvent) {
+            console.log('Could not fetch directly zapped event:', directZappedEventId)
+            return
+          }
+          
+          // Check if the zapped event has a goal tag pointing to a campaign
+          const goalTag = directZappedEvent.tags.find(tag => tag[0] === 'goal')
+          if (!goalTag || !goalTag[1]) {
+            console.log('No goal tag found in zapped event, not a campaign-related zap')
+            return
+          }
+          
+          const campaignId = goalTag[1]
+          console.log(`Found campaign reference in zapped event: ${campaignId}`)
+          
+          // Extract zap data
+          const amount = extractZapAmount(zapEvent)
+          const message = extractZapMessage(zapEvent)
+          const bolt11 = extractBolt11(zapEvent)
+          
+          // Extract zapper pubkey from zap request in description tag
+          let zapperPubkey = zapEvent.pubkey // fallback to receipt pubkey
+          try {
+            const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+            if (descriptionTag && descriptionTag[1]) {
+              const zapRequest = JSON.parse(descriptionTag[1])
+              if (zapRequest.pubkey) {
+                zapperPubkey = zapRequest.pubkey
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to extract zapper pubkey from zap request:', error)
+          }
+          
+          // Create zap data object
+          const zapData = {
+            id: zapEvent.id, // Use zap receipt ID as unique identifier
+            amount,
+            zapperPubkey,
+            timestamp: new Date(zapEvent.created_at * 1000).toISOString(),
+            message,
+            bolt11,
+            directZappedEventId,
+            campaignId,
+            rawZapEvent: zapEvent,
+            rawZappedEvent: directZappedEvent
+          }
+          
+          // Add to campaign aggregated zaps
+          addZapToCampaignAggregatedZaps(campaignId, zapData)
+          
+        } catch (error) {
+          console.error('Error processing zap for campaign aggregation:', error)
+        }
+      },
+      oneose: () => {
+        console.log('📡 End of stored zap events for campaign aggregation')
+      },
+      onclose: (reason) => {
+        console.log('🔌 Campaign zap aggregation subscription closed:', reason)
+        campaignZapSubscription = null
+      }
     })
     
-    // Store the published note ID
-    publishedNoteId.value = signedEvent.id
-    shareSuccess.value = true
+    console.log('✅ Campaign zap aggregation listener started')
     
-    // Reset form
-    customMessage.value = ''
-    newHashtag.value = ''
-    
-    // Close modal after 2 seconds
-    setTimeout(() => {
-      emit('close')
-    }, 2000)
   } catch (error) {
-    shareError.value = error.message
-    console.error('Failed to share on Nostr:', error)
-  } finally {
-    isSharing.value = false
+    console.error('❌ Failed to start campaign zap aggregation:', error)
   }
 }
 
-// Add a custom hashtag
-const addHashtag = () => {
-  if (!newHashtag.value.trim()) return
-  
-  // Remove # if present
-  let tag = newHashtag.value.trim()
-  if (tag.startsWith('#')) {
-    tag = tag.substring(1)
-  }
-  
-  // Only add if not already in the list
-  if (!customHashtags.value.includes(tag) && !defaultHashtags.value.includes(tag)) {
-    customHashtags.value.push(tag)
-  }
-  
-  newHashtag.value = ''
-}
-
-// Remove a custom hashtag
-const removeHashtag = (tag) => {
-  const index = customHashtags.value.indexOf(tag)
-  if (index !== -1) {
-    customHashtags.value.splice(index, 1)
+// Stop campaign zap aggregation listener
+const stopCampaignZapAggregation = () => {
+  if (campaignZapSubscription) {
+    campaignZapSubscription.close()
+    campaignZapSubscription = null
+    console.log('🛑 Stopped campaign zap aggregation listener')
   }
 }
 
-// Share on Twitter/X
-const shareOnTwitter = () => {
-  const text = encodeURIComponent(`${shareText.value}\n\n${shareUrl.value}`)
-  window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank')
-}
+export function useCampaigns() {
+  const auth = useNostrAuth()
+  const { currentUser } = auth
+  const isAuthenticated = auth.isAuthenticated
+  const { startZapTracking } = useContentZaps()
+  const { handleZapReceived } = useNotifications()
 
-// Native share if available
-const nativeShare = () => {
-  if (navigator && navigator.share) {
-    navigator.share({
-      title: props.campaign.title,
-      text: shareText.value,
-      url: shareUrl.value
-    }).catch(err => console.error('Error sharing:', err))
-  } else {
-    copyToClipboard(shareUrl.value, 'url')
+  // Fetch user's campaigns from Nostr relays
+  const fetchUserCampaigns = async () => {
+    if (!isAuthenticated.value) {
+      console.log('Not authenticated, cannot fetch campaigns')
+      return
+    }
+    
+    // Prevent multiple simultaneous subscriptions
+    if (activeSubscriptions.has('user-campaigns')) {
+      console.log('Campaign subscription already active')
+      return
+    }
+
+    isLoading.value = true
+    error.value = ''
+
+    try {
+      console.log('Fetching campaigns for user:', currentUser.value.pubkey.substring(0, 8) + '...')
+      
+      // Subscribe to user's campaigns (kind 9041) and deletion events (kind 5)
+      const subscription = nostrRelayManager.subscribeToEvents([
+        {
+          kinds: [CAMPAIGN_KIND], // Campaign events (NIP-75)
+          authors: [currentUser.value.pubkey],
+          limit: 100
+        },
+        {
+          kinds: [5], // Deletion events
+          authors: [currentUser.value.pubkey],
+          limit: 100
+        }
+      ], {
+        onevent: (event) => {
+          handleCampaignEvent(event)
+        },
+        oneose: () => {
+          console.log('End of stored campaign events')
+          isLoading.value = false
+        },
+        onclose: (reason) => {
+          console.log('Campaign subscription closed:', reason)
+          isLoading.value = false
+        }
+      })
+      
+      // Store subscription for cleanup
+      activeSubscriptions.set('user-campaigns', subscription)
+      
+      return subscription
+    } catch (err) {
+      console.error('Failed to fetch campaigns:', err)
+      error.value = 'Failed to fetch campaigns: ' + err.message
+      isLoading.value = false
+    }
   }
-}
 
-</script>
+  // Fetch a specific campaign by ID
+  const fetchCampaignById = async (eventId) => {
+    if (!eventId) {
+      throw new Error('Campaign ID is required')
+    }
 
-<template>
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
-    <div class="bg-white rounded-xl w-full max-w-sm mx-4 shadow-lg">
-      <!-- Header -->
-      <div class="p-4 border-b border-gray-200 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900">Share Campaign</h3>
-        <button
-          @click="$emit('close')"
-          class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors"
-        >
-          <IconX class="w-5 h-5" />
-        </button>
-      </div>
+    isLoading.value = true
+    error.value = ''
 
-      <!-- Success State -->
-      <div v-if="shareSuccess" class="p-6 text-center">
-        <div class="flex items-center justify-between">
-          <IconCheck class="w-6 h-6 text-green-600 mx-auto" />
-        </div>
-        <p class="text-green-700 font-medium mt-2">Shared successfully!</p>
-      </div>
-      <!-- Main Content -->
-      <div v-else class="p-4 space-y-4">
-        <!-- Error Message -->
-        <div v-if="shareError" class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-          <div class="flex items-center space-x-2">
-            <IconAlertCircle class="w-4 h-4 text-red-600" />
-            <span class="text-sm text-red-600">{{ shareError }}</span>
-          </div>
-        </div>
+    try {
+      console.log('Fetching campaign by ID:', eventId)
+      console.log('Current relay manager status:', nostrRelayManager.getConnectionStats())
+      
+      // First check if we already have this campaign in our state
+      const existingCampaign = userCampaigns.value.find(c => c.id === eventId)
+      if (existingCampaign) {
+        console.log('Campaign found in local state:', eventId)
+        return existingCampaign
+      }
+      
+      console.log('Campaign not in local state, fetching from relays...')
+      
+      // If not in state, fetch from relays
+      const event = await nostrRelayManager.getEvent({
+        ids: [eventId],
+        kinds: [CAMPAIGN_KIND]
+      })
+      
+      console.log('Relay query result:', event)
+      
+      if (!event) {
+        console.error('No event found with ID:', eventId, 'and kind:', CAMPAIGN_KIND)
+        throw new Error('Campaign not found')
+      }
+      
+      console.log('Campaign fetched from relays:', eventId)
+      
+      // Process the event
+      const campaign = processCampaignEvent(event)
+      console.log('Processed campaign:', campaign)
+      
+      // Start tracking zaps for this campaign
+      startZapTracking(event.id)
+      
+      return campaign
+    } catch (err) {
+      console.error('Failed to fetch campaign by ID:', err)
+      error.value = 'Failed to fetch campaign: ' + err.message
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Process campaign event
+  const handleCampaignEvent = (event) => {
+    // Prevent duplicate processing
+    if (processedEventIds.has(event.id)) {
+      return
+    }
+    processedEventIds.add(event.id)
+
+    try {
+      if (event.kind === CAMPAIGN_KIND) {
+        // Handle campaign event
+        const campaign = processCampaignEvent(event)
         
-        <!-- Share Options -->
-        <div class="grid grid-cols-1 gap-3">
-          <!-- Copy Link -->
-          <div class="flex items-center">
-            <input
-              type="text"
-              :value="shareUrl"
-              readonly
-              class="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg text-sm bg-gray-50"
-            />
-            <button
-              @click="copyToClipboard(shareUrl, 'url')"
-              class="px-3 py-2 bg-orange-500 text-white rounded-r-lg"
-            >
-              <IconCheck v-if="copySuccess === 'url'" class="w-5 h-5" />
-              <IconCopy v-else class="w-5 h-5" />
-            </button>
-          </div>
-          
-          <!-- Native Share -->
-          <button
-            v-if="typeof navigator !== 'undefined' && navigator.share"
-            @click="nativeShare"
-            class="w-full bg-orange-500 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2"
-          >
-            <IconShare class="w-5 h-5" />
-            <span>Share</span>
-          </button>
-          
-          <!-- Twitter/X -->
-          <button
-            @click="shareOnTwitter"
-            class="w-full bg-[#1DA1F2] text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2"
-          >
-            <IconBrandTwitter class="w-5 h-5" />
-            <span>Share on X/Twitter</span>
-          </button>
-          
-          <!-- Nostr -->
-          <button
-            @click="shareOnNostr"
-            :disabled="isSharing"
-            class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2 disabled:opacity-50"
-          >
-            <IconLoader v-if="isSharing" class="w-5 h-5 animate-spin" />
-            <IconMessageCircle v-else class="w-5 h-5" />
-            <span>{{ isSharing ? 'Posting...' : 'Post to Nostr' }}</span>
-          </button>
-          
-          <!-- Custom Message (Collapsed) -->
-          <details class="bg-gray-50 rounded-lg p-3">
-            <summary class="font-medium text-sm text-gray-700 cursor-pointer">Add custom message</summary>
-            <div class="mt-3">
-              <textarea
-                v-model="customMessage"
-                rows="2"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
-                :placeholder="`I'm raising sats with #ZapTracker! Support my campaign: ${props.campaign.title}`"
-              ></textarea>
-            </div>
-          </details>
-          
-          <!-- Advanced Options Toggle -->
-          <div class="mt-3">
-            <button 
-              @click="showAdvancedOptions = !showAdvancedOptions"
-              class="text-sm text-gray-600 hover:text-gray-800 flex items-center space-x-1"
-            >
-              <span>{{ showAdvancedOptions ? 'Hide' : 'Show' }} advanced options</span>
-              <IconHash class="w-3 h-3" />
-            </button>
-          </div>
-          
-          <!-- Advanced Options -->
-          <div v-if="showAdvancedOptions" class="mt-3 space-y-3">
-            <!-- Hashtags -->
-            <div>
-              <div class="flex items-center space-x-2 mb-2">
-                <input
-                  type="checkbox"
-                  id="include-hashtags"
-                  v-model="includeHashtags"
-                  class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                />
-                <label for="include-hashtags" class="text-sm text-gray-700">Include default hashtags</label>
-              </div>
-              
-              <!-- Default Hashtags -->
-              <div v-if="includeHashtags" class="flex flex-wrap gap-2 mb-3">
-                <span
-                  v-for="tag in defaultHashtags"
-                  :key="tag"
-                  class="inline-flex items-center space-x-1 bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs"
-                >
-                  <IconHash class="w-3 h-3" />
-                  <span>{{ tag }}</span>
-                </span>
-              </div>
-              
-              <!-- Custom Hashtags -->
-              <div class="flex flex-wrap gap-2 mb-3">
-                <span
-                  v-for="tag in customHashtags"
-                  :key="tag"
-                  class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs"
-                >
-                  <IconHash class="w-3 h-3" />
-                  <span>{{ tag }}</span>
-                  <button @click="removeHashtag(tag)" class="text-orange-500 hover:text-orange-700">
-                    <IconX class="w-3 h-3" />
-                  </button>
-                </span>
-              </div>
-              
-              <!-- Add Custom Hashtag -->
-              <div class="flex space-x-2">
-                <input
-                  v-model="newHashtag"
-                  type="text"
-                  placeholder="Add custom hashtag..."
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  @keyup.enter="addHashtag"
-                />
-                <button
-                  @click="addHashtag"
-                  class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-            
-            <!-- ZapGoal Info -->
-          <!-- Simple ZapGoal Info -->
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-            <p class="text-blue-800">
-              <IconTarget class="w-3 h-3 inline-block mr-1" />
-              Your note will include a reference to this campaign, allowing zaps to be tracked across both the campaign and related notes.
-            </p>
-            
-          </div>
-        </div> 
+        // Check if we already have this campaign
+        const existingIndex = userCampaigns.value.findIndex(c => c.id === event.id)
         
-        <!-- Success Indicator -->
-        <p v-if="copySuccess === 'url'" class="text-green-600 text-sm flex items-center justify-center">
-          <IconCheck class="w-4 h-4 mr-1" />
-          Link copied to clipboard!
-        </p>
+        if (existingIndex === -1) {
+          // Add new campaign
+          userCampaigns.value.push(campaign)
+          console.log('Added new campaign:', campaign.title)
+          
+          // Start tracking zaps for this campaign
+          startZapTracking(event.id)
+        } else {
+          // Update existing campaign
+          userCampaigns.value[existingIndex] = campaign
+          console.log('Updated existing campaign:', campaign.title)
+        }
+      } else if (event.kind === 5) {
+        // Handle deletion event
+        const deletedEventIds = event.tags
+          .filter(tag => tag[0] === 'e')
+          .map(tag => tag[1])
         
-        <!-- Published Note Success -->
-        <div v-if="publishedNoteId" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3">
-          <div class="flex items-start space-x-2">
-            <IconCheck class="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 class="text-sm font-medium text-green-800 mb-1">Note Published Successfully</h4>
-              <p class="text-xs text-green-700 mb-2">
-                Your note has been published to the Nostr network with a reference to this campaign.
-              </p>
-              <div class="flex space-x-2">
-                <a 
-                  :href="`https://primal.net/e/${publishedNoteId}`" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  class="text-xs text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors flex items-center space-x-1"
-                >
-                  <IconExternalLink class="w-3 h-3" />
-                  <span>View on Primal</span>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-    </div>
-  </div>
-    </div>
-  </div>
-</template>
+        // Remove deleted campaigns
+        deletedEventIds.forEach(id => {
+          const index = userCampaigns.value.findIndex(c => c.id === id)
+          if (index !== -1) {
+            console.log('Removing deleted campaign:', userCampaigns.value[index].title)
+            userCampaigns.value.splice(index, 1)
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Failed to process campaign event:', error)
+    }
+  }
 
-<style scoped>
-/* Ensure proper touch targets on mobile */
-@media (max-width: 640px) {
-  button, a {
-    min-height: 44px;
+  // Process campaign event into campaign object
+  const processCampaignEvent = (event) => {
+    // Extract campaign data from event
+    console.log('Processing campaign event with ID:', event.id);
+    
+    // Ensure we have a valid event
+    if (!event || !event.id) {
+      console.error('Invalid campaign event:', event);
+      throw new Error('Invalid campaign event');
+    }
+    
+    const title = event.content || 'Untitled Campaign';
+    
+    // Extract tags
+    const amountTag = event.tags.find(tag => tag[0] === 'amount')
+    const summaryTag = event.tags.find(tag => tag[0] === 'summary')
+    const descriptionLongTag = event.tags.find(tag => tag[0] === 'description_long')
+    const imageTag = event.tags.find(tag => tag[0] === 'image')
+    const linkTag = event.tags.find(tag => tag[0] === 'link')
+    const closedAtTag = event.tags.find(tag => tag[0] === 'closed_at')
+    const relaysTag = event.tags.find(tag => tag[0] === 'relays')
+    
+    // Parse data
+    const goalAmount = amountTag ? parseInt(amountTag[1]) : 0 // in millisats
+    const summary = summaryTag ? summaryTag[1] : ''
+    const descriptionLong = descriptionLongTag ? descriptionLongTag[1] : ''
+    const image = imageTag ? imageTag[1] : null
+    const optionalLink = linkTag ? linkTag[1] : null
+    const closedAt = closedAtTag ? parseInt(closedAtTag[1]) : null
+    const relays = relaysTag ? event.tags.filter(tag => tag[0] === 'relays').map(tag => tag[1]) : []
+    
+    // Create campaign object
+    const campaign = {
+      id: event.id,
+      pubkey: event.pubkey,
+      title,
+      content: event.content,
+      summary,
+      descriptionLong,
+      goalAmount, // in millisats
+      image,
+      optionalLink,
+      closedAt,
+      relays,
+      createdAt: event.created_at,
+      rawEvent: event
+    }
+    
+    console.log('Processed campaign:', campaign);
+    return campaign;
+  }
+
+  // Create and publish a new campaign
+  const publishCampaign = async (campaignData) => {
+    if (!isAuthenticated.value || !window.nostr) {
+      throw new Error('Nostr authentication required')
+    }
+
+    isLoading.value = true
+    error.value = ''
+    
+    // Generate a unique client-side ID to prevent duplicates
+    const clientId = `campaign_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    console.log(`Starting campaign publication with client ID: ${clientId}`)
+
+    try {
+      console.log('Creating new campaign:', campaignData.title)
+      console.log('Campaign data received:', campaignData)
+      
+      // Prepare tags
+      const tags = [
+        ['amount', campaignData.goalAmount.toString()], // in millisats
+        ['summary', campaignData.summary.trim()]
+      ]
+      
+      // Add long description if provided
+      if (campaignData.descriptionLong) {
+        tags.push(['description_long', campaignData.descriptionLong.trim()])
+      }
+      
+      // Add image if provided
+      if (campaignData.image) {
+        tags.push(['image', campaignData.image.trim()])
+      }
+      
+      // Add optional link if provided
+      if (campaignData.optionalLink) {
+        tags.push(['link', campaignData.optionalLink.trim()])
+      }
+      
+      // Add closed_at if provided
+      if (campaignData.closedAt) {
+        const closedAtStr = campaignData.closedAt.toString()
+        tags.push(['closed_at', closedAtStr])
+        console.log(`Setting campaign end date: ${new Date(campaignData.closedAt * 1000).toLocaleString()}, timestamp: ${closedAtStr}`)
+      }
+      
+      // Add relays
+      // NIP-75 requires a SINGLE relays tag with MULTIPLE values (not multiple relays tags)
+      const relayUrls = nostrRelayManager.getReadRelays().map(relay => relay.url)
+      let relaysTag = ['relays']
+      
+      if (relayUrls.length > 0) {
+        relaysTag.push(...relayUrls)
+      } else {
+        // Fallback to default relays if none are configured
+        relaysTag.push('wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social')
+      }
+      tags.push(relaysTag)
+      
+      console.log('Final relays tag:', relaysTag)
+      console.log('All tags prepared:', tags)
+      
+      // Create event
+      const eventTemplate = {
+        kind: CAMPAIGN_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags,
+        content: campaignData.title
+      }
+      
+      console.log('Event template before signing:', eventTemplate)
+      console.log('Campaign kind being used:', CAMPAIGN_KIND)
+      
+      // Sign the event
+      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      
+      console.log('Event signed successfully:', signedEvent)
+      
+      // Verify the signed event
+      const isValid = verifyEvent(signedEvent)
+      if (!isValid) {
+        console.error('Event signature verification failed')
+        throw new Error('Event signature verification failed. Please try again.')
+      }
+      
+      console.log('Event signature verified successfully')
+      
+      // Log the complete event for debugging
+      console.log('Publishing campaign event:', {
+        id: signedEvent.id,
+        clientId,
+        kind: signedEvent.kind,
+        pubkey: signedEvent.pubkey,
+        created_at: signedEvent.created_at,
+        content: signedEvent.content,
+        tags: signedEvent.tags
+      })
+      
+      // Check relay manager status before publishing
+      const relayStats = nostrRelayManager.getConnectionStats()
+      console.log('Relay manager stats before publishing:', relayStats)
+      
+      if (relayStats.writeEnabled === 0) {
+        throw new Error('No write-enabled relays available for publishing')
+      }
+      
+      // Publish to relays
+      const result = await nostrRelayManager.publishEvent(signedEvent)
+      
+      console.log('Publish result:', result)
+      
+      if (result.successful === 0) {
+        throw new Error('Failed to publish to any relays')
+      } else {
+        console.log(`✅ Campaign published successfully with client ID ${clientId}:`, {
+          eventId: signedEvent.id,
+          successfulRelays: result.successful,
+          failedRelays: result.failed
+        })
+      }
+      
+      // Log detailed information for debugging
+      console.log('Campaign Event ID:', signedEvent.id);
+      console.log('Campaign Event:', signedEvent);
+      console.log('Publish Result:', result);
+      
+      // Verify the event was actually published by trying to fetch it back
+      console.log('Attempting to verify publication by fetching the event back...')
+      try {
+        const verificationEvent = await nostrRelayManager.getEvent({
+          ids: [signedEvent.id],
+          kinds: [CAMPAIGN_KIND]
+        })
+        
+        if (verificationEvent) {
+          console.log('✅ Event successfully verified on relays:', verificationEvent.id)
+        } else {
+          console.warn('⚠️ Event not found on relays after publication - may take time to propagate')
+        }
+      } catch (verifyError) {
+        console.warn('⚠️ Could not verify event publication:', verifyError)
+      }
+      
+      // Check if we already have this campaign in our local state
+      const existingCampaign = userCampaigns.value.find(c => c.id === signedEvent.id)
+      
+      if (!existingCampaign) {
+        // Process and add to local state only if it doesn't exist
+        const campaign = processCampaignEvent(signedEvent)
+        userCampaigns.value.push(campaign)
+        console.log(`Added campaign to local state with ID: ${campaign.id}`)
+      } else {
+        console.log(`Campaign already exists in local state with ID: ${existingCampaign.id}, skipping addition`)
+      }
+      
+      // Start tracking zaps for this campaign
+      startZapTracking(signedEvent.id)
+      
+      // Process and return the campaign object
+      const campaignObject = processCampaignEvent(signedEvent)
+      return campaignObject
+    } catch (err) {
+      console.error('Failed to publish campaign:', err)
+      error.value = 'Failed to publish campaign: ' + err.message
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Delete a campaign (publish kind 5 deletion event)
+  const deleteCampaign = async (campaignId) => {
+    if (!isAuthenticated.value || !window.nostr) {
+      throw new Error('Nostr authentication required')
+    }
+
+    isLoading.value = true
+    error.value = ''
+
+    try {
+      console.log('Deleting campaign:', campaignId)
+      
+      // Create deletion event
+      const eventTemplate = {
+        kind: 5, // Deletion
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['e', campaignId]],
+        content: 'Deleting campaign'
+      }
+      
+      // Sign the event
+      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      
+      // Verify the signed event
+      const isValid = verifyEvent(signedEvent)
+      if (!isValid) {
+        throw new Error('Event signature verification failed')
+      }
+      
+      // Publish to relays
+      const result = await nostrRelayManager.publishEvent(signedEvent)
+      
+      if (result.successful === 0) {
+        throw new Error('Failed to publish to any relays')
+      }
+      
+      console.log('Campaign deletion published successfully:', {
+        eventId: signedEvent.id,
+        successfulRelays: result.successful,
+        failedRelays: result.failed
+      })
+      
+      // Remove from local state
+      const index = userCampaigns.value.findIndex(c => c.id === campaignId)
+      if (index !== -1) {
+        userCampaigns.value.splice(index, 1)
+      }
+      
+      return true
+    } catch (err) {
+      console.error('Failed to delete campaign:', err)
+      error.value = 'Failed to delete campaign: ' + err.message
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Get campaign progress
+  const getCampaignProgress = (campaignId) => {
+    const campaign = userCampaigns.value.find(c => c.id === campaignId) || 
+                    publicCampaigns.value.find(c => c.id === campaignId)
+    
+    if (!campaign) return { current: 0, goal: 0, percentage: 0 }
+    
+    // Use campaign aggregated zaps instead of content zaps
+    const campaignZaps = campaignAggregatedZaps.get(campaignId) || []
+    const raisedAmount = campaignZaps.reduce((sum, zap) => sum + zap.amount, 0) // in sats
+    const goalAmount = Math.floor(campaign.goalAmount / 1000) // convert millisats to sats
+    
+    const percentage = goalAmount > 0 ? Math.min(100, Math.floor((raisedAmount / goalAmount) * 100)) : 0
+    
+    return {
+      current: raisedAmount,
+      goal: goalAmount,
+      percentage
+    }
+  }
+
+  // Check if campaign is expired
+  const isCampaignExpired = (campaign) => {
+    if (!campaign.closedAt) return false
+    
+    const now = Math.floor(Date.now() / 1000)
+    const diff = campaign.closedAt - now
+    const diffDays = Math.floor(diff / (24 * 60 * 60))
+    const diffHours = Math.floor((diff % (24 * 60 * 60)) / 3600)
+    
+    console.log(`Campaign expiration check for "${campaign.title}":`)
+    console.log(`- Current time: ${new Date(now * 1000).toLocaleString()}`)
+    console.log(`- End time: ${new Date(campaign.closedAt * 1000).toLocaleString()}`)
+    console.log(`- Time remaining: ${diffDays} days, ${diffHours} hours (${diff} seconds)`)
+    console.log(`- Status: ${campaign.closedAt < now ? 'EXPIRED' : 'ACTIVE'}`)
+    
+    return campaign.closedAt < now
+  }
+
+  // Check if campaign is completed
+  const isCampaignCompleted = (campaignId) => {
+    const progress = getCampaignProgress(campaignId)
+    return progress.percentage >= 100
+  }
+
+  // Get campaign status
+  const getCampaignStatus = (campaign) => {
+    if (isCampaignExpired(campaign)) return 'expired'
+    if (isCampaignCompleted(campaign.id)) return 'completed'
+    return 'active'
+  }
+
+  // Share campaign on Nostr
+  const shareCampaignOnNostr = async (campaignId, customMessage = '') => {
+    if (!isAuthenticated.value || !window.nostr) {
+      throw new Error('Nostr authentication required')
+    }
+
+    const campaign = userCampaigns.value.find(c => c.id === campaignId)
+    if (!campaign) {
+      throw new Error('Campaign not found')
+    }
+
+    try {
+      // Create share URL
+      const shareUrl = `${window.location.origin}?page=campaign-view&eventId=${campaignId}`
+      
+      // Create content with custom message or default
+      const content = customMessage || 
+        `I'm raising sats with #ZapTracker! Support my campaign: ${campaign.title}\n\n${shareUrl}`
+      
+      // Create event
+      const eventTemplate = {
+        kind: 1, // Text note
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['goal', campaignId],
+          ['e', campaignId],
+          ['p', campaign.pubkey]
+        ],
+        content
+      }
+      
+      console.log('Event template with goal tag:', eventTemplate)
+      console.log('Tags being added:', tags)
+      
+      // Sign the event
+      let signedEvent
+      if (window.nostr?.signEvent) {
+        signedEvent = await window.nostr.signEvent(eventTemplate)
+      } else {
+        throw new Error('Nostr extension not available for signing')
+      }
+      
+      console.log('Signed event with goal tag:', signedEvent)
+      
+      // Verify the signed event
+      const isValid = verifyEvent(signedEvent)
+      if (!isValid) {
+        throw new Error('Event signature verification failed')
+      }
+      
+      // Publish to relays
+      const result = await nostrRelayManager.publishEvent(signedEvent)
+      
+      if (result.successful === 0) {
+        throw new Error('Failed to publish to any relays')
+      }
+      
+      console.log('Campaign shared successfully:', {
+        eventId: signedEvent.id,
+        successfulRelays: result.successful,
+        failedRelays: result.failed
+      })
+      
+      return {
+        eventId: signedEvent.id,
+        shareUrl
+      }
+    } catch (err) {
+      console.error('Failed to share campaign:', err)
+      throw err
+    }
+  }
+
+  // Initialize when the composable is used
+  onMounted(async () => {
+    // Load campaign aggregated zaps from storage
+    loadCampaignAggregatedZaps()
+    
+    if (isAuthenticated.value) {
+      // Add delay to prevent too many concurrent requests
+      setTimeout(() => {
+        fetchUserCampaigns()
+      }, 1000)
+      
+      // Start campaign zap aggregation
+      setTimeout(async () => {
+        await startCampaignZapAggregation(isAuthenticated)
+      }, 2000)
+    }
+  })
+
+  // Watch for authentication changes
+  watch(isAuthenticated, async (authenticated) => {
+    if (authenticated) {
+      // Add delays to prevent concurrent request overload
+      setTimeout(() => {
+        fetchUserCampaigns()
+      }, 500)
+      
+      setTimeout(async () => {
+        await startCampaignZapAggregation(isAuthenticated)
+      }, 1500)
+    } else {
+      // Clear campaigns when logged out
+      userCampaigns.value = []
+      stopCampaignZapAggregation()
+    }
+  })
+  
+  // Watch for changes to campaign aggregated zaps and save to storage
+  watch(campaignAggregatedZaps, saveCampaignAggregatedZaps, { deep: true })
+
+  // Cleanup on unmount
+  onUnmounted(() => {
+    // Close all subscriptions
+    activeSubscriptions.forEach(subscription => {
+      subscription.close()
+    })
+    activeSubscriptions.clear()
+    
+    // Stop campaign zap aggregation
+    stopCampaignZapAggregation()
+  })
+
+  return {
+    // State
+    userCampaigns,
+    publicCampaigns,
+    isLoading,
+    error,
+    
+    // Actions
+    fetchUserCampaigns,
+    fetchCampaignById,
+    publishCampaign,
+    deleteCampaign,
+    shareCampaignOnNostr,
+    
+    // Helpers
+    getCampaignProgress,
+    isCampaignExpired,
+    isCampaignCompleted,
+    getCampaignStatus,
+    
+    // NEW: Campaign zap aggregation
+    campaignAggregatedZaps: computed(() => campaignAggregatedZaps),
+    startCampaignZapAggregation,
+    stopCampaignZapAggregation,
+    
+    // Constants
+    CAMPAIGN_KIND
   }
 }
-</style>
