@@ -27,6 +27,7 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useCampaigns } from '../composables/useCampaigns.js'
 import { useNotifications } from '../composables/useNotifications.js'
 import { formatDate } from '../utils/dateUtils.js'
+import { useNostrAuth } from '../composables/useNostrAuth.js'
 import CampaignCard from '../components/CampaignCard.vue'
 import CampaignCreateModal from '../components/CampaignCreateModal.vue'
 import CampaignDeleteModal from '../components/CampaignDeleteModal.vue'
@@ -36,7 +37,7 @@ import CampaignShareModal from '../components/CampaignShareModal.vue'
 const changePage = inject('changePage')
 
 // Use composables
-const { isAuthenticated, currentUser, login } = toRefs(useNostrAuth())
+const { isAuthenticated, currentUser, login } = useNostrAuth()
 const { 
   userCampaigns, 
   isLoading, 
