@@ -14,7 +14,8 @@ import {
   IconX,
   IconExternalLink,
   IconCopy,
-  IconUser
+  IconUser,
+  IconMessageCircle
 } from '@iconify-prerendered/vue-tabler'
 import { useCampaigns } from '../composables/useCampaigns.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -152,9 +153,16 @@ const progress = computed(() => {
 
 // Format amount in sats
 const formatAmount = (amount) => {
-  // Convert from millisats to sats
-  const sats = Math.floor(amount / 1000)
-  return sats.toLocaleString()
+  if (!amount) return '0'
+  
+  try {
+    // Convert from millisats to sats
+    const sats = Math.floor(amount / 1000)
+    return sats ? sats.toLocaleString() : '0'
+  } catch (error) {
+    console.error('Error formatting amount:', error, amount)
+    return '0'
+  }
 }
 
 // Calculate days remaining
@@ -379,11 +387,11 @@ onMounted(async () => {
           <div class="flex flex-col sm:flex-row gap-3">
             <button
               @click="openZapModal"
-              :disabled="status === 'expired' || status === 'completed'" 
+              :disabled="status === 'expired' || status === 'completed' || !isAuthenticated" 
               class="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
             >
               <IconBolt class="w-4 h-4" />
-              <span class="font-medium">Zap Now</span>
+              <span class="font-medium">{{ isAuthenticated ? 'Zap Now' : 'Login to Zap' }}</span>
             </button>
             
             <button
@@ -441,7 +449,7 @@ onMounted(async () => {
         <div class="space-y-4">
           <!-- Event ID -->
           <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-600">Event ID:</span>
+            <span class="text-sm text-gray-600">Event ID (NIP-75):</span>
             <div class="flex items-center space-x-2">
               <code class="text-xs bg-gray-100 px-2 py-1 rounded">{{ campaign.id.substring(0, 10) }}...{{ campaign.id.substring(campaign.id.length - 10) }}</code>
               <button
@@ -451,6 +459,31 @@ onMounted(async () => {
                 <IconCheck v-if="copySuccess === 'eventId'" class="w-4 h-4 text-green-600" />
                 <IconCopy v-else class="w-4 h-4" />
               </button>
+            </div>
+          </div>
+          
+          <!-- View in Nostr Client -->
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-600">View in Nostr client:</span>
+            <div class="flex items-center space-x-2">
+              <a 
+                :href="`https://primal.net/e/${campaign.id}`" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="text-sm text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-3 py-1 rounded-lg transition-colors flex items-center space-x-1"
+              >
+                <IconExternalLink class="w-4 h-4" />
+                <span>Primal</span>
+              </a>
+              <a 
+                :href="`https://yakihonne.com/e/${campaign.id}`" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="text-sm text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-lg transition-colors flex items-center space-x-1"
+              >
+                <IconMessageCircle class="w-4 h-4" />
+                <span>Yakihonne</span>
+              </a>
             </div>
           </div>
           
