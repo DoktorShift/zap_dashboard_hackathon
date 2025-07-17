@@ -171,20 +171,14 @@ const shareOnNostr = async () => {
       kind: 1, // Text note
       created_at: Math.floor(Date.now() / 1000),
       tags,
-      content: messageContent
-    }
-    
-    // Sign the event
-    let signedEvent
-    if (window.nostr?.signEvent) {
-      try {
-        signedEvent = await window.nostr.signEvent(eventTemplate)
-        // Verify the signed event
-        if (!verifyEvent(signedEvent)) {
-          console.warn('Zap request signature verification failed, using unsigned request')
-          signedEvent = eventTemplate
-        }
-      } catch (err) {
+        // CRITICAL: Reference the campaign as a zapgoal with the "goal" tag (NIP-75)
+        ['goal', props.campaign.id],
+        
+        // Also reference the campaign with an "e" tag for better client compatibility
+        ['e', props.campaign.id, '', 'mention'],
+        
+        // Public key of the campaign creator (for zap routing)
+        ['p', props.campaign.pubkey],
         console.warn('Failed to sign zap request:', err)
         signedEvent = eventTemplate
       }
