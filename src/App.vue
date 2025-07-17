@@ -15,6 +15,10 @@ import Donations from './pages/Donations.vue'
 import Campaigns from './pages/Campaigns.vue'
 import CampaignView from './pages/CampaignView.vue'
 import CampaignNotFound from './pages/CampaignNotFound.vue'
+import Donations from './pages/Donations.vue'
+import Campaigns from './pages/Campaigns.vue'
+import CampaignView from './pages/CampaignView.vue'
+import CampaignNotFound from './pages/CampaignNotFound.vue'
 import MiniPoS from './pages/MiniPoS.vue'
 import Wallet from './pages/Wallet.vue'
 import Finances from './pages/Finances.vue'
@@ -334,6 +338,10 @@ const components = {
   'chat-zaps': ChatZaps,
   content: Content,
   'content-unlock': ContentUnlock,
+  donations: Donations,
+  campaigns: Campaigns,
+  'campaign-view': CampaignView,
+  'campaign-not-found': CampaignNotFound,
   donations: Donations,
   campaigns: Campaigns,
   'campaign-view': CampaignView,

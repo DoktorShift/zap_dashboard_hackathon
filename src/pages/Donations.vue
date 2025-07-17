@@ -1,4 +1,5 @@
 <script setup>
+import { inject } from 'vue'
 import { IconGift, IconTarget, IconRocket, IconArrowRight } from '@iconify-prerendered/vue-tabler'
 
 // Inject changePage function from parent
