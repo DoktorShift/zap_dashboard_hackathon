@@ -155,7 +155,7 @@ const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
 
 // Start campaign zap aggregation listener
 const startCampaignZapAggregation = async () => {
-  if (!isAuthenticated.value || campaignZapSubscription) {
+  if (!isAuthenticated || campaignZapSubscription) {
     console.log('Campaign zap aggregation already active or not authenticated')
     return
   }
