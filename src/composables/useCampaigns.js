@@ -174,7 +174,15 @@ export function useCampaigns() {
   // Process campaign event into campaign object
   const processCampaignEvent = (event) => {
     // Extract campaign data from event
-    const title = event.content || 'Untitled Campaign'
+    console.log('Processing campaign event:', event);
+    
+    // Ensure we have a valid event
+    if (!event || !event.id) {
+      console.error('Invalid campaign event:', event);
+      throw new Error('Invalid campaign event');
+    }
+    
+    const title = event.content || 'Untitled Campaign';
     
     // Extract tags
     const amountTag = event.tags.find(tag => tag[0] === 'amount')
@@ -191,7 +199,7 @@ export function useCampaigns() {
     const relays = relaysTag ? event.tags.filter(tag => tag[0] === 'relays').map(tag => tag[1]) : []
     
     // Create campaign object
-    return {
+    const campaign = {
       id: event.id,
       pubkey: event.pubkey,
       title,
@@ -204,6 +212,9 @@ export function useCampaigns() {
       createdAt: event.created_at,
       rawEvent: event
     }
+    
+    console.log('Processed campaign:', campaign);
+    return campaign;
   }
 
   // Create and publish a new campaign
@@ -264,11 +275,16 @@ export function useCampaigns() {
         throw new Error('Failed to publish to any relays')
       }
       
-      console.log('Campaign published successfully:', {
+      console.log('✅ Campaign published successfully:', {
         eventId: signedEvent.id,
         successfulRelays: result.successful,
         failedRelays: result.failed
       })
+      
+      // Log detailed information for debugging
+      console.log('Campaign Event ID:', signedEvent.id);
+      console.log('Campaign Event:', signedEvent);
+      console.log('Publish Result:', result);
       
       // Process and add to local state
       const campaign = processCampaignEvent(signedEvent)

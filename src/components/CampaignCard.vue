@@ -39,9 +39,35 @@ const progress = computed(() => {
 // Format amount in sats
 const formatAmount = (amount) => {
   if (amount === undefined || amount === null) return '0'
-  // Convert from millisats to sats
-  const sats = Math.floor(amount / 1000)
-  return sats ? sats.toLocaleString() : '0'
+  
+  try {
+    // Convert from millisats to sats
+    const sats = Math.floor(amount / 1000)
+    return sats ? sats.toLocaleString() : '0'
+  } catch (error) {
+    console.error('Error formatting amount:', error, amount)
+    return '0'
+  }
+}
+
+// Format amount safely
+const formatAmountSafe = (amount) => {
+  if (amount === undefined || amount === null) return '0'
+  
+  try {
+    // Convert from millisats to sats
+    const sats = Math.floor(amount / 1000)
+    return sats ? sats.toLocaleString() : '0'
+  } catch (error) {
+    console.error('Error formatting amount:', error, amount)
+    return '0'
+  }
+}
+
+// Get campaign ID for display
+const getCampaignId = (campaign) => {
+  if (!campaign || !campaign.id) return 'Unknown ID'
+  return campaign.id
 }
 
 // Calculate days remaining
@@ -135,7 +161,10 @@ const formatDate = (timestamp) => {
           </span>
         </div>
         
-        <h3 class="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-orange-600 transition-colors duration-200">{{ campaign.title }}</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-orange-600 transition-colors duration-200">
+          {{ campaign.title }}
+          <span class="text-xs text-gray-400 font-normal ml-1">#{{ campaign.id.substring(0, 6) }}</span>
+        </h3>
         <p v-if="campaign.summary" class="text-sm text-gray-600 mb-4 line-clamp-3">{{ campaign.summary }}</p>
       </div>
       
@@ -153,7 +182,7 @@ const formatDate = (timestamp) => {
         </div>
         <div class="flex items-center justify-between mt-1.5">
           <span class="text-xs text-gray-500">{{ progress.current.toLocaleString() }} sats raised</span>
-          <span class="text-xs text-gray-500">Goal: {{ formatAmount(campaign.goalAmount) }} sats</span>
+          <span class="text-xs text-gray-500">Goal: {{ formatAmountSafe(campaign.goalAmount) }} sats</span>
         </div>
       </div>
       
