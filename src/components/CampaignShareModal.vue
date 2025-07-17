@@ -434,26 +434,7 @@ const togglePreview = () => {
               Your note will include a reference to this campaign, allowing zaps to be tracked across both the campaign and related notes.
             </p>
             
-            <!-- Preview Button 
-            <button 
-              @click="togglePreview" 
-              class="w-full flex items-center justify-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm transition-colors"
-            >
-              <IconEye class="w-4 h-4" />
-              <span>{{ showPreview ? 'Hide' : 'Show' }} Post Preview</span>
-            </button> 
-            
-              Post Preview 
-            <div v-if="showPreview" class="bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <div class="flex items-center justify-between mb-2">
-                <h4 class="text-sm font-medium text-gray-700">Post Preview</h4>
-              </div>
-              <div class="bg-white p-3 rounded border border-gray-200 text-sm whitespace-pre-wrap">
-                {{ postPreview }}
-              </div>
-            </div>
-          </div>
-        </div> 
+        
         
         <!-- Success Indicator -->
         <p v-if="copySuccess === 'url'" class="text-green-600 text-sm flex items-center justify-center">
