@@ -321,5 +321,3 @@ button:not(:disabled):active {
   transform: translateY(0);
 }
 </style>
-</script>
-</template>
