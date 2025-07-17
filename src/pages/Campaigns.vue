@@ -619,6 +619,7 @@ watch(isAuthenticated, async (isAuth) => {
   <CampaignCreateModal
     v-if="showCreateModal"
     :campaign="selectedCampaign"
+    :isAuthenticated="isAuthenticated"
     @close="showCreateModal = false; selectedCampaign = null"
   />
 
@@ -634,6 +635,7 @@ watch(isAuthenticated, async (isAuth) => {
   <CampaignShareModal
     v-if="showShareModal"
     :campaign="selectedCampaign"
+    :isAuthenticated="isAuthenticated"
     @close="showShareModal = false; selectedCampaign = null"
   />
 </template>
