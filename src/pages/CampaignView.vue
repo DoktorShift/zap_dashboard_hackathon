@@ -19,7 +19,6 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useCampaigns } from '../composables/useCampaigns.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useContentZaps } from '../composables/useContentZaps.js'
 import { useNotifications } from '../composables/useNotifications.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import * as nip19 from 'nostr-tools/nip19'
@@ -38,11 +37,11 @@ const {
   isCampaignExpired, 
   isCampaignCompleted, 
   getCampaignStatus,
+  campaignAggregatedZaps,
   isLoading,
   error
 } = useCampaigns()
 const { isAuthenticated, currentUser } = useNostrAuth()
-const { getZapsForContent } = useContentZaps()
 const { handleZapReceived } = useNotifications()
 
 // State
@@ -211,16 +210,39 @@ const formatDate = (timestamp) => {
   })
 }
 
-// Get recent zaps
+// Get recent zaps from campaign aggregated zaps
 const recentZaps = computed(() => {
   if (!campaign.value) return []
   
-  return getZapsForContent(campaign.value.id)
+  // Get zaps from the campaign aggregated zaps system
+  const campaignZaps = campaignAggregatedZaps.value.get(campaign.value.id) || []
+  
+  return campaignZaps
     .slice(0, 5)
     .map(zap => ({
       ...zap,
+      // Add sender info for display
+      sender: {
+        name: `User ${zap.zapperPubkey?.substring(0, 8)}` || 'Anonymous',
+        picture: generateFallbackAvatar(zap.zapperPubkey),
+        avatar: generateFallbackAvatar(zap.zapperPubkey)
+      },
       timeAgo: formatTimeAgo(zap.timestamp)
     }))
+})
+
+// Get total zap count for this campaign
+const totalZapCount = computed(() => {
+  if (!campaign.value) return 0
+  const campaignZaps = campaignAggregatedZaps.value.get(campaign.value.id) || []
+  return campaignZaps.length
+})
+
+// Get total zap amount for this campaign
+const totalZapAmount = computed(() => {
+  if (!campaign.value) return 0
+  const campaignZaps = campaignAggregatedZaps.value.get(campaign.value.id) || []
+  return campaignZaps.reduce((sum, zap) => sum + zap.amount, 0)
 })
 
 const formatTimeAgo = (timestamp) => {
@@ -413,6 +435,9 @@ onMounted(async () => {
         <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center space-x-2">
           <IconUsers class="w-5 h-5 text-orange-600" />
           <span>Recent Supporters</span>
+          <span v-if="totalZapCount > 0" class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            {{ totalZapCount }} zap{{ totalZapCount !== 1 ? 's' : '' }}
+          </span>
         </h3>
         
         <div v-if="recentZaps.length === 0" class="text-center py-8">
@@ -422,6 +447,21 @@ onMounted(async () => {
         </div>
         
         <div v-else class="space-y-4">
+          <!-- Total Stats -->
+          <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4 mb-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-orange-700 font-medium">Total Support</p>
+                <p class="text-2xl font-bold text-orange-600">{{ totalZapAmount.toLocaleString() }} sats</p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm text-orange-700 font-medium">Supporters</p>
+                <p class="text-2xl font-bold text-orange-600">{{ totalZapCount }}</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Recent Zaps List -->
           <div v-for="zap in recentZaps" :key="zap.id" class="flex items-center space-x-3 p-3 bg-orange-50/50 rounded-lg">
             <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 shadow-sm">
               <img 
@@ -441,6 +481,13 @@ onMounted(async () => {
             <div class="text-right bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-2 rounded-lg shadow-sm">
               <p class="font-bold text-orange-600">{{ zap.amount.toLocaleString() }} sats</p>
             </div>
+          </div>
+          
+          <!-- Show More Button (if there are more than 5 zaps) -->
+          <div v-if="totalZapCount > 5" class="text-center pt-4 border-t border-orange-100">
+            <p class="text-sm text-gray-600">
+              Showing 5 of {{ totalZapCount }} supporters
+            </p>
           </div>
         </div>
       </div>
