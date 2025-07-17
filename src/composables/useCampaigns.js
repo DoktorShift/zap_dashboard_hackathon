@@ -3,7 +3,6 @@ import { useNostrAuth } from './useNostrAuth.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { useNotifications } from './useNotifications.js'
-import { useNostrAuth } from './useNostrAuth.js'
 import { extractAmountFromBolt11 } from '../utils/invoiceUtils.js'
 
 // Global state for campaigns
