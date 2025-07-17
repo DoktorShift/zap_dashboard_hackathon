@@ -328,7 +328,9 @@ export function useCampaigns() {
       // Start tracking zaps for this campaign
       startZapTracking(signedEvent.id)
       
-      return campaign
+      // Process and return the campaign object
+      const campaignObject = processCampaignEvent(signedEvent)
+      return campaignObject
     } catch (err) {
       console.error('Failed to publish campaign:', err)
       error.value = 'Failed to publish campaign: ' + err.message
