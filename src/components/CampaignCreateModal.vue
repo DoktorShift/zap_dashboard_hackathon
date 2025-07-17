@@ -196,6 +196,8 @@ const publishNewCampaign = async () => {
     // Publish campaign
     const campaign = await publishCampaign(campaignData)
     
+    console.log('Campaign published successfully:', campaign)
+    
     // Show success state
     publishSuccess.value = true
     publishedCampaign.value = campaign
