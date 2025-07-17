@@ -1,19 +1,15 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { 
   IconShare, 
   IconX, 
   IconCopy, 
   IconCheck, 
-  IconBrandTwitter, 
-  IconMessageCircle, 
-  IconLoader, 
-  IconAlertCircle,
-  IconLink,
-  IconHash,
-  IconTarget,
-  IconCode,
-  IconEye
+  IconExternalLink,
+  IconBolt,
+  IconMessageCircle,
+  IconLoader,
+  IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
 import { useCampaigns } from '../composables/useCampaigns.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -24,96 +20,33 @@ const props = defineProps({
   campaign: {
     type: Object,
     required: true
+  },
+  isAuthenticated: {
+    type: Boolean,
+    default: false
   }
 })
 
 const emit = defineEmits(['close'])
 
-const { shareCampaignOnNostr, isLoading: campaignsLoading } = useCampaigns()
-const { isAuthenticated, currentUser } = useNostrAuth()
+const { shareCampaignOnNostr } = useCampaigns()
+const { currentUser } = useNostrAuth()
 
-// UI state
-const copySuccess = ref('')
+// State
+const shareUrl = ref('')
 const customMessage = ref('')
+const copySuccess = ref('')
 const isSharing = ref(false)
 const shareSuccess = ref(false)
 const shareError = ref('')
-const includeHashtags = ref(true)
-const defaultHashtags = ref(['zapgoal', 'nostr', 'fundraising', 'ZapTracker'])
-const customHashtags = ref([])
-const newHashtag = ref('')
-const showAdvancedOptions = ref(false)
-const publishedNoteId = ref(null)
-
-// Extract hashtags from message content
-const extractHashtagsFromContent = (content) => {
-  if (!content) return []
-  
-  const hashtagRegex = /#(\w+)/g
-  const hashtags = []
-  let match
-  
-  while ((match = hashtagRegex.exec(content)) !== null) {
-    hashtags.push(match[1])
-  }
-  
-  return hashtags
-}
 
 // Generate share URL
-const shareUrl = computed(() => {
+const generateShareUrl = () => {
   return `${window.location.origin}?page=campaign-view&eventId=${props.campaign.id}`
-})
+}
 
-// Generate share text
-const shareText = computed(() => {
-  return `⚡ I'm raising sats! Support my campaign: ${props.campaign.title}`
-})
-
-// Complete message with URL always included
-const completeMessage = computed(() => {
-  const baseMessage = customMessage.value || shareText.value
-  
-  // Check if URL is already included in the message
-  if (baseMessage.includes(shareUrl.value)) {
-    return baseMessage
-  }
-  
-  // Add URL on a new line if not already included
-  return `${baseMessage}\n\n${shareUrl.value}`
-})
-
-// Generate hashtags for the note
-const combinedHashtags = computed(() => {
-  const tags = []
-  
-  // Add hashtags extracted from the message content
-  const contentHashtags = extractHashtagsFromContent(completeMessage.value)
-  tags.push(...contentHashtags)
-  
-  if (includeHashtags.value) {
-    tags.push(...defaultHashtags.value)
-  }
-  
-  if (customHashtags.value.length > 0) {
-    tags.push(...customHashtags.value)
-  }
-  
-  return [...new Set(tags)] // Remove duplicates
-})
-
-// Generate preview of the final post
-const postPreview = computed(() => {
-  let preview = completeMessage.value
-  
-  // Add hashtags if any
-  if (combinedHashtags.value.length > 0) {
-    preview += '\n\n' + combinedHashtags.value.map(tag => `#${tag}`).join(' ')
-  }
-  
-  return preview
-})
-
+// Initialize share URL
+shareUrl.value = generateShareUrl()
 
 // Copy to clipboard
 const copyToClipboard = async (text, type) => {
@@ -130,353 +63,242 @@ const copyToClipboard = async (text, type) => {
 
 // Share on Nostr
 const shareOnNostr = async () => {
-  if (!isAuthenticated.value || !window.nostr) {
-    shareError.value = 'Nostr authentication required'
+  if (!props.isAuthenticated) {
+    shareError.value = 'Please connect your Nostr identity to share'
     return
   }
-  
+
   isSharing.value = true
   shareError.value = ''
-  publishedNoteId.value = null
-  
+
   try {
-    console.log('Publishing note with zapgoal reference...')
+    console.log('🔗 Sharing campaign on Nostr with goal tag...')
     
-    // Use the complete message that always includes the URL
-    const messageContent = completeMessage.value
+    // Create content with custom message or default
+    const content = customMessage.value.trim() || 
+      `🎯 Support my campaign: ${props.campaign.title}\n\n${shareUrl.value}\n\n#ZapTracker #Bitcoin #Lightning`
     
-    // Prepare tags
-    const tags = [
-      // Reference the campaign as a zapgoal with the "goal" tag
-      ['goal', props.campaign.id],
-      
-      // Also reference the campaign with an "e" tag for better client compatibility
-      ['e', props.campaign.id, '', 'mention'],
-      
-      // Public key of the campaign creator (used in zap receipts)
-      ['p', props.campaign.pubkey],
-      
-      // (Custom tag) Explicitly state that this post is zap-related
-      ['zap', props.campaign.pubkey],
-      
-      // (Optional) Human-readable fallback for accessibility and indexing
-      ['alt', `Support this campaign: ${props.campaign.title}`],
-      
-      // Add hashtags as "t" tags
-      ...combinedHashtags.value.map(tag => ['t', tag])
-    ]
+    console.log('Share content:', content)
     
-    // Create event
+    // Create event template with proper goal tag
     const eventTemplate = {
       kind: 1, // Text note
       created_at: Math.floor(Date.now() / 1000),
-      tags,
-      content: messageContent
+      tags: [
+        // CRITICAL: Reference the campaign as a zapgoal with the "goal" tag (NIP-75)
+        ['goal', props.campaign.id],
+        
+        // Also reference the campaign with an "e" tag for better client compatibility
+        ['e', props.campaign.id],
+        
+        // Reference the campaign creator
+        ['p', props.campaign.pubkey]
+      ],
+      content
     }
+    
+    console.log('Event template with goal tag:', eventTemplate)
+    console.log('Tags being added:', eventTemplate.tags)
     
     // Sign the event
     let signedEvent
     if (window.nostr?.signEvent) {
-      try {
-        signedEvent = await window.nostr.signEvent(eventTemplate)
-        // Verify the signed event
-        if (!verifyEvent(signedEvent)) {
-          console.warn('Zap request signature verification failed, using unsigned request')
-          signedEvent = eventTemplate
-        }
-      } catch (err) {
-        console.warn('Failed to sign zap request:', err)
-        signedEvent = eventTemplate
-      }
+      signedEvent = await window.nostr.signEvent(eventTemplate)
     } else {
-      signedEvent = eventTemplate
+      throw new Error('Nostr extension not available for signing')
     }
     
-    // Publish to Nostr relays
+    console.log('Signed event with goal tag:', signedEvent)
+    
+    // Verify the signed event
+    const isValid = verifyEvent(signedEvent)
+    if (!isValid) {
+      throw new Error('Event signature verification failed')
+    }
+    
+    // Publish to relays
     const result = await nostrRelayManager.publishEvent(signedEvent)
     
     if (result.successful === 0) {
       throw new Error('Failed to publish to any relays')
     }
     
-    console.log('✅ Note published successfully:', {
+    console.log('✅ Campaign shared successfully with goal tag:', {
       eventId: signedEvent.id,
       successfulRelays: result.successful,
-      failedRelays: result.failed
+      failedRelays: result.failed,
+      goalTag: signedEvent.tags.find(tag => tag[0] === 'goal')
     })
     
-    // Store the published note ID
-    publishedNoteId.value = signedEvent.id
     shareSuccess.value = true
-    
-    // Reset form
-    customMessage.value = ''
-    newHashtag.value = ''
     
     // Close modal after 2 seconds
     setTimeout(() => {
       emit('close')
     }, 2000)
+    
   } catch (error) {
-    shareError.value = error.message
-    console.error('Failed to share on Nostr:', error)
+    console.error('Failed to share campaign:', error)
+    shareError.value = error.message || 'Failed to share campaign'
   } finally {
     isSharing.value = false
   }
 }
 
-// Add a custom hashtag
-const addHashtag = () => {
-  if (!newHashtag.value.trim()) return
-  
-  // Remove # if present
-  let tag = newHashtag.value.trim()
-  if (tag.startsWith('#')) {
-    tag = tag.substring(1)
-  }
-  
-  // Only add if not already in the list
-  if (!customHashtags.value.includes(tag) && !defaultHashtags.value.includes(tag)) {
-    customHashtags.value.push(tag)
-  }
-  
-  newHashtag.value = ''
-}
-
-// Remove a custom hashtag
-const removeHashtag = (tag) => {
-  const index = customHashtags.value.indexOf(tag)
-  if (index !== -1) {
-    customHashtags.value.splice(index, 1)
+// Share via Web Share API
+const shareViaWebShare = async () => {
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: props.campaign.title,
+        text: `Support my campaign: ${props.campaign.title}`,
+        url: shareUrl.value
+      })
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Web share failed:', error)
+      }
+    }
   }
 }
 
-// Share on Twitter/X
-const shareOnTwitter = () => {
-  const text = encodeURIComponent(`${shareText.value}\n\n${shareUrl.value}`)
-  window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank')
+// Format amount in sats
+const formatAmount = (amount) => {
+  if (!amount) return '0'
+  const sats = Math.floor(amount / 1000)
+  return sats ? sats.toLocaleString() : '0'
 }
-
-// Native share if available
-const nativeShare = () => {
-  if (navigator && navigator.share) {
-    navigator.share({
-      title: props.campaign.title,
-      text: shareText.value,
-      url: shareUrl.value
-    }).catch(err => console.error('Error sharing:', err))
-  } else {
-    copyToClipboard(shareUrl.value, 'url')
-  }
-}
-
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
-    <div class="bg-white rounded-xl w-full max-w-sm mx-4 shadow-lg">
+  <div class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
       <!-- Header -->
-      <div class="p-4 border-b border-gray-200 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900">Share Campaign</h3>
-        <button
-          @click="$emit('close')"
-          class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors"
-        >
-          <IconX class="w-5 h-5" />
-        </button>
+      <div class="p-6 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-xl flex items-center justify-center text-white shadow-sm">
+              <IconShare class="w-5 h-5" />
+            </div>
+            <h3 class="text-xl font-semibold text-gray-900">Share Campaign</h3>
+          </div>
+          <button
+            @click="$emit('close')"
+            class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors hover:bg-gray-100"
+          >
+            <IconX class="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <!-- Success State -->
       <div v-if="shareSuccess" class="p-6 text-center">
-        <div class="flex items-center justify-between">
-          <IconCheck class="w-6 h-6 text-green-600 mx-auto" />
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <IconCheck class="w-8 h-8 text-green-600" />
         </div>
-        <p class="text-green-700 font-medium mt-2">Shared successfully!</p>
+        <h4 class="text-xl font-semibold text-green-700 mb-2">Shared Successfully! 🎉</h4>
+        <p class="text-gray-600 mb-4">Your campaign has been shared to Nostr with the proper goal tag for zap tracking.</p>
+        <p class="text-sm text-gray-500">This window will close automatically...</p>
       </div>
+
       <!-- Main Content -->
-      <div v-else class="p-4 space-y-4">
-        <!-- Error Message -->
-        <div v-if="shareError" class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-          <div class="flex items-center space-x-2">
-            <IconAlertCircle class="w-4 h-4 text-red-600" />
-            <span class="text-sm text-red-600">{{ shareError }}</span>
+      <div v-else class="p-6">
+        <!-- Campaign Preview -->
+        <div class="bg-gray-50 rounded-xl p-4 mb-6">
+          <h4 class="font-semibold text-gray-900 mb-2">{{ campaign.title }}</h4>
+          <p class="text-sm text-gray-600 mb-3">{{ campaign.summary }}</p>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-gray-500">Goal:</span>
+            <span class="font-semibold text-orange-600">{{ formatAmount(campaign.goalAmount) }} sats</span>
           </div>
         </div>
-        
-        <!-- Share Options -->
-        <div class="grid grid-cols-1 gap-3">
-          <!-- Copy Link -->
-          <div class="flex items-center">
+
+        <!-- Share URL -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Campaign URL</label>
+          <div class="flex items-center space-x-2">
             <input
-              type="text"
               :value="shareUrl"
               readonly
-              class="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg text-sm bg-gray-50"
+              class="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm"
             />
             <button
               @click="copyToClipboard(shareUrl, 'url')"
-              class="px-3 py-2 bg-orange-500 text-white rounded-r-lg"
+              class="p-2 text-gray-400 hover:text-gray-600 border border-gray-300 rounded-lg transition-colors"
             >
-              <IconCheck v-if="copySuccess === 'url'" class="w-5 h-5" />
-              <IconCopy v-else class="w-5 h-5" />
+              <IconCheck v-if="copySuccess === 'url'" class="w-4 h-4 text-green-600" />
+              <IconCopy v-else class="w-4 h-4" />
             </button>
           </div>
-          
-          <!-- Native Share -->
-          <button
-            v-if="typeof navigator !== 'undefined' && navigator.share"
-            @click="nativeShare"
-            class="w-full bg-orange-500 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2"
-          >
-            <IconShare class="w-5 h-5" />
-            <span>Share</span>
-          </button>
-          
-          <!-- Twitter/X -->
-          <button
-            @click="shareOnTwitter"
-            class="w-full bg-[#1DA1F2] text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2"
-          >
-            <IconBrandTwitter class="w-5 h-5" />
-            <span>Share on X/Twitter</span>
-          </button>
-          
-          <!-- Nostr -->
+        </div>
+
+        <!-- Custom Message -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Custom Message (optional)</label>
+          <textarea
+            v-model="customMessage"
+            rows="3"
+            placeholder="Add a personal message to your campaign share..."
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-sm resize-none"
+          ></textarea>
+          <p class="text-xs text-gray-500 mt-1">This will be posted to Nostr with the campaign link</p>
+        </div>
+
+        <!-- Error Message -->
+        <div v-if="shareError" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div class="flex items-center space-x-2">
+            <IconAlertCircle class="w-5 h-5 text-red-600" />
+            <span class="text-red-600">{{ shareError }}</span>
+          </div>
+        </div>
+
+        <!-- Share Actions -->
+        <div class="space-y-3">
+          <!-- Share on Nostr -->
           <button
             @click="shareOnNostr"
-            :disabled="isSharing"
-            class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center space-x-2 disabled:opacity-50"
+            :disabled="!isAuthenticated || isSharing"
+            class="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
           >
             <IconLoader v-if="isSharing" class="w-5 h-5 animate-spin" />
-            <IconMessageCircle v-else class="w-5 h-5" />
+            <IconBolt v-else class="w-5 h-5" />
             <span>{{ isSharing ? 'Posting...' : 'Post to Nostr' }}</span>
           </button>
-          
-          <!-- Custom Message (Collapsed) -->
-          <details class="bg-gray-50 rounded-lg p-3">
-            <summary class="font-medium text-sm text-gray-700 cursor-pointer">Add custom message</summary>
-            <div class="mt-3">
-              <textarea
-                v-model="customMessage"
-                rows="2"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
-                :placeholder="`I'm raising sats with #ZapTracker! Support my campaign: ${props.campaign.title}`"
-              ></textarea>
-            </div>
-          </details>
-          
-          <!-- Advanced Options Toggle -->
-          <div class="mt-3">
-            <button 
-              @click="showAdvancedOptions = !showAdvancedOptions"
-              class="text-sm text-gray-600 hover:text-gray-800 flex items-center space-x-1"
-            >
-              <span>{{ showAdvancedOptions ? 'Hide' : 'Show' }} advanced options</span>
-              <IconHash class="w-3 h-3" />
-            </button>
-          </div>
-          
-          <!-- Advanced Options -->
-          <div v-if="showAdvancedOptions" class="mt-3 space-y-3">
-            <!-- Hashtags -->
+
+          <!-- Web Share API -->
+          <button
+            v-if="navigator.share"
+            @click="shareViaWebShare"
+            class="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
+          >
+            <IconShare class="w-5 h-5" />
+            <span>Share via System</span>
+          </button>
+
+          <!-- Manual Copy -->
+          <button
+            @click="copyToClipboard(shareUrl, 'manual')"
+            class="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
+          >
+            <IconCheck v-if="copySuccess === 'manual'" class="w-5 h-5 text-green-600" />
+            <IconCopy v-else class="w-5 h-5" />
+            <span>{{ copySuccess === 'manual' ? 'Copied!' : 'Copy Link' }}</span>
+          </button>
+        </div>
+
+        <!-- Info Box -->
+        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="flex items-start space-x-3">
+            <IconBolt class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
-              <div class="flex items-center space-x-2 mb-2">
-                <input
-                  type="checkbox"
-                  id="include-hashtags"
-                  v-model="includeHashtags"
-                  class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                />
-                <label for="include-hashtags" class="text-sm text-gray-700">Include default hashtags</label>
-              </div>
-              
-              <!-- Default Hashtags -->
-              <div v-if="includeHashtags" class="flex flex-wrap gap-2 mb-3">
-                <span
-                  v-for="tag in defaultHashtags"
-                  :key="tag"
-                  class="inline-flex items-center space-x-1 bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs"
-                >
-                  <IconHash class="w-3 h-3" />
-                  <span>{{ tag }}</span>
-                </span>
-              </div>
-              
-              <!-- Custom Hashtags -->
-              <div class="flex flex-wrap gap-2 mb-3">
-                <span
-                  v-for="tag in customHashtags"
-                  :key="tag"
-                  class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs"
-                >
-                  <IconHash class="w-3 h-3" />
-                  <span>{{ tag }}</span>
-                  <button @click="removeHashtag(tag)" class="text-orange-500 hover:text-orange-700">
-                    <IconX class="w-3 h-3" />
-                  </button>
-                </span>
-              </div>
-              
-              <!-- Add Custom Hashtag -->
-              <div class="flex space-x-2">
-                <input
-                  v-model="newHashtag"
-                  type="text"
-                  placeholder="Add custom hashtag..."
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                  @keyup.enter="addHashtag"
-                />
-                <button
-                  @click="addHashtag"
-                  class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-            
-            <!-- ZapGoal Info -->
-          <!-- Simple ZapGoal Info -->
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-            <p class="text-blue-800">
-              <IconTarget class="w-3 h-3 inline-block mr-1" />
-              Your note will include a reference to this campaign, allowing zaps to be tracked across both the campaign and related notes.
-            </p>
-            
-          </div>
-        </div> 
-        
-        <!-- Success Indicator -->
-        <p v-if="copySuccess === 'url'" class="text-green-600 text-sm flex items-center justify-center">
-          <IconCheck class="w-4 h-4 mr-1" />
-          Link copied to clipboard!
-        </p>
-        
-        <!-- Published Note Success -->
-        <div v-if="publishedNoteId" class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3">
-          <div class="flex items-start space-x-2">
-            <IconCheck class="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 class="text-sm font-medium text-green-800 mb-1">Note Published Successfully</h4>
-              <p class="text-xs text-green-700 mb-2">
-                Your note has been published to the Nostr network with a reference to this campaign.
+              <h4 class="font-medium text-blue-900 mb-1">Zap Tracking</h4>
+              <p class="text-sm text-blue-800">
+                When you post to Nostr, zaps sent to your post will automatically count towards your campaign goal.
               </p>
-              <div class="flex space-x-2">
-                <a 
-                  :href="`https://primal.net/e/${publishedNoteId}`" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  class="text-xs text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors flex items-center space-x-1"
-                >
-                  <IconExternalLink class="w-3 h-3" />
-                  <span>View on Primal</span>
-                </a>
-              </div>
             </div>
           </div>
         </div>
-    </div>
-  </div>
+      </div>
     </div>
   </div>
 </template>
@@ -484,8 +306,18 @@ const nativeShare = () => {
 <style scoped>
 /* Ensure proper touch targets on mobile */
 @media (max-width: 640px) {
-  button, a {
+  button, input, textarea {
     min-height: 44px;
+    font-size: 16px; /* Prevent zoom on iOS */
   }
+}
+
+/* Button hover effects */
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):active {
+  transform: translateY(0);
 }
 </style>

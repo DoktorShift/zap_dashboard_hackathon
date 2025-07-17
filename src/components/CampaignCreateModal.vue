@@ -12,7 +12,11 @@ import {
   IconBolt,
   IconFileDescription,
   IconArrowRight,
-  IconEye
+  IconEye,
+  IconArrowLeft,
+  IconLink,
+  IconChevronDown,
+  IconInfoCircle
 } from '@iconify-prerendered/vue-tabler'
 import { useCampaigns } from '../composables/useCampaigns.js'
 
@@ -31,8 +35,10 @@ const { publishCampaign, isLoading, error: campaignError } = useCampaigns()
 const form = ref({
   title: '',
   summary: '',
+  descriptionLong: '',
   goalAmount: 100000, // Default 100k sats (in sats)
   image: '',
+  optionalLink: '',
   closedAt: ''
 })
 
@@ -42,8 +48,17 @@ const showPreview = ref(false)
 const isPublishing = ref(false)
 const publishSuccess = ref(false)
 const publishedCampaign = ref(null)
-const currentStep = ref(1) // 1: Basic Info, 2: Details, 3: Preview
+const currentStep = ref(1) // 1: Basics, 2: Details, 3: Preview
 const imagePreview = ref(null)
+const showAdvancedOptions = ref(false)
+
+// Predefined goal amounts for quick selection
+const quickGoals = [
+  { value: 21000, label: '21K sats', description: 'Small goal' },
+  { value: 100000, label: '100K sats', description: 'Medium goal' },
+  { value: 500000, label: '500K sats', description: 'Large goal' },
+  { value: 1000000, label: '1M sats', description: 'Big goal' }
+]
 
 // Initialize form with campaign data if editing
 watch(() => props.campaign, (campaign) => {
@@ -51,8 +66,10 @@ watch(() => props.campaign, (campaign) => {
     form.value = {
       title: campaign.title || '',
       summary: campaign.summary || '',
+      descriptionLong: campaign.descriptionLong || '',
       goalAmount: Math.floor(campaign.goalAmount / 1000) || 100000, // Convert millisats to sats
       image: campaign.image || '',
+      optionalLink: campaign.optionalLink || '',
       closedAt: campaign.closedAt ? new Date(campaign.closedAt * 1000).toISOString().split('T')[0] : ''
     }
     
@@ -82,6 +99,10 @@ const isStep2Valid = computed(() => {
   return form.value.summary.trim()
 })
 
+const progressPercentage = computed(() => {
+  return (currentStep.value / 3) * 100
+})
+
 // Validate form
 const validateForm = () => {
   localError.value = ''
@@ -106,6 +127,11 @@ const validateForm = () => {
     return false
   }
   
+  if (form.value.optionalLink && !isValidLinkUrl(form.value.optionalLink)) {
+    localError.value = 'Please enter a valid URL for optional link'
+    return false
+  }
+  
   return true
 }
 
@@ -121,15 +147,21 @@ const isValidImageUrl = (url) => {
   }
 }
 
-// Show preview
-const showCampaignPreview = () => {
-  if (!validateForm()) return
-  showPreview.value = true
+// Validate optional link URL
+const isValidLinkUrl = (url) => {
+  if (!url) return true
+  
+  try {
+    const parsed = new URL(url)
+    return true
+  } catch (e) {
+    return false
+  }
 }
 
-// Close preview
-const closePreview = () => {
-  showPreview.value = false
+// Quick goal selection
+const selectQuickGoal = (amount) => {
+  form.value.goalAmount = amount
 }
 
 // Next step
@@ -188,8 +220,10 @@ const publishNewCampaign = async () => {
     const campaignData = {
       title: form.value.title.trim(),
       summary: form.value.summary.trim(),
+      descriptionLong: form.value.descriptionLong.trim(),
       goalAmount: goalAmountMsats, // in millisats
       image: form.value.image.trim(),
+      optionalLink: form.value.optionalLink.trim(),
       closedAt: closedAtTimestamp
     }
     
@@ -255,346 +289,435 @@ const getEndOfDayTimestamp = (dateString) => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-    <div class="bg-white rounded-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-      <!-- Header -->
-      <div class="p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-        <div class="flex items-center justify-between">
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+    <!-- Mobile-first modal design -->
+    <div class="bg-white w-full sm:max-w-lg sm:rounded-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden shadow-2xl">
+      <!-- Sticky Header with Progress -->
+      <div class="sticky top-0 bg-white z-10 border-b border-gray-100">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 sm:p-6">
           <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-orange-400 to-amber-400 rounded-xl flex items-center justify-center text-white shadow-sm">
-              <IconTarget class="w-5 h-5" />
+            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-400 to-amber-400 rounded-xl flex items-center justify-center text-white shadow-sm">
+              <IconTarget class="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <h3 class="text-xl font-semibold text-gray-900">
-              {{ isEditing ? 'Edit Campaign' : 'Create New Campaign' }}
-            </h3>
+            <div>
+              <h3 class="text-lg sm:text-xl font-bold text-gray-900">
+                {{ isEditing ? 'Edit Campaign' : 'New Campaign' }}
+              </h3>
+              <p class="text-xs sm:text-sm text-gray-500">
+                Step {{ currentStep }} of 3
+              </p>
+            </div>
           </div>
           <button
             @click="$emit('close')"
-            class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors hover:bg-gray-100"
+            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
           >
             <IconX class="w-5 h-5" />
           </button>
         </div>
         
-        <!-- Progress Steps -->
-        <div class="flex items-center justify-between mt-6 px-6">
-          <div 
-            v-for="step in 3" 
-            :key="step"
-            class="flex items-center"
-          >
+        <!-- Progress Bar -->
+        <div class="px-4 sm:px-6 pb-4">
+          <div class="w-full bg-gray-200 rounded-full h-2">
             <div 
-              :class="[
-                'w-8 h-8 rounded-full flex items-center justify-center font-medium text-sm',
-                currentStep >= step 
-                  ? 'bg-orange-500 text-white' 
-                  : 'bg-gray-200 text-gray-600'
-              ]"
-            >
-              {{ step }}
-            </div>
-            <div 
-              v-if="step < 3"
-              :class="[
-                'h-1 w-16 sm:w-24 mx-2',
-                currentStep > step ? 'bg-orange-500' : 'bg-gray-200'
-              ]"
+              class="bg-gradient-to-r from-orange-400 to-amber-400 h-2 rounded-full transition-all duration-500 ease-out"
+              :style="{ width: `${progressPercentage}%` }"
             ></div>
           </div>
         </div>
-        
-        <!-- Step Labels -->
-        <div class="flex items-center justify-between mt-2 px-4 text-xs text-gray-600">
-          <span :class="{ 'text-orange-600 font-medium': currentStep === 1 }">Basic Info</span>
-          <span :class="{ 'text-orange-600 font-medium': currentStep === 2 }">Details</span>
-          <span :class="{ 'text-orange-600 font-medium': currentStep === 3 }">Preview</span>
-        </div>
       </div>
 
-      <!-- Step 1: Basic Info -->
-      <div v-if="currentStep === 1" class="p-6">
-        <div class="space-y-5">
-          <!-- Title -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Campaign Title <span class="text-red-500">*</span></label>
-            <input
-              v-model="form.title"
-              type="text"
-              placeholder="e.g., Support my trip to Nostrasia!"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200"
-            />
-            <p class="text-xs text-gray-500 mt-1">
-              Choose a clear, compelling title that describes your campaign
-            </p>
+      <!-- Content Area -->
+      <div class="overflow-y-auto max-h-[calc(95vh-140px)] sm:max-h-[calc(90vh-160px)]">
+        <!-- Step 1: The Basics -->
+        <div v-if="currentStep === 1" class="p-4 sm:p-6">
+          <div class="text-center mb-6">
+            <h4 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">What's your goal?</h4>
+            <p class="text-gray-600 text-sm sm:text-base">Give your campaign a clear title and set your funding target</p>
           </div>
           
-          <!-- Goal Amount -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Funding Goal (sats) <span class="text-red-500">*</span></label>
-            <div class="relative">
-              <input
-                v-model.number="form.goalAmount"
-                type="number"
-                min="1"
-                placeholder="100000"
-                class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200"
-              />
-              <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                <IconBolt class="w-5 h-5 text-gray-400" />
-              </div>
-            </div>
-            <p class="text-xs text-gray-500 mt-1">
-              Set a realistic goal amount in satoshis (1 BTC = 100,000,000 sats)
-            </p>
-          </div>
-          
-          <!-- End Date -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">End Date (optional)</label>
-            <div class="relative">
-              <input
-                v-model="form.closedAt"
-                type="date"
-                class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200"
-              />
-              <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                <IconCalendar class="w-5 h-5 text-gray-400" />
-              </div>
-            </div>
-            <p class="text-xs text-gray-500 mt-1">
-              Set a deadline for your campaign (leave empty for no deadline)
-            </p>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Step 2: Details -->
-      <div v-if="currentStep === 2" class="p-6">
-        <div class="space-y-5">
-          <!-- Summary -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Campaign Summary <span class="text-red-500">*</span></label>
-            <textarea
-              v-model="form.summary"
-              rows="4"
-              placeholder="Describe your campaign and why people should support it..."
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200 resize-none"
-            ></textarea>
-            <p class="text-xs text-gray-500 mt-1">
-              Provide a clear, compelling description of your campaign (max 500 characters)
-            </p>
-          </div>
-          
-          <!-- Image URL -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Cover Image URL (optional)</label>
-            <div class="relative">
-              <input
-                v-model="form.image"
-                type="url"
-                placeholder="https://example.com/image.jpg"
-                class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200"
-                @input="updateImagePreview"
-                @blur="updateImagePreview"
-              />
-              <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                <IconPhoto class="w-5 h-5 text-gray-400" />
-              </div>
-            </div>
-            <p class="text-xs text-gray-500 mt-1">
-              Add an image URL to make your campaign more engaging
-            </p>
-            
-            <!-- Image Preview -->
-            <div v-if="imagePreview" class="mt-3 rounded-lg overflow-hidden border border-gray-200 h-40">
-              <img 
-                :src="imagePreview" 
-                alt="Preview" 
-                class="w-full h-full object-cover"
-                @error="imagePreview = null"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Step 3: Preview -->
-      <div v-if="currentStep === 3" class="p-6">
-        <h4 class="text-lg font-semibold text-gray-900 mb-4">Campaign Preview</h4>
-        
-        <!-- Campaign Preview -->
-        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-          <!-- Image Preview -->
-          <div v-if="form.image" class="h-48 w-full overflow-hidden">
-            <img 
-              :src="form.image" 
-              :alt="form.title"
-              class="w-full h-full object-cover"
-              @error="$event.target.style.display = 'none'"
-            />
-          </div>
-          
-          <!-- Content Preview -->
-          <div class="p-5">
-            <!-- Title and Summary -->
-            <h3 class="text-xl font-semibold text-gray-900 mb-3">{{ form.title }}</h3>
-            <p class="text-gray-600 mb-4">{{ form.summary }}</p>
-            
-            <!-- Goal Amount -->
-            <div class="flex items-center space-x-2 mb-4">
-              <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <IconBolt class="w-4 h-4 text-orange-600" />
-              </div>
-              <span class="font-medium text-gray-900">{{ form.goalAmount.toLocaleString() }} sats</span>
-            </div>
-            
-            <!-- Deadline -->
-            <div v-if="form.closedAt" class="flex items-center space-x-2">
-              <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <IconCalendar class="w-4 h-4 text-blue-600" />
-              </div>
-              <span class="text-gray-600">Ends on {{ formatDate(form.closedAt) }}</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Publishing Info -->
-        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div class="flex items-start space-x-3">
-            <IconBolt class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div class="space-y-6">
+            <!-- Title -->
             <div>
-              <h4 class="font-medium text-blue-900 mb-1">Ready to Publish</h4>
-              <p class="text-sm text-blue-800">
-                Your campaign will be published to the Nostr network and visible to anyone with the link.
-                You can share it with your supporters to start collecting sats.
+              <label class="block text-sm font-semibold text-gray-900 mb-3">Campaign Title</label>
+              <input
+                v-model="form.title"
+                type="text"
+                placeholder="e.g., Help me attend Bitcoin Conference 2024"
+                class="w-full px-4 py-4 text-base border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-0 transition-colors placeholder-gray-400"
+                maxlength="80"
+              />
+              <div class="flex justify-between mt-2">
+                <p class="text-xs text-gray-500">Make it clear and compelling</p>
+                <p class="text-xs text-gray-400">{{ form.title.length }}/80</p>
+              </div>
+            </div>
+            
+            <!-- Quick Goal Selection -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-3">Funding Goal</label>
+              
+              <!-- Quick Selection Grid -->
+              <div class="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  v-for="goal in quickGoals"
+                  :key="goal.value"
+                  @click="selectQuickGoal(goal.value)"
+                  :class="[
+                    'p-4 rounded-xl border-2 text-left transition-all duration-200',
+                    form.goalAmount === goal.value
+                      ? 'border-orange-400 bg-orange-50 shadow-md'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  ]"
+                >
+                  <div class="font-bold text-gray-900">{{ goal.label }}</div>
+                  <div class="text-xs text-gray-500">{{ goal.description }}</div>
+                </button>
+              </div>
+              
+              <!-- Custom Amount -->
+              <div class="relative">
+                <input
+                  v-model.number="form.goalAmount"
+                  type="number"
+                  min="1"
+                  placeholder="Custom amount"
+                  class="w-full px-4 py-4 pr-16 text-base border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-0 transition-colors"
+                />
+                <div class="absolute inset-y-0 right-0 flex items-center pr-4">
+                  <span class="text-sm font-medium text-gray-500">sats</span>
+                </div>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">
+                💡 Tip: Start with a realistic goal you can achieve
               </p>
             </div>
           </div>
+        </div>
+        
+        <!-- Step 2: Tell Your Story -->
+        <div v-if="currentStep === 2" class="p-4 sm:p-6">
+          <div class="text-center mb-6">
+            <h4 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Tell your story</h4>
+            <p class="text-gray-600 text-sm sm:text-base">Help people understand why they should support you</p>
+          </div>
+          
+          <div class="space-y-6">
+            <!-- Summary -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-3">
+                Summary
+                <span class="text-red-500 ml-1">*</span>
+              </label>
+              <textarea
+                v-model="form.summary"
+                rows="4"
+                placeholder="Briefly explain what you're raising funds for and why it matters..."
+                class="w-full px-4 py-4 text-base border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:ring-0 transition-colors resize-none placeholder-gray-400"
+                maxlength="280"
+              ></textarea>
+              <div class="flex justify-between mt-2">
+                <p class="text-xs text-gray-500">Keep it concise and engaging</p>
+                <p class="text-xs text-gray-400">{{ form.summary.length }}/280</p>
+              </div>
+            </div>
+            
+            <!-- Advanced Options Toggle -->
+            <div class="border-t border-gray-100 pt-6">
+              <button
+                @click="showAdvancedOptions = !showAdvancedOptions"
+                class="flex items-center justify-between w-full p-3 text-left bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div class="flex items-center space-x-2">
+                  <IconInfoCircle class="w-4 h-4 text-gray-500" />
+                  <span class="text-sm font-medium text-gray-700">Advanced Options</span>
+                </div>
+                <IconChevronDown :class="[
+                  'w-4 h-4 text-gray-500 transition-transform duration-200',
+                  showAdvancedOptions ? 'rotate-180' : ''
+                ]" />
+              </button>
+              
+              <!-- Advanced Options Content -->
+              <transition name="slide-down">
+                <div v-if="showAdvancedOptions" class="mt-4 space-y-6">
+                  <!-- Detailed Description -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      Detailed Description
+                      <span class="text-gray-400 text-xs ml-1">(optional)</span>
+                    </label>
+                    <textarea
+                      v-model="form.descriptionLong"
+                      rows="6"
+                      placeholder="Provide more details about your campaign, timeline, how funds will be used..."
+                      class="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors resize-none placeholder-gray-400"
+                    ></textarea>
+                  </div>
+                  
+                  <!-- Cover Image -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      Cover Image
+                      <span class="text-gray-400 text-xs ml-1">(optional)</span>
+                    </label>
+                    <input
+                      v-model="form.image"
+                      type="url"
+                      placeholder="https://example.com/image.jpg"
+                      class="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors"
+                      @input="updateImagePreview"
+                      @blur="updateImagePreview"
+                    />
+                    
+                    <!-- Image Preview -->
+                    <div v-if="imagePreview" class="mt-3 rounded-lg overflow-hidden border border-gray-200 h-32">
+                      <img 
+                        :src="imagePreview" 
+                        alt="Preview" 
+                        class="w-full h-full object-cover"
+                        @error="imagePreview = null"
+                      />
+                    </div>
+                  </div>
+                  
+                  <!-- Optional Links -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      External Link
+                      <span class="text-gray-400 text-xs ml-1">(optional)</span>
+                    </label>
+                    <input
+                      v-model="form.optionalLink"
+                      type="url"
+                      placeholder="https://yourwebsite.com"
+                      class="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors"
+                    />
+                    <p class="text-xs text-gray-500 mt-1">Link to your website, social media, or project details</p>
+                  </div>
+                  
+                  <!-- End Date -->
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      Campaign End Date
+                      <span class="text-gray-400 text-xs ml-1">(optional)</span>
+                    </label>
+                    <input
+                      v-model="form.closedAt"
+                      type="date"
+                      class="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors"
+                    />
+                    <p class="text-xs text-gray-500 mt-1">Leave empty for no deadline</p>
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Step 3: Preview & Publish -->
+        <div v-if="currentStep === 3" class="p-4 sm:p-6">
+          <div class="text-center mb-6">
+            <h4 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Ready to launch?</h4>
+            <p class="text-gray-600 text-sm sm:text-base">Review your campaign before publishing</p>
+          </div>
+          
+          <!-- Campaign Preview Card -->
+          <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-1 mb-6">
+            <div class="bg-white rounded-xl overflow-hidden shadow-sm">
+              <!-- Image Preview -->
+              <div v-if="form.image" class="h-40 w-full overflow-hidden">
+                <img 
+                  :src="form.image" 
+                  :alt="form.title"
+                  class="w-full h-full object-cover"
+                  @error="$event.target.style.display = 'none'"
+                />
+              </div>
+              
+              <!-- Content Preview -->
+              <div class="p-4">
+                <h3 class="text-lg font-bold text-gray-900 mb-2">{{ form.title }}</h3>
+                <p class="text-gray-600 text-sm mb-4">{{ form.summary }}</p>
+                
+                <!-- Goal Display -->
+                <div class="flex items-center justify-between p-3 bg-orange-50 rounded-lg mb-4">
+                  <div class="flex items-center space-x-2">
+                    <IconBolt class="w-5 h-5 text-orange-600" />
+                    <span class="font-semibold text-gray-900">Goal</span>
+                  </div>
+                  <span class="text-lg font-bold text-orange-600">{{ form.goalAmount.toLocaleString() }} sats</span>
+                </div>
+                
+                <!-- Optional Details -->
+                <div v-if="form.optionalLink || form.closedAt" class="space-y-2 text-sm">
+                  <div v-if="form.optionalLink" class="flex items-center space-x-2 text-blue-600">
+                    <IconLink class="w-4 h-4" />
+                    <span class="truncate">{{ form.optionalLink }}</span>
+                  </div>
+                  <div v-if="form.closedAt" class="flex items-center space-x-2 text-gray-600">
+                    <IconCalendar class="w-4 h-4" />
+                    <span>Ends {{ formatDate(form.closedAt) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Publishing Info -->
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div class="flex items-start space-x-3">
+              <IconBolt class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 class="font-semibold text-blue-900 mb-1">Ready to publish</h4>
+                <p class="text-sm text-blue-800">
+                  Your campaign will be published to Nostr and you can start sharing it immediately.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Success State -->
+        <div v-if="publishSuccess" class="p-4 sm:p-6 text-center">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <IconCheck class="w-8 h-8 text-green-600" />
+          </div>
+          <h4 class="text-xl font-bold text-green-700 mb-2">Campaign Published! 🎉</h4>
+          <p class="text-gray-600 mb-4">Your campaign is now live and ready to share with supporters.</p>
+          <p class="text-sm text-gray-500">This window will close automatically...</p>
         </div>
       </div>
 
       <!-- Error Message -->
-      <div v-if="localError || campaignError" class="px-6 pb-4">
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4 animate-pulse">
+      <div v-if="localError || campaignError" class="px-4 sm:px-6 pb-4">
+        <div class="bg-red-50 border border-red-200 rounded-xl p-4">
           <div class="flex items-center space-x-2">
             <IconAlertCircle class="w-5 h-5 text-red-600" />
-            <span class="text-red-600">{{ localError || campaignError }}</span>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Success Message -->
-      <div v-if="publishSuccess" class="px-6 pb-4">
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-              <IconCheck class="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <h4 class="font-medium text-green-900">Campaign Published!</h4>
-              <p class="text-sm text-green-800">
-                Your campaign has been successfully published to the Nostr network.
-              </p>
-            </div>
+            <span class="text-sm text-red-600">{{ localError || campaignError }}</span>
           </div>
         </div>
       </div>
 
-      <!-- Actions -->
-      <div class="p-6 border-t border-gray-200 flex justify-between">
-        <!-- Back/Cancel Button -->
-        <button
-          :disabled="isPublishing"
-          v-if="currentStep > 1"
-          @click="prevStep"
-          class="btn-secondary"
-        >
-          Back
-        </button>
-        <button
-          v-else
-          @click="$emit('close')"
-          class="btn-secondary"
-        >
-          Cancel
-        </button>
-        
-        <!-- Next/Publish Button -->
-        <button
-          v-if="currentStep < 3"
-          @click="nextStep"
-          :disabled="(currentStep === 1 && !isStep1Valid) || (currentStep === 2 && !isStep2Valid)"
-          class="btn-primary"
-        >
-          <span>Next</span>
-          <IconArrowRight class="w-4 h-4" />
-        </button>
-        <button
-          v-else
-          @click="publishNewCampaign"
-          :disabled="isPublishing || !isFormValid || publishSuccess"
-          class="btn-primary"
-        >
-          <IconLoader v-if="isPublishing" class="w-4 h-4 animate-spin" />
-          <IconBolt v-else class="w-4 h-4" />
-          {{ isPublishing ? 'Publishing...' : 'Publish Campaign' }}
-        </button>
+      <!-- Sticky Footer Actions -->
+      <div v-if="!publishSuccess" class="sticky bottom-0 bg-white border-t border-gray-100 p-4 sm:p-6">
+        <div class="flex items-center justify-between space-x-3">
+          <!-- Back Button -->
+          <button
+            v-if="currentStep > 1"
+            @click="prevStep"
+            :disabled="isPublishing"
+            class="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+          >
+            <IconArrowLeft class="w-4 h-4" />
+            <span class="font-medium">Back</span>
+          </button>
+          <button
+            v-else
+            @click="$emit('close')"
+            class="flex items-center space-x-2 px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            <IconX class="w-4 h-4" />
+            <span class="font-medium">Cancel</span>
+          </button>
+          
+          <!-- Next/Publish Button -->
+          <button
+            v-if="currentStep < 3"
+            @click="nextStep"
+            :disabled="(currentStep === 1 && !isStep1Valid) || (currentStep === 2 && !isStep2Valid)"
+            class="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span>{{ currentStep === 1 ? 'Continue' : 'Review' }}</span>
+            <IconArrowRight class="w-4 h-4" />
+          </button>
+          <button
+            v-else
+            @click="publishNewCampaign"
+            :disabled="isPublishing || !isFormValid"
+            class="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <IconLoader v-if="isPublishing" class="w-5 h-5 animate-spin" />
+            <IconBolt v-else class="w-5 h-5" />
+            <span>{{ isPublishing ? 'Publishing...' : 'Publish Campaign' }}</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
-
-  <!-- User Feedback Toast -->
-  <Teleport to="body">
-    <transition name="toast-fade">
-      <div v-if="publishSuccess" class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 z-[10000]">
-        <IconCheck class="w-5 h-5" />
-        <div>
-          <p class="font-medium">Campaign Published!</p>
-          <p class="text-sm text-green-100">Your campaign is now live and ready to share</p>
-        </div>
-      </div>
-    </transition>
-  </Teleport>
 </template>
 
 <style scoped>
-/* Button Styles */
-.btn-primary {
-  @apply bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed;
+/* Slide down animation for advanced options */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s ease-out;
 }
 
-.btn-secondary {
-  @apply bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md;
+.slide-down-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+  max-height: 0;
 }
 
-/* Form focus effects */
-input:focus, textarea:focus {
-  @apply outline-none ring-2 ring-orange-300 border-orange-400;
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+  max-height: 0;
 }
 
-/* Smooth animations */
+/* Remove default input styling on mobile */
+input, textarea {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Ensure proper touch targets on mobile */
+@media (max-width: 640px) {
+  button, input, textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+}
+
+/* Custom scrollbar */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 2px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.5);
+}
+
+/* Smooth transitions */
 .transition-all {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 300ms;
+  transition-duration: 200ms;
 }
 
-/* Toast animation */
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: all 0.5s ease;
+/* Focus states for accessibility */
+input:focus, textarea:focus, button:focus {
+  outline: none;
 }
 
-.toast-fade-enter-from,
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: translateY(30px);
+/* Button hover effects */
+button:not(:disabled):hover {
+  transform: translateY(-1px);
 }
 
-/* Mobile optimizations */
-@media (max-width: 640px) {
-  .btn-primary, .btn-secondary {
-    @apply px-3 py-2 text-sm;
-  }
+button:not(:disabled):active {
+  transform: translateY(0);
 }
 </style>
