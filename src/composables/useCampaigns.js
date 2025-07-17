@@ -286,7 +286,7 @@ export function useCampaigns() {
 
   // Fetch user's campaigns from Nostr relays
   const fetchUserCampaigns = async () => {
-    if (!isAuthenticated.value || !currentUser.value?.pubkey) {
+    if (!isAuthenticated.value || campaignZapSubscription) {
       console.log('Not authenticated, cannot fetch campaigns')
       return
     }
