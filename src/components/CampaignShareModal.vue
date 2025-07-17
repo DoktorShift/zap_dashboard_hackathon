@@ -45,6 +45,21 @@ const newHashtag = ref('')
 const showAdvancedOptions = ref(false)
 const publishedNoteId = ref(null)
 
+// Extract hashtags from message content
+const extractHashtagsFromContent = (content) => {
+  if (!content) return []
+  
+  const hashtagRegex = /#(\w+)/g
+  const hashtags = []
+  let match
+  
+  while ((match = hashtagRegex.exec(content)) !== null) {
+    hashtags.push(match[1])
+  }
+  
+  return hashtags
+}
+
 // Generate share URL
 const shareUrl = computed(() => {
   return `${window.location.origin}?page=campaign-view&eventId=${props.campaign.id}`
@@ -71,6 +86,10 @@ const completeMessage = computed(() => {
 // Generate hashtags for the note
 const combinedHashtags = computed(() => {
   const tags = []
+  
+  // Add hashtags extracted from the message content
+  const contentHashtags = extractHashtagsFromContent(completeMessage.value)
+  tags.push(...contentHashtags)
   
   if (includeHashtags.value) {
     tags.push(...defaultHashtags.value)
@@ -133,6 +152,15 @@ const shareOnNostr = async () => {
       
       // Also reference the campaign with an "e" tag for better client compatibility
       ['e', props.campaign.id, '', 'mention'],
+      
+      // Public key of the campaign creator (used in zap receipts)
+      ['p', props.campaign.pubkey],
+      
+      // (Custom tag) Explicitly state that this post is zap-related
+      ['zap', props.campaign.pubkey],
+      
+      // (Optional) Human-readable fallback for accessibility and indexing
+      ['alt', `Support this campaign: ${props.campaign.title}`],
       
       // Add hashtags as "t" tags
       ...combinedHashtags.value.map(tag => ['t', tag])
