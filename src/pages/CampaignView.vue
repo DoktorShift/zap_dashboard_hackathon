@@ -379,19 +379,19 @@ onMounted(async () => {
           <div class="flex flex-col sm:flex-row gap-3">
             <button
               @click="openZapModal"
-              :disabled="status === 'expired' || status === 'completed'"
-              class="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="status === 'expired' || status === 'completed'" 
+              class="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
             >
               <IconBolt class="w-4 h-4" />
-              Zap Now
+              <span class="font-medium">Zap Now</span>
             </button>
             
             <button
               @click="openShareModal"
-              class="btn-secondary flex-1"
+              class="btn-secondary flex-1 transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
             >
               <IconShare class="w-4 h-4" />
-              Share
+              <span class="font-medium">Share Campaign</span>
             </button>
           </div>
         </div>
@@ -399,7 +399,7 @@ onMounted(async () => {
       
       <!-- Recent Supporters -->
       <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+        <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center space-x-2">
           <IconUsers class="w-5 h-5 text-orange-600" />
           <span>Recent Supporters</span>
         </h3>
@@ -412,7 +412,7 @@ onMounted(async () => {
         
         <div v-else class="space-y-4">
           <div v-for="zap in recentZaps" :key="zap.id" class="flex items-center space-x-3 p-3 bg-orange-50/50 rounded-lg">
-            <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200">
+            <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 shadow-sm">
               <img 
                 :src="zap.sender?.picture || zap.sender?.avatar" 
                 :alt="zap.sender?.name || 'Anonymous'"
@@ -420,15 +420,15 @@ onMounted(async () => {
                 @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
               />
             </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900 truncate">
+            <div class="flex-1 min-w-0 py-1">
+              <p class="font-medium text-gray-900 truncate">
                 {{ zap.sender?.name || 'Anonymous' }}
               </p>
               <p class="text-xs text-gray-500">{{ zap.timeAgo }}</p>
-              <p v-if="zap.message" class="text-xs text-gray-600 italic mt-1">"{{ zap.message }}"</p>
+              <p v-if="zap.message" class="text-xs text-gray-600 italic mt-1 line-clamp-2">"{{ zap.message }}"</p>
             </div>
-            <div class="text-right">
-              <p class="text-sm font-semibold text-orange-600">{{ zap.amount.toLocaleString() }} sats</p>
+            <div class="text-right bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-2 rounded-lg shadow-sm">
+              <p class="font-bold text-orange-600">{{ zap.amount.toLocaleString() }} sats</p>
             </div>
           </div>
         </div>

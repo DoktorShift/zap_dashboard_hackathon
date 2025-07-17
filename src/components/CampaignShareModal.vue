@@ -10,13 +10,13 @@ import {
   IconExternalLink,
   IconMessageCircle,
   IconLoader,
-  IconQrcode,
   IconLink,
   IconBrandWhatsapp,
-  IconBrandTelegram
+  IconBrandTelegram,
+  IconBolt,
+  IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
 import { useCampaigns } from '../composables/useCampaigns.js'
-import QRCodeVue3 from 'qrcode-vue3'
 
 const props = defineProps({
   campaign: {
@@ -35,7 +35,7 @@ const customMessage = ref('')
 const isSharing = ref(false)
 const shareSuccess = ref(false)
 const shareError = ref('')
-const activeTab = ref('link') // 'link', 'qr', 'social', 'nostr'
+const activeTab = ref('social') // 'social', 'nostr', 'campaign'
 
 // Generate share URL
 const shareUrl = computed(() => {
@@ -84,7 +84,7 @@ const shareOnNostr = async () => {
   }
 }
 
-// Share on Twitter
+// Share on Twitter/X
 const shareOnTwitter = () => {
   const text = encodeURIComponent(`${shareText.value}\n\n${shareUrl.value}`)
   window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank')
@@ -119,6 +119,26 @@ const nativeShare = () => {
     copyToClipboard(shareUrl.value, 'url')
   }
 }
+
+// Preview text for different platforms
+const getPreviewText = (platform) => {
+  const baseText = `${shareText.value}\n\n${shareUrl.value}`
+  
+  switch (platform) {
+    case 'twitter':
+      return baseText.length > 280 
+        ? baseText.substring(0, 277) + '...' 
+        : baseText
+    case 'whatsapp':
+      return baseText
+    case 'telegram':
+      return baseText
+    case 'nostr':
+      return customMessage.value || baseText
+    default:
+      return baseText
+  }
+}
 </script>
 
 <template>
@@ -145,10 +165,9 @@ const nativeShare = () => {
         <div class="flex items-center justify-between mt-6 border-b border-gray-200">
           <button 
             v-for="(tab, index) in [
-              { id: 'link', label: 'Link', icon: IconLink },
-              { id: 'qr', label: 'QR Code', icon: IconQrcode },
-              { id: 'social', label: 'Social', icon: IconBrandTwitter },
-              { id: 'nostr', label: 'Nostr', icon: IconMessageCircle }
+              { id: 'social', label: 'Social Media', icon: IconBrandTwitter },
+              { id: 'nostr', label: 'Nostr', icon: IconMessageCircle },
+              { id: 'campaign', label: 'Campaign Page', icon: IconLink }
             ]"
             :key="tab.id"
             @click="activeTab = tab.id"
@@ -173,9 +192,194 @@ const nativeShare = () => {
 
       <!-- Tab Content -->
       <div class="p-6">
-        <!-- Link Tab -->
-        <div v-if="activeTab === 'link'" class="space-y-6">
-          <div>
+        <!-- Social Media Tab -->
+        <div v-if="activeTab === 'social'" class="space-y-6">
+          <!-- Platform Preview -->
+          <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <h5 class="font-medium text-gray-900 mb-3 flex items-center">
+              <IconBrandTwitter class="w-5 h-5 text-[#1DA1F2] mr-2" />
+              Preview for X/Twitter
+            </h5>
+            <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm text-gray-700 whitespace-pre-line">
+              {{ getPreviewText('twitter') }}
+            </div>
+          </div>
+          
+          <!-- Share Buttons -->
+          <div class="grid grid-cols-2 gap-4">
+            <button
+              @click="shareOnTwitter"
+              class="flex flex-col items-center justify-center space-y-2 bg-[#1DA1F2] hover:bg-[#1a94df] text-white px-4 py-4 rounded-xl transition-all duration-200 transform hover:scale-105"
+            >
+              <IconBrandTwitter class="w-8 h-8" />
+              <span class="text-sm font-medium">X / Twitter</span>
+            </button>
+            
+            <button
+              @click="shareOnFacebook"
+              class="flex flex-col items-center justify-center space-y-2 bg-[#4267B2] hover:bg-[#365899] text-white px-4 py-4 rounded-xl transition-all duration-200 transform hover:scale-105"
+            >
+              <IconBrandFacebook class="w-8 h-8" />
+              <span class="text-sm font-medium">Facebook</span>
+            </button>
+            
+            <button
+              @click="shareOnWhatsApp"
+              class="flex flex-col items-center justify-center space-y-2 bg-[#25D366] hover:bg-[#20bd5a] text-white px-4 py-4 rounded-xl transition-all duration-200 transform hover:scale-105"
+            >
+              <IconBrandWhatsapp class="w-8 h-8" />
+              <span class="text-sm font-medium">WhatsApp</span>
+            </button>
+            
+            <button
+              @click="shareOnTelegram"
+              class="flex flex-col items-center justify-center space-y-2 bg-[#0088cc] hover:bg-[#0077b3] text-white px-4 py-4 rounded-xl transition-all duration-200 transform hover:scale-105"
+            >
+              <IconBrandTelegram class="w-8 h-8" />
+              <span class="text-sm font-medium">Telegram</span>
+            </button>
+          </div>
+          
+          <!-- Native Share Button -->
+          <button
+            v-if="navigator.share"
+            @click="nativeShare"
+            class="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transform hover:scale-105"
+          >
+            <IconShare class="w-5 h-5" />
+            <span>Share via Device</span>
+          </button>
+          
+          <!-- Copy Link -->
+          <div class="mt-4">
+            <div class="flex items-center">
+              <input
+                type="text"
+                :value="shareUrl"
+                readonly
+                class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-sm bg-gray-50"
+              />
+              <button
+                @click="copyToClipboard(shareUrl, 'url')"
+                class="px-4 py-3 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 transition-colors"
+              >
+                <IconCheck v-if="copySuccess === 'url'" class="w-5 h-5 text-white" />
+                <IconCopy v-else class="w-5 h-5" />
+              </button>
+            </div>
+            <p v-if="copySuccess === 'url'" class="text-green-600 text-sm mt-2 flex items-center">
+              <IconCheck class="w-4 h-4 mr-1" />
+              Link copied to clipboard!
+            </p>
+          </div>
+        </div>
+        
+        <!-- Nostr Tab -->
+        <div v-if="activeTab === 'nostr'" class="space-y-6">
+          <!-- Success State -->
+          <div v-if="shareSuccess" class="text-center py-6">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <IconCheck class="w-8 h-8 text-green-600" />
+            </div>
+            <h4 class="text-xl font-semibold text-green-700 mb-2">Shared Successfully!</h4>
+            <p class="text-gray-600 mb-4">Your campaign has been shared on Nostr.</p>
+            <p class="text-sm text-gray-500">This window will close automatically...</p>
+          </div>
+          
+          <!-- Share Form -->
+          <div v-else>
+            <div class="bg-purple-50 border border-purple-200 rounded-xl p-5 mb-6">
+              <div class="flex items-start space-x-3">
+                <IconBolt class="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 class="font-medium text-purple-900 mb-2">Share on Nostr Network</h4>
+                  <p class="text-sm text-purple-800">
+                    This will post your campaign to the Nostr network, making it visible to all your followers and the wider Nostr community.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <label class="block text-sm font-medium text-gray-700 mb-2">Custom Message (optional)</label>
+            <textarea
+              v-model="customMessage"
+              rows="4"
+              :placeholder="shareText"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-purple-400 text-base transition-all duration-200 resize-none"
+            ></textarea>
+            
+            <!-- Preview -->
+            <div class="mt-4 bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <h5 class="font-medium text-gray-900 mb-3 flex items-center">
+                <IconMessageCircle class="w-5 h-5 text-purple-600 mr-2" />
+                Preview for Nostr
+              </h5>
+              <div class="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm text-gray-700 whitespace-pre-line">
+                {{ getPreviewText('nostr') }}
+              </div>
+            </div>
+            
+            <!-- Error Message -->
+            <div v-if="shareError" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+              <div class="flex items-center space-x-2">
+                <IconAlertCircle class="w-5 h-5 text-red-600" />
+                <span class="text-red-600">{{ shareError }}</span>
+              </div>
+            </div>
+            
+            <button
+              @click="shareOnNostr"
+              :disabled="isSharing"
+              class="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-4 py-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 mt-6 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-105"
+            >
+              <IconLoader v-if="isSharing" class="w-5 h-5 animate-spin" />
+              <IconMessageCircle v-else class="w-5 h-5" />
+              <span>{{ isSharing ? 'Sharing...' : 'Post to Nostr' }}</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Campaign Page Tab -->
+        <div v-if="activeTab === 'campaign'" class="space-y-6">
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+            <div class="flex items-start space-x-3">
+              <IconLink class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 class="font-medium text-blue-900 mb-2">Dedicated Campaign Page</h4>
+                <p class="text-sm text-blue-800">
+                  Share this link to your standalone campaign page. Anyone can view and support your campaign without needing to log in.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Campaign Preview -->
+          <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-md">
+            <div v-if="props.campaign.image" class="h-40 w-full overflow-hidden">
+              <img 
+                :src="props.campaign.image" 
+                :alt="props.campaign.title"
+                class="w-full h-full object-cover"
+                @error="$event.target.style.display = 'none'"
+              />
+            </div>
+            
+            <div class="p-4">
+              <h5 class="font-semibold text-gray-900 mb-2">{{ props.campaign.title }}</h5>
+              <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ props.campaign.summary }}</p>
+              
+              <div class="flex items-center space-x-2 text-sm text-gray-500">
+                <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs font-medium">
+                  Campaign
+                </span>
+                <span>•</span>
+                <span>{{ props.campaign.goalAmount ? (props.campaign.goalAmount / 1000).toLocaleString() : '0' }} sats goal</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- URL Input -->
+          <div class="mt-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">Campaign URL</label>
             <div class="flex items-center">
               <input
@@ -192,176 +396,22 @@ const nativeShare = () => {
                 <IconCopy v-else class="w-5 h-5" />
               </button>
             </div>
+            <p v-if="copySuccess === 'url'" class="text-green-600 text-sm mt-2 flex items-center">
+              <IconCheck class="w-4 h-4 mr-1" />
+              Link copied to clipboard!
+            </p>
           </div>
           
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Share Text</label>
-            <div class="flex items-center">
-              <input
-                type="text"
-                :value="shareText"
-                readonly
-                class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-sm bg-gray-50"
-              />
-              <button
-                @click="copyToClipboard(shareText, 'text')"
-                class="px-4 py-3 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 transition-colors"
-              >
-                <IconCheck v-if="copySuccess === 'text'" class="w-5 h-5 text-white" />
-                <IconCopy v-else class="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-          
-          <!-- Native Share Button -->
-          <button
-            v-if="navigator.share"
-            @click="nativeShare"
-            class="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+          <!-- Open in Browser -->
+          <a 
+            :href="shareUrl" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 mt-4 shadow-md hover:shadow-lg transform hover:scale-105"
           >
-            <IconShare class="w-5 h-5" />
-            <span>Share via Device</span>
-          </button>
-        </div>
-        
-        <!-- QR Code Tab -->
-        <div v-if="activeTab === 'qr'" class="space-y-6 text-center">
-          <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
-            <QRCodeVue3
-              :value="shareUrl"
-              :size="200"
-              :margin="2"
-              :color="{
-                dark: '#000000',
-                light: '#FFFFFF'
-              }"
-              :qrOptions="{
-                typeNumber: 0,
-                mode: 'Byte',
-                errorCorrectionLevel: 'H'
-              }"
-              class="rounded-lg"
-            />
-          </div>
-          
-          <p class="text-sm text-gray-600">
-            Scan this QR code to view the campaign
-          </p>
-          
-          <button
-            @click="copyToClipboard(shareUrl, 'url')"
-            class="inline-flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            <IconCheck v-if="copySuccess === 'url'" class="w-4 h-4" />
-            <IconCopy v-else class="w-4 h-4" />
-            <span>Copy Campaign URL</span>
-          </button>
-        </div>
-        
-        <!-- Social Media Tab -->
-        <div v-if="activeTab === 'social'" class="space-y-4">
-          <p class="text-sm text-gray-600 mb-2">
-            Share your campaign on social media platforms
-          </p>
-          
-          <div class="grid grid-cols-2 gap-4">
-            <button
-              @click="shareOnTwitter"
-              class="flex items-center justify-center space-x-2 bg-[#1DA1F2] hover:bg-[#1a94df] text-white px-4 py-3 rounded-lg transition-colors"
-            >
-              <IconBrandTwitter class="w-5 h-5" />
-              <span>Twitter</span>
-            </button>
-            
-            <button
-              @click="shareOnFacebook"
-              class="flex items-center justify-center space-x-2 bg-[#4267B2] hover:bg-[#365899] text-white px-4 py-3 rounded-lg transition-colors"
-            >
-              <IconBrandFacebook class="w-5 h-5" />
-              <span>Facebook</span>
-            </button>
-            
-            <button
-              @click="shareOnWhatsApp"
-              class="flex items-center justify-center space-x-2 bg-[#25D366] hover:bg-[#20bd5a] text-white px-4 py-3 rounded-lg transition-colors"
-            >
-              <IconBrandWhatsapp class="w-5 h-5" />
-              <span>WhatsApp</span>
-            </button>
-            
-            <button
-              @click="shareOnTelegram"
-              class="flex items-center justify-center space-x-2 bg-[#0088cc] hover:bg-[#0077b3] text-white px-4 py-3 rounded-lg transition-colors"
-            >
-              <IconBrandTelegram class="w-5 h-5" />
-              <span>Telegram</span>
-            </button>
-          </div>
-          
-          <div class="text-center mt-4">
-            <button
-              @click="copyToClipboard(shareUrl, 'url')"
-              class="inline-flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors text-sm"
-            >
-              <IconCheck v-if="copySuccess === 'url'" class="w-4 h-4 text-green-600" />
-              <IconCopy v-else class="w-4 h-4" />
-              <span>Copy Link</span>
-            </button>
-          </div>
-        </div>
-        
-        <!-- Nostr Tab -->
-        <div v-if="activeTab === 'nostr'" class="space-y-4">
-          <!-- Success State -->
-          <div v-if="shareSuccess" class="text-center py-6">
-            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <IconCheck class="w-8 h-8 text-green-600" />
-            </div>
-            <h4 class="text-xl font-semibold text-green-700 mb-2">Shared Successfully!</h4>
-            <p class="text-gray-600 mb-4">Your campaign has been shared on Nostr.</p>
-            <p class="text-sm text-gray-500">This window will close automatically...</p>
-          </div>
-          
-          <!-- Share Form -->
-          <div v-else>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Custom Message (optional)</label>
-            <textarea
-              v-model="customMessage"
-              rows="4"
-              :placeholder="shareText"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-base transition-all duration-200 resize-none"
-            ></textarea>
-            
-            <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mt-4">
-              <div class="flex items-start space-x-3">
-                <IconBolt class="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 class="font-medium text-purple-900 mb-1">Share on Nostr</h4>
-                  <p class="text-sm text-purple-800">
-                    This will post your campaign to the Nostr network, making it visible to all your followers.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Error Message -->
-            <div v-if="shareError" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div class="flex items-center space-x-2">
-                <IconAlertCircle class="w-5 h-5 text-red-600" />
-                <span class="text-red-600">{{ shareError }}</span>
-              </div>
-            </div>
-            
-            <button
-              @click="shareOnNostr"
-              :disabled="isSharing"
-              class="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <IconLoader v-if="isSharing" class="w-5 h-5 animate-spin" />
-              <IconMessageCircle v-else class="w-5 h-5" />
-              <span>{{ isSharing ? 'Sharing...' : 'Post to Nostr' }}</span>
-            </button>
-          </div>
+            <IconExternalLink class="w-5 h-5" />
+            <span>Open Campaign Page</span>
+          </a>
         </div>
       </div>
     </div>
@@ -377,27 +427,51 @@ const nativeShare = () => {
   overflow: hidden;
 }
 
+/* Whitespace handling for previews */
+.whitespace-pre-line {
+  white-space: pre-line;
+}
+
 /* Button hover effects */
-button {
+button, a {
   transition: all 0.2s ease;
 }
 
-button:hover {
-  transform: translateY(-1px);
+button:hover, a:hover {
+  transform: translateY(-2px);
 }
 
-button:active {
+button:active, a:active {
   transform: translateY(0);
 }
 
 /* Ensure proper touch targets on mobile */
 @media (max-width: 640px) {
-  button {
+  button, a {
     min-height: 44px;
   }
   
   input, textarea {
     font-size: 16px; /* Prevent zoom on iOS */
+  }
+}
+
+/* Smooth animations */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  
+  .w-8, .h-8 {
+    width: 1.5rem;
+    height: 1.5rem;
   }
 }
 </style>
