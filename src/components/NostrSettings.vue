@@ -62,6 +62,36 @@ const showRelaySection = ref(true)
 const refreshingRelays = ref(false)
 const refreshingIndividualRelay = ref(new Set())
 
+// Enhanced loading states with minimum duration for better UX
+const minLoadingDuration = 800 // Minimum loading time in ms
+const loadingStates = ref({
+  login: false,
+  logout: false,
+  addRelay: false,
+  refreshProfile: false,
+  refreshRelays: false,
+  copyAction: false
+})
+
+// Helper function to ensure minimum loading duration
+const withMinimumDuration = async (asyncFn, loadingKey) => {
+  loadingStates.value[loadingKey] = true
+  const startTime = Date.now()
+  
+  try {
+    await asyncFn()
+  } finally {
+    const elapsed = Date.now() - startTime
+    const remaining = Math.max(0, minLoadingDuration - elapsed)
+    
+    if (remaining > 0) {
+      await new Promise(resolve => setTimeout(resolve, remaining))
+    }
+    
+    loadingStates.value[loadingKey] = false
+  }
+}
+
 // Initialize on mount
 onMounted(async () => {
   await initAuthAndRelays()
@@ -69,16 +99,20 @@ onMounted(async () => {
 
 // Handle login
 const handleLogin = async () => {
-  try {
-    await login()
-  } catch (error) {
-    console.error('Login failed:', error)
-  }
+  await withMinimumDuration(async () => {
+    try {
+      await login()
+    } catch (error) {
+      console.error('Login failed:', error)
+    }
+  }, 'login')
 }
 
 // Handle logout
-const handleLogout = () => {
-  logout()
+const handleLogout = async () => {
+  await withMinimumDuration(async () => {
+    logout()
+  }, 'logout')
 }
 
 // Handle add relay
@@ -94,17 +128,15 @@ const handleAddRelay = async () => {
     return
   }
 
-  addingRelay.value = true
-  relayFormError.value = ''
-
-  try {
-    await addRelay(newRelayUrl.value.trim())
-    newRelayUrl.value = ''
-  } catch (error) {
-    relayFormError.value = error.message
-  } finally {
-    addingRelay.value = false
-  }
+  await withMinimumDuration(async () => {
+    relayFormError.value = ''
+    try {
+      await addRelay(newRelayUrl.value.trim())
+      newRelayUrl.value = ''
+    } catch (error) {
+      relayFormError.value = error.message
+    }
+  }, 'addRelay')
 }
 
 // Handle remove relay
@@ -118,12 +150,9 @@ const handleRemoveRelay = async (url) => {
 
 // Handle refresh all relays with visual feedback
 const handleRefreshRelays = async () => {
-  refreshingRelays.value = true
-  try {
+  await withMinimumDuration(async () => {
     await checkAllRelayStatuses()
-  } finally {
-    refreshingRelays.value = false
-  }
+  }, 'refreshRelays')
 }
 
 // Handle refresh single relay with visual feedback
@@ -140,27 +169,28 @@ const handleRefreshRelay = async (url) => {
 const handleRefreshProfile = async () => {
   if (!isAuthenticated.value) return
   
-  refreshingProfile.value = true
-  try {
-    await refreshUserProfile()
-  } catch (error) {
-    console.error('Failed to refresh profile:', error)
-  } finally {
-    refreshingProfile.value = false
-  }
+  await withMinimumDuration(async () => {
+    try {
+      await refreshUserProfile()
+    } catch (error) {
+      console.error('Failed to refresh profile:', error)
+    }
+  }, 'refreshProfile')
 }
 
 // Copy to clipboard
 const copyToClipboard = async (text) => {
-  try {
-    await navigator.clipboard.writeText(text)
-    copySuccess.value = true
-    setTimeout(() => {
-      copySuccess.value = false
-    }, 2000)
-  } catch (error) {
-    console.error('Failed to copy to clipboard:', error)
-  }
+  await withMinimumDuration(async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      copySuccess.value = true
+      setTimeout(() => {
+        copySuccess.value = false
+      }, 2000)
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error)
+    }
+  }, 'copyAction')
 }
 
 // Get relay status color
@@ -265,12 +295,12 @@ const toggleRelaySection = () => {
           
           <button
             @click="handleLogin"
-            :disabled="isLoading"
+            :disabled="isLoading || loadingStates.login"
             class="btn-primary w-full sm:w-auto"
           >
-            <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+            <IconLoader v-if="isLoading || loadingStates.login" class="w-4 h-4 animate-spin" />
             <IconUser v-else class="w-4 h-4" />
-            {{ isLoading ? 'Connecting...' : 'Connect with Nostr' }}
+            {{ (isLoading || loadingStates.login) ? 'Connecting...' : 'Connect with Nostr' }}
           </button>
           
           <!-- Auth Error -->
@@ -296,47 +326,47 @@ const toggleRelaySection = () => {
         <!-- Profile Display -->
         <div v-else>
           <!-- Profile Card -->
-          <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 mb-6">
-            <div class="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 mb-6 border border-orange-200/50">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
               <!-- Avatar and Basic Info -->
-              <div class="flex items-center space-x-4 flex-1">
+              <div class="flex items-center space-x-3 flex-1">
                 <div class="relative">
                   <img 
                     :src="getUserAvatar()" 
                     :alt="userProfile?.name || 'User'"
-                    class="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-white shadow-lg object-cover"
+                    class="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-white shadow-md object-cover"
                     @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
                   />
-                  <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
-                    <IconUserCheck class="w-3 h-3 text-white" />
+                  <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
+                    <IconUserCheck class="w-2.5 h-2.5 text-white" />
                   </div>
                 </div>
                 
                 <div class="flex-1 min-w-0">
-                  <h4 class="text-xl font-bold text-gray-900 mb-1">{{ userProfile?.name || 'Anonymous' }}</h4>
+                  <h4 class="text-lg font-semibold text-gray-900 mb-1">{{ userProfile?.name || 'Anonymous' }}</h4>
                   
                   <!-- Display name or about -->
                   <p v-if="userProfile?.display_name && userProfile?.display_name !== userProfile?.name" 
-                     class="text-sm text-gray-600 mb-2">
+                     class="text-xs text-gray-600 mb-1">
                     {{ userProfile.display_name }}
                   </p>
                   <p v-else-if="userProfile?.about" 
-                     class="text-sm text-gray-600 mb-2 line-clamp-2">
+                     class="text-xs text-gray-600 mb-1 line-clamp-1">
                     {{ userProfile.about }}
                   </p>
                   
                   <!-- Status Badges -->
-                  <div class="flex flex-wrap gap-2">
-                    <span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                      <IconUserCheck class="w-3 h-3 mr-1" />
+                  <div class="flex flex-wrap gap-1">
+                    <span class="inline-flex items-center px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                      <IconUserCheck class="w-2.5 h-2.5 mr-1" />
                       Connected
                     </span>
-                    <span v-if="userProfile?.nip05" class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                      <IconShield class="w-3 h-3 mr-1" />
+                    <span v-if="userProfile?.nip05" class="inline-flex items-center px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                      <IconShield class="w-2.5 h-2.5 mr-1" />
                       Verified
                     </span>
-                    <span v-if="userProfile?.lud16" class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                      <IconBolt class="w-3 h-3 mr-1" />
+                    <span v-if="userProfile?.lud16" class="inline-flex items-center px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                      <IconBolt class="w-2.5 h-2.5 mr-1" />
                       Zap Ready
                     </span>
                   </div>
@@ -344,99 +374,105 @@ const toggleRelaySection = () => {
               </div>
               
               <!-- Action Buttons -->
-              <div class="flex flex-row sm:flex-col gap-2 sm:gap-3">
+              <div class="flex flex-row gap-2">
                 <button
                   @click="handleEditProfile"
-                  class="flex-1 sm:flex-none btn-secondary text-sm"
+                  class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100 rounded-lg transition-all duration-200 group"
+                  title="Edit Profile"
                 >
-                  <IconEdit class="w-4 h-4" />
-                  <span class="hidden sm:inline">Edit</span>
+                  <IconEdit class="w-4 h-4 group-hover:scale-110 transition-transform" />
                 </button>
                 
                 <button
                   @click="handleRefreshProfile"
-                  :disabled="refreshingProfile"
-                  class="flex-1 sm:flex-none btn-secondary text-sm"
+                  :disabled="loadingStates.refreshProfile"
+                  class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200 group disabled:opacity-50"
+                  title="Refresh Profile"
                 >
-                  <IconRefresh :class="['w-4 h-4', refreshingProfile ? 'animate-spin' : '']" />
-                  <span class="hidden sm:inline">Refresh</span>
+                  <IconRefresh :class="['w-4 h-4 transition-transform', loadingStates.refreshProfile ? 'animate-spin' : 'group-hover:scale-110']" />
                 </button>
                 
                 <button
                   @click="handleLogout"
-                  class="flex-1 sm:flex-none btn-secondary text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
+                  :disabled="loadingStates.logout"
+                  class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-lg transition-all duration-200 group disabled:opacity-50"
+                  title="Logout"
                 >
-                  <IconX class="w-4 h-4" />
-                  <span class="hidden sm:inline">Logout</span>
+                  <IconLoader v-if="loadingStates.logout" class="w-4 h-4 animate-spin" />
+                  <IconX v-else class="w-4 h-4 group-hover:scale-110 transition-transform" />
                 </button>
               </div>
             </div>
           </div>
 
           <!-- Profile Details Grid -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             <!-- Public Key Card -->
-            <div class="bg-white rounded-lg border border-gray-200 p-4">
-              <div class="flex items-center justify-between mb-3">
+            <div class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
+              <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center space-x-2">
-                  <IconKey class="w-4 h-4 text-gray-500" />
-                  <span class="text-sm font-medium text-gray-700">Public Key</span>
+                  <IconKey class="w-3.5 h-3.5 text-gray-400" />
+                  <span class="text-xs font-medium text-gray-600">Public Key</span>
                 </div>
                 <button
                   @click="copyToClipboard(currentUser.npub)"
-                  class="p-1 text-gray-400 hover:text-orange-600 transition-colors"
+                  :disabled="loadingStates.copyAction"
+                  class="p-1 text-gray-400 hover:text-orange-600 transition-all duration-200 hover:scale-110 disabled:opacity-50"
                   title="Copy npub"
                 >
-                  <IconCheck v-if="copySuccess" class="w-4 h-4 text-green-600" />
-                  <IconCopy v-else class="w-4 h-4" />
+                  <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
+                  <IconCheck v-else-if="copySuccess" class="w-3.5 h-3.5 text-green-600" />
+                  <IconCopy v-else class="w-3.5 h-3.5" />
                 </button>
               </div>
-              <code class="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded block break-all">
+              <code class="text-xs text-gray-500 bg-gray-50/80 px-2 py-1 rounded block break-all font-mono">
                 {{ getShortNpub() }}
               </code>
             </div>
 
             <!-- Lightning Address Card -->
-            <div v-if="userProfile?.lud16" class="bg-white rounded-lg border border-gray-200 p-4">
-              <div class="flex items-center justify-between mb-3">
+            <div v-if="userProfile?.lud16" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
+              <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center space-x-2">
-                  <IconBolt class="w-4 h-4 text-orange-500" />
-                  <span class="text-sm font-medium text-gray-700">Lightning Address</span>
+                  <IconBolt class="w-3.5 h-3.5 text-orange-500" />
+                  <span class="text-xs font-medium text-gray-600">Lightning Address</span>
                 </div>
                 <button
                   @click="copyToClipboard(userProfile.lud16)"
-                  class="p-1 text-gray-400 hover:text-orange-600 transition-colors"
+                  :disabled="loadingStates.copyAction"
+                  class="p-1 text-gray-400 hover:text-orange-600 transition-all duration-200 hover:scale-110 disabled:opacity-50"
                   title="Copy Lightning address"
                 >
-                  <IconCopy class="w-4 h-4" />
+                  <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
+                  <IconCopy v-else class="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div class="text-sm text-orange-600 font-mono break-all">{{ userProfile.lud16 }}</div>
+              <div class="text-xs text-orange-600 font-mono break-all bg-orange-50/50 px-2 py-1 rounded">{{ userProfile.lud16 }}</div>
             </div>
 
             <!-- NIP-05 Card -->
-            <div v-if="userProfile?.nip05" class="bg-white rounded-lg border border-gray-200 p-4">
-              <div class="flex items-center space-x-2 mb-3">
-                <IconShield class="w-4 h-4 text-green-500" />
-                <span class="text-sm font-medium text-gray-700">NIP-05 Verified</span>
+            <div v-if="userProfile?.nip05" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
+              <div class="flex items-center space-x-2 mb-2">
+                <IconShield class="w-3.5 h-3.5 text-green-500" />
+                <span class="text-xs font-medium text-gray-600">NIP-05 Verified</span>
               </div>
-              <div class="text-sm text-green-600 font-mono break-all">{{ userProfile.nip05 }}</div>
+              <div class="text-xs text-green-600 font-mono break-all bg-green-50/50 px-2 py-1 rounded">{{ userProfile.nip05 }}</div>
             </div>
 
             <!-- Website Card -->
-            <div v-if="userProfile?.website" class="bg-white rounded-lg border border-gray-200 p-4">
-              <div class="flex items-center space-x-2 mb-3">
-                <IconGlobe class="w-4 h-4 text-blue-500" />
-                <span class="text-sm font-medium text-gray-700">Website</span>
+            <div v-if="userProfile?.website" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
+              <div class="flex items-center space-x-2 mb-2">
+                <IconGlobe class="w-3.5 h-3.5 text-blue-500" />
+                <span class="text-xs font-medium text-gray-600">Website</span>
               </div>
               <a 
                 :href="userProfile.website" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                class="text-sm text-blue-600 hover:text-blue-700 hover:underline flex items-center space-x-1"
+                class="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center space-x-1 bg-blue-50/50 px-2 py-1 rounded transition-colors"
               >
                 <span class="break-all">{{ userProfile.website }}</span>
-                <IconExternalLink class="w-3 h-3 flex-shrink-0" />
+                <IconExternalLink class="w-3 h-3 flex-shrink-0 opacity-60" />
               </a>
             </div>
           </div>
@@ -464,11 +500,11 @@ const toggleRelaySection = () => {
           <div class="flex items-center space-x-3">
             <button
               @click.stop="handleRefreshRelays"
-              :disabled="refreshingRelays"
+              :disabled="loadingStates.refreshRelays"
               class="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
               title="Refresh all relays"
             >
-              <IconRefresh :class="['w-5 h-5', refreshingRelays ? 'animate-spin' : '']" />
+              <IconRefresh :class="['w-5 h-5', loadingStates.refreshRelays ? 'animate-spin' : '']" />
             </button>
             <component 
               :is="showRelaySection ? IconChevronUp : IconChevronDown" 
@@ -482,57 +518,57 @@ const toggleRelaySection = () => {
       <transition name="slide-down">
         <div v-if="showRelaySection" class="p-4 sm:p-6">
           <!-- Relay Stats Cards -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-            <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 text-center border border-green-200">
-              <div class="text-2xl font-bold text-green-600">{{ connectedRelays.length }}</div>
-              <div class="text-xs text-green-700 font-medium">Connected</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
+            <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-2.5 text-center border border-green-200/50">
+              <div class="text-xl font-bold text-green-600">{{ connectedRelays.length }}</div>
+              <div class="text-xs text-green-700 font-medium mt-0.5">Connected</div>
             </div>
-            <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-3 text-center border border-blue-200">
-              <div class="text-2xl font-bold text-blue-600">{{ readRelays.length }}</div>
-              <div class="text-xs text-blue-700 font-medium">Read</div>
+            <div class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-2.5 text-center border border-blue-200/50">
+              <div class="text-xl font-bold text-blue-600">{{ readRelays.length }}</div>
+              <div class="text-xs text-blue-700 font-medium mt-0.5">Read</div>
             </div>
-            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-3 text-center border border-purple-200">
-              <div class="text-2xl font-bold text-purple-600">{{ writeRelays.length }}</div>
-              <div class="text-xs text-purple-700 font-medium">Write</div>
+            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-2.5 text-center border border-purple-200/50">
+              <div class="text-xl font-bold text-purple-600">{{ writeRelays.length }}</div>
+              <div class="text-xs text-purple-700 font-medium mt-0.5">Write</div>
             </div>
-            <div class="bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg p-3 text-center border border-gray-200">
-              <div class="text-2xl font-bold text-gray-600">{{ userRelays.length }}</div>
-              <div class="text-xs text-gray-700 font-medium">Total</div>
+            <div class="bg-gradient-to-r from-gray-50 to-slate-50 rounded-lg p-2.5 text-center border border-gray-200/50">
+              <div class="text-xl font-bold text-gray-600">{{ userRelays.length }}</div>
+              <div class="text-xs text-gray-700 font-medium mt-0.5">Total</div>
             </div>
           </div>
           
           <!-- Add Relay Form -->
-          <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200 p-4 mb-6">
-            <h4 class="font-medium text-gray-900 mb-3 flex items-center space-x-2">
-              <IconPlus class="w-4 h-4 text-orange-600" />
+          <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200/50 p-3 mb-4">
+            <h4 class="font-medium text-gray-900 mb-2 flex items-center space-x-2">
+              <IconPlus class="w-3.5 h-3.5 text-orange-600" />
               <span>Add New Relay</span>
             </h4>
             
-            <div class="space-y-3">
+            <div class="space-y-2">
               <input
                 v-model="newRelayUrl"
                 type="text"
                 placeholder="wss://relay.example.com"
-                class="w-full px-3 py-3 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm bg-white"
+                class="w-full px-3 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm bg-white/80"
                 @keyup.enter="handleAddRelay"
               />
               
               <div class="flex flex-col sm:flex-row gap-2">
                 <button
                   @click="handleAddRelay"
-                  :disabled="addingRelay || !newRelayUrl.trim()"
-                  class="btn-primary flex-1 sm:flex-none"
+                  :disabled="loadingStates.addRelay || !newRelayUrl.trim()"
+                  class="btn-primary flex-1 sm:flex-none text-sm"
                 >
-                  <IconLoader v-if="addingRelay" class="w-4 h-4 animate-spin" />
+                  <IconLoader v-if="loadingStates.addRelay" class="w-4 h-4 animate-spin" />
                   <IconPlus v-else class="w-4 h-4" />
-                  {{ addingRelay ? 'Adding...' : 'Add Relay' }}
+                  {{ loadingStates.addRelay ? 'Adding...' : 'Add Relay' }}
                 </button>
               </div>
               
               <!-- Form Error -->
-              <div v-if="relayFormError" class="bg-red-50 border border-red-200 rounded-lg p-3">
+              <div v-if="relayFormError" class="bg-red-50 border border-red-200/50 rounded-lg p-2">
                 <div class="flex items-center space-x-2">
-                  <IconAlertCircle class="w-4 h-4 text-red-600" />
+                  <IconAlertCircle class="w-3.5 h-3.5 text-red-600" />
                   <span class="text-sm text-red-600">{{ relayFormError }}</span>
                 </div>
               </div>
@@ -540,9 +576,9 @@ const toggleRelaySection = () => {
           </div>
           
           <!-- Relay List -->
-          <div class="space-y-3">
+          <div class="space-y-2">
             <h4 class="font-medium text-gray-900 flex items-center space-x-2">
-              <IconSettings class="w-4 h-4 text-gray-600" />
+              <IconSettings class="w-3.5 h-3.5 text-gray-600" />
               <span>Your Relays</span>
             </h4>
             
@@ -552,77 +588,79 @@ const toggleRelaySection = () => {
               <p class="text-gray-600 text-sm">Add your first relay to start connecting to the Nostr network</p>
             </div>
             
-            <div v-else class="space-y-2">
+            <div v-else class="space-y-1.5">
               <div
                 v-for="relay in userRelays"
                 :key="relay.url"
-                class="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all duration-200"
+                class="bg-white/80 rounded-lg border border-gray-200/50 p-3 hover:shadow-sm hover:border-gray-300/50 transition-all duration-200"
               >
                 <!-- Mobile Layout -->
                 <div class="block sm:hidden">
                   <!-- Top Row: Status + Name + Actions -->
-                  <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center space-x-3 flex-1 min-w-0">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-2 flex-1 min-w-0">
                       <div :class="[
-                        'w-3 h-3 rounded-full flex-shrink-0',
+                        'w-2.5 h-2.5 rounded-full flex-shrink-0',
                         relay.status === 'connected' ? 'bg-green-400 animate-pulse' : 
                         relay.status === 'checking' ? 'bg-yellow-400 animate-pulse' : 'bg-red-400'
                       ]"></div>
                       <div class="flex-1 min-w-0">
-                        <h5 class="font-medium text-gray-900 truncate">{{ formatRelayUrl(relay.url) }}</h5>
-                        <div class="flex items-center space-x-2 mt-1">
-                          <span v-if="relay.read" class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-medium">Read</span>
-                          <span v-if="relay.write" class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-medium">Write</span>
+                        <h5 class="text-sm font-medium text-gray-900 truncate">{{ formatRelayUrl(relay.url) }}</h5>
+                        <div class="flex items-center space-x-1 mt-0.5">
+                          <span v-if="relay.read" class="bg-blue-100 text-blue-700 px-1 py-0.5 rounded text-xs font-medium">R</span>
+                          <span v-if="relay.write" class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-xs font-medium">W</span>
                         </div>
                       </div>
                     </div>
                     
-                    <div class="flex items-center space-x-1">
+                    <div class="flex items-center space-x-0.5">
                       <button
                         @click="handleRefreshRelay(relay.url)"
                         :disabled="refreshingIndividualRelay.has(relay.url)"
-                        class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50"
                         title="Refresh relay"
                       >
-                        <IconRefresh :class="['w-4 h-4', refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : '']" />
+                        <IconRefresh :class="['w-3.5 h-3.5', refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : '']" />
                       </button>
                       
                       <button
                         @click="copyToClipboard(relay.url)"
-                        class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        :disabled="loadingStates.copyAction"
+                        class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50"
                         title="Copy URL"
                       >
-                        <IconCopy class="w-4 h-4" />
+                        <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
+                        <IconCopy v-else class="w-3.5 h-3.5" />
                       </button>
                       
                       <button
                         @click="handleRemoveRelay(relay.url)"
-                        class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110"
                         title="Remove relay"
                       >
-                        <IconTrash class="w-4 h-4" />
+                        <IconTrash class="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
                   
                   <!-- Bottom Row: URL -->
-                  <div class="bg-gray-50 rounded-lg p-2">
-                    <code class="text-xs text-gray-600 break-all">{{ relay.url }}</code>
+                  <div class="bg-gray-50/80 rounded p-1.5">
+                    <code class="text-xs text-gray-500 break-all font-mono">{{ relay.url }}</code>
                   </div>
                 </div>
 
                 <!-- Desktop Layout -->
                 <div class="hidden sm:flex items-center justify-between">
-                  <div class="flex items-center space-x-4 flex-1 min-w-0">
+                  <div class="flex items-center space-x-3 flex-1 min-w-0">
                     <!-- Status Indicator -->
                     <div :class="[
-                      'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
+                      'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
                       getRelayStatusColor(relay.status)
                     ]">
                       <component 
                         :is="getRelayStatusIcon(relay.status)" 
                         :class="[
-                          'w-5 h-5',
+                          'w-4 h-4',
                           relay.status === 'checking' || refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : ''
                         ]"
                       />
@@ -630,50 +668,52 @@ const toggleRelaySection = () => {
                     
                     <!-- Relay Info -->
                     <div class="flex-1 min-w-0">
-                      <div class="flex items-center space-x-3 mb-1">
-                        <h5 class="font-medium text-gray-900">{{ formatRelayUrl(relay.url) }}</h5>
+                      <div class="flex items-center space-x-2 mb-0.5">
+                        <h5 class="text-sm font-medium text-gray-900">{{ formatRelayUrl(relay.url) }}</h5>
                         <span :class="[
-                          'px-2 py-1 rounded-full text-xs font-medium',
+                          'px-1.5 py-0.5 rounded-full text-xs font-medium',
                           getRelayStatusColor(relay.status)
                         ]">
                           {{ relay.status }}
                         </span>
                       </div>
-                      <div class="flex items-center space-x-4">
-                        <code class="text-xs text-gray-500 truncate max-w-xs">{{ relay.url }}</code>
-                        <div class="flex items-center space-x-2">
-                          <span v-if="relay.read" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium">Read</span>
-                          <span v-if="relay.write" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">Write</span>
+                      <div class="flex items-center space-x-3">
+                        <code class="text-xs text-gray-400 truncate max-w-xs font-mono">{{ relay.url }}</code>
+                        <div class="flex items-center space-x-1">
+                          <span v-if="relay.read" class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-medium">Read</span>
+                          <span v-if="relay.write" class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-medium">Write</span>
                         </div>
                       </div>
                     </div>
                   </div>
                   
                   <!-- Actions -->
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center space-x-1">
                     <button
                       @click="handleRefreshRelay(relay.url)"
                       :disabled="refreshingIndividualRelay.has(relay.url)"
-                      class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50"
                       title="Refresh relay status"
                     >
-                      <IconRefresh :class="['w-4 h-4', refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : '']" />
+                      <IconRefresh :class="['w-3.5 h-3.5', refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : '']" />
                     </button>
                     
                     <button
                       @click="copyToClipboard(relay.url)"
-                      class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                      :disabled="loadingStates.copyAction"
+                      class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50"
                       title="Copy relay URL"
                     >
-                      <IconCopy class="w-4 h-4" />
+                      <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
+                      <IconCopy v-else class="w-3.5 h-3.5" />
                     </button>
                     
                     <button
                       @click="handleRemoveRelay(relay.url)"
                       title="Remove relay"
-                      class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110"
                     >
-                      <IconTrash class="w-4 h-4" />
+                      <IconTrash class="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -682,9 +722,9 @@ const toggleRelaySection = () => {
           </div>
           
           <!-- Relay Error -->
-          <div v-if="relayError" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div v-if="relayError" class="mt-3 bg-red-50 border border-red-200/50 rounded-lg p-3">
             <div class="flex items-center space-x-2">
-              <IconAlertCircle class="w-5 h-5 text-red-600" />
+              <IconAlertCircle class="w-4 h-4 text-red-600" />
               <span class="text-sm text-red-600">{{ relayError }}</span>
             </div>
           </div>
@@ -710,9 +750,9 @@ const toggleRelaySection = () => {
 </template>
 
 <style scoped>
-.line-clamp-2 {
+.line-clamp-1 {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -751,22 +791,6 @@ const toggleRelaySection = () => {
   }
 }
 
-/* Improved button hover states */
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
-}
-
-.btn-secondary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Smooth transitions for interactive elements */
-button {
-  transition: all 0.2s ease-out;
-}
-
 /* Status indicator animations */
 @keyframes pulse-green {
   0%, 100% { opacity: 1; }
@@ -786,13 +810,6 @@ button {
   animation: pulse-yellow 1.5s infinite;
 }
 
-/* Responsive grid improvements */
-@media (max-width: 640px) {
-  .grid-cols-2 {
-    gap: 0.75rem;
-  }
-}
-
 /* Enhanced focus states for accessibility */
 button:focus-visible {
   outline: 2px solid #fb923c;
@@ -802,5 +819,39 @@ button:focus-visible {
 input:focus-visible {
   outline: 2px solid #fb923c;
   outline-offset: 2px;
+}
+
+/* Improved button interactions */
+.btn-primary {
+  transition: all 0.2s ease-out;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Smooth hover animations for icon buttons */
+button:hover:not(:disabled) .group-hover\:scale-110 {
+  transform: scale(1.1);
+}
+
+/* Loading state improvements */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Card hover effects */
+.bg-white\/80:hover {
+  background-color: rgba(255, 255, 255, 0.95);
 }
 </style>
