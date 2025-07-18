@@ -58,7 +58,7 @@ const relayFormError = ref('')
 const copySuccess = ref(false)
 const refreshingProfile = ref(false)
 const showProfileEditor = ref(false)
-const showRelaySection = ref(true)
+const showRelaySection = ref(false) // Default to collapsed for cleaner initial experience
 const refreshingRelays = ref(false)
 const refreshingIndividualRelay = ref(new Set())
 
@@ -485,7 +485,8 @@ const toggleRelaySection = () => {
       <!-- Collapsible Header -->
       <button
         @click="toggleRelaySection"
-        class="w-full p-4 sm:p-6 border-b border-orange-100/50 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-200"
+        class="w-full p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 group"
+        :class="{ 'border-b border-orange-100/50': showRelaySection }"
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
@@ -494,31 +495,43 @@ const toggleRelaySection = () => {
             </div>
             <div class="text-left">
               <h3 class="text-lg font-semibold text-gray-900">Relay Network</h3>
-              <p class="text-sm text-gray-600">{{ connectedRelays.length }}/{{ userRelays.length }} relays connected</p>
+              <p class="text-sm text-gray-600">
+                {{ connectedRelays.length }}/{{ userRelays.length }} relays connected
+                <span v-if="!showRelaySection" class="text-gray-400">• Tap to manage</span>
+              </p>
             </div>
           </div>
           <div class="flex items-center space-x-3">
             <button
               @click.stop="handleRefreshRelays"
               :disabled="loadingStates.refreshRelays"
-              class="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+              class="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-all duration-200 hover:scale-110"
               title="Refresh all relays"
             >
               <IconRefresh :class="['w-5 h-5', loadingStates.refreshRelays ? 'animate-spin' : '']" />
             </button>
             <component 
               :is="showRelaySection ? IconChevronUp : IconChevronDown" 
-              class="w-5 h-5 text-gray-400 transition-transform duration-200" 
+              class="w-5 h-5 text-gray-400 transition-all duration-300 group-hover:text-blue-600" 
+              :class="{ 'rotate-180': showRelaySection }"
             />
           </div>
         </div>
       </button>
       
       <!-- Relay Content (Collapsible) -->
-      <transition name="slide-down">
+      <transition 
+        name="relay-section"
+        enter-active-class="transition-all duration-300 ease-out"
+        leave-active-class="transition-all duration-300 ease-in"
+        enter-from-class="opacity-0 max-h-0 transform -translate-y-2"
+        enter-to-class="opacity-100 max-h-[1000px] transform translate-y-0"
+        leave-from-class="opacity-100 max-h-[1000px] transform translate-y-0"
+        leave-to-class="opacity-0 max-h-0 transform -translate-y-2"
+      >
         <div v-if="showRelaySection" class="p-4 sm:p-6">
           <!-- Relay Stats Cards -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
             <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-2.5 text-center border border-green-200/50">
               <div class="text-xl font-bold text-green-600">{{ connectedRelays.length }}</div>
               <div class="text-xs text-green-700 font-medium mt-0.5">Connected</div>
