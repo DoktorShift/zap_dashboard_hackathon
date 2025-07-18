@@ -347,7 +347,7 @@ const components = {
 
 // Check if current page is standalone
 const isStandalonePage = computed(() => {
-  return currentPage.value === 'invoice-share'
+  return currentPage.value === 'invoice-share' || currentPage.value === 'campaign-view'
 })
 
 // Enhanced data refresh function with better error handling

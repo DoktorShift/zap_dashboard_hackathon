@@ -307,254 +307,275 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Back Button -->
-    <div>
-      <button
-        @click="goBack"
-        class="btn-secondary inline-flex items-center space-x-2"
-      >
-        <IconArrowLeft class="w-4 h-4" />
-        <span>Back to Campaigns</span>
-      </button>
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="isLoading && !campaign" class="bg-white/90 backdrop-blur-sm p-6 rounded-xl border border-orange-100/50 shadow-sm text-center">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-      <p class="text-gray-600">Loading campaign...</p>
-    </div>
-
-    <!-- Error Message -->
-    <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
-      <div class="flex items-center space-x-3">
-        <IconAlertCircle class="w-6 h-6 text-red-600" />
-        <div>
-          <h3 class="text-lg font-semibold text-red-800 mb-1">Error Loading Campaign</h3>
-          <p class="text-red-700">{{ error }}</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Campaign Details -->
-    <div v-else-if="campaign" class="space-y-6">
-      <!-- Campaign Header -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-        <!-- Campaign Image -->
-        <div v-if="campaign.image" class="h-48 sm:h-64 w-full overflow-hidden">
+  <div class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25 p-4 sm:p-6 lg:p-8">
+    <!-- Standalone Header -->
+    <div class="max-w-4xl mx-auto mb-8">
+      <div class="text-center">
+        <div class="flex items-center justify-center space-x-3 mb-4">
           <img 
-            :src="campaign.image" 
-            :alt="campaign.title"
-            class="w-full h-full object-cover"
-            @error="$event.target.style.display = 'none'"
+            src="/new_logo3.png"
+            alt="ZapTracker Logo" 
+            class="w-12 h-12 object-contain"
           />
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">ZapTracker</h1>
         </div>
-        
-        <!-- Campaign Content -->
-        <div class="p-6">
-          <!-- Status and Author -->
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <div class="flex items-center space-x-2">
-              <span :class="[
-                'px-2 py-1 rounded-full text-xs font-medium',
-                statusColor
-              ]">
-                {{ status.charAt(0).toUpperCase() + status.slice(1) }}
-              </span>
-              <span class="text-xs text-gray-500">
-                {{ formatDate(campaign.createdAt) }}
-              </span>
-            </div>
-            
-            <!-- Author -->
-            <div 
-              v-if="campaignAuthor"
-              @click="openUserProfile"
-              class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded-lg transition-colors"
-            >
-              <img 
-                :src="campaignAuthor.picture" 
-                :alt="campaignAuthor.name"
-                class="w-6 h-6 rounded-full object-cover"
-                @error="$event.target.src = generateFallbackAvatar(campaignAuthor.pubkey)"
-              />
-              <span class="text-sm text-gray-700">{{ campaignAuthor.name }}</span>
-            </div>
-          </div>
-          
-          <!-- Title and Summary -->
-          <h1 class="text-2xl font-bold text-gray-900 mb-3">{{ campaign.title }}</h1>
-          <p class="text-gray-600 mb-6">{{ campaign.summary }}</p>
-          
-          <!-- Progress Bar -->
-          <div class="mb-6">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium text-gray-700">Progress</span>
-              <span class="text-sm font-medium text-orange-600">{{ progress.percentage }}%</span>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                class="bg-gradient-to-r from-orange-400 to-amber-400 h-3 rounded-full transition-all duration-500"
-                :style="{ width: `${progress.percentage}%` }"
-              ></div>
-            </div>
-            <div class="flex items-center justify-between mt-2">
-              <span class="text-sm text-gray-600">{{ progress.current.toLocaleString() }} sats raised</span>
-              <span class="text-sm text-gray-600">Goal: {{ formatAmount(campaign.goalAmount) }} sats</span>
-            </div>
-          </div>
-          
-          <!-- Campaign Info -->
-          <div class="flex flex-wrap items-center gap-4 mb-6 text-sm">
-            <div class="flex items-center space-x-1 text-gray-600">
-              <IconClock class="w-4 h-4" />
-              <span>{{ daysRemaining }}</span>
-            </div>
-            
-            <div v-if="campaign.closedAt" class="flex items-center space-x-1 text-gray-600">
-              <IconCalendar class="w-4 h-4" />
-              <span>Ends {{ formatDate(campaign.closedAt) }}</span>
-            </div>
-          </div>
-          
-          <!-- Action Buttons -->
-          <div class="flex flex-col sm:flex-row gap-3">
-            <button
-              @click="openZapModal"
-              :disabled="status === 'expired' || status === 'completed' || !isAuthenticated" 
-              class="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
-            >
-              <IconBolt class="w-4 h-4" />
-              <span class="font-medium">{{ isAuthenticated ? 'Zap Now' : 'Login to Zap' }}</span>
-            </button>
-            
-            <button
-              @click="openShareModal"
-              class="btn-secondary flex-1 transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
-            >
-              <IconShare class="w-4 h-4" />
-              <span class="font-medium">Share Campaign</span>
-            </button>
+        <p class="text-gray-600">Support this campaign with Bitcoin Lightning</p>
+      </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto">
+      <!-- Loading State -->
+      <div v-if="isLoading && !campaign" class="bg-white/90 backdrop-blur-sm p-6 rounded-xl border border-orange-100/50 shadow-sm text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+        <p class="text-gray-600">Loading campaign...</p>
+      </div>
+
+      <!-- Error Message -->
+      <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm">
+        <div class="flex items-center space-x-3">
+          <IconAlertCircle class="w-6 h-6 text-red-600" />
+          <div>
+            <h3 class="text-lg font-semibold text-red-800 mb-1">Campaign Not Found</h3>
+            <p class="text-red-700">{{ error }}</p>
           </div>
         </div>
       </div>
-      
-      <!-- Recent Supporters -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center space-x-2">
-          <IconUsers class="w-5 h-5 text-orange-600" />
-          <span>Recent Supporters</span>
-          <span v-if="totalZapCount > 0" class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-            {{ totalZapCount }} zap{{ totalZapCount !== 1 ? 's' : '' }}
-          </span>
-        </h3>
-        
-        <div v-if="recentZaps.length === 0" class="text-center py-8">
-          <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-          <h4 class="text-lg font-medium text-gray-900 mb-2">No Zaps Yet</h4>
-          <p class="text-gray-600 text-sm">Be the first to support this campaign!</p>
-        </div>
-        
-        <div v-else class="space-y-4">
-          <!-- Total Stats -->
-          <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4 mb-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm text-orange-700 font-medium">Total Support</p>
-                <p class="text-2xl font-bold text-orange-600">{{ totalZapAmount.toLocaleString() }} sats</p>
-              </div>
-              <div class="text-right">
-                <p class="text-sm text-orange-700 font-medium">Supporters</p>
-                <p class="text-2xl font-bold text-orange-600">{{ totalZapCount }}</p>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Recent Zaps List -->
-          <div v-for="zap in recentZaps" :key="zap.id" class="flex items-center space-x-3 p-3 bg-orange-50/50 rounded-lg">
-            <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 shadow-sm">
-              <img 
-                :src="zap.sender?.picture || zap.sender?.avatar" 
-                :alt="zap.sender?.name || 'Anonymous'"
-                class="w-full h-full object-cover"
-                @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
-              />
-            </div>
-            <div class="flex-1 min-w-0 py-1">
-              <p class="font-medium text-gray-900 truncate">
-                {{ zap.sender?.name || 'Anonymous' }}
-              </p>
-              <p class="text-xs text-gray-500">{{ zap.timeAgo }}</p>
-              <p v-if="zap.message" class="text-xs text-gray-600 italic mt-1 line-clamp-2">"{{ zap.message }}"</p>
-            </div>
-            <div class="text-right bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-2 rounded-lg shadow-sm">
-              <p class="font-bold text-orange-600">{{ zap.amount.toLocaleString() }} sats</p>
-            </div>
-          </div>
-          
-          <!-- Show More Button (if there are more than 5 zaps) -->
-          <div v-if="totalZapCount > 5" class="text-center pt-4 border-t border-orange-100">
-            <p class="text-sm text-gray-600">
-              Showing 5 of {{ totalZapCount }} supporters
-            </p>
-          </div>
-        </div>
-      </div>
-      
+
       <!-- Campaign Details -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Campaign Details</h3>
-        
-        <div class="space-y-4">
-          <!-- Event ID -->
-          <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-600">Event ID (NIP-75):</span>
-            <div class="flex items-center space-x-2">
-              <code class="text-xs bg-gray-100 px-2 py-1 rounded">{{ campaign.id.substring(0, 10) }}...{{ campaign.id.substring(campaign.id.length - 10) }}</code>
-              <button
-                @click="copyToClipboard(campaign.id, 'eventId')"
-                class="text-gray-400 hover:text-gray-600 transition-colors"
+      <div v-else-if="campaign" class="space-y-6">
+        <!-- Campaign Header -->
+        <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
+          <!-- Campaign Image -->
+          <div v-if="campaign.image" class="h-48 sm:h-64 w-full overflow-hidden">
+            <img 
+              :src="campaign.image" 
+              :alt="campaign.title"
+              class="w-full h-full object-cover"
+              @error="$event.target.style.display = 'none'"
+            />
+          </div>
+          
+          <!-- Campaign Content -->
+          <div class="p-6">
+            <!-- Status and Author -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+              <div class="flex items-center space-x-2">
+                <span :class="[
+                  'px-2 py-1 rounded-full text-xs font-medium',
+                  statusColor
+                ]">
+                  {{ status.charAt(0).toUpperCase() + status.slice(1) }}
+                </span>
+                <span class="text-xs text-gray-500">
+                  {{ formatDate(campaign.createdAt) }}
+                </span>
+              </div>
+              
+              <!-- Author -->
+              <div 
+                v-if="campaignAuthor"
+                @click="openUserProfile"
+                class="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded-lg transition-colors"
               >
-                <IconCheck v-if="copySuccess === 'eventId'" class="w-4 h-4 text-green-600" />
-                <IconCopy v-else class="w-4 h-4" />
+                <img 
+                  :src="campaignAuthor.picture" 
+                  :alt="campaignAuthor.name"
+                  class="w-6 h-6 rounded-full object-cover"
+                  @error="$event.target.src = generateFallbackAvatar(campaignAuthor.pubkey)"
+                />
+                <span class="text-sm text-gray-700">{{ campaignAuthor.name }}</span>
+              </div>
+            </div>
+            
+            <!-- Title and Summary -->
+            <h1 class="text-2xl font-bold text-gray-900 mb-3">{{ campaign.title }}</h1>
+            <p class="text-gray-600 mb-6">{{ campaign.summary }}</p>
+            
+            <!-- Progress Bar -->
+            <div class="mb-6">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700">Progress</span>
+                <span class="text-sm font-medium text-orange-600">{{ progress.percentage }}%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  class="bg-gradient-to-r from-orange-400 to-amber-400 h-3 rounded-full transition-all duration-500"
+                  :style="{ width: `${progress.percentage}%` }"
+                ></div>
+              </div>
+              <div class="flex items-center justify-between mt-2">
+                <span class="text-sm text-gray-600">{{ progress.current.toLocaleString() }} sats raised</span>
+                <span class="text-sm text-gray-600">Goal: {{ formatAmount(campaign.goalAmount) }} sats</span>
+              </div>
+            </div>
+            
+            <!-- Campaign Info -->
+            <div class="flex flex-wrap items-center gap-4 mb-6 text-sm">
+              <div class="flex items-center space-x-1 text-gray-600">
+                <IconClock class="w-4 h-4" />
+                <span>{{ daysRemaining }}</span>
+              </div>
+              
+              <div v-if="campaign.closedAt" class="flex items-center space-x-1 text-gray-600">
+                <IconCalendar class="w-4 h-4" />
+                <span>Ends {{ formatDate(campaign.closedAt) }}</span>
+              </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3">
+              <button
+                @click="openZapModal"
+                :disabled="status === 'expired' || status === 'completed'" 
+                class="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
+              >
+                <IconBolt class="w-4 h-4" />
+                <span class="font-medium">Support with Lightning</span>
+              </button>
+              
+              <button
+                @click="openShareModal"
+                class="btn-secondary flex-1 transform transition-all duration-300 hover:scale-105 active:scale-95 shadow-md hover:shadow-lg"
+              >
+                <IconShare class="w-4 h-4" />
+                <span class="font-medium">Share Campaign</span>
               </button>
             </div>
           </div>
+        </div>
+        
+        <!-- Recent Supporters -->
+        <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center space-x-2">
+            <IconUsers class="w-5 h-5 text-orange-600" />
+            <span>Recent Supporters</span>
+            <span v-if="totalZapCount > 0" class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              {{ totalZapCount }} zap{{ totalZapCount !== 1 ? 's' : '' }}
+            </span>
+          </h3>
           
-          <!-- View in Nostr Client -->
-          <div class="flex items-center justify-between">
-            <span class="text-sm text-gray-600">View in Nostr client:</span>
-            <div class="flex items-center space-x-2">
-              <a 
-                :href="`https://primal.net/e/${campaign.id}`" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                class="text-sm text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-3 py-1 rounded-lg transition-colors flex items-center space-x-1"
-              >
-                <IconExternalLink class="w-4 h-4" />
-                <span>Primal</span>
-              </a>
-              <a 
-                :href="`https://yakihonne.com/e/${campaign.id}`" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                class="text-sm text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-lg transition-colors flex items-center space-x-1"
-              >
-                <IconMessageCircle class="w-4 h-4" />
-                <span>Yakihonne</span>
-              </a>
-            </div>
+          <div v-if="recentZaps.length === 0" class="text-center py-8">
+            <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+            <h4 class="text-lg font-medium text-gray-900 mb-2">No Zaps Yet</h4>
+            <p class="text-gray-600 text-sm">Be the first to support this campaign!</p>
           </div>
           
-          <!-- Relays -->
-          <div>
-            <span class="text-sm text-gray-600">Published to relays:</span>
-            <div class="mt-2 space-y-2">
-              <div v-for="(relay, index) in campaign.relays" :key="index" class="flex items-center justify-between">
-                <code class="text-xs bg-gray-100 px-2 py-1 rounded">{{ relay }}</code>
+          <div v-else class="space-y-4">
+            <!-- Total Stats -->
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4 mb-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-orange-700 font-medium">Total Support</p>
+                  <p class="text-2xl font-bold text-orange-600">{{ totalZapAmount.toLocaleString() }} sats</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm text-orange-700 font-medium">Supporters</p>
+                  <p class="text-2xl font-bold text-orange-600">{{ totalZapCount }}</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Recent Zaps List -->
+            <div v-for="zap in recentZaps" :key="zap.id" class="flex items-center space-x-3 p-3 bg-orange-50/50 rounded-lg">
+              <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 shadow-sm">
+                <img 
+                  :src="zap.sender?.picture || zap.sender?.avatar" 
+                  :alt="zap.sender?.name || 'Anonymous'"
+                  class="w-full h-full object-cover"
+                  @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                />
+              </div>
+              <div class="flex-1 min-w-0 py-1">
+                <p class="font-medium text-gray-900 truncate">
+                  {{ zap.sender?.name || 'Anonymous' }}
+                </p>
+                <p class="text-xs text-gray-500">{{ zap.timeAgo }}</p>
+                <p v-if="zap.message" class="text-xs text-gray-600 italic mt-1 line-clamp-2">"{{ zap.message }}"</p>
+              </div>
+              <div class="text-right bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-2 rounded-lg shadow-sm">
+                <p class="font-bold text-orange-600">{{ zap.amount.toLocaleString() }} sats</p>
+              </div>
+            </div>
+            
+            <!-- Show More Button (if there are more than 5 zaps) -->
+            <div v-if="totalZapCount > 5" class="text-center pt-4 border-t border-orange-100">
+              <p class="text-sm text-gray-600">
+                Showing 5 of {{ totalZapCount }} supporters
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Campaign Details -->
+        <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Campaign Details</h3>
+          
+          <div class="space-y-4">
+            <!-- Event ID -->
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-600">Event ID (NIP-75):</span>
+              <div class="flex items-center space-x-2">
+                <code class="text-xs bg-gray-100 px-2 py-1 rounded">{{ campaign.id.substring(0, 10) }}...{{ campaign.id.substring(campaign.id.length - 10) }}</code>
+                <button
+                  @click="copyToClipboard(campaign.id, 'eventId')"
+                  class="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <IconCheck v-if="copySuccess === 'eventId'" class="w-4 h-4 text-green-600" />
+                  <IconCopy v-else class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            
+            <!-- View in Nostr Client -->
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-600">View in Nostr client:</span>
+              <div class="flex items-center space-x-2">
+                <a 
+                  :href="`https://primal.net/e/${campaign.id}`" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  class="text-sm text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-3 py-1 rounded-lg transition-colors flex items-center space-x-1"
+                >
+                  <IconExternalLink class="w-4 h-4" />
+                  <span>Primal</span>
+                </a>
+                <a 
+                  :href="`https://yakihonne.com/e/${campaign.id}`" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  class="text-sm text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-lg transition-colors flex items-center space-x-1"
+                >
+                  <IconMessageCircle class="w-4 h-4" />
+                  <span>Yakihonne</span>
+                </a>
+              </div>
+            </div>
+            
+            <!-- Relays -->
+            <div>
+              <span class="text-sm text-gray-600">Published to relays:</span>
+              <div class="mt-2 space-y-2">
+                <div v-for="(relay, index) in campaign.relays" :key="index" class="flex items-center justify-between">
+                  <code class="text-xs bg-gray-100 px-2 py-1 rounded">{{ relay }}</code>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+        
+        <!-- Back to ZapTracker Link -->
+        <div class="text-center mt-8">
+          <a
+            href="/"
+            class="inline-flex items-center space-x-2 text-orange-600 hover:text-orange-700 font-medium text-sm bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors"
+          >
+            <img 
+              src="/new_logo3.png"
+              alt="ZapTracker" 
+              class="w-4 h-4 object-contain"
+            />
+            <span>Powered by ZapTracker</span>
+          </a>
         </div>
       </div>
     </div>

@@ -179,7 +179,9 @@ const handleDeleteCampaign = async () => {
 
 // View campaign details
 const viewCampaign = (campaign) => {
-  changePage('campaign-view')
+  // Navigate to standalone campaign view with eventId parameter
+  const campaignUrl = `${window.location.origin}?page=campaign-view&eventId=${campaign.id}`
+  window.open(campaignUrl, '_blank')
 }
 
 // Edit campaign
