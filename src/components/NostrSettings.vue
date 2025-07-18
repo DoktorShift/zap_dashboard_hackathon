@@ -592,107 +592,103 @@ const toggleRelaySection = () => {
               <div
                 v-for="relay in userRelays"
                 :key="relay.url"
-                class="bg-white/80 rounded-lg border border-gray-200/50 p-3 hover:shadow-sm hover:border-gray-300/50 transition-all duration-200"
+                class="bg-white rounded-lg border border-gray-100 p-3 hover:shadow-md hover:border-gray-200 transition-all duration-200"
               >
                 <!-- Mobile Layout -->
                 <div class="block sm:hidden">
-                  <!-- Top Row: Status + Name + Actions -->
-                  <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center space-x-2 flex-1 min-w-0">
+                  <!-- Compact mobile layout -->
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5 flex-1 min-w-0">
+                      <!-- Status dot -->
                       <div :class="[
-                        'w-2.5 h-2.5 rounded-full flex-shrink-0',
+                        'w-2 h-2 rounded-full flex-shrink-0',
                         relay.status === 'connected' ? 'bg-green-400 animate-pulse' : 
                         relay.status === 'checking' ? 'bg-yellow-400 animate-pulse' : 'bg-red-400'
                       ]"></div>
+                      
+                      <!-- Relay info -->
                       <div class="flex-1 min-w-0">
-                        <h5 class="text-sm font-medium text-gray-900 truncate">{{ formatRelayUrl(relay.url) }}</h5>
-                        <div class="flex items-center space-x-1 mt-0.5">
-                          <span v-if="relay.read" class="bg-blue-100 text-blue-700 px-1 py-0.5 rounded text-xs font-medium">R</span>
-                          <span v-if="relay.write" class="bg-green-100 text-green-700 px-1 py-0.5 rounded text-xs font-medium">W</span>
+                        <div class="flex items-center space-x-2">
+                          <h5 class="text-sm font-medium text-gray-900 truncate">{{ formatRelayUrl(relay.url) }}</h5>
+                          <!-- Compact badges -->
+                          <div class="flex items-center space-x-0.5">
+                            <span v-if="relay.read" class="w-4 h-4 bg-blue-100 text-blue-700 rounded text-xs font-bold flex items-center justify-center">R</span>
+                            <span v-if="relay.write" class="w-4 h-4 bg-green-100 text-green-700 rounded text-xs font-bold flex items-center justify-center">W</span>
+                          </div>
                         </div>
+                        <p class="text-xs text-gray-500 truncate mt-0.5">{{ relay.url }}</p>
                       </div>
                     </div>
                     
-                    <div class="flex items-center space-x-0.5">
+                    <!-- Compact action buttons -->
+                    <div class="flex items-center space-x-1">
                       <button
                         @click="handleRefreshRelay(relay.url)"
                         :disabled="refreshingIndividualRelay.has(relay.url)"
-                        class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                        class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all duration-200 disabled:opacity-50"
                         title="Refresh relay"
                       >
-                        <IconRefresh :class="['w-3.5 h-3.5', refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : '']" />
+                        <IconRefresh :class="['w-3 h-3', refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : '']" />
                       </button>
                       
                       <button
                         @click="copyToClipboard(relay.url)"
                         :disabled="loadingStates.copyAction"
-                        class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                        class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-all duration-200 disabled:opacity-50"
                         title="Copy URL"
                       >
-                        <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
-                        <IconCopy v-else class="w-3.5 h-3.5" />
+                        <IconLoader v-if="loadingStates.copyAction" class="w-3 h-3 animate-spin" />
+                        <IconCopy v-else class="w-3 h-3" />
                       </button>
                       
                       <button
                         @click="handleRemoveRelay(relay.url)"
-                        class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110"
+                        class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all duration-200"
                         title="Remove relay"
                       >
-                        <IconTrash class="w-3.5 h-3.5" />
+                        <IconTrash class="w-3 h-3" />
                       </button>
                     </div>
-                  </div>
-                  
-                  <!-- Bottom Row: URL -->
-                  <div class="bg-gray-50/80 rounded p-1.5">
-                    <code class="text-xs text-gray-500 break-all font-mono">{{ relay.url }}</code>
                   </div>
                 </div>
 
                 <!-- Desktop Layout -->
-                <div class="hidden sm:flex items-center justify-between">
-                  <div class="flex items-center space-x-3 flex-1 min-w-0">
-                    <!-- Status Indicator -->
+                <div class="hidden sm:flex items-center justify-between py-1">
+                  <div class="flex items-center space-x-3.5 flex-1 min-w-0">
+                    <!-- Compact status indicator -->
                     <div :class="[
-                      'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
+                      'w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0',
                       getRelayStatusColor(relay.status)
                     ]">
                       <component 
                         :is="getRelayStatusIcon(relay.status)" 
                         :class="[
-                          'w-4 h-4',
+                          'w-3 h-3',
                           relay.status === 'checking' || refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : ''
                         ]"
                       />
                     </div>
                     
-                    <!-- Relay Info -->
+                    <!-- Streamlined relay info -->
                     <div class="flex-1 min-w-0">
-                      <div class="flex items-center space-x-2 mb-0.5">
-                        <h5 class="text-sm font-medium text-gray-900">{{ formatRelayUrl(relay.url) }}</h5>
-                        <span :class="[
-                          'px-1.5 py-0.5 rounded-full text-xs font-medium',
-                          getRelayStatusColor(relay.status)
-                        ]">
-                          {{ relay.status }}
-                        </span>
-                      </div>
-                      <div class="flex items-center space-x-3">
-                        <code class="text-xs text-gray-400 truncate max-w-xs font-mono">{{ relay.url }}</code>
+                      <div class="flex items-center space-x-2">
+                        <h5 class="text-sm font-medium text-gray-900 truncate">{{ formatRelayUrl(relay.url) }}</h5>
+                        <!-- Compact status and badges -->
                         <div class="flex items-center space-x-1">
-                          <span v-if="relay.read" class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-medium">Read</span>
-                          <span v-if="relay.write" class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-medium">Write</span>
+                          <span v-if="relay.read" class="w-5 h-5 bg-blue-100 text-blue-700 rounded text-xs font-bold flex items-center justify-center">R</span>
+                          <span v-if="relay.write" class="w-5 h-5 bg-green-100 text-green-700 rounded text-xs font-bold flex items-center justify-center">W</span>
                         </div>
                       </div>
+                      <code class="text-xs text-gray-500 truncate max-w-sm font-mono">{{ relay.url }}</code>
                     </div>
                   </div>
                   
-                  <!-- Actions -->
+                  <!-- Compact actions -->
                   <div class="flex items-center space-x-1">
                     <button
                       @click="handleRefreshRelay(relay.url)"
                       :disabled="refreshingIndividualRelay.has(relay.url)"
-                      class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                      class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 disabled:opacity-50"
                       title="Refresh relay status"
                     >
                       <IconRefresh :class="['w-3.5 h-3.5', refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : '']" />
@@ -701,7 +697,7 @@ const toggleRelaySection = () => {
                     <button
                       @click="copyToClipboard(relay.url)"
                       :disabled="loadingStates.copyAction"
-                      class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                      class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200 disabled:opacity-50"
                       title="Copy relay URL"
                     >
                       <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
@@ -711,7 +707,7 @@ const toggleRelaySection = () => {
                     <button
                       @click="handleRemoveRelay(relay.url)"
                       title="Remove relay"
-                      class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 hover:scale-110"
+                      class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
                     >
                       <IconTrash class="w-3.5 h-3.5" />
                     </button>

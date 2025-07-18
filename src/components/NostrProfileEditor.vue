@@ -13,7 +13,8 @@ import {
   IconGlobe,
   IconPhoto,
   IconFileDescription,
-  IconId
+  IconId,
+  IconEye
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
