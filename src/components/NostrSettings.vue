@@ -319,57 +319,50 @@ const toggleRelaySection = () => {
       
       <!-- Authenticated State -->
       <div v-else class="p-4 sm:p-6">
-        <!-- Modern Profile Card -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-          <!-- Profile Header -->
-          <div class="relative bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 px-6 py-8">
-            <!-- Subtle pattern overlay -->
-            <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-            
-            <div class="relative flex flex-col items-center text-center">
-              <!-- Avatar with status indicator -->
-              <div class="relative mb-4">
-                <div class="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm p-1 shadow-lg">
-                  <img 
-                    :src="getUserAvatar()" 
-                    :alt="userProfile?.name || 'User'"
-                    class="w-full h-full rounded-xl object-cover"
-                    @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
-                  />
+        <!-- Compact Profile Card - Vue Bits Inspired -->
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+          <!-- Compact Header -->
+          <div class="p-4 border-b border-gray-100">
+            <div class="flex items-center justify-between">
+              <!-- Left: Avatar + Info -->
+              <div class="flex items-center space-x-3">
+                <div class="relative">
+                  <div class="w-12 h-12 rounded-xl overflow-hidden border-2 border-orange-200">
+                    <img 
+                      :src="getUserAvatar()" 
+                      :alt="userProfile?.name || 'User'"
+                      class="w-full h-full object-cover"
+                      @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                    />
+                  </div>
+                  <!-- Status dot -->
+                  <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-white shadow-sm"></div>
                 </div>
-                <!-- Status indicator -->
-                <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-400 rounded-lg border-3 border-white shadow-sm flex items-center justify-center">
-                  <IconUserCheck class="w-3 h-3 text-white" />
+                
+                <div class="flex-1 min-w-0">
+                  <h3 class="font-semibold text-gray-900 truncate">
+                    {{ userProfile?.name || 'Anonymous' }}
+                  </h3>
+                  <p class="text-sm text-gray-500 truncate">
+                    {{ getShortNpub() }}
+                  </p>
                 </div>
               </div>
               
-              <!-- Name and subtitle -->
-              <h3 class="text-xl font-bold text-white mb-1">
-                {{ userProfile?.name || 'Anonymous' }}
-              </h3>
-              <p v-if="userProfile?.display_name && userProfile?.display_name !== userProfile?.name" 
-                 class="text-white/80 text-sm mb-3">
-                {{ userProfile.display_name }}
-              </p>
-              <p v-else-if="userProfile?.about" 
-                 class="text-white/80 text-sm mb-3 line-clamp-2 max-w-xs">
-                {{ userProfile.about }}
-              </p>
-              
-              <!-- Action buttons -->
+              <!-- Right: Action Buttons -->
               <div class="flex items-center space-x-2">
                 <button
                   @click="handleEditProfile"
-                  class="flex items-center space-x-2 bg-white/20 backdrop-blur-sm hover:bg-white/30 px-4 py-2 rounded-xl text-white font-medium transition-all duration-200 hover:scale-105 touch-target"
+                  class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target"
+                  title="Edit Profile"
                 >
                   <IconEdit class="w-4 h-4" />
-                  <span>Edit Profile</span>
                 </button>
                 
                 <button
                   @click="handleRefreshProfile"
                   :disabled="loadingStates.refreshProfile"
-                  class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-xl flex items-center justify-center text-white transition-all duration-200 hover:scale-105 disabled:opacity-50 touch-target"
+                  class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 disabled:opacity-50 touch-target"
                   title="Refresh Profile"
                 >
                   <IconRefresh :class="['w-4 h-4', loadingStates.refreshProfile ? 'animate-spin' : '']" />
@@ -378,7 +371,7 @@ const toggleRelaySection = () => {
                 <button
                   @click="handleLogout"
                   :disabled="loadingStates.logout"
-                  class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-red-500/30 rounded-xl flex items-center justify-center text-white transition-all duration-200 hover:scale-105 disabled:opacity-50 touch-target"
+                  class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 disabled:opacity-50 touch-target"
                   title="Logout"
                 >
                   <IconLoader v-if="loadingStates.logout" class="w-4 h-4 animate-spin" />
@@ -386,32 +379,31 @@ const toggleRelaySection = () => {
                 </button>
               </div>
             </div>
-          </div>
-          
-          <!-- Profile Details -->
-          <div class="p-6 space-y-4">
-            <!-- Status badges -->
-            <div class="flex flex-wrap gap-2 justify-center">
-              <span class="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
-                <IconUserCheck class="w-3 h-3 mr-1.5" />
+            
+            <!-- Status Badges -->
+            <div class="flex flex-wrap gap-2 mt-3">
+              <span class="inline-flex items-center px-2 py-1 bg-green-50 text-green-700 rounded-md text-xs font-medium">
+                <IconUserCheck class="w-3 h-3 mr-1" />
                 Connected
               </span>
-              <span v-if="userProfile?.nip05" class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
-                <IconShield class="w-3 h-3 mr-1.5" />
+              <span v-if="userProfile?.nip05" class="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">
+                <IconShield class="w-3 h-3 mr-1" />
                 Verified
               </span>
-              <span v-if="userProfile?.lud16" class="inline-flex items-center px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-xs font-medium border border-orange-200">
-                <IconBolt class="w-3 h-3 mr-1.5" />
+              <span v-if="userProfile?.lud16" class="inline-flex items-center px-2 py-1 bg-orange-50 text-orange-700 rounded-md text-xs font-medium">
+                <IconBolt class="w-3 h-3 mr-1" />
                 Zap Ready
               </span>
             </div>
-            
-            <!-- Profile information list -->
-            <div class="space-y-3">
-              <!-- Public Key -->
-              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group">
+          </div>
+          
+          <!-- Profile Details List -->
+          <div class="divide-y divide-gray-100">
+            <!-- Public Key -->
+            <div class="p-3 hover:bg-gray-50 transition-colors group">
+              <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3 flex-1 min-w-0">
-                  <div class="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+                  <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
                     <IconKey class="w-4 h-4 text-gray-600" />
                   </div>
                   <div class="flex-1 min-w-0">
@@ -430,11 +422,13 @@ const toggleRelaySection = () => {
                   <IconCopy v-else class="w-4 h-4" />
                 </button>
               </div>
+            </div>
 
-              <!-- Lightning Address -->
-              <div v-if="userProfile?.lud16" class="flex items-center justify-between p-3 bg-orange-50 rounded-xl hover:bg-orange-100 transition-colors group">
+            <!-- Lightning Address -->
+            <div v-if="userProfile?.lud16" class="p-3 hover:bg-orange-25 transition-colors group">
+              <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3 flex-1 min-w-0">
-                  <div class="w-8 h-8 bg-orange-200 rounded-lg flex items-center justify-center">
+                  <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
                     <IconBolt class="w-4 h-4 text-orange-600" />
                   </div>
                   <div class="flex-1 min-w-0">
@@ -445,18 +439,20 @@ const toggleRelaySection = () => {
                 <button
                   @click="copyToClipboard(userProfile.lud16)"
                   :disabled="loadingStates.copyAction"
-                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-100 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
                   title="Copy Lightning address"
                 >
                   <IconLoader v-if="loadingStates.copyAction" class="w-4 h-4 animate-spin" />
                   <IconCopy v-else class="w-4 h-4" />
                 </button>
               </div>
+            </div>
 
-              <!-- NIP-05 Verification -->
-              <div v-if="userProfile?.nip05" class="flex items-center justify-between p-3 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors group">
+            <!-- NIP-05 Verification -->
+            <div v-if="userProfile?.nip05" class="p-3 hover:bg-blue-25 transition-colors group">
+              <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3 flex-1 min-w-0">
-                  <div class="w-8 h-8 bg-blue-200 rounded-lg flex items-center justify-center">
+                  <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                     <IconShield class="w-4 h-4 text-blue-600" />
                   </div>
                   <div class="flex-1 min-w-0">
@@ -467,18 +463,20 @@ const toggleRelaySection = () => {
                 <button
                   @click="copyToClipboard(userProfile.nip05)"
                   :disabled="loadingStates.copyAction"
-                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50"
                   title="Copy NIP-05"
                 >
                   <IconLoader v-if="loadingStates.copyAction" class="w-4 h-4 animate-spin" />
                   <IconCopy v-else class="w-4 h-4" />
                 </button>
               </div>
+            </div>
 
-              <!-- Website -->
-              <div v-if="userProfile?.website" class="flex items-center justify-between p-3 bg-green-50 rounded-xl hover:bg-green-100 transition-colors group">
+            <!-- Website -->
+            <div v-if="userProfile?.website" class="p-3 hover:bg-green-25 transition-colors group">
+              <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3 flex-1 min-w-0">
-                  <div class="w-8 h-8 bg-green-200 rounded-lg flex items-center justify-center">
+                  <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                     <IconGlobe class="w-4 h-4 text-green-600" />
                   </div>
                   <div class="flex-1 min-w-0">
@@ -490,7 +488,7 @@ const toggleRelaySection = () => {
                   :href="userProfile.website" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-100 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
+                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100"
                   title="Visit website"
                 >
                   <IconExternalLink class="w-4 h-4" />
