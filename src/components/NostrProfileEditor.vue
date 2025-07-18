@@ -341,17 +341,26 @@ initializeForm()
 </script>
 
 <template>
-  <!-- Modern Modal Overlay -->
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-      <!-- Modal Header -->
-      <div class="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 px-6 py-4 relative">
-        <div class="absolute inset-0 bg-black/5"></div>
+  <!-- Apple-Inspired Modal Overlay -->
+  <div class="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-hidden transform animate-in slide-in-from-bottom-4 duration-500">
+      <!-- Elegant Header with Gradient -->
+      <div class="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 px-6 py-6 relative overflow-hidden">
+        <!-- Subtle pattern overlay -->
+        <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
         <div class="relative flex items-center justify-between">
-          <h2 class="text-xl font-bold text-white">Edit Profile</h2>
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <IconUser class="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-white">Edit Profile</h2>
+              <p class="text-white/80 text-sm">Update your Nostr identity</p>
+            </div>
+          </div>
           <button
             @click="handleCancel"
-            class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+            class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:rotate-90"
           >
             <IconX class="w-5 h-5 text-white" />
           </button>
@@ -359,203 +368,373 @@ initializeForm()
       </div>
       
       <!-- Scrollable Content -->
-      <div class="overflow-y-auto max-h-[calc(90vh-80px)]">
-        <!-- Live Preview Section -->
-        <div class="p-6 bg-gray-50 border-b border-gray-200">
-          <h3 class="text-sm font-medium text-gray-700 mb-3">Live Preview</h3>
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <!-- Preview Header -->
-            <div class="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 px-4 py-6 relative">
-              <div class="absolute inset-0 bg-black/5"></div>
-              <div class="relative flex items-center gap-3">
-                <!-- Preview Avatar -->
-                <div class="w-12 h-12 rounded-full ring-2 ring-white/30 overflow-hidden bg-white shadow-lg">
-                  <img 
-                    :src="getAvatarUrl" 
-                    :alt="form.name || 'User'" 
-                    class="w-full h-full object-cover"
-                    @error="previewImage = null"
-                  />
+      <div class="overflow-y-auto max-h-[calc(95vh-120px)] scrollbar-thin">
+        <!-- Live Preview Section with Apple-style design -->
+        <div class="p-6 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+              <IconEye class="w-5 h-5 text-orange-500" />
+              <span>Live Preview</span>
+            </h3>
+            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Updates in real-time</span>
+          </div>
+          
+          <!-- Enhanced Preview Card -->
+          <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden transform hover:scale-[1.02] transition-transform duration-300">
+            <!-- Banner Section -->
+            <div class="h-24 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 relative overflow-hidden">
+              <div v-if="previewBanner" class="absolute inset-0">
+                <img 
+                  :src="previewBanner" 
+                  alt="Banner" 
+                  class="w-full h-full object-cover"
+                  @error="previewBanner = ''"
+                />
+                <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+              </div>
+              <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+            </div>
+            
+            <!-- Profile Section -->
+            <div class="px-6 pb-6 -mt-8 relative">
+              <div class="flex items-end space-x-4">
+                <!-- Avatar with better positioning -->
+                <div class="relative">
+                  <div class="w-16 h-16 rounded-2xl ring-4 ring-white overflow-hidden bg-white shadow-xl">
+                    <img 
+                      :src="getAvatarUrl" 
+                      :alt="form.name || 'User'" 
+                      class="w-full h-full object-cover"
+                      @error="previewImage = ''"
+                    />
+                  </div>
+                  <!-- Online indicator -->
+                  <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white shadow-sm"></div>
                 </div>
                 
-                <!-- Preview Info -->
-                <div class="flex-1 min-w-0">
-                  <h4 class="text-lg font-bold text-white truncate">{{ form.name || 'Your Name' }}</h4>
-                  <p v-if="form.display_name" class="text-white/80 text-sm truncate">{{ form.display_name }}</p>
-                  <p v-else-if="form.about" class="text-white/80 text-sm truncate">{{ form.about }}</p>
+                <!-- Profile Info -->
+                <div class="flex-1 min-w-0 pt-4">
+                  <h4 class="text-xl font-bold text-gray-900 truncate">{{ form.name || 'Your Name' }}</h4>
+                  <p v-if="form.display_name" class="text-gray-600 text-sm truncate">{{ form.display_name }}</p>
+                  <p v-if="form.about" class="text-gray-500 text-sm mt-1 line-clamp-2">{{ form.about }}</p>
+                  
+                  <!-- Quick badges -->
+                  <div class="flex flex-wrap gap-2 mt-2">
+                    <span v-if="form.lud16" class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium">
+                      <IconBolt class="w-3 h-3 mr-1" />
+                      Zap Ready
+                    </span>
+                    <span v-if="form.nip05" class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium">
+                      <IconShield class="w-3 h-3 mr-1" />
+                      Verified
+                    </span>
+                    <span v-if="form.website" class="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-medium">
+                      <IconGlobe class="w-3 h-3 mr-1" />
+                      Website
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
         
-        <!-- Form Content -->
-        <div class="p-6 space-y-6">
-          <!-- Basic Information Card -->
-          <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
-              <h3 class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <IconUser class="w-4 h-4 text-gray-500" />
-                Basic Information
-              </h3>
+        <!-- Form Content with Apple-style sections -->
+        <div class="p-6 space-y-8">
+          <!-- Basic Information Section -->
+          <div class="space-y-6">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center">
+                <IconUser class="w-4 h-4 text-orange-600" />
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900">Basic Information</h3>
             </div>
-            <div class="p-4 space-y-4">
-              <!-- Name (Required) -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Name <span class="text-red-500">*</span>
+            
+            <div class="bg-gray-50 rounded-2xl p-6 space-y-6">
+              <!-- Name Field -->
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">
+                  Display Name <span class="text-red-500">*</span>
                 </label>
                 <input
                   v-model="form.name"
                   type="text"
-                  placeholder="Your name"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all duration-200"
+                  placeholder="Enter your display name"
+                  maxlength="50"
+                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
+                  :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.name }"
                 />
+                <div class="flex justify-between items-center">
+                  <p v-if="fieldErrors.name" class="text-sm text-red-600">{{ fieldErrors.name }}</p>
+                  <span class="text-xs text-gray-500 ml-auto">{{ form.name.length }}/50</span>
+                </div>
               </div>
               
-              <!-- Display Name -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
+              <!-- Display Name Field -->
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">Alternative Display Name</label>
                 <input
                   v-model="form.display_name"
                   type="text"
-                  placeholder="Alternative display name"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all duration-200"
+                  placeholder="Optional alternative name"
+                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
                 />
+                <p class="text-xs text-gray-500">This will be shown as a subtitle under your main name</p>
               </div>
               
-              <!-- About -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">About</label>
+              <!-- About Field -->
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">About</label>
                 <textarea
                   v-model="form.about"
-                  rows="3"
-                  placeholder="Tell us about yourself"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all duration-200 resize-none"
+                  rows="4"
+                  placeholder="Tell people about yourself..."
+                  maxlength="500"
+                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 resize-none text-base"
+                  :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.about }"
                 ></textarea>
+                <div class="flex justify-between items-center">
+                  <p v-if="fieldErrors.about" class="text-sm text-red-600">{{ fieldErrors.about }}</p>
+                  <span class="text-xs text-gray-500 ml-auto">{{ form.about.length }}/500</span>
+                </div>
               </div>
             </div>
           </div>
           
-          <!-- Profile Images Card -->
-          <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
-              <h3 class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <IconPhoto class="w-4 h-4 text-gray-500" />
-                Profile Images
-              </h3>
+          <!-- Visual Identity Section -->
+          <div class="space-y-6">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-purple-100 rounded-xl flex items-center justify-center">
+                <IconCamera class="w-4 h-4 text-purple-600" />
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900">Visual Identity</h3>
             </div>
-            <div class="p-4 space-y-4">
+            
+            <div class="bg-gray-50 rounded-2xl p-6 space-y-6">
               <!-- Profile Picture -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Profile Picture URL</label>
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">Profile Picture URL</label>
                 <input
                   v-model="form.picture"
                   type="url"
-                  placeholder="https://example.com/your-image.jpg"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all duration-200"
+                  placeholder="https://example.com/your-avatar.jpg"
+                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
                 />
+                <p class="text-xs text-gray-500">Recommended: Square image, at least 400x400px</p>
               </div>
               
               <!-- Banner -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Banner URL</label>
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">Banner URL</label>
                 <input
                   v-model="form.banner"
                   type="url"
                   placeholder="https://example.com/your-banner.jpg"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all duration-200"
+                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
                 />
+                <p class="text-xs text-gray-500">Recommended: 1200x400px for best results</p>
               </div>
             </div>
           </div>
           
-          <!-- Lightning & Verification Card -->
-          <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200 overflow-hidden">
-            <div class="bg-gradient-to-r from-orange-100 to-amber-100 px-4 py-3 border-b border-orange-200">
-              <h3 class="text-sm font-semibold text-orange-800 flex items-center gap-2">
+          <!-- Lightning & Verification Section -->
+          <div class="space-y-6">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center">
                 <IconBolt class="w-4 h-4 text-orange-600" />
-                Lightning & Verification
-              </h3>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900">Lightning & Verification</h3>
             </div>
-            <div class="p-4 space-y-4">
-              <!-- Lightning Address - Highlighted -->
-              <div class="bg-white rounded-lg border border-orange-200 p-4">
-                <div class="flex items-center gap-2 mb-2">
-                  <IconBolt class="w-4 h-4 text-orange-500" />
-                  <label class="text-sm font-medium text-orange-700">Lightning Address</label>
-                  <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-medium">Required for Zaps</span>
+            
+            <!-- Lightning Address - Highlighted -->
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-6 border border-orange-200">
+              <div class="flex items-start space-x-3 mb-4">
+                <div class="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <IconBolt class="w-5 h-5 text-white" />
                 </div>
+                <div>
+                  <h4 class="font-semibold text-orange-900">Lightning Address</h4>
+                  <p class="text-sm text-orange-700">Required to receive zaps in ZapTracker</p>
+                </div>
+              </div>
+              
+              <div class="space-y-2">
                 <input
                   v-model="form.lud16"
                   type="text"
                   placeholder="you@getalby.com"
-                  class="w-full px-4 py-3 border-2 border-orange-300 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-500 transition-all duration-200 bg-orange-50/50"
+                  class="w-full px-4 py-4 bg-white border-2 border-orange-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base font-medium"
+                  :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.lud16 }"
                 />
-                <p class="text-xs text-orange-600 mt-2 font-medium">This enables users to send you Lightning payments (zaps) in ZapTracker</p>
+                <div class="flex justify-between items-center">
+                  <p v-if="fieldErrors.lud16" class="text-sm text-red-600">{{ fieldErrors.lud16 }}</p>
+                  <p v-else class="text-xs text-orange-700">This enables Lightning payments to your profile</p>
+                </div>
               </div>
-              
-              <!-- NIP-05 Verification -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">NIP-05 Identifier</label>
+            </div>
+            
+            <!-- Other Verification Fields -->
+            <div class="bg-gray-50 rounded-2xl p-6 space-y-6">
+              <!-- NIP-05 -->
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">NIP-05 Verification</label>
                 <input
                   v-model="form.nip05"
                   type="text"
                   placeholder="you@domain.com"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all duration-200"
+                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
                 />
-                <p class="text-xs text-gray-500 mt-1">Verifies your identity on Nostr</p>
+                <p class="text-xs text-gray-500">Verifies your identity on the Nostr network</p>
               </div>
               
               <!-- Website -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Website</label>
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">Website</label>
                 <input
                   v-model="form.website"
                   type="url"
                   placeholder="https://yourwebsite.com"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all duration-200"
+                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
+                  :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.website }"
                 />
+                <div class="flex justify-between items-center">
+                  <p v-if="fieldErrors.website" class="text-sm text-red-600">{{ fieldErrors.website }}</p>
+                  <p v-else class="text-xs text-gray-500">Your personal or professional website</p>
+                </div>
               </div>
             </div>
           </div>
           
-          <!-- Error Message -->
-          <div v-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4">
-            <div class="flex items-center space-x-3">
-              <IconAlertTriangle class="w-5 h-5 text-red-600 flex-shrink-0" />
-              <span class="text-sm text-red-600">{{ error }}</span>
+          <!-- Status Messages -->
+          <div class="space-y-4">
+            <!-- Error Message -->
+            <div v-if="error" class="bg-red-50 border border-red-200 rounded-2xl p-4 animate-in slide-in-from-left duration-300">
+              <div class="flex items-start space-x-3">
+                <div class="w-8 h-8 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <IconAlertTriangle class="w-4 h-4 text-red-600" />
+                </div>
+                <div>
+                  <h4 class="font-semibold text-red-900">Validation Error</h4>
+                  <p class="text-sm text-red-700 mt-1">{{ error }}</p>
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <!-- Success Message -->
-          <div v-if="success" class="bg-green-50 border border-green-200 rounded-xl p-4">
-            <div class="flex items-center space-x-3">
-              <IconCheck class="w-5 h-5 text-green-600 flex-shrink-0" />
-              <span class="text-sm text-green-600">Profile updated successfully!</span>
+            
+            <!-- Success Message -->
+            <div v-if="success" class="bg-green-50 border border-green-200 rounded-2xl p-4 animate-in slide-in-from-left duration-300">
+              <div class="flex items-start space-x-3">
+                <div class="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <IconCheck class="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <h4 class="font-semibold text-green-900">Profile Updated!</h4>
+                  <p class="text-sm text-green-700 mt-1">Your changes have been published to the Nostr network</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
       
-      <!-- Modal Footer -->
-      <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+      <!-- Apple-style Footer -->
+      <div class="bg-gray-50/80 backdrop-blur-sm px-6 py-4 border-t border-gray-100 flex justify-between items-center">
         <button
           @click="handleCancel" 
-          class="px-6 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-100 font-medium transition-all duration-200 hover:scale-105"
+          class="px-6 py-3 text-gray-700 hover:text-gray-900 font-medium transition-all duration-200 hover:scale-105 rounded-xl hover:bg-gray-100"
         >
           Cancel
         </button>
-        <button
-          @click="saveProfile"
-          :disabled="isLoading"
-          class="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-medium transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
-        >
-          <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
-          <IconDeviceFloppy v-else class="w-4 h-4" />
-          {{ isLoading ? 'Saving...' : 'Save Profile' }}
-        </button>
+        
+        <div class="flex items-center space-x-3">
+          <!-- Save as Draft (if needed) -->
+          <button
+            @click="resetForm"
+            class="px-4 py-3 text-gray-600 hover:text-gray-800 font-medium transition-all duration-200 hover:scale-105 rounded-xl hover:bg-gray-100 text-sm"
+          >
+            Reset
+          </button>
+          
+          <!-- Primary Save Button -->
+          <button
+            @click="saveProfile"
+            :disabled="isLoading || !form.name.trim()"
+            class="px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center space-x-2 shadow-lg hover:shadow-xl"
+          >
+            <IconLoader v-if="isLoading" class="w-5 h-5 animate-spin" />
+            <IconDeviceFloppy v-else class="w-5 h-5" />
+            <span>{{ isLoading ? 'Saving...' : 'Save Profile' }}</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Apple-inspired animations */
+@keyframes animate-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: animate-in 0.3s ease-out;
+}
+
+/* Smooth scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(251, 146, 60, 0.3);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(251, 146, 60, 0.5);
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Focus states */
+input:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.1);
+}
+
+/* Hover effects */
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+/* Loading state */
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Gradient text effect */
+.gradient-text {
+  background: linear-gradient(135deg, #f97316, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+</style>
