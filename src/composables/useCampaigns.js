@@ -224,7 +224,7 @@ const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
 
 // Helper function to fetch kind:1 notes linked to campaigns
 const fetchLinkedNotesForCampaigns = async () => {
-  if (!isAuthenticated.value || userCampaigns.value.length === 0) {
+  if (!auth.isAuthenticated.value || userCampaigns.value.length === 0) {
     console.log('Cannot fetch linked notes: not authenticated or no campaigns')
     return
   }
@@ -295,7 +295,7 @@ const fetchLinkedNotesForCampaigns = async () => {
 
 // Start campaign zap aggregation listener
 const startCampaignZapAggregation = async () => {
-  if (!isAuthenticated.value) {
+  if (!auth.isAuthenticated.value) {
     console.log('Not authenticated, cannot start campaign zap aggregation')
     return
   }
@@ -1024,7 +1024,7 @@ export function useCampaigns() {
     // Load campaign aggregated zaps from storage
     loadCampaignAggregatedZaps()
     
-    if (isAuthenticated.value) {
+    if (auth.isAuthenticated.value) {
       // Add delay to prevent too many concurrent requests
       setTimeout(() => {
         fetchUserCampaigns()
@@ -1043,7 +1043,7 @@ export function useCampaigns() {
   })
 
   // Watch for authentication changes
-  watch(isAuthenticated, async (authenticated) => {
+  watch(auth.isAuthenticated, async (authenticated) => {
     if (authenticated) {
       // Add delays to prevent concurrent request overload
       setTimeout(() => {
@@ -1067,7 +1067,7 @@ export function useCampaigns() {
   // Watch for changes to user campaigns and restart zap aggregation with updated filters
   watch(userCampaigns, async (newCampaigns, oldCampaigns) => {
     // Only restart if we're authenticated and campaigns have actually changed
-    if (!isAuthenticated.value) return
+    if (!auth.isAuthenticated.value) return
     
     const newIds = newCampaigns.map(c => c.id).sort()
     const oldIds = (oldCampaigns || []).map(c => c.id).sort()
