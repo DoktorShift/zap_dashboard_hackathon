@@ -1,39 +1,416 @@
+<template>
+  <!-- Modal Overlay with Apple-inspired backdrop -->
+  <Teleport to="#modal-root">
+    <transition name="modal-fade" appear>
+      <div 
+        v-if="show"
+        class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        @click="handleBackdropClick"
+        @keydown.escape="handleCancel"
+        tabindex="-1"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-editor-title"
+      >
+        <!-- Modal Container -->
+        <div 
+          ref="modalRef"
+          class="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300"
+          @click.stop
+        >
+          <!-- Header with ZapTracker Branding -->
+          <div class="relative bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 px-6 py-6">
+            <!-- Subtle pattern overlay -->
+            <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+            
+            <div class="relative flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <IconUser class="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 id="profile-editor-title" class="text-xl font-bold text-white">
+                    Edit Profile
+                  </h1>
+                  <p class="text-white/80 text-sm">Update your Nostr identity</p>
+                </div>
+              </div>
+              
+              <!-- Close Button -->
+              <button
+                @click="handleCancel"
+                class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-110 hover:rotate-90 touch-target"
+                aria-label="Close profile editor"
+              >
+                <IconX class="w-5 h-5 text-white" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Scrollable Content -->
+          <div class="overflow-y-auto max-h-[calc(90vh-180px)] scrollbar-thin">
+            <!-- Live Preview Section -->
+            <div class="p-6 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                  <IconEye class="w-5 h-5 text-orange-500" />
+                  <span>Live Preview</span>
+                </h2>
+                <span class="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                  Updates in real-time
+                </span>
+              </div>
+              
+              <!-- Preview Card -->
+              <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                <!-- Banner -->
+                <div class="h-20 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 relative">
+                  <div v-if="form.banner" class="absolute inset-0">
+                    <img 
+                      :src="form.banner" 
+                      alt="Banner preview" 
+                      class="w-full h-full object-cover"
+                      @error="form.banner = ''"
+                    />
+                  </div>
+                </div>
+                
+                <!-- Profile Info -->
+                <div class="px-4 pb-4 -mt-6 relative">
+                  <div class="flex items-end space-x-3">
+                    <!-- Avatar -->
+                    <div class="w-12 h-12 rounded-xl ring-3 ring-white overflow-hidden bg-white shadow-lg">
+                      <img 
+                        :src="getPreviewAvatar" 
+                        :alt="form.name || 'Profile preview'" 
+                        class="w-full h-full object-cover"
+                        @error="handleImageError"
+                      />
+                    </div>
+                    
+                    <!-- Profile Details -->
+                    <div class="flex-1 min-w-0 pt-2">
+                      <h3 class="text-lg font-bold text-gray-900 truncate">
+                        {{ form.name || 'Your Name' }}
+                      </h3>
+                      <p v-if="form.display_name" class="text-gray-600 text-sm truncate">
+                        {{ form.display_name }}
+                      </p>
+                      <p v-if="form.about" class="text-gray-500 text-sm mt-1 line-clamp-2">
+                        {{ form.about }}
+                      </p>
+                      
+                      <!-- Status Badges -->
+                      <div class="flex flex-wrap gap-1.5 mt-2">
+                        <span v-if="form.lud16" class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium">
+                          <IconBolt class="w-3 h-3 mr-1" />
+                          Zap Ready
+                        </span>
+                        <span v-if="form.nip05" class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium">
+                          <IconShield class="w-3 h-3 mr-1" />
+                          Verified
+                        </span>
+                        <span v-if="form.website" class="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-medium">
+                          <IconGlobe class="w-3 h-3 mr-1" />
+                          Website
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Form Content -->
+            <div class="p-6 space-y-6">
+              <!-- Lightning Address - Priority Section -->
+              <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200">
+                <div class="flex items-start space-x-3 mb-3">
+                  <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
+                    <IconBolt class="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-orange-900">Lightning Address</h3>
+                    <p class="text-sm text-orange-700">Required to receive zaps</p>
+                  </div>
+                </div>
+                
+                <div class="space-y-2">
+                  <input
+                    v-model="form.lud16"
+                    type="text"
+                    placeholder="you@getalby.com"
+                    class="w-full px-4 py-3 bg-white border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base font-medium touch-target"
+                    :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.lud16 }"
+                    aria-describedby="lud16-help"
+                  />
+                  <p id="lud16-help" class="text-xs text-orange-700">
+                    {{ fieldErrors.lud16 || 'This enables Lightning payments to your profile' }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Basic Information -->
+              <div class="space-y-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                  <IconUser class="w-5 h-5 text-orange-500" />
+                  <span>Basic Information</span>
+                </h3>
+                
+                <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+                  <!-- Name Field -->
+                  <div class="space-y-2">
+                    <label for="name-input" class="block text-sm font-medium text-gray-700">
+                      Display Name <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="name-input"
+                      v-model="form.name"
+                      type="text"
+                      placeholder="Enter your display name"
+                      maxlength="50"
+                      required
+                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
+                      :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.name }"
+                      aria-describedby="name-help"
+                    />
+                    <div class="flex justify-between items-center">
+                      <p id="name-help" class="text-xs text-red-600">{{ fieldErrors.name }}</p>
+                      <span class="text-xs text-gray-500">{{ form.name.length }}/50</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Display Name Field -->
+                  <div class="space-y-2">
+                    <label for="display-name-input" class="block text-sm font-medium text-gray-700">
+                      Alternative Display Name
+                    </label>
+                    <input
+                      id="display-name-input"
+                      v-model="form.display_name"
+                      type="text"
+                      placeholder="Optional alternative name"
+                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
+                    />
+                    <p class="text-xs text-gray-500">Shown as subtitle under your main name</p>
+                  </div>
+                  
+                  <!-- About Field -->
+                  <div class="space-y-2">
+                    <label for="about-input" class="block text-sm font-medium text-gray-700">
+                      About
+                    </label>
+                    <textarea
+                      id="about-input"
+                      v-model="form.about"
+                      rows="3"
+                      placeholder="Tell people about yourself..."
+                      maxlength="500"
+                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 resize-none text-base touch-target"
+                      :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.about }"
+                      aria-describedby="about-help"
+                    ></textarea>
+                    <div class="flex justify-between items-center">
+                      <p id="about-help" class="text-xs text-red-600">{{ fieldErrors.about }}</p>
+                      <span class="text-xs text-gray-500">{{ form.about.length }}/500</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Visual Identity -->
+              <div class="space-y-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                  <IconPhoto class="w-5 h-5 text-purple-500" />
+                  <span>Visual Identity</span>
+                </h3>
+                
+                <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+                  <!-- Profile Picture -->
+                  <div class="space-y-2">
+                    <label for="picture-input" class="block text-sm font-medium text-gray-700">
+                      Profile Picture URL
+                    </label>
+                    <input
+                      id="picture-input"
+                      v-model="form.picture"
+                      type="url"
+                      placeholder="https://example.com/your-avatar.jpg"
+                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
+                      :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.picture }"
+                      aria-describedby="picture-help"
+                    />
+                    <p id="picture-help" class="text-xs text-gray-500">
+                      {{ fieldErrors.picture || 'Square image recommended, at least 400x400px' }}
+                    </p>
+                  </div>
+                  
+                  <!-- Banner -->
+                  <div class="space-y-2">
+                    <label for="banner-input" class="block text-sm font-medium text-gray-700">
+                      Banner URL
+                    </label>
+                    <input
+                      id="banner-input"
+                      v-model="form.banner"
+                      type="url"
+                      placeholder="https://example.com/your-banner.jpg"
+                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
+                      :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.banner }"
+                      aria-describedby="banner-help"
+                    />
+                    <p id="banner-help" class="text-xs text-gray-500">
+                      {{ fieldErrors.banner || '1200x400px recommended for best results' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Additional Information -->
+              <div class="space-y-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                  <IconShield class="w-5 h-5 text-blue-500" />
+                  <span>Verification & Links</span>
+                </h3>
+                
+                <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+                  <!-- NIP-05 -->
+                  <div class="space-y-2">
+                    <label for="nip05-input" class="block text-sm font-medium text-gray-700">
+                      NIP-05 Verification
+                    </label>
+                    <input
+                      id="nip05-input"
+                      v-model="form.nip05"
+                      type="text"
+                      placeholder="you@domain.com"
+                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
+                      :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.nip05 }"
+                      aria-describedby="nip05-help"
+                    />
+                    <p id="nip05-help" class="text-xs text-gray-500">
+                      {{ fieldErrors.nip05 || 'Verifies your identity on the Nostr network' }}
+                    </p>
+                  </div>
+                  
+                  <!-- Website -->
+                  <div class="space-y-2">
+                    <label for="website-input" class="block text-sm font-medium text-gray-700">
+                      Website
+                    </label>
+                    <input
+                      id="website-input"
+                      v-model="form.website"
+                      type="url"
+                      placeholder="https://yourwebsite.com"
+                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base touch-target"
+                      :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.website }"
+                      aria-describedby="website-help"
+                    />
+                    <p id="website-help" class="text-xs text-gray-500">
+                      {{ fieldErrors.website || 'Your personal or professional website' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Status Messages -->
+              <transition name="slide-in">
+                <div v-if="error" class="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <IconAlertTriangle class="w-4 h-4 text-red-600" />
+                    </div>
+                    <div>
+                      <h4 class="font-medium text-red-900">Validation Error</h4>
+                      <p class="text-sm text-red-700 mt-1">{{ error }}</p>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+
+              <transition name="slide-in">
+                <div v-if="success" class="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <IconCheck class="w-4 h-4 text-green-600" />
+                    </div>
+                    <div>
+                      <h4 class="font-medium text-green-900">Profile Updated!</h4>
+                      <p class="text-sm text-green-700 mt-1">Your changes have been published to the Nostr network</p>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </div>
+
+          <!-- Fixed Footer with Action Buttons -->
+          <div class="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-gray-100 px-6 py-4">
+            <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <!-- Mobile: Full-width buttons -->
+              <button
+                @click="handleCancel"
+                class="w-full sm:w-auto px-6 py-3 text-gray-700 hover:text-gray-900 font-medium transition-all duration-200 hover:scale-105 rounded-xl hover:bg-gray-100 touch-target"
+                :disabled="isLoading"
+              >
+                Cancel
+              </button>
+              
+              <button
+                @click="saveProfile"
+                :disabled="isLoading || !isFormValid"
+                class="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl touch-target"
+              >
+                <IconLoader v-if="isLoading" class="w-5 h-5 animate-spin" />
+                <IconDeviceFloppy v-else class="w-5 h-5" />
+                <span>{{ isLoading ? 'Updating...' : 'Update Profile' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </Teleport>
+</template>
+
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { 
   IconUser,
-  IconEdit,
   IconDeviceFloppy,
   IconX, 
   IconCheck, 
   IconAlertTriangle,
   IconLoader,
-  IconKey,
   IconBolt,
   IconGlobe,
   IconPhoto,
-  IconFileDescription,
-  IconId,
-  IconEye,
-  IconCamera,
-  IconShield
+  IconShield,
+  IconEye
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 
+// Props
 const props = defineProps({
-  isEditing: {
+  show: {
     type: Boolean,
     default: false
   }
 })
 
+// Emits
 const emit = defineEmits(['close-editor', 'profile-updated'])
 
+// Composables
 const { currentUser, userProfile, refreshUserProfile } = useNostrAuth()
 
-// Form state
+// Refs
+const modalRef = ref(null)
+
+// Form state with proper initialization
 const form = ref({
   name: '',
   display_name: '',
@@ -49,9 +426,17 @@ const form = ref({
 const isLoading = ref(false)
 const error = ref('')
 const success = ref(false)
-const previewImage = ref('')
-const previewBanner = ref('')
-const activeSection = ref('basic') // Track which section is being edited
+
+// Field-specific error tracking
+const fieldErrors = ref({
+  name: '',
+  about: '',
+  lud16: '',
+  nip05: '',
+  website: '',
+  picture: '',
+  banner: ''
+})
 
 // Initialize form with current profile data
 const initializeForm = () => {
@@ -66,180 +451,137 @@ const initializeForm = () => {
       lud16: userProfile.value.lud16 || '',
       nip05: userProfile.value.nip05 || ''
     }
-    
-    // Set preview images
-    previewImage.value = form.value.picture
-    previewBanner.value = form.value.banner
-  } else {
-    // Initialize with empty form if no profile
-    form.value = {
-      name: '',
-      display_name: '',
-      about: '',
-      picture: '',
-      banner: '',
-      website: '',
-      lud16: '',
-      nip05: ''
-    }
-    previewImage.value = ''
-    previewBanner.value = ''
   }
+  
+  // Clear all errors when initializing
+  Object.keys(fieldErrors.value).forEach(key => {
+    fieldErrors.value[key] = ''
+  })
+  error.value = ''
+  success.value = false
 }
 
-// Watch for profile changes
+// Watch for profile changes and modal show state
 watch(() => userProfile.value, initializeForm, { immediate: true })
-
-// Watch for image URL changes to update previews
-watch(() => form.value.picture, (newUrl) => {
-  previewImage.value = newUrl
+watch(() => props.show, (newShow) => {
+  if (newShow) {
+    initializeForm()
+    nextTick(() => {
+      // Focus management for accessibility
+      if (modalRef.value) {
+        modalRef.value.focus()
+      }
+    })
+  }
 })
 
-watch(() => form.value.banner, (newUrl) => {
-  previewBanner.value = newUrl
-})
-
-// Validate form
-const validateForm = () => {
-  error.value = '' // Clear previous errors
-  
-  if (!form.value.name.trim()) {
-    error.value = 'Name is required'
-    return false
-  }
-  
-  if (form.value.name.trim().length > 50) {
-    error.value = 'Name must be 50 characters or less'
-    return false
-  }
-  
-  if (form.value.about.length > 500) {
-    error.value = 'About section must be 500 characters or less'
-    return false
-  }
-  
-  // Validate Lightning Address format (if provided)
-  if (form.value.lud16 && form.value.lud16.trim()) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(form.value.lud16.trim())) {
-      error.value = 'Lightning Address must be in the format username@domain.com'
-      return false
-    }
-  }
-  
-  // Validate NIP-05 format (if provided)
-  if (form.value.nip05 && form.value.nip05.trim()) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(form.value.nip05.trim())) {
-      error.value = 'NIP-05 identifier must be in the format username@domain.com'
-      return false
-    }
-  }
-  
-  // Validate website URL format (if provided)
-  if (form.value.website && form.value.website.trim()) {
-    if (!form.value.website.trim().startsWith('http://') && !form.value.website.trim().startsWith('https://')) {
-      error.value = 'Website must start with http:// or https://'
-      return false
-    }
-    try {
-      new URL(form.value.website.trim())
-    } catch (e) {
-      error.value = 'Website must be a valid URL'
-      return false
-    }
-  }
-  
-  // Validate image URLs (if provided)
-  if (form.value.picture && form.value.picture.trim()) {
-    if (!form.value.picture.trim().startsWith('http://') && !form.value.picture.trim().startsWith('https://')) {
-      error.value = 'Profile picture must be a valid URL starting with http:// or https://'
-      return false
-    }
-    try {
-      new URL(form.value.picture.trim())
-    } catch (e) {
-      error.value = 'Profile picture must be a valid URL'
-      return false
-    }
-  }
-  
-  if (form.value.banner && form.value.banner.trim()) {
-    if (!form.value.banner.trim().startsWith('http://') && !form.value.banner.trim().startsWith('https://')) {
-      error.value = 'Banner must be a valid URL starting with http:// or https://'
-      return false
-    }
-    try {
-      new URL(form.value.banner.trim())
-    } catch (e) {
-      error.value = 'Banner must be a valid URL'
-      return false
-    }
-  }
-  
-  return true
-}
-
-// Real-time validation for better UX
-const validateField = (field) => {
-  switch (field) {
+// Real-time field validation
+const validateField = (fieldName, value) => {
+  switch (fieldName) {
     case 'name':
-      if (form.value.name.trim().length > 50) {
-        return 'Name must be 50 characters or less'
-      }
-      break
+      if (!value.trim()) return 'Name is required'
+      if (value.trim().length > 50) return 'Name must be 50 characters or less'
+      return ''
+      
     case 'about':
-      if (form.value.about.length > 500) {
-        return 'About section must be 500 characters or less'
-      }
-      break
+      if (value.length > 500) return 'About section must be 500 characters or less'
+      return ''
+      
     case 'lud16':
-      if (form.value.lud16 && form.value.lud16.trim()) {
+      if (value && value.trim()) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(form.value.lud16.trim())) {
+        if (!emailRegex.test(value.trim())) {
           return 'Must be in format username@domain.com'
         }
       }
-      break
-    case 'website':
-      if (form.value.website && form.value.website.trim()) {
-        if (!form.value.website.trim().startsWith('http://') && !form.value.website.trim().startsWith('https://')) {
-          return 'Must start with http:// or https://'
+      return ''
+      
+    case 'nip05':
+      if (value && value.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(value.trim())) {
+          return 'Must be in format username@domain.com'
         }
       }
-      break
+      return ''
+      
+    case 'website':
+    case 'picture':
+    case 'banner':
+      if (value && value.trim()) {
+        if (!value.trim().startsWith('http://') && !value.trim().startsWith('https://')) {
+          return 'Must start with http:// or https://'
+        }
+        try {
+          new URL(value.trim())
+        } catch (e) {
+          return 'Must be a valid URL'
+        }
+      }
+      return ''
+      
+    default:
+      return ''
   }
-  return null
 }
 
-// Field validation states
-const fieldErrors = ref({
-  name: '',
-  about: '',
-  lud16: '',
-  website: ''
+// Watch form fields for real-time validation
+watch(() => form.value.name, (newValue) => {
+  fieldErrors.value.name = validateField('name', newValue)
 })
 
-// Watch for field changes and validate
-watch(() => form.value.name, () => {
-  fieldErrors.value.name = validateField('name') || ''
+watch(() => form.value.about, (newValue) => {
+  fieldErrors.value.about = validateField('about', newValue)
 })
 
-watch(() => form.value.about, () => {
-  fieldErrors.value.about = validateField('about') || ''
+watch(() => form.value.lud16, (newValue) => {
+  fieldErrors.value.lud16 = validateField('lud16', newValue)
 })
 
-watch(() => form.value.lud16, () => {
-  fieldErrors.value.lud16 = validateField('lud16') || ''
+watch(() => form.value.nip05, (newValue) => {
+  fieldErrors.value.nip05 = validateField('nip05', newValue)
 })
 
-watch(() => form.value.website, () => {
-  fieldErrors.value.website = validateField('website') || ''
+watch(() => form.value.website, (newValue) => {
+  fieldErrors.value.website = validateField('website', newValue)
 })
 
-// Save profile
+watch(() => form.value.picture, (newValue) => {
+  fieldErrors.value.picture = validateField('picture', newValue)
+})
+
+watch(() => form.value.banner, (newValue) => {
+  fieldErrors.value.banner = validateField('banner', newValue)
+})
+
+// Form validation
+const isFormValid = computed(() => {
+  // Check if name is provided and no field errors exist
+  const hasName = form.value.name.trim().length > 0
+  const hasErrors = Object.values(fieldErrors.value).some(error => error !== '')
+  return hasName && !hasErrors
+})
+
+// Preview avatar with fallback
+const getPreviewAvatar = computed(() => {
+  return form.value.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+})
+
+// Handle image loading errors
+const handleImageError = () => {
+  // Reset to fallback if image fails to load
+  if (form.value.picture) {
+    fieldErrors.value.picture = 'Image URL could not be loaded'
+  }
+}
+
+// Save profile to Nostr network
 const saveProfile = async () => {
-  if (!validateForm()) return
+  // Final validation before saving
+  if (!isFormValid.value) {
+    error.value = 'Please fix the validation errors before saving'
+    return
+  }
   
   isLoading.value = true
   error.value = ''
@@ -274,12 +616,11 @@ const saveProfile = async () => {
     }
     
     // Sign the event
-    let signedEvent
-    if (window.nostr?.signEvent) {
-      signedEvent = await window.nostr.signEvent(eventTemplate)
-    } else {
+    if (!window.nostr?.signEvent) {
       throw new Error('Nostr extension not available for signing')
     }
+    
+    const signedEvent = await window.nostr.signEvent(eventTemplate)
     
     // Verify the signed event
     const isValid = verifyEvent(signedEvent)
@@ -300,6 +641,8 @@ const saveProfile = async () => {
     await refreshUserProfile()
     
     success.value = true
+    
+    // Auto-close after success
     setTimeout(() => {
       emit('profile-updated')
       emit('close-editor')
@@ -313,381 +656,72 @@ const saveProfile = async () => {
   }
 }
 
-// Reset form
-const resetForm = () => {
-  initializeForm()
-  error.value = ''
-  success.value = false
-}
-
-// Handle cancel
+// Handle cancel action
 const handleCancel = () => {
-  resetForm()
+  if (isLoading.value) return // Prevent closing during save
+  
+  initializeForm() // Reset form
   emit('close-editor')
 }
 
-// Get avatar with fallback
-const getAvatarUrl = computed(() => {
-  return previewImage.value || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+// Handle backdrop click
+const handleBackdropClick = (event) => {
+  if (event.target === event.currentTarget) {
+    handleCancel()
+  }
+}
+
+// Keyboard event handling
+const handleKeydown = (event) => {
+  if (event.key === 'Escape' && props.show) {
+    handleCancel()
+  }
+}
+
+// Lifecycle hooks
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
 })
 
-// Get banner with fallback
-const getBannerUrl = computed(() => {
-  return previewBanner.value || 'https://images.pexels.com/photos/3075993/pexels-photo-3075993.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
 })
-
-// Initialize form on component mount
-initializeForm()
 </script>
 
-<template>
-  <!-- Apple-Inspired Modal Overlay -->
-  <div class="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-hidden transform animate-in slide-in-from-bottom-4 duration-500">
-      <!-- Elegant Header with Gradient -->
-      <div class="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 px-6 py-6 relative overflow-hidden">
-        <!-- Subtle pattern overlay -->
-        <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-        <div class="relative flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <IconUser class="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 class="text-xl font-bold text-white">Edit Profile</h2>
-              <p class="text-white/80 text-sm">Update your Nostr identity</p>
-            </div>
-          </div>
-          <button
-            @click="handleCancel"
-            class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 hover:rotate-90"
-          >
-            <IconX class="w-5 h-5 text-white" />
-          </button>
-        </div>
-      </div>
-      
-      <!-- Scrollable Content -->
-      <div class="overflow-y-auto max-h-[calc(95vh-120px)] scrollbar-thin">
-        <!-- Live Preview Section with Apple-style design -->
-        <div class="p-6 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-              <IconEye class="w-5 h-5 text-orange-500" />
-              <span>Live Preview</span>
-            </h3>
-            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Updates in real-time</span>
-          </div>
-          
-          <!-- Enhanced Preview Card -->
-          <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden transform hover:scale-[1.02] transition-transform duration-300">
-            <!-- Banner Section -->
-            <div class="h-24 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 relative overflow-hidden">
-              <div v-if="previewBanner" class="absolute inset-0">
-                <img 
-                  :src="previewBanner" 
-                  alt="Banner" 
-                  class="w-full h-full object-cover"
-                  @error="previewBanner = ''"
-                />
-                <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-              </div>
-              <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-            </div>
-            
-            <!-- Profile Section -->
-            <div class="px-6 pb-6 -mt-8 relative">
-              <div class="flex items-end space-x-4">
-                <!-- Avatar with better positioning -->
-                <div class="relative">
-                  <div class="w-16 h-16 rounded-2xl ring-4 ring-white overflow-hidden bg-white shadow-xl">
-                    <img 
-                      :src="getAvatarUrl" 
-                      :alt="form.name || 'User'" 
-                      class="w-full h-full object-cover"
-                      @error="previewImage = ''"
-                    />
-                  </div>
-                  <!-- Online indicator -->
-                  <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white shadow-sm"></div>
-                </div>
-                
-                <!-- Profile Info -->
-                <div class="flex-1 min-w-0 pt-4">
-                  <h4 class="text-xl font-bold text-gray-900 truncate">{{ form.name || 'Your Name' }}</h4>
-                  <p v-if="form.display_name" class="text-gray-600 text-sm truncate">{{ form.display_name }}</p>
-                  <p v-if="form.about" class="text-gray-500 text-sm mt-1 line-clamp-2">{{ form.about }}</p>
-                  
-                  <!-- Quick badges -->
-                  <div class="flex flex-wrap gap-2 mt-2">
-                    <span v-if="form.lud16" class="inline-flex items-center px-2 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium">
-                      <IconBolt class="w-3 h-3 mr-1" />
-                      Zap Ready
-                    </span>
-                    <span v-if="form.nip05" class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium">
-                      <IconShield class="w-3 h-3 mr-1" />
-                      Verified
-                    </span>
-                    <span v-if="form.website" class="inline-flex items-center px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-medium">
-                      <IconGlobe class="w-3 h-3 mr-1" />
-                      Website
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Form Content with Apple-style sections -->
-        <div class="p-6 space-y-8">
-          <!-- Basic Information Section -->
-          <div class="space-y-6">
-            <div class="flex items-center space-x-3">
-              <div class="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center">
-                <IconUser class="w-4 h-4 text-orange-600" />
-              </div>
-              <h3 class="text-lg font-semibold text-gray-900">Basic Information</h3>
-            </div>
-            
-            <div class="bg-gray-50 rounded-2xl p-6 space-y-6">
-              <!-- Name Field -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">
-                  Display Name <span class="text-red-500">*</span>
-                </label>
-                <input
-                  v-model="form.name"
-                  type="text"
-                  placeholder="Enter your display name"
-                  maxlength="50"
-                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
-                  :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.name }"
-                />
-                <div class="flex justify-between items-center">
-                  <p v-if="fieldErrors.name" class="text-sm text-red-600">{{ fieldErrors.name }}</p>
-                  <span class="text-xs text-gray-500 ml-auto">{{ form.name.length }}/50</span>
-                </div>
-              </div>
-              
-              <!-- Display Name Field -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Alternative Display Name</label>
-                <input
-                  v-model="form.display_name"
-                  type="text"
-                  placeholder="Optional alternative name"
-                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
-                />
-                <p class="text-xs text-gray-500">This will be shown as a subtitle under your main name</p>
-              </div>
-              
-              <!-- About Field -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">About</label>
-                <textarea
-                  v-model="form.about"
-                  rows="4"
-                  placeholder="Tell people about yourself..."
-                  maxlength="500"
-                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 resize-none text-base"
-                  :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.about }"
-                ></textarea>
-                <div class="flex justify-between items-center">
-                  <p v-if="fieldErrors.about" class="text-sm text-red-600">{{ fieldErrors.about }}</p>
-                  <span class="text-xs text-gray-500 ml-auto">{{ form.about.length }}/500</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Visual Identity Section -->
-          <div class="space-y-6">
-            <div class="flex items-center space-x-3">
-              <div class="w-8 h-8 bg-purple-100 rounded-xl flex items-center justify-center">
-                <IconCamera class="w-4 h-4 text-purple-600" />
-              </div>
-              <h3 class="text-lg font-semibold text-gray-900">Visual Identity</h3>
-            </div>
-            
-            <div class="bg-gray-50 rounded-2xl p-6 space-y-6">
-              <!-- Profile Picture -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Profile Picture URL</label>
-                <input
-                  v-model="form.picture"
-                  type="url"
-                  placeholder="https://example.com/your-avatar.jpg"
-                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
-                />
-                <p class="text-xs text-gray-500">Recommended: Square image, at least 400x400px</p>
-              </div>
-              
-              <!-- Banner -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Banner URL</label>
-                <input
-                  v-model="form.banner"
-                  type="url"
-                  placeholder="https://example.com/your-banner.jpg"
-                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
-                />
-                <p class="text-xs text-gray-500">Recommended: 1200x400px for best results</p>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Lightning & Verification Section -->
-          <div class="space-y-6">
-            <div class="flex items-center space-x-3">
-              <div class="w-8 h-8 bg-orange-100 rounded-xl flex items-center justify-center">
-                <IconBolt class="w-4 h-4 text-orange-600" />
-              </div>
-              <h3 class="text-lg font-semibold text-gray-900">Lightning & Verification</h3>
-            </div>
-            
-            <!-- Lightning Address - Highlighted -->
-            <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-6 border border-orange-200">
-              <div class="flex items-start space-x-3 mb-4">
-                <div class="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <IconBolt class="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h4 class="font-semibold text-orange-900">Lightning Address</h4>
-                  <p class="text-sm text-orange-700">Required to receive zaps in ZapTracker</p>
-                </div>
-              </div>
-              
-              <div class="space-y-2">
-                <input
-                  v-model="form.lud16"
-                  type="text"
-                  placeholder="you@getalby.com"
-                  class="w-full px-4 py-4 bg-white border-2 border-orange-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base font-medium"
-                  :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.lud16 }"
-                />
-                <div class="flex justify-between items-center">
-                  <p v-if="fieldErrors.lud16" class="text-sm text-red-600">{{ fieldErrors.lud16 }}</p>
-                  <p v-else class="text-xs text-orange-700">This enables Lightning payments to your profile</p>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Other Verification Fields -->
-            <div class="bg-gray-50 rounded-2xl p-6 space-y-6">
-              <!-- NIP-05 -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">NIP-05 Verification</label>
-                <input
-                  v-model="form.nip05"
-                  type="text"
-                  placeholder="you@domain.com"
-                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
-                />
-                <p class="text-xs text-gray-500">Verifies your identity on the Nostr network</p>
-              </div>
-              
-              <!-- Website -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Website</label>
-                <input
-                  v-model="form.website"
-                  type="url"
-                  placeholder="https://yourwebsite.com"
-                  class="w-full px-4 py-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-base"
-                  :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': fieldErrors.website }"
-                />
-                <div class="flex justify-between items-center">
-                  <p v-if="fieldErrors.website" class="text-sm text-red-600">{{ fieldErrors.website }}</p>
-                  <p v-else class="text-xs text-gray-500">Your personal or professional website</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Status Messages -->
-          <div class="space-y-4">
-            <!-- Error Message -->
-            <div v-if="error" class="bg-red-50 border border-red-200 rounded-2xl p-4 animate-in slide-in-from-left duration-300">
-              <div class="flex items-start space-x-3">
-                <div class="w-8 h-8 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <IconAlertTriangle class="w-4 h-4 text-red-600" />
-                </div>
-                <div>
-                  <h4 class="font-semibold text-red-900">Validation Error</h4>
-                  <p class="text-sm text-red-700 mt-1">{{ error }}</p>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Success Message -->
-            <div v-if="success" class="bg-green-50 border border-green-200 rounded-2xl p-4 animate-in slide-in-from-left duration-300">
-              <div class="flex items-start space-x-3">
-                <div class="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <IconCheck class="w-4 h-4 text-green-600" />
-                </div>
-                <div>
-                  <h4 class="font-semibold text-green-900">Profile Updated!</h4>
-                  <p class="text-sm text-green-700 mt-1">Your changes have been published to the Nostr network</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Apple-style Footer -->
-      <div class="bg-gray-50/80 backdrop-blur-sm px-6 py-4 border-t border-gray-100 flex justify-between items-center">
-        <button
-          @click="handleCancel" 
-          class="px-6 py-3 text-gray-700 hover:text-gray-900 font-medium transition-all duration-200 hover:scale-105 rounded-xl hover:bg-gray-100"
-        >
-          Cancel
-        </button>
-        
-        <div class="flex items-center space-x-3">
-          <!-- Save as Draft (if needed) -->
-          <button
-            @click="resetForm"
-            class="px-4 py-3 text-gray-600 hover:text-gray-800 font-medium transition-all duration-200 hover:scale-105 rounded-xl hover:bg-gray-100 text-sm"
-          >
-            Reset
-          </button>
-          
-          <!-- Primary Save Button -->
-          <button
-            @click="saveProfile"
-            :disabled="isLoading || !form.name.trim()"
-            class="px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center space-x-2 shadow-lg hover:shadow-xl"
-          >
-            <IconLoader v-if="isLoading" class="w-5 h-5 animate-spin" />
-            <IconDeviceFloppy v-else class="w-5 h-5" />
-            <span>{{ isLoading ? 'Saving...' : 'Save Profile' }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <style scoped>
-/* Apple-inspired animations */
-@keyframes animate-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Modal transitions */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.animate-in {
-  animation: animate-in 0.3s ease-out;
+.modal-fade-enter-from {
+  opacity: 0;
+  transform: scale(0.95) translateY(-20px);
 }
 
-/* Smooth scrollbar */
+.modal-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(20px);
+}
+
+/* Slide in animation for status messages */
+.slide-in-enter-active,
+.slide-in-leave-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-in-enter-from {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.slide-in-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+/* Custom scrollbar */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
 }
@@ -713,16 +747,25 @@ initializeForm()
   overflow: hidden;
 }
 
+/* Touch targets for mobile */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 /* Focus states */
 input:focus,
 textarea:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.1);
 }
 
-/* Hover effects */
+/* Button hover effects */
 button:hover:not(:disabled) {
   transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 /* Loading state */
@@ -730,11 +773,31 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Gradient text effect */
-.gradient-text {
-  background: linear-gradient(135deg, #f97316, #f59e0b);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* Responsive design adjustments */
+@media (max-width: 640px) {
+  .touch-target {
+    min-height: 48px; /* Larger touch targets on mobile */
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .bg-gradient-to-r {
+    background: #f97316; /* Solid orange for high contrast */
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .modal-fade-enter-active,
+  .modal-fade-leave-active,
+  .slide-in-enter-active,
+  .slide-in-leave-active {
+    transition: none;
+  }
+  
+  button:hover:not(:disabled) {
+    transform: none;
+  }
 }
 </style>
