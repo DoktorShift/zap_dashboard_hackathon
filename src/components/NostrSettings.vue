@@ -1,3 +1,4 @@
+```vue
 <script setup>
 import { ref, onMounted } from 'vue'
 import { 
@@ -57,7 +58,7 @@ const addingRelay = ref(false)
 const relayFormError = ref('')
 const copySuccess = ref(false)
 const refreshingProfile = ref(false)
-const showProfileEditor = ref(false)
+const showProfileEditor = ref(false) // Controls the visibility of the ProfileEditor modal
 const showRelaySection = ref(false) // Default to collapsed for cleaner initial experience
 const refreshingRelays = ref(false)
 const refreshingIndividualRelay = ref(new Set())
@@ -246,12 +247,16 @@ const getShortNpub = () => {
 
 // Handle profile edit
 const handleEditProfile = () => {
-  showProfileEditor.value = true
+  console.log('Attempting to open profile editor. Current showProfileEditor:', showProfileEditor.value);
+  showProfileEditor.value = true;
+  console.log('showProfileEditor after click:', showProfileEditor.value);
 }
 
 // Handle profile update
 const handleProfileUpdated = () => {
-  showProfileEditor.value = false
+  showProfileEditor.value = false;
+  // Optionally refresh user profile data after update
+  handleRefreshProfile();
 }
 
 // Toggle relay section
@@ -315,166 +320,155 @@ const toggleRelaySection = () => {
       
       <!-- Authenticated State -->
       <div v-else class="p-4 sm:p-6">
-        <!-- Profile Editor -->
-        <div v-if="showProfileEditor">
-          <NostrProfileEditor 
-            @close-editor="showProfileEditor = false"
-            @profile-updated="handleProfileUpdated"
-          />
-        </div>
-        
-        <!-- Profile Display -->
-        <div v-else>
-          <!-- Profile Card -->
-          <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 mb-6 border border-orange-200/50">
-            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-              <!-- Avatar and Basic Info -->
-              <div class="flex items-center space-x-3 flex-1">
-                <div class="relative">
-                  <img 
-                    :src="getUserAvatar()" 
-                    :alt="userProfile?.name || 'User'"
-                    class="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-white shadow-md object-cover"
-                    @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
-                  />
-                  <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
-                    <IconUserCheck class="w-2.5 h-2.5 text-white" />
-                  </div>
-                </div>
-                
-                <div class="flex-1 min-w-0">
-                  <h4 class="text-lg font-semibold text-gray-900 mb-1">{{ userProfile?.name || 'Anonymous' }}</h4>
-                  
-                  <!-- Display name or about -->
-                  <p v-if="userProfile?.display_name && userProfile?.display_name !== userProfile?.name" 
-                     class="text-xs text-gray-600 mb-1">
-                    {{ userProfile.display_name }}
-                  </p>
-                  <p v-else-if="userProfile?.about" 
-                     class="text-xs text-gray-600 mb-1 line-clamp-1">
-                    {{ userProfile.about }}
-                  </p>
-                  
-                  <!-- Status Badges -->
-                  <div class="flex flex-wrap gap-1">
-                    <span class="inline-flex items-center px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                      <IconUserCheck class="w-2.5 h-2.5 mr-1" />
-                      Connected
-                    </span>
-                    <span v-if="userProfile?.nip05" class="inline-flex items-center px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                      <IconShield class="w-2.5 h-2.5 mr-1" />
-                      Verified
-                    </span>
-                    <span v-if="userProfile?.lud16" class="inline-flex items-center px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                      <IconBolt class="w-2.5 h-2.5 mr-1" />
-                      Zap Ready
-                    </span>
-                  </div>
+        <!-- Profile Card -->
+        <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 mb-6 border border-orange-200/50">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+            <!-- Avatar and Basic Info -->
+            <div class="flex items-center space-x-3 flex-1">
+              <div class="relative">
+                <img 
+                  :src="getUserAvatar()" 
+                  :alt="userProfile?.name || 'User'"
+                  class="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-white shadow-md object-cover"
+                  @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                />
+                <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
+                  <IconUserCheck class="w-2.5 h-2.5 text-white" />
                 </div>
               </div>
               
-              <!-- Action Buttons -->
-              <div class="flex flex-row gap-2">
-                <button
-                  @click="handleEditProfile"
-                  class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100 rounded-lg transition-all duration-200 group"
-                  title="Edit Profile"
-                >
-                  <IconEdit class="w-4 h-4 group-hover:scale-110 transition-transform" />
-                </button>
+              <div class="flex-1 min-w-0">
+                <h4 class="text-lg font-semibold text-gray-900 mb-1">{{ userProfile?.name || 'Anonymous' }}</h4>
                 
-                <button
-                  @click="handleRefreshProfile"
-                  :disabled="loadingStates.refreshProfile"
-                  class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200 group disabled:opacity-50"
-                  title="Refresh Profile"
-                >
-                  <IconRefresh :class="['w-4 h-4 transition-transform', loadingStates.refreshProfile ? 'animate-spin' : 'group-hover:scale-110']" />
-                </button>
+                <!-- Display name or about -->
+                <p v-if="userProfile?.display_name && userProfile?.display_name !== userProfile?.name" 
+                   class="text-xs text-gray-600 mb-1">
+                  {{ userProfile.display_name }}
+                </p>
+                <p v-else-if="userProfile?.about" 
+                   class="text-xs text-gray-600 mb-1 line-clamp-1">
+                  {{ userProfile.about }}
+                </p>
                 
-                <button
-                  @click="handleLogout"
-                  :disabled="loadingStates.logout"
-                  class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-lg transition-all duration-200 group disabled:opacity-50"
-                  title="Logout"
-                >
-                  <IconLoader v-if="loadingStates.logout" class="w-4 h-4 animate-spin" />
-                  <IconX v-else class="w-4 h-4 group-hover:scale-110 transition-transform" />
-                </button>
+                <!-- Status Badges -->
+                <div class="flex flex-wrap gap-1">
+                  <span class="inline-flex items-center px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                    <IconUserCheck class="w-2.5 h-2.5 mr-1" />
+                    Connected
+                  </span>
+                  <span v-if="userProfile?.nip05" class="inline-flex items-center px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                    <IconShield class="w-2.5 h-2.5 mr-1" />
+                    Verified
+                  </span>
+                  <span v-if="userProfile?.lud16" class="inline-flex items-center px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                    <IconBolt class="w-2.5 h-2.5 mr-1" />
+                    Zap Ready
+                  </span>
+                </div>
               </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-row gap-2">
+              <button
+                @click="handleEditProfile"
+                class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100 rounded-lg transition-all duration-200 group"
+                title="Edit Profile"
+              >
+                <IconEdit class="w-4 h-4 group-hover:scale-110 transition-transform" />
+              </button>
+              
+              <button
+                @click="handleRefreshProfile"
+                :disabled="loadingStates.refreshProfile"
+                class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200 group disabled:opacity-50"
+                title="Refresh Profile"
+              >
+                <IconRefresh :class="['w-4 h-4 transition-transform', loadingStates.refreshProfile ? 'animate-spin' : 'group-hover:scale-110']" />
+              </button>
+              
+              <button
+                @click="handleLogout"
+                :disabled="loadingStates.logout"
+                class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-lg transition-all duration-200 group disabled:opacity-50"
+                title="Logout"
+              >
+                <IconLoader v-if="loadingStates.logout" class="w-4 h-4 animate-spin" />
+                <IconX v-else class="w-4 h-4 group-hover:scale-110 transition-transform" />
+              </button>
             </div>
           </div>
+        </div>
 
-          <!-- Profile Details Grid -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-            <!-- Public Key Card -->
-            <div class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
-              <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center space-x-2">
-                  <IconKey class="w-3.5 h-3.5 text-gray-400" />
-                  <span class="text-xs font-medium text-gray-600">Public Key</span>
-                </div>
-                <button
-                  @click="copyToClipboard(currentUser.npub)"
-                  :disabled="loadingStates.copyAction"
-                  class="p-1 text-gray-400 hover:text-orange-600 transition-all duration-200 hover:scale-110 disabled:opacity-50"
-                  title="Copy npub"
-                >
-                  <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
-                  <IconCheck v-else-if="copySuccess" class="w-3.5 h-3.5 text-green-600" />
-                  <IconCopy v-else class="w-3.5 h-3.5" />
-                </button>
+        <!-- Profile Details Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          <!-- Public Key Card -->
+          <div class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center space-x-2">
+                <IconKey class="w-3.5 h-3.5 text-gray-400" />
+                <span class="text-xs font-medium text-gray-600">Public Key</span>
               </div>
-              <code class="text-xs text-gray-500 bg-gray-50/80 px-2 py-1 rounded block break-all font-mono">
-                {{ getShortNpub() }}
-              </code>
-            </div>
-
-            <!-- Lightning Address Card -->
-            <div v-if="userProfile?.lud16" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
-              <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center space-x-2">
-                  <IconBolt class="w-3.5 h-3.5 text-orange-500" />
-                  <span class="text-xs font-medium text-gray-600">Lightning Address</span>
-                </div>
-                <button
-                  @click="copyToClipboard(userProfile.lud16)"
-                  :disabled="loadingStates.copyAction"
-                  class="p-1 text-gray-400 hover:text-orange-600 transition-all duration-200 hover:scale-110 disabled:opacity-50"
-                  title="Copy Lightning address"
-                >
-                  <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
-                  <IconCopy v-else class="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div class="text-xs text-orange-600 font-mono break-all bg-orange-50/50 px-2 py-1 rounded">{{ userProfile.lud16 }}</div>
-            </div>
-
-            <!-- NIP-05 Card -->
-            <div v-if="userProfile?.nip05" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
-              <div class="flex items-center space-x-2 mb-2">
-                <IconShield class="w-3.5 h-3.5 text-green-500" />
-                <span class="text-xs font-medium text-gray-600">NIP-05 Verified</span>
-              </div>
-              <div class="text-xs text-green-600 font-mono break-all bg-green-50/50 px-2 py-1 rounded">{{ userProfile.nip05 }}</div>
-            </div>
-
-            <!-- Website Card -->
-            <div v-if="userProfile?.website" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
-              <div class="flex items-center space-x-2 mb-2">
-                <IconGlobe class="w-3.5 h-3.5 text-blue-500" />
-                <span class="text-xs font-medium text-gray-600">Website</span>
-              </div>
-              <a 
-                :href="userProfile.website" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                class="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center space-x-1 bg-blue-50/50 px-2 py-1 rounded transition-colors"
+              <button
+                @click="copyToClipboard(currentUser.npub)"
+                :disabled="loadingStates.copyAction"
+                class="p-1 text-gray-400 hover:text-orange-600 transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                title="Copy npub"
               >
-                <span class="break-all">{{ userProfile.website }}</span>
-                <IconExternalLink class="w-3 h-3 flex-shrink-0 opacity-60" />
-              </a>
+                <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
+                <IconCheck v-else-if="copySuccess" class="w-3.5 h-3.5 text-green-600" />
+                <IconCopy v-else class="w-3.5 h-3.5" />
+              </button>
             </div>
+            <code class="text-xs text-gray-500 bg-gray-50/80 px-2 py-1 rounded block break-all font-mono">
+              {{ getShortNpub() }}
+            </code>
+          </div>
+
+          <!-- Lightning Address Card -->
+          <div v-if="userProfile?.lud16" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center space-x-2">
+                <IconBolt class="w-3.5 h-3.5 text-orange-500" />
+                <span class="text-xs font-medium text-gray-600">Lightning Address</span>
+              </div>
+              <button
+                @click="copyToClipboard(userProfile.lud16)"
+                :disabled="loadingStates.copyAction"
+                class="p-1 text-gray-400 hover:text-orange-600 transition-all duration-200 hover:scale-110 disabled:opacity-50"
+                title="Copy Lightning address"
+              >
+                <IconLoader v-if="loadingStates.copyAction" class="w-3.5 h-3.5 animate-spin" />
+                <IconCopy v-else class="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div class="text-xs text-orange-600 font-mono break-all bg-orange-50/50 px-2 py-1 rounded">{{ userProfile.lud16 }}</div>
+          </div>
+
+          <!-- NIP-05 Card -->
+          <div v-if="userProfile?.nip05" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
+            <div class="flex items-center space-x-2 mb-2">
+              <IconShield class="w-3.5 h-3.5 text-green-500" />
+              <span class="text-xs font-medium text-gray-600">NIP-05 Verified</span>
+            </div>
+            <div class="text-xs text-green-600 font-mono break-all bg-green-50/50 px-2 py-1 rounded">{{ userProfile.nip05 }}</div>
+          </div>
+
+          <!-- Website Card -->
+          <div v-if="userProfile?.website" class="bg-white/80 rounded-lg border border-gray-200/50 p-3">
+            <div class="flex items-center space-x-2 mb-2">
+              <IconGlobe class="w-3.5 h-3.5 text-blue-500" />
+              <span class="text-xs font-medium text-gray-600">Website</span>
+            </div>
+            <a 
+              :href="userProfile.website" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="text-xs text-blue-600 hover:text-blue-700 hover:underline flex items-center space-x-1 bg-blue-50/50 px-2 py-1 rounded transition-colors"
+            >
+              <span class="break-all">{{ userProfile.website }}</span>
+              <IconExternalLink class="w-3 h-3 flex-shrink-0 opacity-60" />
+            </a>
           </div>
         </div>
       </div>
@@ -579,7 +573,7 @@ const toggleRelaySection = () => {
               </div>
               
               <!-- Form Error -->
-              <div v-if="relayFormError" class="bg-red-50 border border-red-200/50 rounded-lg p-2">
+              <div v-if="relayFormError" class="bg-red-50 border border-red-200/50 rounded-lg p-3">
                 <div class="flex items-center space-x-2">
                   <IconAlertCircle class="w-3.5 h-3.5 text-red-600" />
                   <span class="text-sm text-red-600">{{ relayFormError }}</span>
@@ -756,6 +750,13 @@ const toggleRelaySection = () => {
       </div>
     </div>
   </div>
+
+  <!-- Profile Editor Modal -->
+  <NostrProfileEditor 
+    :show="showProfileEditor" 
+    @close-editor="showProfileEditor = false"
+    @profile-updated="handleProfileUpdated"
+  />
 </template>
 
 <style scoped>
@@ -767,28 +768,28 @@ const toggleRelaySection = () => {
 }
 
 /* Slide down animation for collapsible content */
-.slide-down-enter-active,
-.slide-down-leave-active {
+.relay-section-enter-active,
+.relay-section-leave-active {
   transition: all 0.3s ease-out;
   overflow: hidden;
 }
 
-.slide-down-enter-from {
+.relay-section-enter-from {
   opacity: 0;
   max-height: 0;
   transform: translateY(-10px);
 }
 
-.slide-down-leave-to {
+.relay-section-leave-to {
   opacity: 0;
   max-height: 0;
   transform: translateY(-10px);
 }
 
-.slide-down-enter-to,
-.slide-down-leave-from {
+.relay-section-enter-to,
+.relay-section-leave-from {
   opacity: 1;
-  max-height: 1000px;
+  max-height: 1000px; /* A large enough value to allow content to expand */
   transform: translateY(0);
 }
 
@@ -864,3 +865,4 @@ button:hover:not(:disabled) .group-hover\:scale-110 {
   background-color: rgba(255, 255, 255, 0.95);
 }
 </style>
+```

@@ -1,3 +1,4 @@
+```vue
 <template>
   <!-- Modal Overlay with Apple-inspired backdrop -->
   <Teleport to="#modal-root">
@@ -464,128 +465,129 @@ const initializeForm = () => {
 // Watch for profile changes and modal show state
 watch(() => userProfile.value, initializeForm, { immediate: true })
 watch(() => props.show, (newShow) => {
+  console.log('NostrProfileEditor show prop changed:', newShow);
   if (newShow) {
-    initializeForm()
+    initializeForm();
     nextTick(() => {
       // Focus management for accessibility
       if (modalRef.value) {
-        modalRef.value.focus()
+        modalRef.value.focus();
       }
-    })
+    });
   }
-})
+}, { immediate: true }); // Added immediate: true to watch for initial show state
 
 // Real-time field validation
 const validateField = (fieldName, value) => {
   switch (fieldName) {
     case 'name':
-      if (!value.trim()) return 'Name is required'
-      if (value.trim().length > 50) return 'Name must be 50 characters or less'
-      return ''
+      if (!value.trim()) return 'Name is required';
+      if (value.trim().length > 50) return 'Name must be 50 characters or less';
+      return '';
       
     case 'about':
-      if (value.length > 500) return 'About section must be 500 characters or less'
-      return ''
+      if (value.length > 500) return 'About section must be 500 characters or less';
+      return '';
       
     case 'lud16':
       if (value && value.trim()) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(value.trim())) {
-          return 'Must be in format username@domain.com'
+          return 'Must be in format username@domain.com';
         }
       }
-      return ''
+      return '';
       
     case 'nip05':
       if (value && value.trim()) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(value.trim())) {
-          return 'Must be in format username@domain.com'
+          return 'Must be in format username@domain.com';
         }
       }
-      return ''
+      return '';
       
     case 'website':
     case 'picture':
     case 'banner':
       if (value && value.trim()) {
         if (!value.trim().startsWith('http://') && !value.trim().startsWith('https://')) {
-          return 'Must start with http:// or https://'
+          return 'Must start with http:// or https://';
         }
         try {
-          new URL(value.trim())
+          new URL(value.trim());
         } catch (e) {
-          return 'Must be a valid URL'
+          return 'Must be a valid URL';
         }
       }
-      return ''
+      return '';
       
     default:
-      return ''
+      return '';
   }
-}
+};
 
 // Watch form fields for real-time validation
 watch(() => form.value.name, (newValue) => {
-  fieldErrors.value.name = validateField('name', newValue)
-})
+  fieldErrors.value.name = validateField('name', newValue);
+});
 
 watch(() => form.value.about, (newValue) => {
-  fieldErrors.value.about = validateField('about', newValue)
-})
+  fieldErrors.value.about = validateField('about', newValue);
+});
 
 watch(() => form.value.lud16, (newValue) => {
-  fieldErrors.value.lud16 = validateField('lud16', newValue)
-})
+  fieldErrors.value.lud16 = validateField('lud16', newValue);
+});
 
 watch(() => form.value.nip05, (newValue) => {
-  fieldErrors.value.nip05 = validateField('nip05', newValue)
-})
+  fieldErrors.value.nip05 = validateField('nip05', newValue);
+});
 
 watch(() => form.value.website, (newValue) => {
-  fieldErrors.value.website = validateField('website', newValue)
-})
+  fieldErrors.value.website = validateField('website', newValue);
+});
 
 watch(() => form.value.picture, (newValue) => {
-  fieldErrors.value.picture = validateField('picture', newValue)
-})
+  fieldErrors.value.picture = validateField('picture', newValue);
+});
 
 watch(() => form.value.banner, (newValue) => {
-  fieldErrors.value.banner = validateField('banner', newValue)
-})
+  fieldErrors.value.banner = validateField('banner', newValue);
+});
 
 // Form validation
 const isFormValid = computed(() => {
   // Check if name is provided and no field errors exist
-  const hasName = form.value.name.trim().length > 0
-  const hasErrors = Object.values(fieldErrors.value).some(error => error !== '')
-  return hasName && !hasErrors
-})
+  const hasName = form.value.name.trim().length > 0;
+  const hasErrors = Object.values(fieldErrors.value).some(error => error !== '');
+  return hasName && !hasErrors;
+});
 
 // Preview avatar with fallback
 const getPreviewAvatar = computed(() => {
-  return form.value.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-})
+  return form.value.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1';
+});
 
 // Handle image loading errors
 const handleImageError = () => {
   // Reset to fallback if image fails to load
   if (form.value.picture) {
-    fieldErrors.value.picture = 'Image URL could not be loaded'
+    fieldErrors.value.picture = 'Image URL could not be loaded';
   }
-}
+};
 
 // Save profile to Nostr network
 const saveProfile = async () => {
   // Final validation before saving
   if (!isFormValid.value) {
-    error.value = 'Please fix the validation errors before saving'
-    return
+    error.value = 'Please fix the validation errors before saving';
+    return;
   }
   
-  isLoading.value = true
-  error.value = ''
-  success.value = false
+  isLoading.value = true;
+  error.value = '';
+  success.value = false;
   
   try {
     // Create profile content object
@@ -598,14 +600,14 @@ const saveProfile = async () => {
       website: form.value.website.trim() || undefined,
       lud16: form.value.lud16.trim() || undefined,
       nip05: form.value.nip05.trim() || undefined
-    }
+    };
     
     // Remove undefined fields
     Object.keys(profileContent).forEach(key => {
       if (profileContent[key] === undefined) {
-        delete profileContent[key]
+        delete profileContent[key];
       }
-    })
+    });
     
     // Create event template
     const eventTemplate = {
@@ -613,79 +615,79 @@ const saveProfile = async () => {
       created_at: Math.floor(Date.now() / 1000),
       tags: [],
       content: JSON.stringify(profileContent)
-    }
+    };
     
     // Sign the event
     if (!window.nostr?.signEvent) {
-      throw new Error('Nostr extension not available for signing')
+      throw new Error('Nostr extension not available for signing');
     }
     
-    const signedEvent = await window.nostr.signEvent(eventTemplate)
+    const signedEvent = await window.nostr.signEvent(eventTemplate);
     
     // Verify the signed event
-    const isValid = verifyEvent(signedEvent)
+    const isValid = verifyEvent(signedEvent);
     if (!isValid) {
-      throw new Error('Event signature verification failed')
+      throw new Error('Event signature verification failed');
     }
     
     // Publish to relays
-    const result = await nostrRelayManager.publishEvent(signedEvent)
+    const result = await nostrRelayManager.publishEvent(signedEvent);
     
     if (result.successful === 0) {
-      throw new Error('Failed to publish to any relays')
+      throw new Error('Failed to publish to any relays');
     }
     
-    console.log('Profile updated successfully:', result)
+    console.log('Profile updated successfully:', result);
     
     // Refresh profile data
-    await refreshUserProfile()
+    await refreshUserProfile();
     
-    success.value = true
+    success.value = true;
     
     // Auto-close after success
     setTimeout(() => {
-      emit('profile-updated')
-      emit('close-editor')
-    }, 2000)
+      emit('profile-updated');
+      emit('close-editor');
+    }, 2000);
     
   } catch (err) {
-    console.error('Failed to update profile:', err)
-    error.value = `Failed to update profile: ${err.message}`
+    console.error('Failed to update profile:', err);
+    error.value = `Failed to update profile: ${err.message}`;
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
 // Handle cancel action
 const handleCancel = () => {
-  if (isLoading.value) return // Prevent closing during save
+  if (isLoading.value) return; // Prevent closing during save
   
-  initializeForm() // Reset form
-  emit('close-editor')
-}
+  initializeForm(); // Reset form
+  emit('close-editor');
+};
 
 // Handle backdrop click
 const handleBackdropClick = (event) => {
   if (event.target === event.currentTarget) {
-    handleCancel()
+    handleCancel();
   }
-}
+};
 
 // Keyboard event handling
 const handleKeydown = (event) => {
   if (event.key === 'Escape' && props.show) {
-    handleCancel()
+    handleCancel();
   }
-}
+};
 
 // Lifecycle hooks
 onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
-})
+  document.addEventListener('keydown', handleKeydown);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-})
+  document.removeEventListener('keydown', handleKeydown);
+});
 </script>
 
 <style scoped>
@@ -801,3 +803,4 @@ button:disabled {
   }
 }
 </style>
+```
