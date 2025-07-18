@@ -32,6 +32,11 @@ const emit = defineEmits(['close'])
 const { shareCampaignOnNostr } = useCampaigns()
 const { currentUser } = useNostrAuth()
 
+// Check if navigator.share is available
+const isWebShareSupported = computed(() => {
+  return typeof navigator !== 'undefined' && 'share' in navigator
+})
+
 // State
 const shareUrl = ref('')
 const customMessage = ref('')
@@ -147,7 +152,7 @@ const shareOnNostr = async () => {
 
 // Share via Web Share API
 const shareViaWebShare = async () => {
-  if (navigator.share) {
+  if (isWebShareSupported.value) {
     try {
       await navigator.share({
         title: props.campaign.title,
@@ -267,7 +272,7 @@ const formatAmount = (amount) => {
 
           <!-- Web Share API -->
           <button
-            v-if="navigator.share"
+            v-if="isWebShareSupported"
             @click="shareViaWebShare"
             class="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
           >
