@@ -146,7 +146,7 @@ const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
   // Check for duplicates by zap ID
   const exists = existingZaps.find(zap => zap.id === zapData.id)
   if (exists) {
-    console.log(`⚠️ Duplicate zap found for campaign ${campaignId.substring(0, 16)}..., skipping: ${zapData.id.substring(0, 16)}...`)
+    // console.log(`⚠️ Duplicate zap found for campaign ${campaignId.substring(0, 16)}..., skipping: ${zapData.id.substring(0, 16)}...`)
     return
   }
   
@@ -155,8 +155,7 @@ const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
   console.log('🔍 Starting enhanced campaign zap aggregation listener...')
   campaignAggregatedZaps.set(campaignId, existingZaps)
   
-  // Subscribe to ALL zap receipts with broader filters to catch all campaign zaps
-  console.log(`Campaign now has ${existingZaps.length} total zaps`)
+  console.log(`📊 Campaign now has ${existingZaps.length} total zaps (${existingZaps.reduce((sum, z) => sum + z.amount, 0)} sats total)`)
   
   // Save to localStorage after adding
   saveCampaignAggregatedZaps()
@@ -166,7 +165,6 @@ const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
 const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
   // Check cache first
   if (kind1NotesCache.has(zappedEventId)) {
-    // console.log(`⚠️ Duplicate zap receipt, skipping: ${zapEvent.id.substring(0, 16)}...`)
     const cachedNote = kind1NotesCache.get(zappedEventId)
     const goalTag = cachedNote.tags.find(tag => tag[0] === 'goal')
     const campaignId = goalTag ? goalTag[1] : null
@@ -268,9 +266,6 @@ export function useCampaigns() {
         }
       ], {
         onevent: (noteEvent) => {
-          console.log(`⚡ Processing zap receipt: ${zapEvent.id.substring(0, 16)}...`)
-          // console.log('📋 Zap receipt tags:', zapEvent.tags)
-          
           // Cache the note
           kind1NotesCache.set(noteEvent.id, noteEvent)
           
@@ -352,13 +347,13 @@ export function useCampaigns() {
         onevent: async (zapEvent) => {
           // Deduplicate using processed receipt IDs
           if (processedCampaignZapReceiptIds.has(zapEvent.id)) {
-            console.log(`⚠️ Duplicate zap receipt, skipping: ${zapEvent.id.substring(0, 16)}...`)
+            // console.log(`⚠️ Duplicate zap receipt, skipping: ${zapEvent.id.substring(0, 16)}...`)
             return
           }
           processedCampaignZapReceiptIds.add(zapEvent.id)
           
-          console.log(`⚡ Processing zap receipt for campaign aggregation: ${zapEvent.id.substring(0, 16)}...`)
-          console.log('📋 Zap receipt tags:', zapEvent.tags)
+          console.log(`⚡ Processing zap receipt: ${zapEvent.id.substring(0, 16)}...`)
+          // console.log('📋 Zap receipt tags:', zapEvent.tags)
           
           try {
             let campaignId = null
@@ -444,7 +439,6 @@ export function useCampaigns() {
                   zapperPubkey = zapRequest.pubkey
                   console.log(`👤 Zapper pubkey from request: ${zapperPubkey.substring(0, 16)}...`)
                 }
-                // console.log(`🎯 Zap request goal tag: ['goal', '${campaignId}']`)
               }
             } catch (error) {
               console.warn('Failed to extract zapper pubkey from zap request:', error)
@@ -628,7 +622,6 @@ export function useCampaigns() {
         } else {
           // Update existing campaign
           userCampaigns.value[existingIndex] = campaign
-          // console.log(`🔍 No direct goal tag found, checking zapped event: ${zappedEventId.substring(0, 16)}...`)
           console.log('Updated existing campaign:', campaign.title)
         }
       } else if (event.kind === 5) {
@@ -640,7 +633,6 @@ export function useCampaigns() {
         deletedEventIds.forEach(id => {
           const index = userCampaigns.value.findIndex(c => c.id === id)
           if (index !== -1) {
-            // console.log(`❌ Could not resolve campaign ID from zapped event: ${zappedEventId.substring(0, 16)}...`)
             console.log('Removing deleted campaign:', userCampaigns.value[index].title)
             userCampaigns.value.splice(index, 1)
           }
@@ -774,34 +766,33 @@ export function useCampaigns() {
       }
       
       console.log('Event template before signing:', eventTemplate)
-      // console.log(`❌ No campaign ID found for zap receipt: ${zapEvent.id.substring(0, 16)}...`)
       
       // Sign the event
       const signedEvent = await window.nostr.signEvent(eventTemplate)
       
       console.log('Event signed successfully:', signedEvent)
-      // console.log(`❌ Zap is for a campaign not owned by us, skipping: ${campaignId.substring(0, 16)}...`)
+      
+      // Verify the signed event
       const isValid = verifyEvent(signedEvent)
       if (!isValid) {
         console.error('Event signature verification failed')
         throw new Error('Event signature verification failed. Please try again.')
       }
-      // console.log(`🎯 Zapped event ID: ${zappedEventId?.substring(0, 16)}...`)
+      
       console.log('Event signature verified successfully')
       
-      // console.log(`💰 Campaign: ${campaignId}`)
-      // console.log(`📝 Zapped event: ${zappedEventId}`)
-      const eventToPublish = {
+      // Log the event details for debugging
+      const eventDetails = {
         id: signedEvent.id,
         clientId,
         kind: signedEvent.kind,
         pubkey: signedEvent.pubkey,
         created_at: signedEvent.created_at,
         content: signedEvent.content,
-        tags: signedEvent.tags,
-        sig: signedEvent.sig
+        tags: signedEvent.tags
       }
-      // console.log(`💬 Zap message: "${message}"`)
+      
+      console.log('Event details:', eventDetails)
       
       // Check relay manager status before publishing
       const relayStats = nostrRelayManager.getConnectionStats()
@@ -811,7 +802,7 @@ export function useCampaigns() {
         throw new Error('No write-enabled relays available for publishing')
       }
       
-      // console.log(`👤 Zapper pubkey from request: ${zapperPubkey.substring(0, 16)}...`)
+      // Publish to relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
       
       console.log('Publish result:', result)
@@ -830,13 +821,6 @@ export function useCampaigns() {
       console.log('Campaign Event ID:', signedEvent.id);
       console.log('Campaign Event:', signedEvent);
       console.log('Publish Result:', result);
-      
-      // console.log(`📊 Created zap data for campaign aggregation:`, {
-      //   id: zapData.id.substring(0, 16) + '...',
-      //   amount: zapData.amount,
-      //   campaignId: zapData.campaignId.substring(0, 16) + '...',
-      //   zappedEventId: zapData.zappedEventId?.substring(0, 16) + '...'
-      // })
       
       // Verify the event was published by trying to fetch it
       try {
