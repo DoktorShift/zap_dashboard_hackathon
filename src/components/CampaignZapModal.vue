@@ -16,8 +16,9 @@ import { useNostrConnections } from '../composables/useNostrConnections.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNotifications } from '../composables/useNotifications.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
-import { makeZapRequest, getZapEndpoint } from 'nostr-tools/nip57'
+import { makeZapRequest } from 'nostr-tools/nip57'
 import { payInvoice } from '../utils/nwcClient.js'
+import { bech32 } from 'bech32'
 
 const props = defineProps({
   campaign: {
@@ -116,25 +117,19 @@ const createAndPayZapInvoice = async () => {
   try {
     console.log('Creating zap for campaign:', props.campaign.id)
     
-    // Get author's zap endpoint
-    let zapEndpoint
-    if (props.author.lud16) {
-      // If we have a Lightning address, use it
-      zapEndpoint = `https://${props.author.lud16.split('@')[1]}/.well-known/lnurlp/${props.author.lud16.split('@')[0]}`
-    } else {
-      // Otherwise, try to get zap endpoint from profile metadata
-      const profileEvent = await nostrRelayManager.getEvent({
-        kinds: [0],
-        authors: [props.author.pubkey],
-        limit: 1
-      })
-      
-      if (!profileEvent) {
-        throw new Error('Could not find author profile')
-      }
-      
-      zapEndpoint = await getZapEndpoint(profileEvent)
+    // Get author's profile metadata to extract zap endpoint
+    const profileEvent = await nostrRelayManager.getEvent({
+      kinds: [0],
+      authors: [props.author.pubkey],
+      limit: 1
+    })
+    
+    if (!profileEvent) {
+      throw new Error('Could not find author profile')
     }
+    
+    // Get zap endpoint using proper nostr-tools implementation
+    const zapEndpoint = await getZapEndpoint(profileEvent)
     
     if (!zapEndpoint) {
       throw new Error('Author does not have a zap endpoint configured')
@@ -211,6 +206,59 @@ const createAndPayZapInvoice = async () => {
     handlePaymentError(err)
   } finally {
     isLoading.value = false
+  }
+}
+
+// Proper getZapEndpoint implementation based on nostr-tools
+async function getZapEndpoint(metadata) {
+  try {
+    let lnurl = ''
+    const profile = JSON.parse(metadata.content)
+    const { lud06, lud16 } = profile
+    
+    if (lud06) {
+      // Decode bech32 lud06 to get LNURL
+      try {
+        const { words } = bech32.decode(lud06, 1000)
+        const data = bech32.fromWords(words)
+        lnurl = new TextDecoder().decode(new Uint8Array(data))
+      } catch (decodeError) {
+        console.error('Failed to decode lud06:', decodeError)
+        throw new Error('Invalid lud06 format')
+      }
+    } else if (lud16) {
+      // Convert lightning address to LNURL
+      const [name, domain] = lud16.split('@')
+      if (!name || !domain) {
+        throw new Error('Invalid lightning address format')
+      }
+      lnurl = `https://${domain}/.well-known/lnurlp/${name}`
+    } else {
+      return null
+    }
+    
+    console.log('Resolved LNURL:', lnurl)
+    
+    // Fetch LNURL metadata
+    const response = await fetch(lnurl)
+    if (!response.ok) {
+      throw new Error(`LNURL endpoint returned ${response.status}`)
+    }
+    
+    const body = await response.json()
+    console.log('LNURL response:', body)
+    
+    // Check for NIP-57 zap compatibility
+    if (body.allowsNostr && body.nostrPubkey) {
+      console.log('Zap endpoint found:', body.callback)
+      return body.callback
+    } else {
+      console.log('LNURL endpoint does not support zaps:', { allowsNostr: body.allowsNostr, nostrPubkey: body.nostrPubkey })
+      return null
+    }
+  } catch (err) {
+    console.error('Failed to get zap endpoint:', err)
+    throw err
   }
 }
 
