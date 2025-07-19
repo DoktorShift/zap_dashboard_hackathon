@@ -160,18 +160,22 @@ const createAndPayZapInvoice = async () => {
       },
       body: JSON.stringify({
         amount: effectiveAmount.value * 1000, // millisats
-        nostr: JSON.stringify(zapRequest)
+        nostr: JSON.stringify(zapRequest),
+        lnurl: zapEndpoint // Some endpoints require this
       })
     })
     
     if (!response.ok) {
-      throw new Error(`Zap endpoint returned ${response.status}`)
+      const errorText = await response.text()
+      console.error('Zap endpoint error response:', errorText)
+      throw new Error(`Zap endpoint returned ${response.status}: ${errorText}`)
     }
     
     const zapEndpointResponse = await response.json()
     
     if (!zapEndpointResponse.pr) {
-      throw new Error('No payment request in zap endpoint response')
+      console.error('Zap endpoint response:', zapEndpointResponse)
+      throw new Error('No payment request in zap endpoint response. Response: ' + JSON.stringify(zapEndpointResponse))
     }
     
     invoice.value = zapEndpointResponse.pr
