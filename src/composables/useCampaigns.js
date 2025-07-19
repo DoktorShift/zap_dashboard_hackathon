@@ -169,6 +169,9 @@ const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
     const goalTag = cachedNote.tags.find(tag => tag[0] === 'goal')
     const campaignId = goalTag ? goalTag[1] : null
     console.log(`✅ Resolved campaign ID from cache: ${campaignId?.substring(0, 16)}... for note ${zappedEventId.substring(0, 16)}...`)
+    if (campaignId) {
+      console.log(`🎯 Found goal tag in cached note: ${campaignId}`)
+    }
     return campaignId
   }
 
@@ -181,6 +184,7 @@ const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
   const fetchPromise = (async () => {
     try {
       console.log(`🔍 Fetching kind:1 note to resolve campaign ID: ${zappedEventId.substring(0, 16)}...`)
+      console.log(`🔍 Looking for note with ID: ${zappedEventId}`)
       
       const noteEvent = await nostrRelayManager.getEvent({
         ids: [zappedEventId],
@@ -189,8 +193,12 @@ const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
       
       if (!noteEvent) {
         console.log(`❌ Kind:1 note not found: ${zappedEventId.substring(0, 16)}...`)
+        console.log(`❌ Note ID searched: ${zappedEventId}`)
         return null
       }
+      
+      console.log(`✅ Found kind:1 note: ${noteEvent.id}`)
+      console.log(`📝 Note tags:`, noteEvent.tags)
       
       // Cache the note
       kind1NotesCache.set(zappedEventId, noteEvent)
@@ -202,9 +210,11 @@ const resolveCampaignIdFromZappedEvent = async (zappedEventId) => {
       
       if (campaignId) {
         console.log(`✅ Resolved campaign ID from kind:1 note: ${campaignId.substring(0, 16)}...`)
+        console.log(`🎯 Goal tag found: ['goal', '${campaignId}']`)
       } else {
         console.log(`⚠️ No goal tag found in kind:1 note: ${zappedEventId.substring(0, 16)}...`)
-        console.log('Note tags:', noteEvent.tags)
+        console.log('❌ Note tags:', noteEvent.tags)
+        console.log('❌ Expected goal tag format: ["goal", "campaign_id"]')
       }
       
       return campaignId
@@ -351,7 +361,7 @@ export function useCampaigns() {
           processedCampaignZapReceiptIds.add(zapEvent.id)
           
           console.log(`⚡ Processing zap receipt for campaign aggregation: ${zapEvent.id.substring(0, 16)}...`)
-          console.log('Zap receipt tags:', zapEvent.tags)
+          console.log('📋 Zap receipt tags:', zapEvent.tags)
           
           try {
             let campaignId = null
@@ -361,6 +371,7 @@ export function useCampaigns() {
             if (goalTag && goalTag[1]) {
               campaignId = goalTag[1]
               console.log(`✅ Found direct goal tag in zap receipt: ${campaignId.substring(0, 16)}...`)
+              console.log(`🎯 Direct goal tag: ['goal', '${campaignId}']`)
             }
             // Check if zap receipt has goal tag in description (from zap request)
             else {
@@ -372,6 +383,7 @@ export function useCampaigns() {
                   if (zapRequestGoalTag && zapRequestGoalTag[1]) {
                     campaignId = zapRequestGoalTag[1]
                     console.log(`✅ Found goal tag in zap request: ${campaignId.substring(0, 16)}...`)
+                    console.log(`🎯 Zap request goal tag: ['goal', '${campaignId}']`)
                   }
                 }
               } catch (parseError) {
@@ -379,15 +391,33 @@ export function useCampaigns() {
               }
             }
             
+            // If no direct goal tag found, try to resolve from zapped event
+            if (!campaignId) {
+              const zappedEventId = extractEventId(zapEvent)
+              if (zappedEventId) {
+                console.log(`🔍 No direct goal tag found, checking zapped event: ${zappedEventId.substring(0, 16)}...`)
+                campaignId = await resolveCampaignIdFromZappedEvent(zappedEventId)
+                if (campaignId) {
+                  console.log(`✅ Resolved campaign ID from zapped event: ${campaignId.substring(0, 16)}...`)
+                } else {
+                  console.log(`❌ Could not resolve campaign ID from zapped event: ${zappedEventId.substring(0, 16)}...`)
+                }
+              } else {
+                console.log(`❌ No zapped event ID found in zap receipt`)
+                return
+              }
+            }
+            
             // Only process if this zap is for one of our campaigns
             if (!campaignId) {
-              // This is normal - most zaps won't be for our campaigns
+              console.log(`❌ No campaign ID found for zap receipt: ${zapEvent.id.substring(0, 16)}...`)
               return
             }
             
             // Check if this campaign belongs to us
             if (!campaignIds.includes(campaignId)) {
-              console.log('❌ Zap is for a campaign not owned by us, skipping:', campaignId.substring(0, 16) + '...')
+              console.log(`❌ Zap is for a campaign not owned by us, skipping: ${campaignId.substring(0, 16)}...`)
+              console.log(`❌ Our campaign IDs:`, campaignIds.map(id => id.substring(0, 8) + '...'))
               return
             }
             
@@ -396,6 +426,8 @@ export function useCampaigns() {
             console.log(`🎯 Zapped event ID: ${zappedEventId?.substring(0, 16)}...`)
             
             console.log(`✅ Processing zap for campaign: ${campaignId.substring(0, 16)}...`)
+            console.log(`💰 Campaign: ${campaignId}`)
+            console.log(`📝 Zapped event: ${zappedEventId}`)
             
             // Extract zap data
             const amount = extractZapAmount(zapEvent)
@@ -433,18 +465,18 @@ export function useCampaigns() {
               rawZapEvent: zapEvent
             }
             
-            console.log(`📊 Created zap data:`, {
+            console.log(`📊 Created zap data for campaign aggregation:`, {
               id: zapData.id.substring(0, 16) + '...',
               amount: zapData.amount,
               campaignId: zapData.campaignId.substring(0, 16) + '...',
-              zappedEventId: zapData.zappedEventId.substring(0, 16) + '...'
+              zappedEventId: zapData.zappedEventId?.substring(0, 16) + '...'
             })
             
             // Add to campaign aggregated zaps
             addZapToCampaignAggregatedZaps(campaignId, zapData)
             
           } catch (error) {
-            console.error('Error processing zap for campaign aggregation:', error)
+            console.error('❌ Error processing zap for campaign aggregation:', error)
           }
         },
         oneose: () => {
