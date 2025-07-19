@@ -151,7 +151,7 @@
               <IconBolt class="w-3 h-3 text-white" />
             </div>
             <div>
-              <h4 class="font-medium text-orange-900 text-sm mb-1">⚡ Zap Tracking</h4>
+              <h4 class="font-medium text-orange-900 text-sm mb-1">Zap Tracking</h4>
               <p class="text-orange-800 text-xs leading-relaxed">
                 Zaps sent to your shared post will automatically count towards your campaign goal.
               </p>
