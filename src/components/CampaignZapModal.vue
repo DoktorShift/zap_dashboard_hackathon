@@ -227,15 +227,16 @@ const handlePaymentFlow = async () => {
       }
     }
     
-    // Option 2: Try Bitcoin Connect (external WebLN wallets)
-    console.log('Attempting payment with Bitcoin Connect...')
+    // Option 2: Try Bitcoin Connect via global webln
+    console.log('Attempting payment with Bitcoin Connect/WebLN...')
     try {
-      const provider = await requestProvider()
-      if (provider) {
-        console.log('Bitcoin Connect provider available, sending payment...')
-        const paymentResult = await provider.sendPayment(invoice.value)
+      // Check if webln is available (Bitcoin Connect provides this)
+      if (window.webln) {
+        console.log('WebLN provider available, enabling and sending payment...')
+        await window.webln.enable()
+        const paymentResult = await window.webln.sendPayment(invoice.value)
         
-        console.log('Bitcoin Connect payment successful:', paymentResult)
+        console.log('WebLN payment successful:', paymentResult)
         paymentStatus.value = 'success'
         
         // Notify about successful payment
@@ -250,41 +251,16 @@ const handlePaymentFlow = async () => {
           emit('close')
         }, 2000)
         return
+      } else {
+        console.log('WebLN not available, falling back to Bitcoin Connect modal...')
       }
     } catch (bcError) {
-      console.warn('Bitcoin Connect payment failed, falling back to QR code:', bcError)
+      console.warn('WebLN payment failed, falling back to Bitcoin Connect modal:', bcError)
     }
     
-    // Option 3: Fallback to Bitcoin Connect payment modal (with QR code)
-    console.log('Showing Bitcoin Connect payment modal with QR code...')
-    const { setPaid } = launchPaymentModal({
-      invoice: invoice.value,
-      onPaid: (response) => {
-        console.log('External payment successful:', response)
-        paymentStatus.value = 'success'
-        
-        // Notify about successful payment
-        handlePaymentSuccess(response)
-        handleZapSent({ 
-          amount: effectiveAmount.value,
-          recipient: props.author.name || 'Campaign Author'
-        })
-        
-        // Close both modals
-        closeBitcoinConnectModal()
-        setTimeout(() => {
-          emit('close')
-        }, 1000)
-      },
-      onCancelled: () => {
-        console.log('External payment cancelled')
-        closeBitcoinConnectModal()
-        // Don't close our modal, let user try again
-      }
-    })
-    
-    // Note: The Bitcoin Connect modal will handle the payment UI
-    // Our modal can stay open in case the user wants to try a different amount
+    // Option 3: Fallback to showing QR code for manual payment
+    console.log('Showing QR code for manual payment...')
+    showQRCodeView()
     
   } catch (error) {
     console.error('All payment methods failed:', error)
