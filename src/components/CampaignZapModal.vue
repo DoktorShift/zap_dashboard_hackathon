@@ -1,339 +1,3 @@
-<script setup>
-import { ref, computed, watch } from 'vue'
-import { 
-  IconBolt, 
-  IconX, 
-  IconSend, 
-  IconCheck, 
-  IconAlertCircle,
-  IconLoader,
-  IconCurrencyBitcoin,
-  IconMessageCircle,
-  IconArrowRight
-} from '@iconify-prerendered/vue-tabler'
-import QRCodeVue3 from 'qrcode-vue3'
-import { useNostrConnections } from '../composables/useNostrConnections.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useNotifications } from '../composables/useNotifications.js'
-import { nostrRelayManager } from '../utils/nostrRelayManager.js'
-import { makeZapRequest } from 'nostr-tools/nip57'
-import { payInvoice } from '../utils/nwcClient.js'
-import { bech32 } from 'bech32'
-
-const props = defineProps({
-  campaign: {
-    type: Object,
-    required: true
-  },
-  author: {
-    type: Object,
-    required: true
-  }
-})
-
-const emit = defineEmits(['close'])
-
-// Use composables
-const { isWalletConnected, activeConnection } = useNostrConnections()
-const { isAuthenticated, currentUser } = useNostrAuth()
-const { handleZapSent, handlePaymentSuccess, handlePaymentError } = useNotifications()
-
-// State
-const zapAmount = ref(1000) // Default 1000 sats
-const customAmount = ref(null)
-const zapComment = ref('')
-const isCustomAmount = ref(false)
-const isLoading = ref(false)
-const error = ref('')
-const invoice = ref('')
-const paymentStatus = ref('') // pending, success, error
-const showQRCode = ref(false)
-
-// Predefined amounts
-const predefinedAmounts = [
-  { value: 1000, label: '1,000' },
-  { value: 5000, label: '5,000' },
-  { value: 10000, label: '10,000' },
-  { value: 21000, label: '21,000' },
-  { value: 50000, label: '50,000' },
-  { value: 100000, label: '100,000' }
-]
-
-// Computed properties
-const effectiveAmount = computed(() => {
-  return isCustomAmount.value ? (customAmount.value || 0) : zapAmount.value
-})
-
-const isValidAmount = computed(() => {
-  return effectiveAmount.value > 0
-})
-
-const canZap = computed(() => {
-  return isAuthenticated.value && isWalletConnected.value && isValidAmount.value
-})
-
-// Watch for custom amount changes
-watch(customAmount, (newValue) => {
-  if (newValue) {
-    isCustomAmount.value = true
-  }
-})
-
-// Reset form
-const resetForm = () => {
-  zapAmount.value = 1000
-  customAmount.value = null
-  zapComment.value = ''
-  isCustomAmount.value = false
-  error.value = ''
-  invoice.value = ''
-  paymentStatus.value = ''
-  showQRCode.value = false
-}
-
-// Select predefined amount
-const selectAmount = (amount) => {
-  zapAmount.value = amount
-  isCustomAmount.value = false
-  customAmount.value = null
-}
-
-// Toggle custom amount
-const toggleCustomAmount = () => {
-  isCustomAmount.value = !isCustomAmount.value
-  if (isCustomAmount.value && !customAmount.value) {
-    customAmount.value = zapAmount.value
-  }
-}
-
-// Create and pay zap invoice
-const createAndPayZapInvoice = async () => {
-  if (!canZap.value) return
-  
-  isLoading.value = true
-  error.value = ''
-  paymentStatus.value = 'pending'
-  
-  try {
-    console.log('Creating zap for campaign:', props.campaign.id)
-    
-    // Get author's profile metadata to extract zap endpoint
-    const profileEvent = await nostrRelayManager.getEvent({
-      kinds: [0],
-      authors: [props.author.pubkey],
-      limit: 1
-    })
-    
-    if (!profileEvent) {
-      throw new Error('Could not find author profile')
-    }
-    
-    // Get zap endpoint using proper nostr-tools implementation
-    const zapEndpoint = await getZapEndpoint(profileEvent)
-    
-    if (!zapEndpoint) {
-      throw new Error('Author does not have a zap endpoint configured')
-    }
-    
-    console.log('Using zap endpoint:', zapEndpoint)
-    
-    // Create zap request
-    const zapRequest = makeZapRequest({
-      profile: props.author.pubkey,
-      event: props.campaign.rawEvent,
-      amount: effectiveAmount.value * 1000, // Convert to millisats
-      comment: zapComment.value || `Zap for campaign: ${props.campaign.title}`,
-      relays: props.campaign.relays || [
-        'wss://relay.damus.io',
-        'wss://nos.lol',
-        'wss://relay.snort.social'
-      ]
-    })
-    
-    console.log('Created zap request:', zapRequest)
-    
-    // Get invoice from zap endpoint using GET request with URL parameters
-    const zapRequestString = JSON.stringify(zapRequest)
-    const encodedZapRequest = encodeURIComponent(zapRequestString)
-    const zapEndpointUrl = `${zapEndpoint}?amount=${effectiveAmount.value * 1000}&nostr=${encodedZapRequest}`
-    
-    console.log('Requesting invoice from zap endpoint with GET:', zapEndpointUrl)
-    
-    const response = await fetch(zapEndpointUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      }
-    })
-    
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Zap endpoint error response:', errorText)
-      throw new Error(`Zap endpoint returned ${response.status}: ${errorText}`)
-    }
-    
-    const zapEndpointResponse = await response.json()
-    console.log('Zap endpoint response:', zapEndpointResponse)
-    
-    if (!zapEndpointResponse.pr) {
-      console.error('Zap endpoint response:', zapEndpointResponse)
-      throw new Error('No payment request in zap endpoint response. Response: ' + JSON.stringify(zapEndpointResponse))
-    }
-    
-    invoice.value = zapEndpointResponse.pr
-    console.log('Got invoice:', invoice.value)
-    
-    // Payment Flow: Try Internal NWC first, then Bitcoin Connect, then QR fallback
-    await handlePaymentFlow()
-    
-  } catch (err) {
-    console.error('Failed to zap campaign:', err)
-    error.value = err.message || 'Failed to zap campaign'
-    paymentStatus.value = 'error'
-    handlePaymentError(err)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// Handle the payment flow with multiple options
-const handlePaymentFlow = async () => {
-  try {
-    // Option 1: Try internal NWC wallet first (if connected)
-    if (isWalletConnected.value) {
-      console.log('Attempting payment with internal NWC wallet...')
-      try {
-        const paymentResult = await payInvoice({
-          invoice: invoice.value
-        })
-        
-        console.log('Internal NWC payment successful:', paymentResult)
-        paymentStatus.value = 'success'
-        
-        // Notify about successful payment
-        handlePaymentSuccess(paymentResult)
-        handleZapSent({ 
-          amount: effectiveAmount.value,
-          recipient: props.author.name || 'Campaign Author'
-        })
-        
-        // Close modal after 2 seconds
-        setTimeout(() => {
-          emit('close')
-        }, 2000)
-        return
-      } catch (nwcError) {
-        console.warn('Internal NWC payment failed, trying Bitcoin Connect:', nwcError)
-      }
-    }
-    
-    // Option 2: Try Bitcoin Connect via global webln
-    console.log('Attempting payment with Bitcoin Connect/WebLN...')
-    try {
-      // Check if webln is available (Bitcoin Connect provides this)
-      if (window.webln) {
-        console.log('WebLN provider available, enabling and sending payment...')
-        await window.webln.enable()
-        const paymentResult = await window.webln.sendPayment(invoice.value)
-        
-        console.log('WebLN payment successful:', paymentResult)
-        paymentStatus.value = 'success'
-        
-        // Notify about successful payment
-        handlePaymentSuccess(paymentResult)
-        handleZapSent({ 
-          amount: effectiveAmount.value,
-          recipient: props.author.name || 'Campaign Author'
-        })
-        
-        // Close modal after 2 seconds
-        setTimeout(() => {
-          emit('close')
-        }, 2000)
-        return
-      } else {
-        console.log('WebLN not available, falling back to Bitcoin Connect modal...')
-      }
-    } catch (bcError) {
-      console.warn('WebLN payment failed, falling back to Bitcoin Connect modal:', bcError)
-    }
-    
-    // Option 3: Fallback to showing QR code for manual payment
-    console.log('Showing QR code for manual payment...')
-    showQRCodeView()
-    
-  } catch (error) {
-    console.error('All payment methods failed:', error)
-    throw error
-  }
-}
-
-// Proper getZapEndpoint implementation based on nostr-tools
-async function getZapEndpoint(metadata) {
-  try {
-    let lnurl = ''
-    const profile = JSON.parse(metadata.content)
-    const { lud06, lud16 } = profile
-    
-    if (lud06) {
-      // Decode bech32 lud06 to get LNURL
-      try {
-        const { words } = bech32.decode(lud06, 1000)
-        const data = bech32.fromWords(words)
-        lnurl = new TextDecoder().decode(new Uint8Array(data))
-      } catch (decodeError) {
-        console.error('Failed to decode lud06:', decodeError)
-        throw new Error('Invalid lud06 format')
-      }
-    } else if (lud16) {
-      // Convert lightning address to LNURL
-      const [name, domain] = lud16.split('@')
-      if (!name || !domain) {
-        throw new Error('Invalid lightning address format')
-      }
-      lnurl = `https://${domain}/.well-known/lnurlp/${name}`
-    } else {
-      return null
-    }
-    
-    console.log('Resolved LNURL:', lnurl)
-    
-    // Fetch LNURL metadata
-    const response = await fetch(lnurl)
-    if (!response.ok) {
-      throw new Error(`LNURL endpoint returned ${response.status}`)
-    }
-    
-    const body = await response.json()
-    console.log('LNURL response:', body)
-    
-    // Check for NIP-57 zap compatibility
-    if (body.allowsNostr && body.nostrPubkey) {
-      console.log('Zap endpoint found:', body.callback)
-      return body.callback
-    } else {
-      console.log('LNURL endpoint does not support zaps:', { allowsNostr: body.allowsNostr, nostrPubkey: body.nostrPubkey })
-      return null
-    }
-  } catch (err) {
-    console.error('Failed to get zap endpoint:', err)
-    throw err
-  }
-}
-
-// Show QR code
-const showQRCodeView = () => {
-  if (!invoice.value) return
-  showQRCode.value = true
-}
-
-// Close modal
-const closeModal = () => {
-  resetForm()
-  emit('close')
-}
-</script>
-
 <template>
   <div class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
     <div class="bg-white rounded-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -383,18 +47,22 @@ const closeModal = () => {
           </div>
         </div>
         
-        <div class="flex justify-end">
+        <div class="flex justify-end space-x-3">
+          <button @click="resetToAmountSelection" class="btn-secondary">
+            Try Again
+          </button>
           <button @click="closeModal" class="btn-secondary">
             Close
           </button>
         </div>
       </div>
 
-      <!-- QR Code View -->
-      <div v-else-if="showQRCode && invoice" class="p-6">
+      <!-- Invoice Payment View -->
+      <div v-else-if="invoice && currentStep === 'payment'" class="p-6">
+        <!-- QR Code Display -->
         <div class="text-center mb-6">
           <h4 class="text-lg font-semibold text-gray-900 mb-4">Scan to Pay</h4>
-          <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block mb-4">
+          <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block mb-4 shadow-sm">
             <QRCodeVue3
               :value="`lightning:${invoice}`"
               :size="200"
@@ -403,28 +71,57 @@ const closeModal = () => {
               error-correction-level="M"
             />
           </div>
-          <p class="text-sm text-gray-600 mb-2">Amount: {{ effectiveAmount.toLocaleString() }} sats</p>
-          <p class="text-xs text-gray-500">Scan this QR code with any Lightning wallet</p>
+          <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-orange-800">Amount:</span>
+              <span class="text-lg font-bold text-orange-600">{{ effectiveAmount.toLocaleString() }} sats</span>
+            </div>
+            <div v-if="zapComment" class="mt-2 pt-2 border-t border-orange-200">
+              <p class="text-xs text-orange-700 italic">"{{ zapComment }}"</p>
+            </div>
+          </div>
         </div>
         
-        <div class="flex justify-between">
-          <button @click="showQRCode = false" class="btn-secondary">
-            Back
+        <!-- Payment Options -->
+        <div class="space-y-3 mb-6">
+          <!-- Pay with Internal NWC (only show if wallet connected) -->
+          <button
+            v-if="isWalletConnected"
+            @click="payWithInternalNWC"
+            :disabled="isProcessingPayment"
+            class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <IconLoader v-if="isProcessingPayment" class="w-5 h-5 animate-spin" />
+            <IconBolt v-else class="w-5 h-5" />
+            <span>{{ isProcessingPayment ? 'Processing Payment...' : 'Pay with ZapTracker Wallet' }}</span>
           </button>
-          <button @click="closeModal" class="btn-secondary">
-            Close
+          
+          <!-- Open in External Wallet -->
+          <button
+            @click="openExternalWallet"
+            class="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <IconExternalLink class="w-5 h-5" />
+            <span>Open in Wallet</span>
+          </button>
+        </div>
+        
+        <!-- Back to Amount Selection -->
+        <div class="flex justify-center">
+          <button @click="resetToAmountSelection" class="text-gray-600 hover:text-gray-800 text-sm font-medium">
+            ← Change Amount or Comment
           </button>
         </div>
       </div>
 
-      <!-- Zap Form -->
+      <!-- Amount Selection Form -->
       <div v-else class="p-6">
         <!-- Amount Selection -->
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-700 mb-3">Select Amount</label>
           
           <!-- Predefined Amounts -->
-          <div class="grid grid-cols-3 gap-2 mb-3">
+          <div class="grid grid-cols-3 gap-2 mb-4">
             <button
               v-for="amount in predefinedAmounts"
               :key="amount.value"
@@ -441,8 +138,8 @@ const closeModal = () => {
           </div>
           
           <!-- Custom Amount -->
-          <div class="mt-4">
-            <div class="flex items-center mb-2">
+          <div class="space-y-3">
+            <div class="flex items-center">
               <input
                 type="checkbox"
                 :checked="isCustomAmount"
@@ -483,46 +180,357 @@ const closeModal = () => {
           </div>
         </div>
         
-        <!-- Summary -->
-        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-700">Amount:</span>
-            <span class="text-lg font-bold text-orange-600">{{ effectiveAmount.toLocaleString() }} sats</span>
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-gray-600">To:</span>
-            <span class="text-gray-800 font-medium">{{ props.author.name || 'Campaign Author' }}</span>
-          </div>
-        </div>
-        
         <!-- Error Message -->
-        <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <div v-if="error && currentStep === 'amount'" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
           <div class="flex items-center space-x-2">
             <IconAlertCircle class="w-5 h-5 text-red-600" />
-            <span class="text-red-600">{{ error }}</span>
+            <span class="text-red-600 text-sm">{{ error }}</span>
           </div>
         </div>
         
         <!-- Actions -->
-        <div class="flex justify-between">
-          <button @click="closeModal" class="btn-secondary">
+        <div class="flex justify-between space-x-3">
+          <button @click="closeModal" class="btn-secondary flex-1">
             Cancel
           </button>
           
           <button
-            @click="createAndPayZapInvoice"
-            :disabled="!canZap || isLoading"
-            class="btn-primary"
+            @click="generateInvoice"
+            :disabled="!canProceed || isLoading"
+            class="btn-primary flex-1"
           >
             <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
-            <IconBolt v-else class="w-4 h-4" />
-            {{ isLoading ? 'Processing...' : 'Zap Now' }}
+            <IconArrowRight v-else class="w-4 h-4" />
+            {{ isLoading ? 'Creating Invoice...' : 'Continue' }}
           </button>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { 
+  IconBolt, 
+  IconX, 
+  IconCheck, 
+  IconAlertCircle,
+  IconLoader,
+  IconMessageCircle,
+  IconArrowRight,
+  IconExternalLink
+} from '@iconify-prerendered/vue-tabler'
+import QRCodeVue3 from 'qrcode-vue3'
+import { useNostrConnections } from '../composables/useNostrConnections.js'
+import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { useNotifications } from '../composables/useNotifications.js'
+import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import { makeZapRequest } from 'nostr-tools/nip57'
+import { payInvoice } from '../utils/nwcClient.js'
+import { bech32 } from 'bech32'
+
+const props = defineProps({
+  campaign: {
+    type: Object,
+    required: true
+  },
+  author: {
+    type: Object,
+    required: true
+  }
+})
+
+const emit = defineEmits(['close'])
+
+// Use composables
+const { isWalletConnected } = useNostrConnections()
+const { isAuthenticated, currentUser } = useNostrAuth()
+const { handleZapSent, handlePaymentSuccess, handlePaymentError } = useNotifications()
+
+// State
+const zapAmount = ref(1000) // Default 1000 sats
+const customAmount = ref(null)
+const zapComment = ref('')
+const isCustomAmount = ref(false)
+const isLoading = ref(false)
+const isProcessingPayment = ref(false)
+const error = ref('')
+const invoice = ref('')
+const paymentStatus = ref('') // pending, success, error
+const currentStep = ref('amount') // amount, payment
+
+// Predefined amounts
+const predefinedAmounts = [
+  { value: 1000, label: '1,000' },
+  { value: 5000, label: '5,000' },
+  { value: 10000, label: '10,000' },
+  { value: 21000, label: '21,000' },
+  { value: 50000, label: '50,000' },
+  { value: 100000, label: '100,000' }
+]
+
+// Computed properties
+const effectiveAmount = computed(() => {
+  return isCustomAmount.value ? (customAmount.value || 0) : zapAmount.value
+})
+
+const isValidAmount = computed(() => {
+  return effectiveAmount.value > 0
+})
+
+const canProceed = computed(() => {
+  return isAuthenticated.value && isValidAmount.value
+})
+
+// Watch for custom amount changes
+watch(customAmount, (newValue) => {
+  if (newValue) {
+    isCustomAmount.value = true
+  }
+})
+
+// Reset form to initial state
+const resetForm = () => {
+  zapAmount.value = 1000
+  customAmount.value = null
+  zapComment.value = ''
+  isCustomAmount.value = false
+  error.value = ''
+  invoice.value = ''
+  paymentStatus.value = ''
+  currentStep.value = 'amount'
+  isLoading.value = false
+  isProcessingPayment.value = false
+}
+
+// Reset to amount selection (from payment view)
+const resetToAmountSelection = () => {
+  currentStep.value = 'amount'
+  error.value = ''
+  paymentStatus.value = ''
+  invoice.value = ''
+  isLoading.value = false
+  isProcessingPayment.value = false
+}
+
+// Select predefined amount
+const selectAmount = (amount) => {
+  zapAmount.value = amount
+  isCustomAmount.value = false
+  customAmount.value = null
+}
+
+// Toggle custom amount
+const toggleCustomAmount = () => {
+  isCustomAmount.value = !isCustomAmount.value
+  if (isCustomAmount.value && !customAmount.value) {
+    customAmount.value = zapAmount.value
+  }
+}
+
+// Generate Lightning invoice via NIP-57
+const generateInvoice = async () => {
+  if (!canProceed.value) return
+  
+  isLoading.value = true
+  error.value = ''
+  
+  try {
+    console.log('Generating zap invoice for campaign:', props.campaign.id)
+    
+    // Get author's profile metadata to extract zap endpoint
+    const profileEvent = await nostrRelayManager.getEvent({
+      kinds: [0],
+      authors: [props.author.pubkey],
+      limit: 1
+    })
+    
+    if (!profileEvent) {
+      throw new Error('Could not find author profile')
+    }
+    
+    // Get zap endpoint using proper nostr-tools implementation
+    const zapEndpoint = await getZapEndpoint(profileEvent)
+    
+    if (!zapEndpoint) {
+      throw new Error('Author does not have a zap endpoint configured')
+    }
+    
+    console.log('Using zap endpoint:', zapEndpoint)
+    
+    // Create zap request
+    const zapRequest = makeZapRequest({
+      profile: props.author.pubkey,
+      event: props.campaign.rawEvent,
+      amount: effectiveAmount.value * 1000, // Convert to millisats
+      comment: zapComment.value || `Zap for campaign: ${props.campaign.title}`,
+      relays: props.campaign.relays || [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.snort.social'
+      ]
+    })
+    
+    console.log('Created zap request:', zapRequest)
+    
+    // Get invoice from zap endpoint
+    const zapRequestString = JSON.stringify(zapRequest)
+    const encodedZapRequest = encodeURIComponent(zapRequestString)
+    const zapEndpointUrl = `${zapEndpoint}?amount=${effectiveAmount.value * 1000}&nostr=${encodedZapRequest}`
+    
+    console.log('Requesting invoice from zap endpoint:', zapEndpointUrl)
+    
+    const response = await fetch(zapEndpointUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Zap endpoint error response:', errorText)
+      throw new Error(`Zap endpoint returned ${response.status}: ${errorText}`)
+    }
+    
+    const zapEndpointResponse = await response.json()
+    console.log('Zap endpoint response:', zapEndpointResponse)
+    
+    if (!zapEndpointResponse.pr) {
+      console.error('Zap endpoint response:', zapEndpointResponse)
+      throw new Error('No payment request in zap endpoint response')
+    }
+    
+    invoice.value = zapEndpointResponse.pr
+    currentStep.value = 'payment'
+    console.log('Invoice generated successfully, transitioning to payment view')
+    
+  } catch (err) {
+    console.error('Failed to generate invoice:', err)
+    error.value = err.message || 'Failed to generate invoice'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Pay with internal NWC wallet
+const payWithInternalNWC = async () => {
+  if (!invoice.value || !isWalletConnected.value) return
+  
+  isProcessingPayment.value = true
+  error.value = ''
+  
+  try {
+    console.log('Paying with internal NWC wallet...')
+    
+    const paymentResult = await payInvoice({
+      invoice: invoice.value
+    })
+    
+    console.log('Internal NWC payment successful:', paymentResult)
+    paymentStatus.value = 'success'
+    
+    // Notify about successful payment
+    handlePaymentSuccess(paymentResult)
+    handleZapSent({ 
+      amount: effectiveAmount.value,
+      recipient: props.author.name || 'Campaign Author'
+    })
+    
+    // Close modal after 3 seconds
+    setTimeout(() => {
+      emit('close')
+    }, 3000)
+    
+  } catch (err) {
+    console.error('Internal NWC payment failed:', err)
+    error.value = err.message || 'Payment failed'
+    paymentStatus.value = 'error'
+    handlePaymentError(err)
+  } finally {
+    isProcessingPayment.value = false
+  }
+}
+
+// Open in external wallet
+const openExternalWallet = () => {
+  if (!invoice.value) return
+  
+  try {
+    console.log('Opening invoice in external wallet...')
+    
+    // Create lightning: URI and attempt to open it
+    const lightningUri = `lightning:${invoice.value}`
+    window.open(lightningUri, '_blank')
+    
+    console.log('Lightning URI opened:', lightningUri)
+    
+  } catch (err) {
+    console.error('Failed to open external wallet:', err)
+    error.value = 'Failed to open external wallet'
+  }
+}
+
+// Proper getZapEndpoint implementation based on nostr-tools
+async function getZapEndpoint(metadata) {
+  try {
+    let lnurl = ''
+    const profile = JSON.parse(metadata.content)
+    const { lud06, lud16 } = profile
+    
+    if (lud06) {
+      // Decode bech32 lud06 to get LNURL
+      try {
+        const { words } = bech32.decode(lud06, 1000)
+        const data = bech32.fromWords(words)
+        lnurl = new TextDecoder().decode(new Uint8Array(data))
+      } catch (decodeError) {
+        console.error('Failed to decode lud06:', decodeError)
+        throw new Error('Invalid lud06 format')
+      }
+    } else if (lud16) {
+      // Convert lightning address to LNURL
+      const [name, domain] = lud16.split('@')
+      if (!name || !domain) {
+        throw new Error('Invalid lightning address format')
+      }
+      lnurl = `https://${domain}/.well-known/lnurlp/${name}`
+    } else {
+      return null
+    }
+    
+    console.log('Resolved LNURL:', lnurl)
+    
+    // Fetch LNURL metadata
+    const response = await fetch(lnurl)
+    if (!response.ok) {
+      throw new Error(`LNURL endpoint returned ${response.status}`)
+    }
+    
+    const body = await response.json()
+    console.log('LNURL response:', body)
+    
+    // Check for NIP-57 zap compatibility
+    if (body.allowsNostr && body.nostrPubkey) {
+      console.log('Zap endpoint found:', body.callback)
+      return body.callback
+    } else {
+      console.log('LNURL endpoint does not support zaps')
+      return null
+    }
+  } catch (err) {
+    console.error('Failed to get zap endpoint:', err)
+    throw err
+  }
+}
+
+// Close modal
+const closeModal = () => {
+  resetForm()
+  emit('close')
+}
+</script>
 
 <style scoped>
 /* Button Styles */
