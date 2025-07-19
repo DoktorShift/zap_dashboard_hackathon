@@ -368,8 +368,8 @@ onMounted(async () => {
           </div>
           <div v-else class="h-48 sm:h-64 w-full overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
             <img 
-              src="https://images.pexels.com/photos/7130560/pexels-photo-7130560.jpeg?auto=compress&cs=tinysrgb&w=800&h=400" 
-              alt="Default Campaign Image"
+              src="/ZapTracker_campaigns.png" 
+              alt="ZapTracker Default Campaign Image"
               class="w-full h-full object-cover opacity-70"
             />
           </div>

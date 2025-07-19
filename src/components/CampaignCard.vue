@@ -145,8 +145,8 @@ const formatDate = (timestamp) => {
     </div>
     <div v-else class="relative h-48 w-full overflow-hidden group bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
       <img 
-        src="https://images.pexels.com/photos/7130560/pexels-photo-7130560.jpeg?auto=compress&cs=tinysrgb&w=800&h=400" 
-        alt="Default Campaign Image"
+        src="/ZapTracker_campaigns.png" 
+        alt="ZapTracker Default Campaign Image"
         class="w-full h-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-110"
       />
       <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
