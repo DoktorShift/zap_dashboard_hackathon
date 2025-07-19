@@ -415,12 +415,10 @@ export function useCampaigns() {
             }
             
             if (!campaignId) {
-            else {
               console.log('❌ Zap receipt references event not in our tracking list, skipping:', zappedEventId.substring(0, 16) + '...')
               console.log('- Campaign IDs we track:', campaignIds.map(id => id.substring(0, 8) + '...'))
               console.log('- Linked note IDs we track:', linkedNoteIds.map(id => id.substring(0, 8) + '...'))
               return
-            }
             }
             
             console.log(`✅ Processing zap for campaign: ${campaignId.substring(0, 16)}...`)
