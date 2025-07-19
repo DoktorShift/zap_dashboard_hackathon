@@ -323,32 +323,23 @@ export function useCampaigns() {
       campaignZapSubscription = null
     }
 
-    // Get all user campaign IDs and linked note IDs for targeted filtering
+    // Get all user campaign IDs for targeted filtering
     const campaignIds = userCampaigns.value.map(campaign => campaign.id)
-    const linkedNoteIds = userCampaigns.value
-      .flatMap(campaign => campaign.linkedNoteIds || [])
     
-    // Combine campaign IDs and linked note IDs for comprehensive filtering
-    const allRelevantEventIds = [...campaignIds, ...linkedNoteIds]
-    
-    if (allRelevantEventIds.length === 0) {
-      console.log('No campaigns or linked notes found, skipping zap aggregation setup')
+    if (campaignIds.length === 0) {
+      console.log('No campaigns found, skipping zap aggregation setup')
       return
     }
 
     try {
       console.log('🔍 Starting optimized campaign zap aggregation listener...')
       console.log('- Campaign IDs:', campaignIds.map(id => id.substring(0, 8) + '...'))
-      console.log('- Linked note IDs:', linkedNoteIds.map(id => id.substring(0, 8) + '...'))
-      console.log('- Total event IDs to monitor:', allRelevantEventIds.length)
       
-      // Subscribe to zap receipts (kind 9735) that reference our campaigns OR linked notes
+      // Subscribe to ALL zap receipts and filter them based on goal tags
       campaignZapSubscription = nostrRelayManager.subscribeToEvents([
         {
           kinds: [9735], // Zap receipts
-          '#e': allRelevantEventIds, // Zap receipts that reference our campaigns OR linked notes
-          // Remove the #p filter to catch all zaps to our events, regardless of who sent them
-          limit: 200 // Increased limit since we're being more specific
+          limit: 500 // Cast a wider net to catch all zap receipts
         }
       ], {
         onevent: async (zapEvent) => {
@@ -363,16 +354,6 @@ export function useCampaigns() {
           console.log('Zap receipt tags:', zapEvent.tags)
           
           try {
-            // Extract the zapped event ID from the e tag
-            const zappedEventId = extractEventId(zapEvent)
-            if (!zappedEventId) {
-              console.log('❌ No event ID found in zap receipt e tag, skipping')
-              console.log('Zap receipt tags:', zapEvent.tags)
-              return
-            }
-            
-            console.log(`🎯 Zapped event ID: ${zappedEventId.substring(0, 16)}...`)
-            
             let campaignId = null
             
             // PRIORITY: Check for direct goal tag in zap receipt (NIP-75)
@@ -380,22 +361,6 @@ export function useCampaigns() {
             if (goalTag && goalTag[1]) {
               campaignId = goalTag[1]
               console.log(`✅ Found direct goal tag in zap receipt: ${campaignId.substring(0, 16)}...`)
-            }
-            // Check if the zapped event is directly a campaign (kind:9041)
-            else if (campaignIds.includes(zappedEventId)) {
-              campaignId = zappedEventId
-              console.log(`✅ Direct zap to campaign: ${campaignId.substring(0, 16)}...`)
-            }
-            // Check if the zapped event is a linked note (kind:1)
-            else if (linkedNoteIds.includes(zappedEventId)) {
-              console.log(`🔍 Zap to linked note, resolving campaign ID: ${zappedEventId.substring(0, 16)}...`)
-              campaignId = await resolveCampaignIdFromZappedEvent(zappedEventId)
-              if (campaignId) {
-                console.log(`✅ Zap to linked note resolved to campaign: ${campaignId.substring(0, 16)}...`)
-              } else {
-                console.log('❌ Failed to resolve campaign ID from linked note, skipping')
-                return
-              }
             }
             // Check if zap receipt has goal tag in description (from zap request)
             else {
@@ -414,12 +379,21 @@ export function useCampaigns() {
               }
             }
             
+            // Only process if this zap is for one of our campaigns
             if (!campaignId) {
-              console.log('❌ Zap receipt references event not in our tracking list, skipping:', zappedEventId.substring(0, 16) + '...')
-              console.log('- Campaign IDs we track:', campaignIds.map(id => id.substring(0, 8) + '...'))
-              console.log('- Linked note IDs we track:', linkedNoteIds.map(id => id.substring(0, 8) + '...'))
+              // This is normal - most zaps won't be for our campaigns
               return
             }
+            
+            // Check if this campaign belongs to us
+            if (!campaignIds.includes(campaignId)) {
+              console.log('❌ Zap is for a campaign not owned by us, skipping:', campaignId.substring(0, 16) + '...')
+              return
+            }
+            
+            // Extract the zapped event ID from the e tag
+            const zappedEventId = extractEventId(zapEvent)
+            console.log(`🎯 Zapped event ID: ${zappedEventId?.substring(0, 16)}...`)
             
             console.log(`✅ Processing zap for campaign: ${campaignId.substring(0, 16)}...`)
             

@@ -226,6 +226,15 @@ const recentZaps = computed(() => {
   // Get zaps from the campaign aggregated zaps system
   const campaignZaps = campaignAggregatedZaps.value.get(campaign.value.id) || []
   
+  console.log(`🔍 Campaign ${campaign.value.id.substring(0, 8)}... recent zaps check:`)
+  console.log('- Campaign aggregated zaps map size:', campaignAggregatedZaps.value.size)
+  console.log('- Zaps for this campaign:', campaignZaps.length)
+  console.log('- Zap details:', campaignZaps.map(z => ({ 
+    id: z.id.substring(0, 8) + '...', 
+    amount: z.amount, 
+    campaignId: z.campaignId?.substring(0, 8) + '...' 
+  })))
+  
   return campaignZaps
     .slice(0, 5)
     .map(zap => ({
