@@ -244,6 +244,7 @@ const recentZaps = computed(() => {
 const totalZapCount = computed(() => {
   if (!campaign.value) return 0
   const campaignZaps = campaignAggregatedZaps.value.get(campaign.value.id) || []
+  console.log(`Campaign ${campaign.value.id.substring(0, 8)}... has ${campaignZaps.length} zaps:`, campaignZaps.map(z => ({ amount: z.amount, id: z.id.substring(0, 8) + '...' })))
   return campaignZaps.length
 })
 
@@ -251,7 +252,9 @@ const totalZapCount = computed(() => {
 const totalZapAmount = computed(() => {
   if (!campaign.value) return 0
   const campaignZaps = campaignAggregatedZaps.value.get(campaign.value.id) || []
-  return campaignZaps.reduce((sum, zap) => sum + zap.amount, 0)
+  const total = campaignZaps.reduce((sum, zap) => sum + zap.amount, 0)
+  console.log(`Campaign ${campaign.value.id.substring(0, 8)}... total amount: ${total} sats`)
+  return total
 })
 
 const formatTimeAgo = (timestamp) => {

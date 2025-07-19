@@ -143,24 +143,12 @@ const createAndPayZapInvoice = async () => {
       event: props.campaign.rawEvent,
       amount: effectiveAmount.value * 1000, // Convert to millisats
       comment: zapComment.value || `Zap for campaign: ${props.campaign.title}`,
-      relays: [
-        // Include campaign relays first (from NIP-75)
-        ...(props.campaign.relays || []),
-        // Add default relays as fallback
+      relays: props.campaign.relays || [
         'wss://relay.damus.io',
         'wss://nos.lol',
         'wss://relay.snort.social'
       ]
     })
-    
-    // CRITICAL: Add goal tag to link zap to campaign (NIP-75)
-    zapRequest.tags.push(['goal', props.campaign.id])
-    
-    // Ensure we have the campaign event reference
-    const existingETag = zapRequest.tags.find(tag => tag[0] === 'e')
-    if (!existingETag) {
-      zapRequest.tags.push(['e', props.campaign.id])
-    }
     
     console.log('Created zap request:', zapRequest)
     
@@ -195,27 +183,8 @@ const createAndPayZapInvoice = async () => {
     invoice.value = zapEndpointResponse.pr
     console.log('Got invoice:', invoice.value)
     
-    // Pay the invoice
-    const paymentResult = await payInvoice({
-      invoice: invoice.value
-    })
-    
-    console.log('Payment result:', paymentResult)
-    
-    // Update status
-    paymentStatus.value = 'success'
-    
-    // Notify about successful payment
-    handlePaymentSuccess(paymentResult)
-    handleZapSent({ 
-      amount: effectiveAmount.value,
-      recipient: props.author.name || 'Campaign Author'
-    })
-    
-    // Close modal after 2 seconds
-    setTimeout(() => {
-      emit('close')
-    }, 2000)
+    // Payment Flow: Try Internal NWC first, then Bitcoin Connect, then QR fallback
+    await handlePaymentFlow()
     
   } catch (err) {
     console.error('Failed to zap campaign:', err)
@@ -224,6 +193,102 @@ const createAndPayZapInvoice = async () => {
     handlePaymentError(err)
   } finally {
     isLoading.value = false
+  }
+}
+
+// Handle the payment flow with multiple options
+const handlePaymentFlow = async () => {
+  try {
+    // Option 1: Try internal NWC wallet first (if connected)
+    if (isWalletConnected.value) {
+      console.log('Attempting payment with internal NWC wallet...')
+      try {
+        const paymentResult = await payInvoice({
+          invoice: invoice.value
+        })
+        
+        console.log('Internal NWC payment successful:', paymentResult)
+        paymentStatus.value = 'success'
+        
+        // Notify about successful payment
+        handlePaymentSuccess(paymentResult)
+        handleZapSent({ 
+          amount: effectiveAmount.value,
+          recipient: props.author.name || 'Campaign Author'
+        })
+        
+        // Close modal after 2 seconds
+        setTimeout(() => {
+          emit('close')
+        }, 2000)
+        return
+      } catch (nwcError) {
+        console.warn('Internal NWC payment failed, trying Bitcoin Connect:', nwcError)
+      }
+    }
+    
+    // Option 2: Try Bitcoin Connect (external WebLN wallets)
+    console.log('Attempting payment with Bitcoin Connect...')
+    try {
+      const provider = await requestProvider()
+      if (provider) {
+        console.log('Bitcoin Connect provider available, sending payment...')
+        const paymentResult = await provider.sendPayment(invoice.value)
+        
+        console.log('Bitcoin Connect payment successful:', paymentResult)
+        paymentStatus.value = 'success'
+        
+        // Notify about successful payment
+        handlePaymentSuccess(paymentResult)
+        handleZapSent({ 
+          amount: effectiveAmount.value,
+          recipient: props.author.name || 'Campaign Author'
+        })
+        
+        // Close modal after 2 seconds
+        setTimeout(() => {
+          emit('close')
+        }, 2000)
+        return
+      }
+    } catch (bcError) {
+      console.warn('Bitcoin Connect payment failed, falling back to QR code:', bcError)
+    }
+    
+    // Option 3: Fallback to Bitcoin Connect payment modal (with QR code)
+    console.log('Showing Bitcoin Connect payment modal with QR code...')
+    const { setPaid } = launchPaymentModal({
+      invoice: invoice.value,
+      onPaid: (response) => {
+        console.log('External payment successful:', response)
+        paymentStatus.value = 'success'
+        
+        // Notify about successful payment
+        handlePaymentSuccess(response)
+        handleZapSent({ 
+          amount: effectiveAmount.value,
+          recipient: props.author.name || 'Campaign Author'
+        })
+        
+        // Close both modals
+        closeBitcoinConnectModal()
+        setTimeout(() => {
+          emit('close')
+        }, 1000)
+      },
+      onCancelled: () => {
+        console.log('External payment cancelled')
+        closeBitcoinConnectModal()
+        // Don't close our modal, let user try again
+      }
+    })
+    
+    // Note: The Bitcoin Connect modal will handle the payment UI
+    // Our modal can stay open in case the user wants to try a different amount
+    
+  } catch (error) {
+    console.error('All payment methods failed:', error)
+    throw error
   }
 }
 

@@ -375,8 +375,14 @@ export function useCampaigns() {
             
             let campaignId = null
             
+            // PRIORITY: Check for direct goal tag in zap receipt (NIP-75)
+            const goalTag = zapEvent.tags.find(tag => tag[0] === 'goal')
+            if (goalTag && goalTag[1]) {
+              campaignId = goalTag[1]
+              console.log(`✅ Found direct goal tag in zap receipt: ${campaignId.substring(0, 16)}...`)
+            }
             // Check if the zapped event is directly a campaign (kind:9041)
-            if (campaignIds.includes(zappedEventId)) {
+            else if (campaignIds.includes(zappedEventId)) {
               campaignId = zappedEventId
               console.log(`✅ Direct zap to campaign: ${campaignId.substring(0, 16)}...`)
             }
@@ -391,11 +397,30 @@ export function useCampaigns() {
                 return
               }
             }
+            // Check if zap receipt has goal tag in description (from zap request)
+            else {
+              try {
+                const descriptionTag = zapEvent.tags.find(tag => tag[0] === 'description')
+                if (descriptionTag && descriptionTag[1]) {
+                  const zapRequest = JSON.parse(descriptionTag[1])
+                  const zapRequestGoalTag = zapRequest.tags?.find(tag => tag[0] === 'goal')
+                  if (zapRequestGoalTag && zapRequestGoalTag[1]) {
+                    campaignId = zapRequestGoalTag[1]
+                    console.log(`✅ Found goal tag in zap request: ${campaignId.substring(0, 16)}...`)
+                  }
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse zap request from description:', parseError)
+              }
+            }
+            
+            if (!campaignId) {
             else {
               console.log('❌ Zap receipt references event not in our tracking list, skipping:', zappedEventId.substring(0, 16) + '...')
               console.log('- Campaign IDs we track:', campaignIds.map(id => id.substring(0, 8) + '...'))
               console.log('- Linked note IDs we track:', linkedNoteIds.map(id => id.substring(0, 8) + '...'))
               return
+            }
             }
             
             console.log(`✅ Processing zap for campaign: ${campaignId.substring(0, 16)}...`)
