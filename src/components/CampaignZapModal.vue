@@ -143,12 +143,24 @@ const createAndPayZapInvoice = async () => {
       event: props.campaign.rawEvent,
       amount: effectiveAmount.value * 1000, // Convert to millisats
       comment: zapComment.value || `Zap for campaign: ${props.campaign.title}`,
-      relays: props.campaign.relays || [
+      relays: [
+        // Include campaign relays first (from NIP-75)
+        ...(props.campaign.relays || []),
+        // Add default relays as fallback
         'wss://relay.damus.io',
         'wss://nos.lol',
         'wss://relay.snort.social'
       ]
     })
+    
+    // CRITICAL: Add goal tag to link zap to campaign (NIP-75)
+    zapRequest.tags.push(['goal', props.campaign.id])
+    
+    // Ensure we have the campaign event reference
+    const existingETag = zapRequest.tags.find(tag => tag[0] === 'e')
+    if (!existingETag) {
+      zapRequest.tags.push(['e', props.campaign.id])
+    }
     
     console.log('Created zap request:', zapRequest)
     
