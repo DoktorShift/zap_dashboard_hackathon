@@ -601,11 +601,16 @@ const generateInvoice = async () => {
       ]
     })
     
-    // CRITICAL: Add goal tag to zap request for proper campaign tracking
+    // CRITICAL: Add goal and event tags for proper campaign tracking
     if (!zapRequest.tags) {
       zapRequest.tags = []
     }
-    zapRequest.tags.push(['goal', campaign.value.id])
+    
+    // Add goal tag for NIP-75 campaign tracking
+    zapRequest.tags.push(['goal', props.campaign.id])
+    
+    // Add event tag to reference the campaign
+    zapRequest.tags.push(['e', props.campaign.id])
     
     console.log('Created zap request:', zapRequest)
     
