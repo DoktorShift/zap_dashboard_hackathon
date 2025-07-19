@@ -152,17 +152,18 @@ const createAndPayZapInvoice = async () => {
     
     console.log('Created zap request:', zapRequest)
     
-    // Get invoice from zap endpoint
-    const response = await fetch(zapEndpoint, {
-      method: 'POST',
+    // Get invoice from zap endpoint using GET request with URL parameters
+    const zapRequestString = JSON.stringify(zapRequest)
+    const encodedZapRequest = encodeURIComponent(zapRequestString)
+    const zapEndpointUrl = `${zapEndpoint}?amount=${effectiveAmount.value * 1000}&nostr=${encodedZapRequest}`
+    
+    console.log('Requesting invoice from zap endpoint with GET:', zapEndpointUrl)
+    
+    const response = await fetch(zapEndpointUrl, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        amount: effectiveAmount.value * 1000, // millisats
-        nostr: JSON.stringify(zapRequest),
-        lnurl: zapEndpoint // Some endpoints require this
-      })
+        'Accept': 'application/json'
+      }
     })
     
     if (!response.ok) {
@@ -172,6 +173,7 @@ const createAndPayZapInvoice = async () => {
     }
     
     const zapEndpointResponse = await response.json()
+    console.log('Zap endpoint response:', zapEndpointResponse)
     
     if (!zapEndpointResponse.pr) {
       console.error('Zap endpoint response:', zapEndpointResponse)
