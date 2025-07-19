@@ -514,12 +514,11 @@ watch(isAuthenticated, async (isAuth) => {
         >
           <div class="flex flex-col sm:flex-row">
             <!-- Campaign Image (if available) -->
-            <div v-if="campaign.image" class="sm:w-48 h-32 sm:h-auto overflow-hidden">
+            <div class="sm:w-48 h-32 sm:h-auto overflow-hidden">
               <img 
-                :src="campaign.image" 
+                :src="campaign.image || '/ZapTracker_campaigns.png'" 
                 :alt="campaign.title"
                 class="w-full h-full object-cover"
-                @error="$event.target.style.display = 'none'"
               />
             </div>
             
