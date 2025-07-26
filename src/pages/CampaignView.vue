@@ -360,12 +360,12 @@
                   <!-- Continue Button -->
                   <button
                     @click="generateInvoice"
-                    :disabled="!canProceed || isLoading"
+                    :disabled="!canProceed || isGeneratingInvoice"
                     class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-4 rounded-xl font-bold text-lg transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    <IconLoader v-if="isLoading" class="w-5 h-5 animate-spin" />
+                    <IconLoader v-if="isGeneratingInvoice" class="w-5 h-5 animate-spin" />
                     <IconBolt v-else class="w-5 h-5" />
-                    <span>{{ isLoading ? 'Creating Invoice...' : `Support with ${effectiveAmount.toLocaleString()} sats` }}</span>
+                    <span>{{ isGeneratingInvoice ? 'Creating Invoice...' : `Support with ${effectiveAmount.toLocaleString()} sats` }}</span>
                   </button>
                 </div>
 
@@ -385,7 +385,11 @@
                   <!-- QR Code -->
                   <div class="text-center">
                     <div class="bg-white p-6 rounded-xl border-2 border-gray-200 inline-block shadow-sm">
+                      <div v-if="!invoice" class="w-[200px] h-[200px] flex items-center justify-center">
+                        <IconLoader class="w-8 h-8 animate-spin text-orange-500" />
+                      </div>
                       <QRCodeVue3
+                        v-else
                         :value="`lightning:${invoice}`"
                         :size="200"
                         color="#000000"
@@ -453,7 +457,7 @@
                       <IconAlertCircle class="w-8 h-8 text-red-600" />
                     </div>
                     <h4 class="text-lg font-semibold text-red-800 mb-2">Payment Failed</h4>
-                    <p class="text-sm text-red-700 mb-4">{{ error }}</p>
+                    <p class="text-sm text-red-700 mb-4">{{ paymentError }}</p>
                     <button 
                       @click="resetToAmountSelection" 
                       class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 mx-auto"
@@ -580,7 +584,7 @@ const zapAmount = ref(1000) // Default 1000 sats
 const customAmount = ref(null)
 const zapComment = ref('')
 const isCustomAmount = ref(false)
-const isLoadingPayment = ref(false)
+const isGeneratingInvoice = ref(false)
 const isProcessingPayment = ref(false)
 const paymentError = ref('')
 const invoice = ref('')
@@ -817,7 +821,7 @@ const isValidAmount = computed(() => {
 })
 
 const canProceed = computed(() => {
-  return isAuthenticated.value && isValidAmount.value
+  return isAuthenticated.value && isValidAmount.value && !isGeneratingInvoice.value
 })
 
 // Watch for custom amount changes
@@ -837,7 +841,7 @@ const resetForm = () => {
   invoice.value = ''
   paymentStatus.value = ''
   currentStep.value = 'amount'
-  isLoadingPayment.value = false
+  isGeneratingInvoice.value = false
   isProcessingPayment.value = false
 }
 
@@ -847,7 +851,7 @@ const resetToAmountSelection = () => {
   paymentError.value = ''
   paymentStatus.value = ''
   invoice.value = ''
-  isLoadingPayment.value = false
+  isGeneratingInvoice.value = false
   isProcessingPayment.value = false
 }
 
@@ -870,8 +874,9 @@ const toggleCustomAmount = () => {
 const generateInvoice = async () => {
   if (!canProceed.value) return
   
-  isLoadingPayment.value = true
+  isGeneratingInvoice.value = true
   paymentError.value = ''
+  paymentStatus.value = ''
   
   try {
     console.log('Generating zap invoice for campaign:', campaign.value.id)
@@ -950,6 +955,7 @@ const generateInvoice = async () => {
       throw new Error('No payment request in zap endpoint response')
     }
     
+    console.log('Setting invoice:', zapEndpointResponse.pr)
     invoice.value = zapEndpointResponse.pr
     currentStep.value = 'payment'
     console.log('Invoice generated successfully, transitioning to payment view')
@@ -959,7 +965,7 @@ const generateInvoice = async () => {
     paymentError.value = err.message || 'Failed to generate invoice'
     paymentStatus.value = 'error'
   } finally {
-    isLoadingPayment.value = false
+    isGeneratingInvoice.value = false
   }
 }
 
