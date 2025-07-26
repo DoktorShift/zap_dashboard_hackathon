@@ -906,7 +906,9 @@ const generateInvoice = async () => {
       profile: campaignAuthor.value.pubkey,
       event: campaign.value.rawEvent,
       amount: effectiveAmount.value * 1000, // Convert to millisats
-      comment: zapComment.value || `Zap for campaign: ${campaign.value.title}`,
+      comment: zapComment.value ? 
+        `${zapComment.value} (Campaign: ${campaign.value.title})` : 
+        `Supporting campaign: ${campaign.value.title}`,
       relays: campaign.value.relays || [
         'wss://relay.damus.io',
         'wss://nos.lol',
