@@ -165,7 +165,7 @@
                     >
                       <div class="w-16 h-16 rounded-full overflow-hidden border-2 border-orange-200 shadow-md mx-auto">
                         <img 
-                          :src="zap.sender?.picture || zap.sender?.avatar" 
+                          :src="zap.sender?.picture || zap.sender?.avatar || generateFallbackAvatar(zap.zapperPubkey)" 
                           :alt="zap.sender?.name || 'Supporter'"
                           class="w-full h-full object-cover"
                           @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
