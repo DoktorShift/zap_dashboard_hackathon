@@ -156,7 +156,7 @@
                   >
                     <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-4 border-gradient-to-r from-yellow-400 to-orange-400 shadow-lg mx-auto">
                       <img 
-                        :src="zap.sender?.picture || zap.sender?.avatar || generateFallbackAvatar(zap.zapperPubkey)" 
+                        :src="getSenderAvatar(zap)" 
                         :alt="zap.sender?.name || 'Supporter'"
                         class="w-full h-full object-cover"
                         @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
@@ -178,7 +178,7 @@
                   >
                     <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-orange-200 shadow-md mx-auto">
                       <img 
-                        :src="zap.sender?.picture || zap.sender?.avatar || generateFallbackAvatar(zap.zapperPubkey)" 
+                        :src="getSenderAvatar(zap)" 
                         :alt="zap.sender?.name || 'Supporter'"
                         class="w-full h-full object-cover"
                         @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
@@ -560,7 +560,7 @@ const {
   isCampaignExpired, 
   isCampaignCompleted, 
   getCampaignStatus,
-  campaignAggregatedZaps,
+  campaignAggregatedZaps: campaignZapsMap,
   isLoading,
   error
 } = useCampaigns()
@@ -763,8 +763,16 @@ const formatDate = (timestamp) => {
 const recentZaps = computed(() => {
   if (!campaign.value) return []
   
-  // Get zaps from the campaign aggregated zaps system
-  const campaignZaps = campaignAggregatedZaps.value.get(campaign.value.id) || []
+  // Get zaps from the campaign aggregated zaps system using the reactive Map
+  const campaignZaps = campaignZapsMap.value.get(campaign.value.id) || []
+  
+  console.log(`🔍 CampaignView: Campaign ${campaign.value.id.substring(0, 8)}... has ${campaignZaps.length} zaps`)
+  console.log('🔍 CampaignView: Campaign zaps data:', campaignZaps.map(zap => ({
+    id: zap.id.substring(0, 8) + '...',
+    amount: zap.amount,
+    sender: zap.sender?.name || 'Unknown',
+    picture: zap.sender?.picture || 'No picture'
+  })))
   
   return campaignZaps
     .slice(0, 12)
@@ -777,14 +785,14 @@ const recentZaps = computed(() => {
 // Get total zap count for this campaign
 const totalZapCount = computed(() => {
   if (!campaign.value) return 0
-  const campaignZaps = campaignAggregatedZaps.value.get(campaign.value.id) || []
+  const campaignZaps = campaignZapsMap.value.get(campaign.value.id) || []
   return campaignZaps.length
 })
 
 // Get total zap amount for this campaign
 const totalZapAmount = computed(() => {
   if (!campaign.value) return 0
-  const campaignZaps = campaignAggregatedZaps.value.get(campaign.value.id) || []
+  const campaignZaps = campaignZapsMap.value.get(campaign.value.id) || []
   return campaignZaps.reduce((sum, zap) => sum + zap.amount, 0)
 })
 
@@ -1078,14 +1086,14 @@ const formatZapAmount = (amount) => {
 
 // Get sender name with fallback
 const getSenderName = (zap) => {
-  // Check for display_name first (Nostr standard)
-  if (zap.sender?.display_name) {
-    return zap.sender.display_name
-  }
-  
-  // Then check for name
+  // Prioritize fetched profile data
   if (zap.sender?.name) {
     return zap.sender.name
+  }
+  
+  // Check for display_name (Nostr standard)
+  if (zap.sender?.display_name) {
+    return zap.sender.display_name
   }
   
   // Fallback to pubkey
@@ -1094,6 +1102,22 @@ const getSenderName = (zap) => {
   }
   
   return 'Anonymous'
+}
+
+// Get sender avatar with proper fallback
+const getSenderAvatar = (zap) => {
+  // Prioritize fetched profile picture
+  if (zap.sender?.picture) {
+    return zap.sender.picture
+  }
+  
+  // Fallback to avatar property (backward compatibility)
+  if (zap.sender?.avatar) {
+    return zap.sender.avatar
+  }
+  
+  // Generate fallback avatar based on pubkey
+  return generateFallbackAvatar(zap.zapperPubkey)
 }
 
 // Copy to clipboard

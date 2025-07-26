@@ -608,19 +608,34 @@ export function useCampaigns() {
             // Add to campaign aggregated zaps
             addZapToCampaignAggregatedZaps(campaignId, zapData)
             
-            // Fetch zapper profile asynchronously and update the sender info
+            // 🔥 CRITICAL: Fetch zapper profile asynchronously and update the sender info in the aggregated zaps
             fetchCampaignZapperProfile(zapperPubkey).then(profile => {
               if (profile) {
-                // Update the sender object with fetched profile data
-                zapData.sender = {
-                  pubkey: zapperPubkey,
-                  name: profile.name || `user:${zapperPubkey.substring(0, 8)}`,
-                  picture: profile.picture || generateFallbackAvatar(zapperPubkey),
-                  nip05: profile.nip05,
-                  about: profile.about
-                }
+                // Find and update the zap in the aggregated zaps with the fetched profile
+                const campaignZaps = campaignAggregatedZaps.get(campaignId) || []
+                const zapIndex = campaignZaps.findIndex(z => z.id === zapData.id)
                 
-                console.log('✅ Updated campaign zap sender profile for:', profile.name)
+                if (zapIndex !== -1) {
+                  // Update the sender object with fetched profile data
+                  campaignZaps[zapIndex].sender = {
+                    pubkey: zapperPubkey,
+                    name: profile.name || `user:${zapperPubkey.substring(0, 8)}`,
+                    picture: profile.picture || generateFallbackAvatar(zapperPubkey),
+                    nip05: profile.nip05,
+                    about: profile.about
+                  }
+                  
+                  console.log('✅ Updated campaign zap sender profile for:', profile.name)
+                  console.log('📊 Updated zap data:', {
+                    id: zapData.id.substring(0, 8) + '...',
+                    campaignId: campaignId.substring(0, 8) + '...',
+                    senderName: profile.name,
+                    senderPicture: profile.picture ? 'Has picture' : 'No picture'
+                  })
+                  
+                  // Force reactivity update by setting the map again
+                  campaignAggregatedZaps.set(campaignId, [...campaignZaps])
+                }
                 
                 // Save to localStorage after profile update
                 saveCampaignAggregatedZaps()
