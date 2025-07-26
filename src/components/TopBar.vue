@@ -16,7 +16,8 @@ import {
   IconMessageCircle,
   IconFileText,
   IconGift,
-  IconShoppingCart
+  IconShoppingCart,
+  IconEdit
 } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -30,7 +31,7 @@ const currentPage = inject('currentPage')
 const emit = defineEmits(['show-connection', 'toggle-mobile-menu', 'change-page'])
 
 // Use Nostr authentication
-const { isAuthenticated, userProfile, currentUser } = useNostrAuth()
+const { isAuthenticated, userProfile, currentUser, logout } = useNostrAuth()
 
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
@@ -87,6 +88,11 @@ const pageInfo = computed(() => {
       title: 'Settings',
       description: 'Manage your zap dashboard preferences and integrations',
       icon: IconSettings
+    },
+    'notes': {
+      title: 'Notes',
+      description: 'Keep track of your thoughts and ideas',
+      icon: IconEdit
     }
   }
   
@@ -190,7 +196,7 @@ const handleProfileAction = (action) => {
       console.log('Navigate to account')
       break
     case 'signout':
-      console.log('Sign out user')
+      logout()
       break
   }
 }
@@ -251,7 +257,7 @@ const handleRefresh = () => {
             @click="handleRefresh"
             :disabled="isRefreshingData"
             :title="isRefreshingData ? 'Refreshing...' : 'Refresh data'"
-            class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target group disabled:opacity-50 disabled:cursor-not-allowed"
+            class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target group disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             <IconRefresh :class="[
               'w-5 h-5 transition-all duration-200 group-hover:scale-110',
@@ -275,7 +281,7 @@ const handleRefresh = () => {
           </button>
           
           <!-- Notifications with Consistent Hover Effect -->
-          <div class="p-2 hover:bg-orange-50 rounded-lg transition-all duration-200 group">
+          <div class="hover:bg-orange-50 rounded-lg transition-all duration-200 group">
             <NotificationDropdown />
           </div>
         </div>

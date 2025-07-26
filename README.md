@@ -1,4 +1,16 @@
-# ⚡ Zap Dashboard
+# ⚡ Zap Tracker - All-in-One Dashboard
+
+Zap Tracker is a comprehensive Bitcoin Lightning Network dashboard that provides complete visibility and management of your Zap ecosystem. Monitor analytics, manage wallets, engage with supporters, and share content - all from one powerful interface.
+
+### Project Overview
+Zap Tracker revolutionizes how creators and users interact with Bitcoin Lightning Network payments by providing a unified dashboard experience. In today's fragmented ecosystem, managing Zap payments, analytics, and community engagement requires juggling multiple platforms and tools. Zap Tracker eliminates this complexity by bringing everything together in one comprehensive interface.
+The platform serves as a central hub for Lightning Network payment management, offering real-time visibility into your Zap ecosystem. Users can monitor their complete payment history, track supporter engagement, and analyze performance metrics through intuitive visualizations. The dashboard provides immediate insights into total Zaps received, sats earned, unique supporters, and average Zap amounts, enabling data-driven decision making for content creators and businesses alike.
+Beyond basic analytics, Zap Tracker transforms how users engage with their communities. The integrated chat functionality allows direct communication with supporters while seamlessly incorporating Zap payments into conversations. This creates a more engaging and interactive experience that strengthens relationships between creators and their audience. The platform also includes robust content management capabilities, allowing users to post updates, announcements, and monetized content directly through the dashboard.
+The wallet management system provides comprehensive control over Lightning Network finances. Users can view real-time balances, track transaction history, and send payments directly from the platform. This eliminates the need to switch between different wallet applications and provides a streamlined financial management experience.
+Zap Tracker addresses the growing need for professional-grade Lightning Network tools by combining payment processing, analytics, community engagement, and content management in a single, user-friendly platform. Whether you're a content creator looking to monetize your work, a business accepting Lightning payments, or an enthusiast wanting better visibility into your Bitcoin transactions, Zap Tracker provides the comprehensive solution you need to succeed in the Lightning Network ecosystem.
+
+### Getting Started
+Ready to take control of your Zap ecosystem? Zap Tracker provides everything you need to monitor, manage, and maximize your Lightning Network payment experience.
 
 A modern, real-time dashboard for managing and analyzing Lightning Network zaps (tips) with Nostr Wallet Connect integration.
 
@@ -6,34 +18,53 @@ A modern, real-time dashboard for managing and analyzing Lightning Network zaps 
 
 > **🔒 Privacy First**: We don't store any of your data on our servers. All data is stored locally in your browser's local storage, ensuring your privacy and data sovereignty.
 
-## 🌟 Features
+## Features
 
-### 📊 **Real-time Analytics**
+### **Real-time Analytics**
 - Live zap tracking and statistics
 - Interactive charts and visualizations
 - Performance metrics and insights
 - Daily, weekly, and monthly activity views
 
-### 💰 **Wallet Management**
+### **Wallet Management**
 - Nostr Wallet Connect (NWC) integration
 - Real-time balance monitoring
 - Send and receive Lightning payments
 - QR code generation and scanning
 - Transaction history
 
-### 📱 **Zap Feed**
+### **Chat + Zaps**
+- Interactive chat with zap integration
+- Real-time messaging with Lightning payments
+- Zap notifications within conversations
+- Seamless payment experience during chats
+
+### **Zap Feed**
 - Real-time zap notifications
 - Advanced filtering and search
 - Content performance tracking
 - Supporter analytics
 
-### 🛠️ **Point of Sale (PoS)**
+### **Content Management**
+- Create and manage content posts
+- Track content performance and engagement
+- Content monetization with zaps
+- Content analytics and insights
+
+### **Point of Sale (PoS)**
 - Coming soon: Mini PoS system for merchants
 
-### 📈 **Content Analytics**
-- Coming soon: Content performance metrics
+[//]: # (### 📈 **Content Analytics**)
 
-## 🚀 Quick Start
+[//]: # (- Content performance metrics)
+
+[//]: # (- Revenue analytics per content)
+
+[//]: # (- Engagement tracking)
+
+[//]: # (- Creator insights dashboard)
+
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+ 
@@ -98,13 +129,31 @@ The main dashboard provides:
 - **Activity Chart**: 30-day zap activity visualization
 
 ### Zap Feed
-![Zap Feed](/public/zap_feed.png)
+![Zap Feed](/public/zaps.png)
 
 Features:
 - Real-time zap notifications
 - Advanced filtering by amount, sender, and content type
 - Search functionality
 - Compact and detailed view modes
+
+### Chat + Zaps
+![Chat + Zaps Interface](/public/chat_zap.png)
+
+Interactive chat with zap integration:
+- Real-time messaging with Lightning payments
+- Zap notifications within conversations
+- Seamless payment experience during chats
+- Connection management for chat participants
+
+### Content Management
+![Content Management](/public/image.png)
+
+Comprehensive content management system:
+- Create and manage content posts
+- Track content performance and engagement
+- Content monetization with zaps
+- Revenue analytics per content piece
 
 ### Analytics
 ![Analytics Dashboard](/public/analytics.png)
@@ -115,143 +164,236 @@ Comprehensive analytics including:
 - Revenue performance metrics
 - Content engagement insights
 
-### Wallet Management
-![Wallet Interface](/public/wallet.png)
+[//]: # (## Technology Stack)
 
-Full wallet functionality:
-- Balance display and management
-- Send Lightning payments
-- Generate payment invoices
-- QR code scanning
-- Transaction history
+[//]: # ()
+[//]: # (### Frontend)
 
-## 🛠️ Technology Stack
+[//]: # (- **Vue 3** - Progressive JavaScript framework)
 
-### Frontend
-- **Vue 3** - Progressive JavaScript framework
-- **Vite** - Fast build tool and dev server
-- **Tailwind CSS** - Utility-first CSS framework
-- **ECharts** - Interactive charting library
-- **Lucide Vue** - Beautiful icon library
+[//]: # (- **Vite** - Fast build tool and dev server)
 
-### Lightning Network
-- **Nostr Wallet Connect** - Wallet connection protocol
-- **Alby SDK** - Lightning wallet integration
-- **QR Code** - Payment scanning and generation
+[//]: # (- **Tailwind CSS** - Utility-first CSS framework)
 
-### Development Tools
-- **PostCSS** - CSS processing
-- **Autoprefixer** - CSS vendor prefixing
+[//]: # (- **ECharts** - Interactive charting library)
 
-## 📁 Project Structure
+[//]: # (- **Lucide Vue** - Beautiful icon library)
 
-```
-zap_dashboard/
-├── src/
-│   ├── components/          # Reusable Vue components
-│   │   ├── Analytics.vue    # Analytics charts and metrics
-│   │   ├── Filters.vue      # Search and filter components
-│   │   ├── NWCConnection.vue # Wallet connection interface
-│   │   ├── Sidebar.vue      # Navigation sidebar
-│   │   ├── TopBar.vue       # Top navigation bar
-│   │   └── ...
-│   ├── pages/               # Main application pages
-│   │   ├── Dashboard.vue    # Main dashboard view
-│   │   ├── ZapFeed.vue      # Zap feed and notifications
-│   │   ├── Analytics.vue    # Detailed analytics
-│   │   ├── Wallet.vue       # Wallet management
-│   │   ├── MiniPoS.vue      # Point of sale system
-│   │   └── ...
-│   ├── composables/         # Vue 3 composables
-│   │   ├── useContent.js    # Content management logic
-│   │   ├── useNostrConnections.js # Wallet connection logic
-│   │   └── useNotifications.js # Notification system
-│   ├── utils/               # Utility functions
-│   │   ├── nwcClient.js     # Nostr Wallet Connect client
-│   │   ├── dataMapper.js    # Data transformation utilities
-│   │   └── mockData.js      # Sample data for development
-│   └── assets/              # Static assets
-│       ├── LOGO.svg         # Application logo
-│       ├── nwc-logo.svg     # NWC logo
-│       └── ...
-├── public/                  # Public static files
-├── package.json             # Dependencies and scripts
-├── vite.config.js          # Vite configuration
-├── tailwind.config.js      # Tailwind CSS configuration
-└── README.md               # This file
-```
+[//]: # ()
+[//]: # (### Lightning Network)
 
-## 🔧 Configuration
+[//]: # (- **Nostr Wallet Connect** - Wallet connection protocol)
 
-### Environment Variables
+[//]: # (- **Alby SDK** - Lightning wallet integration)
 
-Create a `.env` file in the root directory:
+[//]: # (- **QR Code** - Payment scanning and generation)
 
-```env
-# Development settings
-VITE_APP_TITLE=Zap Dashboard
-VITE_APP_VERSION=1.0.0
+[//]: # ()
+[//]: # (### Development Tools)
 
-# Lightning Network settings (if needed)
-VITE_LIGHTNING_NETWORK=mainnet
-```
+[//]: # (- **PostCSS** - CSS processing)
 
-### Tailwind Configuration
+[//]: # (- **Autoprefixer** - CSS vendor prefixing)
 
-The project uses a custom Tailwind configuration with:
-- Orange color scheme for Lightning Network branding
-- Custom animations and transitions
-- Responsive design utilities
+[//]: # ()
+[//]: # (## Project Structure)
 
-## 🎨 Customization
+[//]: # ()
+[//]: # (```)
 
-### Styling
-The application uses Tailwind CSS with a custom orange theme. You can customize colors in `tailwind.config.js`:
+[//]: # (zap_dashboard/)
 
-```javascript
-module.exports = {
-  theme: {
-    extend: {
-      colors: {
-        orange: {
-          25: '#fff7ed',
-          50: '#ffedd5',
-          // ... other shades
-        }
-      }
-    }
-  }
-}
-```
+[//]: # (├── src/)
 
-### Components
-All components are modular and can be easily customized. Each component follows Vue 3 Composition API patterns.
+[//]: # (│   ├── components/          # Reusable Vue components)
 
-## 🚀 Deployment
+[//]: # (│   │   ├── Analytics.vue    # Analytics charts and metrics)
 
-### Vercel
-1. Connect your repository to Vercel
-2. Set build command: `npm run build`
-3. Set output directory: `dist`
-4. Deploy
+[//]: # (│   │   ├── Filters.vue      # Search and filter components)
 
-### Netlify
-1. Connect your repository to Netlify
-2. Set build command: `npm run build`
-3. Set publish directory: `dist`
-4. Deploy
+[//]: # (│   │   ├── NWCConnection.vue # Wallet connection interface)
 
-### Docker
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "run", "preview"]
-```
+[//]: # (│   │   ├── Sidebar.vue      # Navigation sidebar)
+
+[//]: # (│   │   ├── TopBar.vue       # Top navigation bar)
+
+[//]: # (│   │   └── ...)
+
+[//]: # (│   ├── pages/               # Main application pages)
+
+[//]: # (│   │   ├── Dashboard.vue    # Main dashboard view)
+
+[//]: # (│   │   ├── ZapFeed.vue      # Zap feed and notifications)
+
+[//]: # (│   │   ├── Analytics.vue    # Detailed analytics)
+
+[//]: # (│   │   ├── Wallet.vue       # Wallet management)
+
+[//]: # (│   │   ├── MiniPoS.vue      # Point of sale system)
+
+[//]: # (│   │   └── ...)
+
+[//]: # (│   ├── composables/         # Vue 3 composables)
+
+[//]: # (│   │   ├── useContent.js    # Content management logic)
+
+[//]: # (│   │   ├── useNostrConnections.js # Wallet connection logic)
+
+[//]: # (│   │   └── useNotifications.js # Notification system)
+
+[//]: # (│   ├── utils/               # Utility functions)
+
+[//]: # (│   │   ├── nwcClient.js     # Nostr Wallet Connect client)
+
+[//]: # (│   │   ├── dataMapper.js    # Data transformation utilities)
+
+[//]: # (│   │   └── mockData.js      # Sample data for development)
+
+[//]: # (│   └── assets/              # Static assets)
+
+[//]: # (│       ├── LOGO.svg         # Application logo)
+
+[//]: # (│       ├── nwc-logo.svg     # NWC logo)
+
+[//]: # (│       └── ...)
+
+[//]: # (├── public/                  # Public static files)
+
+[//]: # (├── package.json             # Dependencies and scripts)
+
+[//]: # (├── vite.config.js          # Vite configuration)
+
+[//]: # (├── tailwind.config.js      # Tailwind CSS configuration)
+
+[//]: # (└── README.md               # This file)
+
+[//]: # (```)
+
+[//]: # (## Configuration)
+
+[//]: # ()
+[//]: # (### Environment Variables)
+
+[//]: # ()
+[//]: # (Create a `.env` file in the root directory:)
+
+[//]: # ()
+[//]: # (```env)
+
+[//]: # (# Development settings)
+
+[//]: # (VITE_APP_TITLE=Zap Dashboard)
+
+[//]: # (VITE_APP_VERSION=1.0.0)
+
+[//]: # ()
+[//]: # (# Lightning Network settings &#40;if needed&#41;)
+
+[//]: # (VITE_LIGHTNING_NETWORK=mainnet)
+
+[//]: # (```)
+
+[//]: # ()
+[//]: # (### Tailwind Configuration)
+
+[//]: # ()
+[//]: # (The project uses a custom Tailwind configuration with:)
+
+[//]: # (- Orange color scheme for Lightning Network branding)
+
+[//]: # (- Custom animations and transitions)
+
+[//]: # (- Responsive design utilities)
+
+[//]: # (## Customization)
+
+[//]: # ()
+[//]: # (### Styling)
+
+[//]: # (The application uses Tailwind CSS with a custom orange theme. You can customize colors in `tailwind.config.js`:)
+
+[//]: # ()
+[//]: # (```javascript)
+
+[//]: # (module.exports = {)
+
+[//]: # (  theme: {)
+
+[//]: # (    extend: {)
+
+[//]: # (      colors: {)
+
+[//]: # (        orange: {)
+
+[//]: # (          25: '#fff7ed',)
+
+[//]: # (          50: '#ffedd5',)
+
+[//]: # (          // ... other shades)
+
+[//]: # (        })
+
+[//]: # (      })
+
+[//]: # (    })
+
+[//]: # (  })
+
+[//]: # (})
+
+[//]: # (```)
+
+[//]: # ()
+[//]: # (### Components)
+
+[//]: # (All components are modular and can be easily customized. Each component follows Vue 3 Composition API patterns.)
+
+[//]: # (## Deployment)
+
+[//]: # ()
+[//]: # (### Vercel)
+
+[//]: # (1. Connect your repository to Vercel)
+
+[//]: # (2. Set build command: `npm run build`)
+
+[//]: # (3. Set output directory: `dist`)
+
+[//]: # (4. Deploy)
+
+[//]: # ()
+[//]: # (### Netlify)
+
+[//]: # (1. Connect your repository to Netlify)
+
+[//]: # (2. Set build command: `npm run build`)
+
+[//]: # (3. Set publish directory: `dist`)
+
+[//]: # (4. Deploy)
+
+[//]: # ()
+[//]: # (### Docker)
+
+[//]: # (```dockerfile)
+
+[//]: # (FROM node:18-alpine)
+
+[//]: # (WORKDIR /app)
+
+[//]: # (COPY package*.json ./)
+
+[//]: # (RUN npm ci --only=production)
+
+[//]: # (COPY . .)
+
+[//]: # (RUN npm run build)
+
+[//]: # (EXPOSE 3000)
+
+[//]: # (CMD ["npm", "run", "preview"])
+
+[//]: # (```)
 
 ## 🤝 Contributing
 
@@ -261,15 +403,15 @@ CMD ["npm", "run", "preview"]
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-### Development Guidelines
-- Use Vue 3 Composition API
-- Follow Tailwind CSS conventions
-- Write meaningful commit messages
-- Test thoroughly before submitting PRs
+[//]: # (### Development Guidelines)
 
-## 📄 License
+[//]: # (- Use Vue 3 Composition API)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+[//]: # (- Follow Tailwind CSS conventions)
+
+[//]: # (- Write meaningful commit messages)
+
+[//]: # (- Test thoroughly before submitting PRs)
 
 ## 🙏 Acknowledgments
 
@@ -285,6 +427,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ⚡ by the Pratik and DoktorShift**
+**Made with ⚡ by the [Pratik](https://github.com/pratik227) and [DoktorShift](https://github.com/DoktorShift)**
 
+## 📄 License
 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

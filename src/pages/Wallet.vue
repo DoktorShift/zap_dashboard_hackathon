@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, inject, defineAsyncComponent } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject, defineAsyncComponent, watch } from 'vue'
 import { 
   IconWallet, 
   IconBolt, 
@@ -18,7 +18,8 @@ import {
   IconQrcode,
   IconScan,
   IconCamera,
-  IconCameraOff
+  IconCameraOff,
+  IconShare
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
 import { useNostrConnections } from '../composables/useNostrConnections.js'
@@ -31,12 +32,12 @@ import {
   payInvoice, 
   lookupInvoice 
 } from '../utils/nwcClient.js'
-
-// Dynamically import QrStream to avoid build issues
-const QrStream = defineAsyncComponent(() => import('qrcode-reader-vue3').then(m => m.default))
-
+import { QrcodeStream } from 'vue-qrcode-reader'
 const { isWalletConnected, activeConnection } = useNostrConnections()
-const { handleZapSent, handlePaymentSuccess, handlePaymentError } = useNotifications()
+const { handleZapSent, handlePaymentSuccess, handlePaymentError, notifications } = useNotifications()
+
+// Inject the changePage function from App.vue
+const changePage = inject('changePage')
 
 // State management
 const balance = ref(0)
@@ -107,6 +108,25 @@ onMounted(() => {
   }
   checkCameraPermission()
 })
+
+// Watch for new payment notifications and refresh wallet data
+watch(notifications, (newNotifications, oldNotifications) => {
+  if (!isWalletConnected.value) return
+  
+  // Check if there are new payment-related notifications
+  const hasNewPaymentNotification = newNotifications.length > (oldNotifications?.length || 0) &&
+    newNotifications.some(notification => 
+      (notification.type === 'zap_received' || notification.type === 'payment_success') &&
+      !notification.read
+    )
+  
+  if (hasNewPaymentNotification) {
+    console.log('New payment notification detected, refreshing wallet data...')
+    setTimeout(() => {
+      refreshData()
+    }, 1000) // Small delay to ensure transaction is fully processed
+  }
+}, { deep: true })
 
 onUnmounted(() => {
   if (invoicePolling.value) {
@@ -252,6 +272,22 @@ const copyInvoice = async () => {
   }
 }
 
+// NEW: Share invoice method
+const shareInvoice = () => {
+  if (!createdInvoice.value) return
+  
+  // Navigate to the invoice share page with the invoice as a parameter
+  const invoiceParam = encodeURIComponent(createdInvoice.value.invoice)
+  const shareUrl = `${window.location.origin}${window.location.pathname}?page=invoice-share&invoice=${invoiceParam}`
+  
+  // Update the URL and navigate
+  window.history.pushState({}, '', shareUrl)
+  changePage('invoice-share')
+  
+  // Close the modal
+  closeCreateInvoice()
+}
+
 // Payment sending methods
 const openSendPayment = () => {
   showSendPayment.value = true
@@ -337,25 +373,21 @@ const closeQrScanner = () => {
   qrScannerError.value = ''
 }
 
-const onQrDecode = (decodedString) => {
+// Replace onQrDecode with decodeQR for vue-qrcode-reader
+const decodeQR = (results) => {
+  if (!results || !results.length) return
+  const decodedString = results[0].rawValue || results[0].text || ''
   try {
-    // Handle different QR code formats
     let invoice = decodedString
-    
-    // If it's a lightning: URI, extract the invoice
     if (decodedString.toLowerCase().startsWith('lightning:')) {
       invoice = decodedString.substring(10)
     }
-    
-    // If it's a bitcoin: URI with lightning parameter
     if (decodedString.toLowerCase().startsWith('bitcoin:') && decodedString.includes('lightning=')) {
       const lightningMatch = decodedString.match(/lightning=([^&]+)/)
       if (lightningMatch) {
         invoice = lightningMatch[1]
       }
     }
-    
-    // Validate that it looks like a Lightning invoice
     if (invoice.toLowerCase().startsWith('lnbc') || invoice.toLowerCase().startsWith('lntb')) {
       paymentForm.value.invoice = invoice
       closeQrScanner()
@@ -406,8 +438,42 @@ const truncateInvoice = (invoice, length = 20) => {
 }
 
 const parseNoteContent = (note) => {
+  console.log(note)
+  console.log(typeof note)
   if (typeof note === 'string') {
-    if (note.startsWith('[') && note.endsWith(']')) {
+    // Handle JSON object strings (like Nostr events)
+    if (note.startsWith('{') && note.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(note)
+        if (parsed && typeof parsed === 'object') {
+          // Handle Nostr zap events (kind 9734)
+          if (parsed.kind === 9734) {
+            const amountTag = parsed.tags?.find(tag => tag[0] === 'amount')
+            const amount = amountTag ? amountTag[1] : null
+            if (amount) {
+              return `Zap: ${Math.floor(amount / 1000)} sats`
+            }
+            return 'Zap payment'
+          }
+          
+          // Handle other Nostr events with content
+          if (parsed.content) {
+            return parsed.content
+          }
+          
+          // Handle other object types
+          if (parsed.description) {
+            return parsed.description
+          }
+          
+          return `${parsed.kind ? `Event (kind ${parsed.kind})` : 'Event'}`
+        }
+      } catch (error) {
+        return note
+      }
+    }
+    // Handle JSON array strings
+    else if (note.startsWith('[') && note.endsWith(']')) {
       try {
         const parsed = JSON.parse(note)
         if (Array.isArray(parsed)) {
@@ -426,7 +492,7 @@ const parseNoteContent = (note) => {
   
   if (typeof note === 'object' && note !== null) {
     try {
-      return JSON.stringify(note)
+      return JSON.stringify(note.get('content'))
     } catch (error) {
       return 'Unable to display note content'
     }
@@ -461,15 +527,6 @@ const extractTextFromArray = (noteArray) => {
 
 <template>
   <div class="space-y-6">
-    <!-- Page Header -->
-<!--    <div>-->
-<!--      <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
-<!--        <IconWallet class="w-6 h-6 text-orange-600" />-->
-<!--        <span>Wallet</span>-->
-<!--      </h1>-->
-<!--      <p class="text-gray-600">Manage your Lightning wallet and transactions</p>-->
-<!--    </div>-->
-
     <!-- Connection Status -->
     <div v-if="!isWalletConnected" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
       <div class="flex items-center space-x-2">
@@ -682,16 +739,27 @@ const extractTextFromArray = (noteArray) => {
               <p class="text-sm font-mono break-all">{{ truncateInvoice(createdInvoice.invoice, 50) }}</p>
             </div>
             
-            <button
-              @click="copyInvoice"
-              class="btn-secondary w-full mb-4"
-            >
-              <IconCheck v-if="copySuccess" class="w-4 h-4 text-green-600" />
-              <IconCopy v-else class="w-4 h-4" />
-              {{ copySuccess ? 'Copied!' : 'Copy Invoice' }}
-            </button>
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                @click="copyInvoice"
+                class="btn-secondary"
+              >
+                <IconCheck v-if="copySuccess" class="w-4 h-4 text-green-600" />
+                <IconCopy v-else class="w-4 h-4" />
+                {{ copySuccess ? 'Copied!' : 'Copy' }}
+              </button>
+              
+              <button
+                @click="shareInvoice"
+                class="btn-secondary"
+              >
+                <IconShare class="w-4 h-4" />
+                Share
+              </button>
+            </div>
             
-            <p class="text-xs text-gray-500">
+            <p class="text-xs text-gray-500 mt-4">
               Waiting for payment... (checking every 5 seconds)
             </p>
           </div>
@@ -778,12 +846,11 @@ const extractTextFromArray = (noteArray) => {
           </div>
           
           <!-- QR Scanner -->
-          <div v-else class="relative">
-            <div class="bg-black rounded-lg overflow-hidden">
-              <QrStream
-                @decode="onQrDecode"
-                @error="onQrError"
-                class="w-full h-64"
+          <div v-else class="relative h-64">
+            <div class="bg-black rounded-lg overflow-hidden w-full h-full">
+              <qrcode-stream
+                @detect="decodeQR"
+                style="border-radius: 8px !important; width: 100%; height: 100%;"
               />
             </div>
             

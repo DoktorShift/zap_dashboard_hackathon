@@ -1,32 +1,66 @@
 <script setup>
 import { computed, inject, ref, onMounted, watch } from 'vue'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  GridComponent
-} from 'echarts/components'
-import VChart from 'vue-echarts'
-import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
+import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { useBtcPrice } from '../composables/useBtcPrice.js'
+import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText } from '../utils/timeFilter.js'
 
-use([
-  CanvasRenderer,
-  LineChart,
-  TitleComponent,
-  TooltipComponent,
-  GridComponent
-])
+// Lazy load ECharts to prevent issues
+const VChart = ref(null)
+const echartsError = ref(null)
+const isEchartsLoaded = ref(false)
+
+onMounted(async () => {
+  try {
+    const { use } = await import('echarts/core')
+    const { CanvasRenderer } = await import('echarts/renderers')
+    const { LineChart } = await import('echarts/charts')
+    const {
+      TitleComponent,
+      TooltipComponent,
+      GridComponent
+    } = await import('echarts/components')
+    const { default: VChartComponent } = await import('vue-echarts')
+    
+    use([
+      CanvasRenderer,
+      LineChart,
+      TitleComponent,
+      TooltipComponent,
+      GridComponent
+    ])
+    
+    VChart.value = VChartComponent
+    isEchartsLoaded.value = true
+  } catch (error) {
+    console.error('Failed to load ECharts:', error)
+    echartsError.value = error.message
+  }
+})
 
 const zapData = inject('zapData')
+const combinedZapData = inject('combinedZapData')
 const selectedTimeRange = inject('selectedTimeRange')
+
+// Use Nostr authentication to get user profile
+const { isAuthenticated, userProfile } = useNostrAuth()
+
+// Use BTC price composable
+const { btcPriceUSD, satsToUSD, formatUSD } = useBtcPrice()
 
 // Real-time wallet data
 const walletBalance = ref(0)
 const walletInfo = ref(null)
 const isLoading = ref(false)
+
+// Computed property for personalized welcome message
+const welcomeMessage = computed(() => {
+  if (isAuthenticated.value && userProfile.value?.name) {
+    return `Welcome back, ${userProfile.value.name}!`
+  }
+  return 'Welcome back, Creator!'
+})
 
 // Fetch real wallet data
 async function fetchWalletData() {
@@ -65,18 +99,22 @@ onMounted(() => {
   fetchWalletData()
 })
 
-// Dynamic stats based on real data
+// Dynamic stats based on real data and time range
 const stats = computed(() => {
-  const zaps = zapData.value
-  const totalSats = zaps.reduce((sum, zap) => sum + zap.amount, 0)
-  const totalUSD = totalSats * 0.0003
-  const avgZap = zaps.length > 0 ? totalSats / zaps.length : 0
+  const allZaps = combinedZapData.value
+  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
+  const nip57Zaps = allZaps.filter(zap => zap.eventId)
+  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
   
-  // Get unique supporters
-  const uniqueSupporters = new Set(zaps.map(zap => zap.sender.pubkey)).size
+  const totalSats = filteredZaps.reduce((sum, zap) => sum + zap.amount, 0)
+  const totalUSD = satsToUSD(totalSats)
+  const avgZap = filteredZaps.length > 0 ? totalSats / filteredZaps.length : 0
+  
+  // Get unique supporters from filtered zaps
+  const uniqueSupporters = new Set(filteredZaps.map(zap => zap.sender.pubkey)).size
   
   return {
-    totalZaps: zaps.length,
+    totalZaps: filteredZaps.length,
     totalSats,
     totalUSD,
     avgZap: Math.round(avgZap),
@@ -87,9 +125,12 @@ const stats = computed(() => {
 
 // Dynamic chart data based on real zap timestamps
 const chartOption = computed(() => {
-  const zaps = zapData.value
+  const allZaps = combinedZapData.value
+  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
+  const nip57Zaps = allZaps.filter(zap => zap.eventId)
+  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
   
-  if (zaps.length === 0) {
+  if (filteredZaps.length === 0) {
     // Show empty chart with sample data
     const last30Days = Array.from({ length: 30 }, (_, i) => {
       const date = new Date()
@@ -158,8 +199,8 @@ const chartOption = computed(() => {
     }
   })
   
-  // Count zaps per day
-  zaps.forEach(zap => {
+  // Count zaps per day from filtered data
+  filteredZaps.forEach(zap => {
     const zapDate = new Date(zap.timestamp).toDateString()
     const dayData = last30Days.find(day => day.fullDate === zapDate)
     if (dayData) {
@@ -218,10 +259,15 @@ const chartOption = computed(() => {
   }
 })
 
-// Recent zaps from real data
+// Recent zaps from real data - NOW FILTERED BY TIME RANGE
 const recentZaps = computed(() => {
-  return zapData.value
-    .slice(0, 5)
+  const allZaps = combinedZapData.value
+  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
+  const nip57Zaps = allZaps.filter(zap => zap.eventId)
+  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
+  
+  return filteredZaps
+    .slice(0, 5) // Take only the first 5 after filtering
     .map(zap => ({
       ...zap,
       timeAgo: formatTimeAgo(zap.timestamp)
@@ -260,11 +306,14 @@ const getPercentageChange = (current, type) => {
         <div>
           <h1 class="text-xl sm:text-2xl font-bold mb-2 flex items-center space-x-2">
             <IconBolt class="w-6 h-6" />
-            <span>{{ zapData.length > 0 ? 'Welcome back, Creator!' : 'Connect your wallet to get started!' }}</span>
+            <span>{{ combinedZapData.filter(zap => zap.eventId).length > 0 ? welcomeMessage : 'Connect your wallet to get started!' }}</span>
           </h1>
           <p class="text-orange-50 text-sm sm:text-base">
-            <span v-if="zapData.length > 0">
+            <span v-if="combinedZapData.filter(zap => zap.eventId).length > 0">
               You've received {{ stats.totalZaps }} zaps worth {{ stats.totalSats.toLocaleString() }} sats
+              <span v-if="selectedTimeRange !== 'all'" class="opacity-75">
+                ({{ getTimeRangeDisplayText(selectedTimeRange) }})
+              </span>
             </span>
             <span v-else>
               Connect your Lightning wallet to view your real zap data and earnings
@@ -314,7 +363,7 @@ const getPercentageChange = (current, type) => {
         </div>
         <div>
           <p class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{{ stats.totalSats.toLocaleString() }}</p>
-          <p class="text-gray-500 text-sm">Total Sats (~${{ stats.totalUSD.toFixed(2) }})</p>
+          <p class="text-gray-500 text-sm">Total Sats ({{ formatUSD(stats.totalUSD) }})</p>
         </div>
       </div>
 
@@ -368,8 +417,22 @@ const getPercentageChange = (current, type) => {
           </h3>
           <div class="text-sm text-gray-500">Last 30 days</div>
         </div>
-        <div class="h-64 sm:h-80">
-          <VChart :option="chartOption" class="w-full h-full" />
+        <!-- ECharts Loading Error -->
+        <div v-if="echartsError" class="h-64 sm:h-80 flex items-center justify-center">
+          <div class="text-center">
+            <IconAlertCircle class="w-8 h-8 text-red-500 mx-auto mb-2" />
+            <p class="text-red-600 text-sm">Failed to load chart</p>
+          </div>
+        </div>
+        
+        <!-- Chart -->
+        <div v-else-if="isEchartsLoaded && VChart" class="h-64 sm:h-80">
+          <VChart :autoresize="true" :option="chartOption" class="w-full h-full" />
+        </div>
+        
+        <!-- Loading State -->
+        <div v-else class="h-64 sm:h-80 flex items-center justify-center">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
         </div>
       </div>
 
@@ -378,18 +441,31 @@ const getPercentageChange = (current, type) => {
         <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
           <IconBolt class="w-5 h-5 text-orange-600" />
           <span>Recent Zaps</span>
+          <span v-if="selectedTimeRange !== 'all'" class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            {{ getShortTimeRangeText(selectedTimeRange) }}
+          </span>
         </h3>
         <div v-if="recentZaps.length === 0" class="text-center py-8">
           <div class="text-gray-400 text-4xl mb-2">
             <IconBolt class="w-12 h-12 mx-auto" />
           </div>
-          <p class="text-gray-500 text-sm">No zaps yet</p>
-          <p class="text-gray-400 text-xs mt-1">Connect your wallet to see activity</p>
+          <p class="text-gray-500 text-sm">
+            {{ zapData.length === 0 ? 'No zaps yet' : `No zaps in ${getTimeRangeDisplayText(selectedTimeRange)}` }}
+          </p>
+          <p class="text-gray-400 text-xs mt-1">
+            {{ zapData.length === 0 ? 'Connect your wallet to see activity' : 'Try selecting a different time range' }}
+          </p>
         </div>
         <div v-else class="space-y-4">
           <div v-for="zap in recentZaps" :key="zap.id" class="flex items-center space-x-3 p-3 bg-orange-50/50 rounded-lg">
-            <div class="w-8 h-8 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full flex items-center justify-center">
-              <IconBolt class="w-4 h-4 text-white" />
+            <div class="w-8 h-8 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full flex items-center justify-center overflow-hidden">
+              <img 
+                :src="zap.sender.avatar" 
+                :alt="zap.sender.name || 'Anonymous'"
+                class="w-full h-full rounded-full object-cover"
+                @error="$event.target.style.display = 'none'; $event.target.nextElementSibling.style.display = 'flex'"
+              />
+              <IconBolt class="w-4 h-4 text-white" style="display: none;" />
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900 truncate">
@@ -399,14 +475,16 @@ const getPercentageChange = (current, type) => {
             </div>
             <div class="text-right">
               <p class="text-sm font-semibold text-orange-600">{{ zap.amount }} sats</p>
+              <p class="text-xs text-gray-500">{{ zap.timeAgo }}</p>
             </div>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
     <!-- Wallet Balance Card -->
-    <div v-if="walletBalance > 0" class="bg-gradient-to-r from-green-400 to-emerald-500 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+    <div v-if="walletBalance > 0" class="bg-gradient-to-r from-green-400 to-emerald-500 text-white mt-4 p-4 sm:p-6 rounded-xl shadow-lg">
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-lg font-semibold mb-1 flex items-center space-x-2">
@@ -421,5 +499,4 @@ const getPercentageChange = (current, type) => {
         </div>
       </div>
     </div>
-  </div>
 </template>

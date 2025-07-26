@@ -11,11 +11,12 @@ import {
   IconShoppingCart, 
   IconWallet, 
   IconCreditCard,
-  IconSettings 
+  IconSettings,
+  IconEdit
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
-const zapData = inject('zapData')
+const combinedZapData = inject('combinedZapData')
 const emit = defineEmits(['change-page'])
 
 // Real-time wallet data
@@ -50,7 +51,7 @@ async function fetchWalletData() {
 }
 
 // Watch for zapData changes to refresh wallet data
-watch(() => zapData.value.length, (newLength) => {
+watch(() => combinedZapData.value.length, (newLength) => {
   if (newLength > 0) {
     fetchWalletData()
   }
@@ -61,16 +62,25 @@ onMounted(() => {
 })
 
 // Make totalZaps and totalSats reactive computed properties
-const totalZaps = computed(() => zapData.value.length)
-const totalSats = computed(() => zapData.value.reduce((sum, zap) => sum + zap.amount, 0))
+const totalZaps = computed(() => {
+  // Only count zaps with eventId (NIP-57 zaps)
+  return combinedZapData.value.filter(zap => zap.eventId).length
+})
+const totalSats = computed(() => {
+  // Only sum amounts from zaps with eventId (NIP-57 zaps)
+  return combinedZapData.value
+    .filter(zap => zap.eventId)
+    .reduce((sum, zap) => sum + zap.amount, 0)
+})
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar },
   { id: 'wallet', label: 'Wallet', icon: IconWallet },
-  // { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
-  // { id: 'content', label: 'Content', icon: IconFileText },
+  { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
+  { id: 'content', label: 'Content', icon: IconFileText },
+  { id: 'notes', label: 'Notes', icon: IconEdit },
   // { id: 'donations', label: 'Donations', icon: IconGift },
   // { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
   // { id: 'finances', label: 'Finances', icon: IconCreditCard },
@@ -89,9 +99,9 @@ const handlePageChange = (pageId) => {
       <div class="flex items-center space-x-3">
         <div class="w-12 h-12 flex items-center justify-center">
           <img 
-            src="/nwc-logo/nwc_logo.png" 
+            src="/new_logo3.png"
             alt="NWC Logo" 
-            class="w-10 h-10 object-contain"
+            class="w-13 h-13 object-contain"
           />
         </div>
         <div>
@@ -154,20 +164,20 @@ const handlePageChange = (pageId) => {
     </div>
     
     <!-- Bolt Logo Footer -->
-    <div class="p-3 sm:p-4 border-t border-orange-100/50">
-      <a 
-        href="https://bolt.new" 
-        target="_blank" 
-        rel="noopener noreferrer"
-        class="flex items-center justify-center space-x-2 text-gray-500 hover:text-orange-600 transition-colors duration-200 group"
-      >
-        <img 
-          src="/bolt-logo/black_circle_360x360.png" 
-          alt="Bolt Logo" 
-          class="w-4 h-4 sm:w-5 sm:h-5 object-contain group-hover:scale-110 transition-transform duration-200"
-        />
-        <span class="text-xs sm:text-sm font-medium">Bolt Inside</span>
-      </a>
-    </div>
+<!--    <div class="p-3 sm:p-4 border-t border-orange-100/50">-->
+<!--      <a -->
+<!--        href="https://bolt.new" -->
+<!--        target="_blank" -->
+<!--        rel="noopener noreferrer"-->
+<!--        class="flex items-center justify-center space-x-2 text-gray-500 hover:text-orange-600 transition-colors duration-200 group"-->
+<!--      >-->
+<!--        <img -->
+<!--          src="/bolt-logo/black_circle_360x360.png" -->
+<!--          alt="Bolt Logo" -->
+<!--          class="w-4 h-4 sm:w-5 sm:h-5 object-contain group-hover:scale-110 transition-transform duration-200"-->
+<!--        />-->
+<!--        <span class="text-xs sm:text-sm font-medium">Bolt Inside</span>-->
+<!--      </a>-->
+<!--    </div>-->
   </div>
 </template>

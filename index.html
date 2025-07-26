@@ -2,16 +2,44 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/nwc-logo.svg" />
+    
+    <!-- Primary Meta Tags -->
+    <title>ZapTracker - Comprehensive Bitcoin Lightning dashboard</title>
+    <meta name="title" content="ZapTracker - Dashboard - Nostr Lightning Analytics" />
+    <meta name="description" content="Provides you complete visibility and management of your Zap ecosystem. Monitor analytics, manage wallets, engage with supporters, and share content - all from one powerful interface" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://zap-tracker.netlify.app/" />
+    <meta property="og:title" content="ZapTracker - Dashboard - Nostr Lightning Analytics" />
+    <meta property="og:description" content="Provides you complete visibility and management of your Zap ecosystem. Monitor analytics, manage wallets, engage with supporters, and share content - all from one powerful interface" />
+    <meta property="og:image" content="https://zap-tracker.netlify.app/dashboard.png" />
+    
+    <!-- X (Twitter) -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://zap-tracker.netlify.app/" />
+    <meta property="twitter:title" content="ZapTracker - Dashboard - Nostr Lightning Analytics" />
+    <meta property="twitter:description" content="Provides you complete visibility and management of your Zap ecosystem. Monitor analytics, manage wallets, engage with supporters, and share content - all from one powerful interface" />
+    <meta property="twitter:image" content="https://zap-tracker.netlify.app/dashboard.png" />
+
+    
+<!--    <link rel="icon" type="image/svg+xml" href="/nwc-logo.svg" />-->
+    <link rel="icon" type="image/png" href="/new_logo3.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zap Aggregator Dashboard - Nostr Lightning Analytics</title>
-    <script 
-      src="https://unpkg.com/nostr-login@1.5.0/dist/unpkg.js" 
+       <script
+      src="https://www.unpkg.com/nostr-login@latest/dist/unpkg.js"
+      data-dark-mode="true"
+      data-theme="default"
       data-perms="sign_event:*,nip04_encrypt,nip04_decrypt,zap,pay_invoice,make_invoice,get_balance,list_transactions"
-      data-title="Connect your Personal Nostr ID"
-      data-description="Connect your Nostr identity to access more content"
-      data-no-banner="true"
+      data-title="Welcome to Nostr!"
+      data-description="Connect your Nostr identity to access nostr zaps"
+      data-no-banner="false"
+      data-start-screen="welcome"
+      data-allow-local="true"
+      data-methods="connect,extension,local"
+      data-bunkers="nsec.app,amber"
     ></script>
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="bca4671b-8a36-4c4e-ba4f-fd5434054bdc"></script>
   </head>
   <body>
     <div id="app"></div>
