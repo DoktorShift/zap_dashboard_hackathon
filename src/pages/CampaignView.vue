@@ -113,73 +113,48 @@
               </div>
             </div>
             
-            <!-- Enhanced Progress Section -->
-            <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200 shadow-sm">
-              <!-- Progress Header with Percentage -->
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                  <IconTarget class="w-5 h-5 text-orange-600" />
-                  <span>Campaign Progress</span>
-                </h3>
-                <div class="text-right">
-                  <div class="text-2xl font-bold text-orange-600">{{ progress.percentage }}%</div>
-                  <div class="text-xs text-orange-700">Complete</div>
-                </div>
+            <!-- Clean Campaign Progress Section -->
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <!-- Header with Progress Percentage -->
+              <div class="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+                <h2 class="text-lg font-semibold text-gray-900">Campaign Progress</h2>
+                <div class="text-2xl font-bold text-orange-600">{{ progress.percentage }}%</div>
               </div>
               
-              <!-- Enhanced Progress Bar -->
-              <div class="mb-4">
-                <div class="w-full bg-orange-200 rounded-full h-4 overflow-hidden shadow-inner relative">
+              <!-- Progress Bar -->
+              <div class="p-4 pb-3">
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
                   <div 
-                    class="bg-gradient-to-r from-orange-400 to-amber-400 h-4 rounded-full transition-all duration-1000 ease-out shadow-sm relative"
+                    class="bg-gradient-to-r from-orange-400 to-amber-400 h-3 rounded-full transition-all duration-700 ease-out"
                     :style="{ width: `${Math.min(progress.percentage, 100)}%` }"
-                  >
-                    <!-- Progress bar shine effect -->
-                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-                  </div>
-                  
-                  <!-- Milestone markers (optional) -->
-                  <div v-if="progress.percentage >= 25" class="absolute left-1/4 top-0 w-0.5 h-full bg-white/50"></div>
-                  <div v-if="progress.percentage >= 50" class="absolute left-1/2 top-0 w-0.5 h-full bg-white/50"></div>
-                  <div v-if="progress.percentage >= 75" class="absolute left-3/4 top-0 w-0.5 h-full bg-white/50"></div>
-                </div>
-              </div>
-              
-              <!-- Enhanced Progress Stats with Better Spacing -->
-              <div class="grid grid-cols-2 gap-6">
-                <!-- Raised Amount -->
-                <div class="text-center">
-                  <div class="text-center">
-                    <div class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                      {{ formatCurrency(totalZapAmount) }}
-                    </div>
-                    <div class="text-sm text-gray-600 font-medium">Raised</div>
-                    <div class="text-xs text-gray-500 mt-1">{{ totalZapCount }} supporter{{ totalZapCount !== 1 ? 's' : '' }}</div>
-                  </div>
+                  ></div>
                 </div>
                 
-                <!-- Visual Divider -->
-                <div class="flex items-center justify-center">
-                  <div class="w-px h-16 bg-gradient-to-b from-transparent via-orange-300 to-transparent"></div>
-                </div>
-                
-                <!-- Goal Amount -->
-                <div class="text-center">
-                  <div class="text-center">
-                    <div class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                      {{ formatCurrency(Math.floor(campaign.goalAmount / 1000)) }}
+                <!-- Stats Row -->
+                <div class="flex items-center justify-between text-sm">
+                  <div class="flex items-center space-x-4">
+                    <div>
+                      <span class="font-semibold text-gray-900">{{ formatCurrency(progress.current) }}</span>
+                      <span class="text-gray-500 ml-1">raised</span>
                     </div>
-                    <div class="text-sm text-gray-600 font-medium">Goal</div>
-                    <div class="text-xs text-gray-500 mt-1">{{ formatCurrency(Math.floor(campaign.goalAmount / 1000) - totalZapAmount) }} to go</div>
+                    <div class="w-px h-4 bg-gray-300"></div>
+                    <div>
+                      <span class="font-semibold text-gray-900">{{ totalZapCount }}</span>
+                      <span class="text-gray-500 ml-1">supporter{{ totalZapCount !== 1 ? 's' : '' }}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span class="font-semibold text-gray-900">{{ formatCurrency(progress.goal) }}</span>
+                    <span class="text-gray-500 ml-1">goal</span>
                   </div>
                 </div>
               </div>
               
-              <!-- Time Remaining -->
-              <div v-if="daysRemaining !== 'No deadline' && daysRemaining !== 'Ended'" class="mt-4 text-center">
-                <div class="inline-flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full">
-                  <IconClock class="w-4 h-4 text-orange-600" />
-                  <span class="text-sm font-medium text-orange-800">{{ daysRemaining }}</span>
+              <!-- Time Remaining (if applicable) -->
+              <div v-if="daysRemaining !== 'No deadline'" class="px-4 pb-4">
+                <div class="flex items-center justify-center space-x-2 bg-amber-50 px-3 py-2 rounded-lg">
+                  <IconClock class="w-4 h-4 text-amber-600" />
+                  <span class="text-sm font-medium text-amber-700">{{ daysRemaining }}</span>
                 </div>
               </div>
             </div>
