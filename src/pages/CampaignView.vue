@@ -59,7 +59,6 @@
             </div>
             
             <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 leading-tight">{{ campaign.title }}</h1>
-            <p class="text-lg sm:text-xl text-white/90 leading-relaxed max-w-3xl">{{ campaign.summary }}</p>
           </div>
         </div>
       </div>
@@ -74,7 +73,28 @@
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
               <div class="flex-1 min-w-0">
                 <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mb-2">{{ campaign.title }}</h1>
-                <p class="text-sm sm:text-base text-gray-600 leading-relaxed line-clamp-2">{{ campaign.summary }}</p>
+                <!-- Campaign Description with Read More/Less -->
+                <div class="text-sm sm:text-base text-gray-600 leading-relaxed">
+                  <p v-if="!showFullDescription && campaign.summary.length > 150" class="mb-2">
+                    {{ campaign.summary.substring(0, 150) }}...
+                    <button 
+                      @click="showFullDescription = true"
+                      class="text-orange-600 hover:text-orange-700 font-medium ml-1 transition-colors"
+                    >
+                      Read more
+                    </button>
+                  </p>
+                  <p v-else class="mb-2">
+                    {{ campaign.summary }}
+                    <button 
+                      v-if="campaign.summary.length > 150"
+                      @click="showFullDescription = false"
+                      class="text-orange-600 hover:text-orange-700 font-medium ml-1 transition-colors"
+                    >
+                      Read less
+                    </button>
+                  </p>
+                </div>
               </div>
               
               <!-- Compact Status Indicators -->
@@ -93,32 +113,74 @@
               </div>
             </div>
             
-            <!-- Compact Progress Section -->
-            <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200">
-              <!-- Progress Stats Row -->
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center space-x-4">
-                  <div class="text-center">
-                    <div class="text-lg sm:text-xl font-bold text-gray-900">{{ totalZapAmount.toLocaleString() }}</div>
-                    <div class="text-xs text-gray-600">Raised</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="text-lg sm:text-xl font-bold text-gray-900">{{ formatAmount(campaign.goalAmount) }}</div>
-                    <div class="text-xs text-gray-600">Goal</div>
-                  </div>
-                </div>
+            <!-- Enhanced Progress Section -->
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200 shadow-sm">
+              <!-- Progress Header with Percentage -->
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                  <IconTarget class="w-5 h-5 text-orange-600" />
+                  <span>Campaign Progress</span>
+                </h3>
                 <div class="text-right">
-                  <div class="text-2xl sm:text-3xl font-bold text-orange-600">{{ progress.percentage }}%</div>
+                  <div class="text-2xl font-bold text-orange-600">{{ progress.percentage }}%</div>
                   <div class="text-xs text-orange-700">Complete</div>
                 </div>
               </div>
               
-              <!-- Compact Progress Bar -->
-              <div class="w-full bg-orange-200 rounded-full h-3 overflow-hidden shadow-inner">
-                <div 
-                  class="bg-gradient-to-r from-orange-400 to-amber-400 h-3 rounded-full transition-all duration-1000 ease-out shadow-sm"
-                  :style="{ width: `${Math.min(progress.percentage, 100)}%` }"
-                ></div>
+              <!-- Enhanced Progress Bar -->
+              <div class="mb-4">
+                <div class="w-full bg-orange-200 rounded-full h-4 overflow-hidden shadow-inner relative">
+                  <div 
+                    class="bg-gradient-to-r from-orange-400 to-amber-400 h-4 rounded-full transition-all duration-1000 ease-out shadow-sm relative"
+                    :style="{ width: `${Math.min(progress.percentage, 100)}%` }"
+                  >
+                    <!-- Progress bar shine effect -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                  </div>
+                  
+                  <!-- Milestone markers (optional) -->
+                  <div v-if="progress.percentage >= 25" class="absolute left-1/4 top-0 w-0.5 h-full bg-white/50"></div>
+                  <div v-if="progress.percentage >= 50" class="absolute left-1/2 top-0 w-0.5 h-full bg-white/50"></div>
+                  <div v-if="progress.percentage >= 75" class="absolute left-3/4 top-0 w-0.5 h-full bg-white/50"></div>
+                </div>
+              </div>
+              
+              <!-- Enhanced Progress Stats with Better Spacing -->
+              <div class="grid grid-cols-2 gap-6">
+                <!-- Raised Amount -->
+                <div class="text-center">
+                  <div class="text-center">
+                    <div class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+                      {{ formatCurrency(totalZapAmount) }}
+                    </div>
+                    <div class="text-sm text-gray-600 font-medium">Raised</div>
+                    <div class="text-xs text-gray-500 mt-1">{{ totalZapCount }} supporter{{ totalZapCount !== 1 ? 's' : '' }}</div>
+                  </div>
+                </div>
+                
+                <!-- Visual Divider -->
+                <div class="flex items-center justify-center">
+                  <div class="w-px h-16 bg-gradient-to-b from-transparent via-orange-300 to-transparent"></div>
+                </div>
+                
+                <!-- Goal Amount -->
+                <div class="text-center">
+                  <div class="text-center">
+                    <div class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+                      {{ formatCurrency(Math.floor(campaign.goalAmount / 1000)) }}
+                    </div>
+                    <div class="text-sm text-gray-600 font-medium">Goal</div>
+                    <div class="text-xs text-gray-500 mt-1">{{ formatCurrency(Math.floor(campaign.goalAmount / 1000) - totalZapAmount) }} to go</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Time Remaining -->
+              <div v-if="daysRemaining !== 'No deadline' && daysRemaining !== 'Ended'" class="mt-4 text-center">
+                <div class="inline-flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full">
+                  <IconClock class="w-4 h-4 text-orange-600" />
+                  <span class="text-sm font-medium text-orange-800">{{ daysRemaining }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -127,22 +189,15 @@
 
           <!-- Compact Supporters Section -->
           <div class="bg-white/95 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-orange-100/50 shadow-lg">
-            <!-- Compact Header with Inline Stats -->
+            <!-- Enhanced Supporters Header -->
             <div class="flex items-center justify-between mb-4">
               <h3 class="text-lg font-bold text-gray-900 flex items-center space-x-2">
                 <IconUsers class="w-5 h-5 text-orange-600" />
                 <span>Supporters</span>
+                <span v-if="totalZapCount > 0" class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                  {{ totalZapCount }} supporter{{ totalZapCount !== 1 ? 's' : '' }}
+                </span>
               </h3>
-              <div class="flex items-center space-x-3 text-sm">
-                <div class="text-center">
-                  <div class="font-bold text-orange-600">{{ totalZapCount }}</div>
-                  <div class="text-xs text-gray-500">Total</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-bold text-green-600">{{ totalZapAmount.toLocaleString() }}</div>
-                  <div class="text-xs text-gray-500">Sats</div>
-                </div>
-              </div>
             </div>
             
             <div v-if="recentZaps.length === 0" class="text-center py-12">
@@ -154,41 +209,43 @@
             </div>
             
             <div v-else class="space-y-4">
-              <!-- Compact Supporter Grid -->
-              <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+              <!-- Enhanced Supporter Grid - Show Latest 7 -->
+              <div class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-4">
                 <div 
-                  v-for="(zap, index) in recentZaps.slice(0, 16)" 
+                  v-for="(zap, index) in displayedSupporters" 
                   :key="zap.id"
-                  class="group relative text-center"
+                  class="group relative text-center transform hover:scale-110 transition-all duration-200"
                 >
                   <!-- Major Supporter (10k+ sats) -->
                   <div 
                     v-if="zap.amount >= 10000"
-                    class="relative transform hover:scale-110 transition-all duration-200"
+                    class="relative"
                   >
-                    <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border-3 border-yellow-400 shadow-md mx-auto relative">
+                    <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-3 border-yellow-400 shadow-lg mx-auto relative">
                       <img 
                         :src="getSenderAvatar(zap)" 
                         :alt="zap.sender?.name || 'Supporter'"
                         class="w-full h-full object-cover"
                         @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
                       />
-                      <div class="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
-                        <IconBolt class="w-2 h-2 text-yellow-800" />
+                      <div class="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
+                        <IconBolt class="w-3 h-3 text-yellow-800" />
                       </div>
                     </div>
-                    <div class="mt-1">
-                      <div class="font-bold text-yellow-600 text-xs">{{ formatZapAmount(zap.amount) }}</div>
-                      <div class="text-xs text-gray-600 truncate max-w-full" :title="getSenderName(zap)">{{ getSenderName(zap) }}</div>
+                    <div class="mt-2">
+                      <div class="font-bold text-yellow-600 text-sm">{{ formatZapAmount(zap.amount) }}</div>
+                      <div class="text-xs text-gray-600 truncate max-w-full font-medium" :title="getSenderName(zap)">
+                        {{ getSenderName(zap) }}
+                      </div>
                     </div>
                   </div>
                   
                   <!-- Regular Supporter -->
                   <div 
                     v-else
-                    class="relative transform hover:scale-110 transition-all duration-200"
+                    class="relative"
                   >
-                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-orange-200 shadow-sm mx-auto">
+                    <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden border-2 border-orange-200 shadow-md mx-auto">
                       <img 
                         :src="getSenderAvatar(zap)" 
                         :alt="zap.sender?.name || 'Supporter'"
@@ -196,10 +253,43 @@
                         @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
                       />
                     </div>
-                    <div class="mt-1">
-                      <div class="font-medium text-orange-600 text-xs">{{ formatZapAmount(zap.amount) }}</div>
-                      <div class="text-xs text-gray-600 truncate max-w-full" :title="getSenderName(zap)">{{ getSenderName(zap) }}</div>
+                    <div class="mt-2">
+                      <div class="font-semibold text-orange-600 text-sm">{{ formatZapAmount(zap.amount) }}</div>
+                      <div class="text-xs text-gray-600 truncate max-w-full font-medium" :title="getSenderName(zap)">
+                        {{ getSenderName(zap) }}
+                      </div>
                     </div>
+                  </div>
+                </div>
+                
+                <!-- Show More Supporters Indicator -->
+                <div 
+                  v-if="totalZapCount > 7"
+                  class="group relative text-center transform hover:scale-110 transition-all duration-200 cursor-pointer"
+                  @click="showAllSupporters = !showAllSupporters"
+                >
+                  <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 mx-auto flex items-center justify-center">
+                    <IconUsers class="w-6 h-6 text-gray-400 group-hover:text-gray-600" />
+                  </div>
+                  <div class="mt-2">
+                    <div class="font-semibold text-gray-500 text-sm group-hover:text-gray-700">+{{ totalZapCount - 7 }}</div>
+                    <div class="text-xs text-gray-500 font-medium group-hover:text-gray-600">
+                      {{ showAllSupporters ? 'Show less' : 'more' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Total Support Summary -->
+              <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mt-6">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-lg font-bold text-green-800">{{ formatCurrency(totalZapAmount) }}</div>
+                    <div class="text-sm text-green-600">Total Support Received</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-lg font-bold text-green-800">{{ totalZapCount }}</div>
+                    <div class="text-sm text-green-600">Supporters</div>
                   </div>
                 </div>
               </div>
@@ -576,6 +666,8 @@ const campaignAuthor = ref(null)
 const showShareModal = ref(false)
 const showUserModal = ref(false)
 const copySuccess = ref('')
+const showFullDescription = ref(false)
+const showAllSupporters = ref(false)
 
 // Payment state
 const zapAmount = ref(1000) // Default 1000 sats
@@ -718,6 +810,17 @@ const formatAmount = (amount) => {
   }
 }
 
+// Enhanced currency formatting with K/M suffixes
+const formatCurrency = (amount) => {
+  if (!amount) return '0 sats'
+  
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M sats`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}K sats`
+  }
+  return `${amount.toLocaleString()} sats`
+}
 // Calculate days remaining
 const daysRemaining = computed(() => {
   if (!campaign.value || !campaign.value.closedAt) return 'No deadline'
@@ -777,13 +880,20 @@ const recentZaps = computed(() => {
   })))
   
   return campaignZaps
-    .slice(0, 12)
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Sort by most recent first
     .map(zap => ({
       ...zap,
       timeAgo: formatTimeAgo(zap.timestamp)
     }))
 })
 
+// Display exactly 7 supporters or all if showAllSupporters is true
+const displayedSupporters = computed(() => {
+  if (showAllSupporters.value) {
+    return recentZaps.value
+  }
+  return recentZaps.value.slice(0, 7)
+})
 // Get total zap count for this campaign
 const totalZapCount = computed(() => {
   if (!campaign.value) return 0
