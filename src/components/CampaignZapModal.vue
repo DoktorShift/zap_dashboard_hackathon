@@ -467,7 +467,12 @@ const recentZaps = computed(() => {
   const campaignZaps = campaignAggregatedZaps.value.get(props.campaign.id) || []
   console.log(`🔍 Campaign ${props.campaign.id.substring(0, 8)}... has ${campaignZaps.length} zaps`)
   
-  return campaignZaps.slice(0, 10) // Show up to 10 recent supporters
+  return campaignZaps
+    .slice(0, 10) // Show up to 10 recent supporters
+    .map(zap => ({
+      ...zap,
+      timeAgo: formatTimeAgo(zap.timestamp)
+    }))
 })
 
 const totalZapCount = computed(() => recentZaps.value.length)

@@ -40,6 +40,140 @@ const extractBolt11 = (zapEvent) => {
   return bolt11Tag ? bolt11Tag[1] : null
 }
 
+// Enhanced profile fetching with caching for campaign zaps
+const campaignProfileCache = new Map()
+const campaignProfileFetchPromises = new Map()
+
+// Generate a consistent fallback avatar based on pubkey
+const generateFallbackAvatar = (pubkey) => {
+  if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+  
+  // Use a deterministic approach to generate avatar based on pubkey
+  const avatars = [
+    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
+    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+  ]
+  
+  // Create a hash from the pubkey to consistently select an avatar
+  const hash = pubkey.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0)
+    return a & a
+  }, 0)
+  
+  return avatars[Math.abs(hash) % avatars.length]
+}
+
+// Fetch zapper profile for campaigns
+const fetchCampaignZapperProfile = async (pubkey) => {
+  // Check cache first
+  if (campaignProfileCache.has(pubkey)) {
+    const cached = campaignProfileCache.get(pubkey)
+    // Use cached profile if it's less than 1 hour old
+    if (Date.now() - cached.timestamp < 3600000) {
+      return cached.profile
+    }
+  }
+
+  // Check if we're already fetching this profile
+  if (campaignProfileFetchPromises.has(pubkey)) {
+    return campaignProfileFetchPromises.get(pubkey)
+  }
+
+  // Create the fetch promise
+  const fetchPromise = _fetchCampaignProfileFromNostr(pubkey)
+  campaignProfileFetchPromises.set(pubkey, fetchPromise)
+
+  try {
+    const profile = await fetchPromise
+    
+    // Cache the result
+    campaignProfileCache.set(pubkey, {
+      profile,
+      timestamp: Date.now()
+    })
+    
+    return profile
+  } catch (error) {
+    console.warn(`Failed to fetch campaign zapper profile for ${pubkey.substring(0, 8)}:`, error)
+    // Return a fallback profile
+    return {
+      name: `user:${pubkey.substring(0, 8)}`,
+      picture: generateFallbackAvatar(pubkey),
+      nip05: null,
+      about: null
+    }
+  } finally {
+    campaignProfileFetchPromises.delete(pubkey)
+  }
+}
+
+// Internal function to fetch profile from Nostr relays for campaigns
+const _fetchCampaignProfileFromNostr = async (pubkey) => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Profile fetch timeout'))
+    }, 15000) // 15 second timeout
+
+    try {
+      console.log('🔍 Fetching campaign zapper profile for:', pubkey.substring(0, 8) + '...')
+      
+      const profileSub = nostrRelayManager.subscribeToEvents([
+        {
+          kinds: [0], // Profile metadata
+          authors: [pubkey],
+          limit: 1
+        }
+      ], {
+        onevent: (event) => {
+          try {
+            clearTimeout(timeout)
+            const profileData = JSON.parse(event.content)
+            
+            const profile = {
+              name: profileData.name || profileData.display_name || `user:${pubkey.substring(0, 8)}`,
+              picture: profileData.picture || profileData.avatar || generateFallbackAvatar(pubkey),
+              nip05: profileData.nip05 || null,
+              about: profileData.about || null
+            }
+            
+            console.log('✅ Campaign zapper profile fetched successfully for:', profile.name)
+            profileSub.close()
+            resolve(profile)
+          } catch (error) {
+            console.warn('⚠️ Failed to parse campaign zapper profile data:', error)
+            clearTimeout(timeout)
+            profileSub.close()
+            reject(error)
+          }
+        },
+        oneose: () => {
+          // If no profile found, resolve with fallback after a short delay
+          setTimeout(() => {
+            clearTimeout(timeout)
+            profileSub.close()
+            resolve({
+              name: `user:${pubkey.substring(0, 8)}`,
+              picture: generateFallbackAvatar(pubkey),
+              nip05: null,
+              about: null
+            })
+          }, 2000) // Wait 2 seconds for potential profile events
+        },
+        onclose: () => {
+          clearTimeout(timeout)
+        }
+      })
+    } catch (error) {
+      clearTimeout(timeout)
+      reject(error)
+    }
+  })
+}
+
 const extractZapAmount = (zapEvent) => {
   try {
     // Look for amount in description tag or bolt11
@@ -449,6 +583,13 @@ export function useCampaigns() {
               id: zapEvent.id, // Use zap receipt ID as unique identifier
               amount,
               zapperPubkey,
+              sender: {
+                pubkey: zapperPubkey,
+                name: `user:${zapperPubkey.substring(0, 8)}`,
+                picture: generateFallbackAvatar(zapperPubkey),
+                nip05: null,
+                about: null
+              },
               timestamp: new Date(zapEvent.created_at * 1000).toISOString(),
               message,
               bolt11,
@@ -466,6 +607,27 @@ export function useCampaigns() {
             
             // Add to campaign aggregated zaps
             addZapToCampaignAggregatedZaps(campaignId, zapData)
+            
+            // Fetch zapper profile asynchronously and update the sender info
+            fetchCampaignZapperProfile(zapperPubkey).then(profile => {
+              if (profile) {
+                // Update the sender object with fetched profile data
+                zapData.sender = {
+                  pubkey: zapperPubkey,
+                  name: profile.name || `user:${zapperPubkey.substring(0, 8)}`,
+                  picture: profile.picture || generateFallbackAvatar(zapperPubkey),
+                  nip05: profile.nip05,
+                  about: profile.about
+                }
+                
+                console.log('✅ Updated campaign zap sender profile for:', profile.name)
+                
+                // Save to localStorage after profile update
+                saveCampaignAggregatedZaps()
+              }
+            }).catch(error => {
+              console.warn('Failed to fetch campaign zapper profile:', error)
+            })
             
           } catch (error) {
             console.error('❌ Error processing zap for campaign aggregation:', error)

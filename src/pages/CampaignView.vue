@@ -156,7 +156,7 @@
                   >
                     <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-4 border-gradient-to-r from-yellow-400 to-orange-400 shadow-lg mx-auto">
                       <img 
-                        :src="zap.sender?.picture || zap.sender?.avatar" 
+                        :src="zap.sender?.picture || zap.sender?.avatar || generateFallbackAvatar(zap.zapperPubkey)" 
                         :alt="zap.sender?.name || 'Supporter'"
                         class="w-full h-full object-cover"
                         @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
@@ -178,7 +178,7 @@
                   >
                     <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-orange-200 shadow-md mx-auto">
                       <img 
-                        :src="zap.sender?.picture || zap.sender?.avatar" 
+                        :src="zap.sender?.picture || zap.sender?.avatar || generateFallbackAvatar(zap.zapperPubkey)" 
                         :alt="zap.sender?.name || 'Supporter'"
                         class="w-full h-full object-cover"
                         @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
@@ -770,12 +770,6 @@ const recentZaps = computed(() => {
     .slice(0, 12)
     .map(zap => ({
       ...zap,
-      // Add sender info for display
-      sender: {
-        name: zap.sender?.name || `User ${zap.zapperPubkey?.substring(0, 8)}` || 'Anonymous',
-        picture: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey),
-        avatar: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey)
-      },
       timeAgo: formatTimeAgo(zap.timestamp)
     }))
 })
@@ -1084,7 +1078,22 @@ const formatZapAmount = (amount) => {
 
 // Get sender name with fallback
 const getSenderName = (zap) => {
-  return zap.sender?.name || `User ${zap.zapperPubkey?.substring(0, 8)}` || 'Anonymous'
+  // Check for display_name first (Nostr standard)
+  if (zap.sender?.display_name) {
+    return zap.sender.display_name
+  }
+  
+  // Then check for name
+  if (zap.sender?.name) {
+    return zap.sender.name
+  }
+  
+  // Fallback to pubkey
+  if (zap.zapperPubkey) {
+    return `user:${zap.zapperPubkey.substring(0, 8)}`
+  }
+  
+  return 'Anonymous'
 }
 
 // Copy to clipboard
