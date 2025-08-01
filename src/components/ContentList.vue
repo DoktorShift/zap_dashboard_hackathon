@@ -157,7 +157,7 @@ const getSalesTooltip = (item) => {
               <div class="flex items-center space-x-2 mb-1">
                 <h3 class="font-semibold text-gray-900 truncate">{{ item.title }}</h3>
                 <span :class="[
-                  'px-2 py-1 rounded-full text-xs font-medium',
+                  'px-2 py-1 rounded-full text-xs font-medium capitalize',
                   getStatusColor(item.status)
                 ]">
                   {{ item.status }}

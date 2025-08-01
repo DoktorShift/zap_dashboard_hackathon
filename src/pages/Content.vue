@@ -439,7 +439,7 @@ onUnmounted(() => {
             <div class="mb-6">
               <div class="flex items-center justify-between mb-4">
                 <h1 class="text-3xl font-bold text-gray-900">{{ selectedContent.title }}</h1>
-                
+
                 <!-- Open in Client Dropdown -->
                 <div v-if="selectedContent.nostrEventId" class="relative" ref="dropdownRef">
                   <button
@@ -478,8 +478,8 @@ onUnmounted(() => {
                 <span>•</span>
                 <span v-if="selectedContent.monetizationModel === 'free'">Free Content</span>
                 <span v-else>{{ selectedContent.price.toLocaleString() }} sats</span>
-                <span>•</span>
-                <span>{{ selectedContent.unlocks }} unlocks</span>
+<!--                <span>•</span>-->
+<!--                <span>{{ selectedContent.unlocks }} unlocks</span>-->
                 <span>•</span>
 <!--                <span>{{ selectedContent.views }} views</span>-->
 <!--                <span>•</span>-->
