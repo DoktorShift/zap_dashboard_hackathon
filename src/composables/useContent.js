@@ -41,7 +41,7 @@ const contentForm = reactive({
   title: '',
   description: '',
   type: CONTENT_TYPES.ARTICLE,
-  monetizationModel: MONETIZATION_MODELS.ONE_TIME,
+  monetizationModel: MONETIZATION_MODELS.FREE,
   price: 1000,
   previewText: '',
   fullContent: '',
