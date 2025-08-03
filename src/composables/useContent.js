@@ -332,7 +332,18 @@ export function useContent() {
         eventTemplate.tags.push(['image', content.coverImage])
       }
       
+      // Add summary tag (NIP-23 standard)
+      if (content.description) {
+        eventTemplate.tags.push(['summary', content.description])
+      }
+      
       eventTemplate.tags.push(['content-type', content.type])
+      
+      // Add client tag to identify ZapTracker
+      eventTemplate.tags.push(['client', 'ZapTracker'])
+      
+      // Add published_at tag
+      eventTemplate.tags.push(['published_at', Math.floor(Date.now() / 1000).toString()])
 
       publishingStatus.value = 'Signing with your Nostr key...'
       publishingProgress.value = 50
