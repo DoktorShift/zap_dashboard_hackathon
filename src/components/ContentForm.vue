@@ -35,7 +35,19 @@ import {
   IconDeviceFloppy,
   IconSend,
   IconClock,
-  IconArrowLeft
+  IconArrowLeft,
+  IconBold,
+  IconItalic,
+  IconStrikethrough,
+  IconHeading,
+  IconLink,
+  IconCode,
+  IconQuote,
+  IconList,
+  IconListNumbers,
+  IconTable,
+  IconMinus,
+  IconMoodSmile
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -146,6 +158,153 @@ const estimatedReadTime = ref(0)
 // Auto-save state
 const lastSaved = ref(null)
 const hasUnsavedChanges = ref(false)
+
+// Editor state
+const contentTextarea = ref(null)
+const showEmojiPicker = ref(false)
+const showLinkModal = ref(false)
+const showImageModal = ref(false)
+const showVideoModal = ref(false)
+const linkUrl = ref('')
+const linkText = ref('')
+const imageUrl = ref('')
+const imageAlt = ref('')
+const videoUrl = ref('')
+const videoTitle = ref('')
+
+// Markdown formatting functions
+const insertMarkdown = (before, after = '', placeholder = '') => {
+  const textarea = contentTextarea.value
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const selectedText = props.form.content.substring(start, end)
+  const replacement = selectedText || placeholder
+  
+  const beforeText = props.form.content.substring(0, start)
+  const afterText = props.form.content.substring(end)
+  
+  const newText = beforeText + before + replacement + after + afterText
+  props.form.content = newText
+  
+  // Set cursor position
+  nextTick(() => {
+    const newCursorPos = start + before.length + replacement.length + after.length
+    textarea.focus()
+    textarea.setSelectionRange(newCursorPos, newCursorPos)
+  })
+}
+
+const insertAtCursor = (text) => {
+  const textarea = contentTextarea.value
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  
+  const beforeText = props.form.content.substring(0, start)
+  const afterText = props.form.content.substring(end)
+  
+  props.form.content = beforeText + text + afterText
+  
+  // Set cursor position after inserted text
+  nextTick(() => {
+    const newCursorPos = start + text.length
+    textarea.focus()
+    textarea.setSelectionRange(newCursorPos, newCursorPos)
+  })
+}
+
+// Formatting actions
+const makeBold = () => insertMarkdown('**', '**', 'bold text')
+const makeItalic = () => insertMarkdown('*', '*', 'italic text')
+const makeStrikethrough = () => insertMarkdown('~~', '~~', 'strikethrough text')
+const makeCode = () => insertMarkdown('`', '`', 'code')
+const makeCodeBlock = () => insertMarkdown('\n```\n', '\n```\n', 'code block')
+const makeQuote = () => insertMarkdown('\n> ', '', 'quote text')
+const makeH1 = () => insertMarkdown('\n# ', '', 'Heading 1')
+const makeH2 = () => insertMarkdown('\n## ', '', 'Heading 2')
+const makeH3 = () => insertMarkdown('\n### ', '', 'Heading 3')
+const makeBulletList = () => insertMarkdown('\n- ', '', 'list item')
+const makeNumberedList = () => insertMarkdown('\n1. ', '', 'list item')
+const makeHorizontalRule = () => insertAtCursor('\n\n---\n\n')
+
+// Link modal functions
+const openLinkModal = () => {
+  const textarea = contentTextarea.value
+  if (textarea) {
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = props.form.content.substring(start, end)
+    linkText.value = selectedText
+  }
+  linkUrl.value = ''
+  showLinkModal.value = true
+}
+
+const insertLink = () => {
+  if (!linkUrl.value.trim()) return
+  
+  const text = linkText.value.trim() || linkUrl.value
+  const markdown = `[${text}](${linkUrl.value.trim()})`
+  insertAtCursor(markdown)
+  
+  // Reset and close
+  linkUrl.value = ''
+  linkText.value = ''
+  showLinkModal.value = false
+}
+
+// Image modal functions
+const openImageModal = () => {
+  imageUrl.value = ''
+  imageAlt.value = ''
+  showImageModal.value = true
+}
+
+const insertImage = () => {
+  if (!imageUrl.value.trim()) return
+  
+  const alt = imageAlt.value.trim() || 'Image'
+  const markdown = `\n![${alt}](${imageUrl.value.trim()})\n`
+  insertAtCursor(markdown)
+  
+  // Reset and close
+  imageUrl.value = ''
+  imageAlt.value = ''
+  showImageModal.value = false
+}
+
+// Video modal functions
+const openVideoModal = () => {
+  videoUrl.value = ''
+  videoTitle.value = ''
+  showVideoModal.value = true
+}
+
+const insertVideo = () => {
+  if (!videoUrl.value.trim()) return
+  
+  const title = videoTitle.value.trim() || 'Video'
+  const markdown = `\n[${title}](${videoUrl.value.trim()})\n`
+  insertAtCursor(markdown)
+  
+  // Reset and close
+  videoUrl.value = ''
+  videoTitle.value = ''
+  showVideoModal.value = false
+}
+
+// Emoji picker functions
+const handleEmojiSelect = (emoji) => {
+  insertAtCursor(emoji.i)
+  showEmojiPicker.value = false
+}
+
+const toggleEmojiPicker = () => {
+  showEmojiPicker.value = !showEmojiPicker.value
+}
 
 // Content helpers
 const updateWordCount = () => {
@@ -534,38 +693,240 @@ updateReadingTime()
               <li><strong>All zaps, engagement, and metrics will reset to zero</strong></li>
             </ul>
             <p class="mt-3 font-medium">💡 Consider if the changes are worth losing existing engagement metrics.</p>
-          </div>
-        </div>
-      </div>
-      </div>
+              <!-- Enhanced Markdown Toolbar -->
+              <div class="flex flex-wrap items-center gap-1 px-3 py-2 border-b border-orange-100/50 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
+                <!-- Text Formatting Group -->
+                <div class="flex items-center border-r border-orange-200/50 pr-2 mr-2">
+                  <button 
+                    @click="makeBold"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Bold (Ctrl+B)"
+                  >
+                    <IconBold class="w-4 h-4" />
+                  </button>
+                  <button 
+                    @click="makeItalic"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Italic (Ctrl+I)"
+                  >
+                    <IconItalic class="w-4 h-4" />
+                  </button>
+                  <button 
+                    @click="makeStrikethrough"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Strikethrough"
+                  >
+                    <IconStrikethrough class="w-4 h-4" />
+                  </button>
+                  <button 
+                    @click="makeCode"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Inline Code"
+                  >
+                    <IconCode class="w-4 h-4" />
+                  </button>
+                </div>
 
-      <!-- Main Wizard Container -->
+                <!-- Headers Group -->
+                <div class="flex items-center border-r border-orange-200/50 pr-2 mr-2">
+                  <button 
+                    @click="makeH1"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors text-xs font-bold"
+                    title="Heading 1"
+                  >
+                    H1
+                  </button>
+                  <button 
+                    @click="makeH2"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors text-xs font-bold"
+                    title="Heading 2"
+                  >
+                    H2
+                  </button>
+                  <button 
+                    @click="makeH3"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors text-xs font-bold"
+                    title="Heading 3"
+                  >
+                    H3
+                  </button>
+                </div>
+
+                <!-- Lists Group -->
+                <div class="flex items-center border-r border-orange-200/50 pr-2 mr-2">
+                  <button 
+                    @click="makeBulletList"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Bullet List"
+                  >
+                    <IconList class="w-4 h-4" />
+                  </button>
+                  <button 
+                    @click="makeNumberedList"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Numbered List"
+                  >
+                    <IconListNumbers class="w-4 h-4" />
+                  </button>
+                </div>
+
+                <!-- Media & Links Group -->
+                <div class="flex items-center border-r border-orange-200/50 pr-2 mr-2">
+                  <button 
+                    @click="openLinkModal"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Insert Link"
+                  >
+                    <IconLink class="w-4 h-4" />
+                  </button>
+                  <button 
+                    @click="openImageModal"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Insert Image"
+                  >
+                    <IconPhoto class="w-4 h-4" />
+                  </button>
+                  <button 
+                    @click="openVideoModal"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Insert Video"
+                  >
+                    <IconVideo class="w-4 h-4" />
+                  </button>
+                </div>
+
+                <!-- Special Elements Group -->
+                <div class="flex items-center border-r border-orange-200/50 pr-2 mr-2">
+                  <button 
+                    @click="makeQuote"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Quote"
+                  >
+                    <IconQuote class="w-4 h-4" />
+                  </button>
+                  <button 
+                    @click="makeCodeBlock"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Code Block"
+                  >
+                    <IconCode class="w-4 h-4" />
+                  </button>
+                  <button 
+                    @click="makeHorizontalRule"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Horizontal Rule"
+                  >
+                    <IconMinus class="w-4 h-4" />
+                  </button>
+                </div>
+
+                <!-- Emoji & Special -->
+                <div class="flex items-center">
+                  <div class="relative">
+                    <button 
+                      @click="toggleEmojiPicker"
+                      class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                      title="Insert Emoji"
+                    >
+                      <IconMoodSmile class="w-4 h-4" />
+                    </button>
+                    
+                    <!-- Emoji Picker -->
+                    <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-20 shadow-xl rounded-lg border border-orange-200">
+                      <EmojiPicker @select="handleEmojiSelect" :native="true" />
+                    </div>
+                  </div>
+                  
+                  <button 
+                    @click="insertAtCursor('⚡')"
+                    class="p-1.5 text-gray-600 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors"
+                    title="Insert Lightning Bolt"
+                  >
+                    <IconBolt class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Content Textarea -->
+              <textarea
+                ref="contentTextarea"
+                v-model="form.content"
+                placeholder="Start writing your blog post here...
+
+You can use the toolbar above for formatting or type Markdown directly:
+
+# Main Heading
+## Subheading
+**Bold text** and *italic text*
+- Bullet points
+- More points
+
+Write naturally and let your thoughts flow. Your content will be published as a NIP-23 long-form content event on the Nostr network."
+                class="w-full min-h-[400px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none"
+                rows="20"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- Step 3: Enhance & Publish -->
+          <div v-if="currentStep === 2" class="space-y-6">
+            <!-- Tags Section -->
+            <div>
+              <label class="block text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                <IconHash class="w-5 h-5 text-orange-600" />
+                <span>Tags (Optional)</span>
+              </label>
+              
+              <!-- Current Tags -->
+              <div v-if="form.tags.length > 0" class="flex flex-wrap gap-2 mb-3">
+                <span
+                  v-for="(tag, index) in form.tags"
+                  :key="index"
+                  class="inline-flex items-center space-x-2 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 px-3 py-2 rounded-full text-sm font-medium shadow-sm"
       <div v-if="isAuthenticated && (!isEditing || !showEditConfirmation)" class="bg-white/95 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-lg overflow-hidden">
-      <!-- Step Navigation -->
-      <div class="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-orange-50">
-        <div class="px-6 py-4">
-          <nav class="flex items-center justify-between">
-            <!-- Step Indicators -->
-            <div class="flex items-center space-x-1 sm:space-x-4">
-              <div
+                  <IconHash class="w-3 h-3" />
+                  <span>{{ tag }}</span>
+                  <button
+                    @click="removeTag(index)"
+                    class="hover:text-orange-900 transition-colors"
+                  >
+                    <IconX class="w-3 h-3" />
+                  </button>
+                </span>
+              </div>
+              
+              <!-- Add New Tag -->
+              <div class="flex space-x-2 mb-4">
+                <input
+                  v-model="newTag"
+                  type="text"
+                  placeholder="Add a tag (e.g., bitcoin, tutorial, nostr)..."
+                  @keyup.enter="addTag"
+                  class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white"
+                />
+                <button
+                  @click="addTag"
+                  :disabled="!newTag.trim()"
+                  class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 v-for="(step, index) in wizardSteps"
-                :key="step.id"
-                class="flex items-center"
-              >
-                <!-- Step Circle -->
-                <div
-                  @click="goToStep(index)"
-                  :class="[
-                    'w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-medium cursor-pointer transition-all duration-300',
-                    index === currentStep 
+                  <IconPlus class="w-4 h-4" />
+                  Add
+                </button>
+              </div>
+              
+              <!-- Suggested Tags -->
+              <div v-if="suggestedTags.length > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h5 class="font-medium text-blue-900 mb-2 text-sm">Suggested tags:</h5>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="tag in suggestedTags"
+                    :key="tag"
+                    @click="addSuggestedTag(tag)"
+                    :disabled="form.tags.includes(tag)"
+                    class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-full text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-lg scale-110' 
-                      : completedSteps.has(index)
-                        ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                    + {{ tag }}
                         : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                  ]"
-                >
-                  <IconCheck v-if="completedSteps.has(index)" class="w-4 h-4 sm:w-5 sm:h-5" />
-                  <component v-else :is="step.icon" class="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 
                 <!-- Step Connector -->
@@ -666,28 +1027,9 @@ updateReadingTime()
             
             <div class="relative">
               <textarea
-                v-model="form.content"
-                rows="16"
-                placeholder="Start writing your blog post here...
-
-You can use Markdown formatting:
-
-# Main Heading
-## Subheading
-**Bold text** and *italic text*
-- Bullet points
-- More points
-
-Write naturally and let your thoughts flow. Your content will be published as a NIP-23 long-form content event on the Nostr network."
-                class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white shadow-sm resize-none font-mono text-sm leading-relaxed"
-                :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': !form.content.trim() }"
-              ></textarea>
             </div>
-            
           </div>
-        </div>
-
-        <!-- Step 3: Enhance & Publish -->
+            <!-- Cover Image -->
         <div v-if="currentStep === 2" class="space-y-6">
           <!-- Tags Section -->
           <div>
@@ -760,92 +1102,166 @@ Write naturally and let your thoughts flow. Your content will be published as a 
               v-model="form.coverImage"
               type="url"
               placeholder="https://example.com/your-cover-image.jpg"
-              class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white"
-            />
-            <p class="text-xs text-gray-500 mt-2">
-              A cover image makes your blog post more engaging
-            </p>
-            
-            <!-- Image Preview -->
-            <div v-if="form.coverImage" class="mt-3">
-              <img
-                :src="form.coverImage"
-                :alt="form.title"
-                class="w-full h-48 object-cover rounded-lg border border-gray-200 shadow-sm"
-                @error="$event.target.style.display = 'none'"
+              <input
+                v-model="form.coverImage"
+                type="url"
+                placeholder="https://example.com/your-cover-image.jpg"
+                class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white"
               />
-            </div>
-          </div>
-
-          <!-- NIP-23 Info -->
-          <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
-            <div class="flex items-start space-x-3">
-              <IconInfoCircle class="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h4 class="font-semibold text-purple-900 mb-1">Publishing to Nostr</h4>
-                <p class="text-sm text-purple-800">
-                  Your blog post will be published as a NIP-23 long-form content event, ensuring decentralized storage and censorship resistance.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Navigation Footer -->
-      <div v-if="!isEditing || !showEditConfirmation">
-      <div class="border-t border-gray-200 bg-gradient-to-r from-gray-50 to-orange-50 px-6 py-4">
-        <div class="flex items-center justify-between">
-          <!-- Left: Previous Button -->
-          <div>
-            <button
-              v-if="currentStep > 0"
-              @click="prevStep"
-              class="btn-secondary"
-            >
-              <IconChevronLeft class="w-4 h-4" />
-              Previous
-            </button>
-          </div>
-          
-          <!-- Right: Action Buttons -->
-          <div class="flex items-center space-x-3">
-            <!-- Next Button -->
-            <button
-              v-if="currentStep < wizardSteps.length - 1"
-              @click="nextStep"
-              :disabled="!canProceed"
-              class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span>Next</span>
-              <IconChevronRight class="w-4 h-4" />
-            </button>
-            
-            <!-- Final Step Actions -->
-            <div v-else class="flex items-center space-x-3">
-              <button
-                @click="handleSaveDraft"
-                :disabled="!isFormValid || isLoading"
-                class="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <IconDeviceFloppy class="w-4 h-4" />
-                Save Draft
-              </button>
+              <p class="text-xs text-gray-500 mt-2">
+                A cover image makes your blog post more engaging
+              </p>
               
-              <button
-                @click="handleSubmit"
-                :disabled="!isFormValid || isLoading"
-                class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <IconSend class="w-4 h-4" />
-                {{ isLoading ? 'Publishing...' : 'Publish' }}
-              </button>
+              <!-- Image Preview -->
+              <div v-if="form.coverImage" class="mt-3">
+                <img
+                  :src="form.coverImage"
+                  :alt="form.title"
+                  class="w-full h-48 object-cover rounded-lg border border-gray-200 shadow-sm"
+                  @error="$event.target.style.display = 'none'"
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
       </div>
     </div>
+    </div>
+
+    <!-- Link Modal -->
+    <div v-if="showLinkModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showLinkModal = false"></div>
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+          <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+              <IconLink class="w-5 h-5 text-orange-600" />
+              <span>Insert Link</span>
+            </h3>
+            <button @click="showLinkModal = false" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <IconX class="w-5 h-5" />
+            </button>
+          </div>
+          <div class="p-4">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Link Text</label>
+                <input
+                  v-model="linkText"
+                  type="text"
+                  placeholder="Click here"
+                  class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">URL</label>
+                <input
+                  v-model="linkUrl"
+                  type="url"
+                  placeholder="https://example.com"
+                  class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                  @keyup.enter="insertLink"
+                />
+              </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+              <button @click="showLinkModal = false" class="btn-secondary">Cancel</button>
+              <button @click="insertLink" :disabled="!linkUrl.trim()" class="btn-primary disabled:opacity-50">Insert Link</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div v-if="showImageModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showImageModal = false"></div>
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+          <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+              <IconPhoto class="w-5 h-5 text-orange-600" />
+              <span>Insert Image</span>
+            </h3>
+            <button @click="showImageModal = false" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <IconX class="w-5 h-5" />
+            </button>
+          </div>
+          <div class="p-4">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Image URL</label>
+                <input
+                  v-model="imageUrl"
+                  type="url"
+                  placeholder="https://example.com/image.jpg"
+                  class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Alt Text</label>
+                <input
+                  v-model="imageAlt"
+                  type="text"
+                  placeholder="Description of the image"
+                  class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                  @keyup.enter="insertImage"
+                />
+              </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+              <button @click="showImageModal = false" class="btn-secondary">Cancel</button>
+              <button @click="insertImage" :disabled="!imageUrl.trim()" class="btn-primary disabled:opacity-50">Insert Image</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Video Modal -->
+    <div v-if="showVideoModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showVideoModal = false"></div>
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+          <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+              <IconVideo class="w-5 h-5 text-orange-600" />
+              <span>Insert Video</span>
+            </h3>
+            <button @click="showVideoModal = false" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <IconX class="w-5 h-5" />
+            </button>
+          </div>
+          <div class="p-4">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Video URL</label>
+                <input
+                  v-model="videoUrl"
+                  type="url"
+                  placeholder="https://youtube.com/watch?v=..."
+                  class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Video Title</label>
+                <input
+                  v-model="videoTitle"
+                  type="text"
+                  placeholder="Video title or description"
+                  class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                  @keyup.enter="insertVideo"
+                />
+              </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+              <button @click="showVideoModal = false" class="btn-secondary">Cancel</button>
+              <button @click="insertVideo" :disabled="!videoUrl.trim()" class="btn-primary disabled:opacity-50">Insert Video</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -884,10 +1300,25 @@ textarea:focus {
   box-shadow: 0 4px 12px rgba(251, 146, 60, 0.15);
 }
 
+/* Toolbar button hover effects */
+.p-1\.5:hover {
+  transform: scale(1.05);
+}
+
+/* Emoji picker positioning */
+.z-20 {
+  z-index: 20;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .fixed.bottom-6.right-6 {
     display: none;
+  }
+  
+  /* Stack toolbar buttons on mobile */
+  .flex-wrap {
+    flex-wrap: wrap;
   }
 }
 
