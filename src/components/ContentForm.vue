@@ -480,25 +480,6 @@ updateReadingTime()
               </div>
             </div>
           </div>
-
-          <!-- Quick Start Template -->
-          <div v-if="form.type" class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="font-semibold text-blue-900 flex items-center space-x-2">
-                  <IconSparkles class="w-4 h-4" />
-                  <span>Quick Start Template</span>
-                </h4>
-                <p class="text-sm text-blue-800">Get started with a pre-filled template</p>
-              </div>
-              <button
-                @click="applyTemplate(form.type)"
-                class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Use Template
-              </button>
-            </div>
-          </div>
         </div>
 
         <!-- Step 2: Content Writing -->
@@ -742,42 +723,6 @@ Write naturally and let your thoughts flow. Your content will be published as a 
         <div v-if="!isStepValid && currentStep < wizardSteps.length - 1" class="mt-3 flex items-center space-x-2 text-sm text-amber-600">
           <IconAlertCircle class="w-4 h-4" />
           <span>Please complete all required fields to continue</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Live Preview (Desktop) -->
-    <div v-if="form.title || form.content" class="fixed bottom-6 right-6 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-40 hidden lg:block">
-      <div class="p-4 border-b border-gray-200">
-        <h4 class="font-semibold text-gray-900 flex items-center space-x-2">
-          <IconEye class="w-4 h-4 text-orange-600" />
-          <span>Live Preview</span>
-        </h4>
-      </div>
-      <div class="p-4 max-h-64 overflow-y-auto">
-        <div class="space-y-3">
-          <h3 class="font-bold text-gray-900 text-lg leading-tight">
-            {{ form.title || 'Your Blog Title' }}
-          </h3>
-          <div v-if="form.tags.length > 0" class="flex flex-wrap gap-1">
-            <span
-              v-for="tag in form.tags.slice(0, 3)"
-              :key="tag"
-              class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs"
-            >
-              #{{ tag }}
-            </span>
-            <span v-if="form.tags.length > 3" class="text-xs text-gray-500">
-              +{{ form.tags.length - 3 }} more
-            </span>
-          </div>
-          <div class="text-sm text-gray-600 line-clamp-4">
-            {{ form.content.substring(0, 200) }}{{ form.content.length > 200 ? '...' : '' }}
-          </div>
-          <div class="flex items-center justify-between text-xs text-gray-500">
-            <span>{{ wordCount }} words</span>
-            <span>~{{ estimatedReadTime }} min read</span>
-          </div>
         </div>
       </div>
     </div>
