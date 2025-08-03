@@ -704,10 +704,10 @@ onUnmounted(() => {
             <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-4">
               <h3 class="text-sm font-semibold text-gray-900 mb-3">Performance</h3>
               <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                  <span class="text-sm text-gray-600">Views</span>
-                  <span class="font-medium text-gray-900">{{ selectedContent.views || 0 }}</span>
-                </div>
+<!--                  <div class="flex items-center justify-between">-->
+<!--                    <span class="text-sm text-gray-600">Views</span>-->
+<!--                    <span class="font-medium text-gray-900">{{ selectedContent.views || 0 }}</span>-->
+<!--                  </div>-->
 <!--                <div class="flex items-center justify-between">-->
 <!--                  <span class="text-sm text-gray-600">Unlocks</span>-->
 <!--                  <span class="font-medium text-gray-900">{{ selectedContent.unlocks || 0 }}</span>-->
