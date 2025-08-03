@@ -59,6 +59,29 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'cancel', 'save-draft'])
 
+// State for edit confirmation
+const showEditConfirmation = ref(true) // Start with confirmation when editing
+const editUnderstanding = ref(false)
+
+// Watch for editing prop changes
+watch(() => props.isEditing, (isEditing) => {
+  if (isEditing) {
+    showEditConfirmation.value = true
+    editUnderstanding.value = false
+  } else {
+    showEditConfirmation.value = false
+  }
+}, { immediate: true })
+
+// Handle edit confirmation
+const proceedWithEdit = () => {
+  showEditConfirmation.value = false
+}
+
+const cancelEdit = () => {
+  cleanup()
+  emit('cancel')
+}
 // Simplified content types for blogging
 const contentTypes = [
   { 
@@ -330,6 +353,126 @@ updateReadingTime()
 
 <template>
   <div class="content-form-container space-y-6">
+    <!-- Edit Confirmation Modal (Only for editing published content) -->
+    <div v-if="isEditing && showEditConfirmation" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-6">
+          <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <IconAlertCircle class="w-6 h-6" />
+            </div>
+            <div>
+              <h2 class="text-2xl font-bold">Important: How Nostr Edits Work</h2>
+              <p class="text-amber-100 mt-1">Please read this carefully before proceeding</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 space-y-6">
+          <!-- Main Warning -->
+          <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6">
+            <div class="flex items-start space-x-4">
+              <IconAlertCircle class="w-8 h-8 text-red-600 flex-shrink-0 mt-1" />
+              <div>
+                <h3 class="text-xl font-bold text-red-900 mb-3">⚠️ Nostr Doesn't Support Traditional Editing</h3>
+                <p class="text-red-800 text-lg leading-relaxed">
+                  Unlike traditional platforms, Nostr events are <strong>immutable</strong>. 
+                  You cannot directly edit published content.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- What Will Happen -->
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <h3 class="text-lg font-bold text-blue-900 mb-4 flex items-center space-x-2">
+              <IconInfoCircle class="w-6 h-6" />
+              <span>What Will Happen When You "Edit"</span>
+            </h3>
+            <div class="space-y-3 text-blue-800">
+              <div class="flex items-start space-x-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                <p><strong>New Post Created:</strong> ZapTracker will create a completely new blog post with your changes</p>
+              </div>
+              <div class="flex items-start space-x-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                <p><strong>Deletion Request:</strong> A deletion request will be published for the original post</p>
+              </div>
+              <div class="flex items-start space-x-3">
+                <span class="flex-shrink-0 w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                <p><strong>New Event ID:</strong> The new post will have a completely different Nostr event ID</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Critical Impact -->
+          <div class="bg-orange-50 border-2 border-orange-300 rounded-xl p-6">
+            <h3 class="text-lg font-bold text-orange-900 mb-4 flex items-center space-x-2">
+              <IconBolt class="w-6 h-6" />
+              <span>🚨 Critical Impact on Your Content</span>
+            </h3>
+            <div class="space-y-3 text-orange-800">
+              <div class="flex items-center space-x-3">
+                <IconX class="w-5 h-5 text-red-600 flex-shrink-0" />
+                <p><strong>All Lightning zaps will be lost</strong> (they're tied to the original event ID)</p>
+              </div>
+              <div class="flex items-center space-x-3">
+                <IconX class="w-5 h-5 text-red-600 flex-shrink-0" />
+                <p><strong>All engagement metrics reset to zero</strong> (likes, comments, reposts)</p>
+              </div>
+              <div class="flex items-center space-x-3">
+                <IconX class="w-5 h-5 text-red-600 flex-shrink-0" />
+                <p><strong>Existing links to your content will break</strong> (different event ID)</p>
+              </div>
+              <div class="flex items-center space-x-3">
+                <IconX class="w-5 h-5 text-red-600 flex-shrink-0" />
+                <p><strong>You'll start over with a completely fresh post</strong></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Understanding Checkbox -->
+          <div class="bg-gray-50 border border-gray-200 rounded-xl p-6">
+            <label class="flex items-start space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                v-model="editUnderstanding"
+                class="mt-1 w-5 h-5 text-orange-600 border-2 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+              />
+              <div class="text-gray-700">
+                <p class="font-semibold text-lg">I understand the consequences</p>
+                <p class="text-sm mt-1">
+                  I acknowledge that editing will create a new post, delete the original, 
+                  and I will lose all existing zaps, engagement, and metrics.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-col sm:flex-row gap-4 pt-4">
+            <button
+              @click="cancelEdit"
+              class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2"
+            >
+              <IconArrowLeft class="w-5 h-5" />
+              <span>Cancel - Keep Original Post</span>
+            </button>
+            
+            <button
+              @click="proceedWithEdit"
+              :disabled="!editUnderstanding"
+              class="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-6 py-4 rounded-xl font-bold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              <IconCheck class="w-5 h-5" />
+              <span>I Understand - Proceed with New Version</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- Streamlined Header -->
     <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white rounded-xl p-6 shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -617,6 +760,7 @@ Write naturally and let your thoughts flow. Your content will be published as a 
               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white"
             />
             <p class="text-xs text-gray-500 mt-2">
+    <div v-if="!isEditing || !showEditConfirmation">
               A cover image makes your blog post more engaging
             </p>
             
@@ -659,29 +803,9 @@ Write naturally and let your thoughts flow. Your content will be published as a 
               <IconChevronLeft class="w-4 h-4" />
               Previous
             </button>
-          </div>
-          
-          <!-- Center: Step Indicator (Mobile) -->
-          <div class="sm:hidden text-sm text-gray-600">
-            Step {{ currentStep + 1 }} of {{ wizardSteps.length }}
-          </div>
-          
-          <!-- Right: Next/Submit Buttons -->
-          <div class="flex items-center space-x-3">
-            <!-- Auto-save Indicator -->
-            <div v-if="lastSaved" class="hidden sm:flex items-center space-x-2 text-xs text-gray-500">
-              <IconCheck class="w-3 h-3 text-green-500" />
-              <span>Saved {{ new Date(lastSaved).toLocaleTimeString() }}</span>
-            </div>
-            <div v-else-if="hasUnsavedChanges" class="hidden sm:flex items-center space-x-2 text-xs text-amber-600">
-              <div class="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
-              <span>Unsaved changes</span>
-            </div>
-            
-            <!-- Back Button (saves draft automatically) -->
             <button
               @click="handleBackWithSave"
-              :disabled="isLoading"
+    <div v-if="isAuthenticated" class="bg-white/95 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-lg overflow-hidden">
               class="btn-secondary"
             >
               <IconArrowLeft class="w-4 h-4" />
@@ -728,6 +852,7 @@ Write naturally and let your thoughts flow. Your content will be published as a 
           <span>Please complete all required fields to continue</span>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
