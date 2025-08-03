@@ -384,24 +384,36 @@ export function useContent() {
 
       console.log(`Publishing to ${stats.writeEnabled} write-enabled relays`)
 
-      // Create NIP-23 long-form content event
+      // Create NIP-23 long-form content event (kind:30023)
+      // Reference: https://github.com/nostr-protocol/nips/blob/master/23.md
       let eventTemplate = {
         kind: 30023, // Long-form content (NIP-23)
         created_at: Math.floor(Date.now() / 1000),
         tags: [
-          ['d', contentId], // Identifier tag
-          ['title', content.title],
-          ['summary', content.description],
-          ['published_at', Math.floor(new Date(content.createdAt).getTime() / 1000).toString()],
+          ['d', contentId], // Identifier tag (required for addressable events)
+          ['title', content.title], // Article title (NIP-23 standard)
+          ['summary', content.description], // Article summary (NIP-23 standard)
+          ['published_at', content.publishedAt ? 
+            Math.floor(new Date(content.publishedAt).getTime() / 1000).toString() :
+            Math.floor(new Date(content.createdAt).getTime() / 1000).toString()], // First publication timestamp
           ...content.tags.map(tag => ['t', tag])
         ],
-        content: content.previewText // Only publish preview, not full content
+        content: content.monetizationModel === 'free' ? content.fullContent : content.previewText
       }
+
+      // Add image tag if cover image is provided (NIP-23 standard)
+      if (content.coverImage) {
+        eventTemplate.tags.push(['image', content.coverImage])
+      }
+
+      // Add content type and monetization metadata
+      eventTemplate.tags.push(['content-type', content.type])
+      eventTemplate.tags.push(['monetization', content.monetizationModel])
 
       // Add price tag if monetized (not free)
       if (content.monetizationModel !== MONETIZATION_MODELS.FREE && content.price > 0) {
         eventTemplate.tags.push(['price_sats', content.price.toString()])
-        eventTemplate.tags.push(['unlock_via', 'zap'])
+        eventTemplate.tags.push(['unlock_via', 'lightning']) // Specify unlock method
         
         // Encrypt the full content
         const { contentEncryption } = await import('../utils/contentEncryption.js')
@@ -428,17 +440,6 @@ export function useContent() {
         const fullContentUrl = `${window.location.origin}?page=content-unlock&eventId=${contentId}`
         eventTemplate.tags.push(['full_content_url_gated', fullContentUrl])
       }
-
-      // Add cover image if available
-      if (content.coverImage) {
-        eventTemplate.tags.push(['image', content.coverImage])
-      }
-
-      // Add content type tag
-      eventTemplate.tags.push(['content-type', content.type])
-
-      // Add monetization model tag
-      eventTemplate.tags.push(['monetization', content.monetizationModel])
 
       publishingStatus.value = 'Signing event with your Nostr key...'
       publishingProgress.value = 30

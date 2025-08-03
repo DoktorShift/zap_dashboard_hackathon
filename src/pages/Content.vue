@@ -288,13 +288,13 @@ onUnmounted(() => {
       <!-- Page Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-<!--          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
-<!--            <IconFileText class="w-6 h-6 text-orange-600" />-->
-<!--            <span>Content Monetization</span>-->
-<!--          </h1>-->
-<!--          <p class="text-gray-600">-->
-<!--            Welcome back, {{ userProfile?.name || 'Creator' }}! Publish premium content gated by Lightning payments.-->
-<!--          </p>-->
+          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
+            <IconFileText class="w-6 h-6 text-orange-600" />
+            <span>Content Studio</span>
+          </h1>
+          <p class="text-gray-600">
+            Welcome back, {{ userProfile?.name || 'Creator' }}! Create and publish long-form content to the Nostr network.
+          </p>
         </div>
 
         <div class="flex items-center space-x-3 mb-4">
@@ -306,21 +306,21 @@ onUnmounted(() => {
             <IconArrowLeft class="w-4 h-4" />
             Back
           </button>
-<!--          <button-->
-<!--            v-if="currentView === 'list'"-->
-<!--            @click="setView('performance')"-->
-<!--            class="btn-secondary"-->
-<!--          >-->
-<!--            <IconChartBar class="w-4 h-4" />-->
-<!--            Performance-->
-<!--          </button>-->
+          <button
+            v-if="currentView === 'list'"
+            @click="setView('performance')"
+            class="btn-secondary"
+          >
+            <IconChartBar class="w-4 h-4" />
+            Analytics
+          </button>
           <button
             v-if="currentView === 'list'"
             @click="setView('create')"
-            class="btn-primary"
+            class="btn-primary bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
           >
             <IconPlus class="w-4 h-4" />
-            New Content
+            Create Content
           </button>
         </div>
       </div>
