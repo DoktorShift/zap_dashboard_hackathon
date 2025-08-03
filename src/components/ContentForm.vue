@@ -34,7 +34,8 @@ import {
   IconAlignLeft,
   IconDeviceFloppy,
   IconSend,
-  IconClock
+  IconClock,
+  IconArrowLeft
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -278,6 +279,16 @@ const handleSaveDraft = () => {
 }
 
 const handleCancel = () => {
+  cleanup()
+  emit('cancel')
+}
+
+// Handle back with auto-save
+const handleBackWithSave = () => {
+  // Auto-save as draft if there's content and user is authenticated
+  if (props.isAuthenticated && (props.form.title.trim() || props.form.content.trim())) {
+    emit('save-draft')
+  }
   cleanup()
   emit('cancel')
 }
@@ -667,6 +678,16 @@ Write naturally and let your thoughts flow. Your content will be published as a 
               <div class="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
               <span>Unsaved changes</span>
             </div>
+            
+            <!-- Back Button (saves draft automatically) -->
+            <button
+              @click="handleBackWithSave"
+              :disabled="isLoading"
+              class="btn-secondary"
+            >
+              <IconArrowLeft class="w-4 h-4" />
+              <span class="hidden sm:inline">Back</span>
+            </button>
             
             <!-- Save Draft -->
             <button
