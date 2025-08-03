@@ -169,6 +169,70 @@ const handleNostrLogin = async () => {
   }
 }
 
+// Parse markdown content to HTML
+const parseMarkdown = (content) => {
+  if (!content) return ''
+  
+  let html = content
+    // Escape HTML first
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  
+  // Parse markdown syntax
+  html = html
+    // Headers
+    .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold text-gray-900 mt-8 mb-4">$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-10 mb-6">$1</h2>')
+    .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-12 mb-8">$1</h1>')
+    
+    // Bold and italic
+    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-bold"><em class="italic">$1</em></strong>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-900">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>')
+    
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors">$1</a>')
+    
+    // Code blocks (triple backticks)
+    .replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 border border-gray-200 rounded-lg p-4 my-4 overflow-x-auto"><code class="text-sm font-mono text-gray-800">$1</code></pre>')
+    
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono">$1</code>')
+    
+    // Unordered lists
+    .replace(/^[\s]*[-*+] (.+)$/gm, '<li class="ml-4 mb-2 text-gray-700">$1</li>')
+    
+    // Ordered lists
+    .replace(/^[\s]*\d+\. (.+)$/gm, '<li class="ml-4 mb-2 text-gray-700">$1</li>')
+    
+    // Blockquotes
+    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-orange-400 pl-4 py-2 my-4 bg-orange-50/50 italic text-gray-700">$1</blockquote>')
+    
+    // Horizontal rules
+    .replace(/^---$/gm, '<hr class="border-t border-gray-300 my-8">')
+    
+    // Line breaks (convert double newlines to paragraphs)
+    .replace(/\n\n/g, '</p><p class="mb-4 text-gray-700 leading-relaxed">')
+    
+    // Single line breaks
+    .replace(/\n/g, '<br>')
+  
+  // Wrap in paragraph tags if not already wrapped
+  if (!html.includes('<p>') && !html.includes('<h1>') && !html.includes('<h2>') && !html.includes('<h3>')) {
+    html = `<p class="mb-4 text-gray-700 leading-relaxed">${html}</p>`
+  } else if (html.includes('</p><p>')) {
+    html = `<p class="mb-4 text-gray-700 leading-relaxed">${html}</p>`
+  }
+  
+  // Wrap lists in proper ul/ol tags
+  html = html.replace(/(<li class="ml-4 mb-2 text-gray-700">.*?<\/li>)/gs, (match) => {
+    return `<ul class="list-disc list-inside mb-4 space-y-2">${match}</ul>`
+  })
+  
+  return html
+}
+
 const activeTab = computed(() => {
   if (currentView.value === 'list') return 'my-content'
   if (currentView.value === 'create' || currentView.value === 'edit') return 'create-new'
@@ -516,6 +580,20 @@ onUnmounted(() => {
                   {{ selectedContent.title }}
                 </h1>
                 
+                <!-- Hashtags (moved after title) -->
+                <div v-if="selectedContent.tags && selectedContent.tags.length > 0" class="mb-6">
+                  <div class="flex flex-wrap gap-2">
+                    <span
+                      v-for="tag in selectedContent.tags"
+                      :key="tag"
+                      class="inline-flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:from-orange-200 hover:to-amber-200 transition-all duration-200 cursor-pointer"
+                    >
+                      <IconHash class="w-3 h-3" />
+                      <span>{{ tag }}</span>
+                    </span>
+                  </div>
+                </div>
+                
                 <!-- Article Summary -->
                 <div v-if="selectedContent.description" class="mb-6">
                   <p class="text-xl text-gray-600 leading-relaxed italic border-l-4 border-orange-400 pl-4 bg-orange-50/50 py-3 rounded-r-lg">
@@ -614,24 +692,9 @@ onUnmounted(() => {
               
               <!-- Article Content -->
               <main class="px-8 py-8">
-                <div class="prose prose-lg max-w-none text-gray-800 leading-relaxed">
-                  <div class="whitespace-pre-wrap">{{ selectedContent.fullContent || selectedContent.content || 'No content available' }}</div>
+                <div class="prose prose-lg max-w-none text-gray-800 leading-relaxed" v-html="parseMarkdown(selectedContent.fullContent || selectedContent.content || 'No content available')">
                 </div>
               </main>
-              
-              <!-- Article Footer -->
-              <footer v-if="selectedContent.tags && selectedContent.tags.length > 0" class="px-8 pb-8 border-t border-gray-100 pt-6">
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="tag in selectedContent.tags"
-                    :key="tag"
-                    class="inline-flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:from-orange-200 hover:to-amber-200 transition-all duration-200 cursor-pointer"
-                  >
-                    <IconHash class="w-3 h-3" />
-                    <span>{{ tag }}</span>
-                  </span>
-                </div>
-              </footer>
             </article>
           </div>
 
