@@ -473,8 +473,10 @@ updateReadingTime()
         </div>
       </div>
     </div>
-    <!-- Streamlined Header -->
-    <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white rounded-xl p-6 shadow-lg">
+    <!-- Main Content (when not showing edit confirmation) -->
+    <div v-else class="space-y-6">
+      <!-- Streamlined Header -->
+      <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white rounded-xl p-6 shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 class="text-2xl font-bold mb-2 flex items-center space-x-2">
@@ -500,10 +502,10 @@ updateReadingTime()
           </div>
         </div>
       </div>
-    </div>
+      </div>
 
-    <!-- Authentication Required Message -->
-    <div v-if="!isAuthenticated" class="bg-amber-50 border border-amber-200 rounded-xl p-6">
+      <!-- Authentication Required Message -->
+      <div v-if="!isAuthenticated" class="bg-amber-50 border border-amber-200 rounded-xl p-6">
       <div class="flex items-center space-x-3">
         <IconUser class="w-8 h-8 text-amber-600" />
         <div>
@@ -513,10 +515,10 @@ updateReadingTime()
           </p>
         </div>
       </div>
-    </div>
+      </div>
 
-    <!-- Nostr Edit Warning (Only show when editing) -->
-    <div v-if="isAuthenticated && isEditing" class="bg-amber-50 border border-amber-200 rounded-xl p-6">
+      <!-- Nostr Edit Warning (Only show when editing) -->
+      <div v-if="isAuthenticated && isEditing" class="bg-amber-50 border border-amber-200 rounded-xl p-6">
       <div class="flex items-start space-x-3">
         <IconAlertCircle class="w-8 h-8 text-amber-600 flex-shrink-0 mt-1" />
         <div>
@@ -534,10 +536,10 @@ updateReadingTime()
           </div>
         </div>
       </div>
-    </div>
+      </div>
 
-    <!-- Main Wizard Container -->
-    <div v-else class="bg-white/95 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-lg overflow-hidden">
+      <!-- Main Wizard Container -->
+      <div v-if="isAuthenticated && (!isEditing || !showEditConfirmation)" class="bg-white/95 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-lg overflow-hidden">
       <!-- Step Navigation -->
       <div class="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-orange-50">
         <div class="px-6 py-4">
@@ -847,6 +849,7 @@ Write naturally and let your thoughts flow. Your content will be published as a 
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   </div>
