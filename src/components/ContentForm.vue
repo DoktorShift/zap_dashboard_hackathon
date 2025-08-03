@@ -32,7 +32,6 @@ import {
   IconCalendar,
   IconGlobe,
   IconHash,
-  IconPhoto,
   IconType,
   IconAlignLeft,
   IconSave,
