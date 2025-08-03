@@ -719,6 +719,20 @@ onUnmounted(() => {
               </div>
             </div>
 
+          <!-- Edit Warning for Published Content -->
+          <div v-if="selectedContent.status === 'published' && selectedContent.nostrEventId" class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div class="flex items-start space-x-3">
+              <IconAlertCircle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 class="font-medium text-amber-900 mb-1">Editing Published Content</h4>
+                <p class="text-sm text-amber-800 leading-relaxed">
+                  Editing this published post will create a new version and reset all engagement metrics (zaps, etc.). 
+                  The original will be marked for deletion.
+                </p>
+              </div>
+            </div>
+          </div>
+
             <!-- Zaps Card -->
             <div v-if="selectedContent.nostrEventId" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-4">
               <div class="flex items-center justify-between mb-3">

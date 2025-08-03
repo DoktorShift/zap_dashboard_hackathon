@@ -335,10 +335,10 @@ updateReadingTime()
         <div>
           <h1 class="text-2xl font-bold mb-2 flex items-center space-x-2">
             <IconEdit class="w-6 h-6" />
-            <span>{{ isEditing ? 'Edit Blog Post' : 'Write New Blog Post' }}</span>
+            <span>{{ isEditing ? 'Edit Blog Post (New Version)' : 'Write New Blog Post' }}</span>
           </h1>
           <p class="text-orange-100">
-            {{ isEditing ? 'Update your blog post' : 'Share your thoughts with the world on Nostr' }}
+            {{ isEditing ? 'Creates a new version and marks the original for deletion' : 'Share your thoughts with the world on Nostr' }}
           </p>
         </div>
         
@@ -367,6 +367,27 @@ updateReadingTime()
           <p class="text-amber-700 mt-1">
             Please connect your Nostr identity to create and publish blog posts.
           </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nostr Edit Warning (Only show when editing) -->
+    <div v-if="isAuthenticated && isEditing" class="bg-amber-50 border border-amber-200 rounded-xl p-6">
+      <div class="flex items-start space-x-3">
+        <IconAlertCircle class="w-8 h-8 text-amber-600 flex-shrink-0 mt-1" />
+        <div>
+          <h3 class="font-semibold text-amber-800 text-lg mb-2">How Nostr Edits Work</h3>
+          <div class="text-amber-700 space-y-2">
+            <p class="font-medium">⚠️ Important: Nostr doesn't support direct editing of published content.</p>
+            <p>When you "edit" this post, ZapTracker will:</p>
+            <ul class="list-disc list-inside space-y-1 ml-4">
+              <li>Create a completely new blog post with your changes</li>
+              <li>Publish a deletion request for the original post</li>
+              <li>The new post will have a different event ID</li>
+              <li><strong>All zaps, engagement, and metrics will reset to zero</strong></li>
+            </ul>
+            <p class="mt-3 font-medium">💡 Consider if the changes are worth losing existing engagement metrics.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -695,7 +716,7 @@ Write naturally and let your thoughts flow. Your content will be published as a 
             >
               <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
               <IconSend v-else class="w-4 h-4" />
-              {{ isLoading ? 'Publishing...' : 'Publish Blog Post' }}
+              {{ isLoading ? 'Publishing...' : (isEditing ? 'Publish New Version' : 'Publish Blog Post') }}
             </button>
           </div>
         </div>
