@@ -521,7 +521,9 @@ Examples:
 **Bold text**
 *Italic text*
 [Link text](https://example.com)
+)
 ![Image alt](https://example.com/image.jpg)
+)
 
 Use the toolbar above for easy formatting!"
             rows="20"
