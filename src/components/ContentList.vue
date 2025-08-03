@@ -308,6 +308,7 @@ const getSalesTooltip = (item) => {
               Free
             </p>
           </div>
+          <!--
           <div class="text-center">
             <p class="text-sm font-medium text-gray-600">
               {{ item.monetizationModel === 'subscription' ? 'Subscribers' : 'Unlocks' }}
@@ -316,6 +317,7 @@ const getSalesTooltip = (item) => {
               {{ item.monetizationModel === 'subscription' ? item.subscribers : item.unlocks }}
             </p>
           </div>
+          -->
           <div class="text-center">
             <p class="text-sm font-medium text-green-600">Revenue</p>
             <p class="text-lg font-bold text-gray-900">
@@ -364,10 +366,12 @@ const getSalesTooltip = (item) => {
               <div class="text-xs text-gray-400">zaps + sales</div>
             </div>
           </div>
+          <!--
           <div class="text-center">
             <p class="text-sm font-medium text-blue-600">Views</p>
             <p class="text-lg font-bold text-gray-900">{{ item.views }}</p>
           </div>
+          -->
         </div>
       </div>
     </div>
