@@ -32,7 +32,6 @@ import {
   IconCalendar,
   IconGlobe,
   IconHash,
-  IconType,
   IconAlignLeft,
   IconDeviceFloppy,
   IconSend
@@ -114,7 +113,7 @@ const wizardSteps = [
     id: 'basics',
     title: 'Content Basics',
     description: 'Define your content type and core information',
-    icon: IconType,
+    icon: IconEdit,
     fields: ['title', 'type', 'description']
   },
   {
@@ -567,7 +566,7 @@ updateReadingTime()
           <!-- Title -->
           <div>
             <label class="block text-sm font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <IconType class="w-4 h-4 text-orange-600" />
+              <IconEdit class="w-4 h-4 text-orange-600" />
               <span>Content Title</span>
               <span class="text-red-500">*</span>
             </label>
@@ -693,7 +692,7 @@ updateReadingTime()
             <!-- Content Stats -->
             <div class="flex items-center space-x-4 mb-3 text-xs text-gray-500">
               <span class="flex items-center space-x-1">
-                <IconType class="w-3 h-3" />
+                <IconEdit class="w-3 h-3" />
                 <span>{{ wordCount.full }} words</span>
               </span>
               <span class="flex items-center space-x-1">
