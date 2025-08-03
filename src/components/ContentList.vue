@@ -305,7 +305,7 @@ const getSalesTooltip = (item) => {
           <div class="text-center">
             <p class="text-sm font-medium text-orange-600">Price</p>
             <p class="text-lg font-bold text-gray-900">
-              {{ item.monetizationModel === 'free' ? 'Free' : (item.price || 0).toLocaleString() + ' sats' }}
+              Free
             </p>
           </div>
           <div class="text-center">

@@ -90,10 +90,10 @@ const contentTypes = [
 const wizardSteps = [
   {
     id: 'basics',
-    title: 'Blog Basics',
-    description: 'Title and content type',
+    title: 'Title & Summary',
+    description: 'Title and brief description',
     icon: IconEdit,
-    fields: ['title', 'type']
+    fields: ['title', 'description']
   },
   {
     id: 'content',
@@ -156,6 +156,8 @@ const isStepValid = computed(() => {
   return step.fields.every(field => {
     if (field === 'content') {
       return props.form.content && props.form.content.trim()
+    } else if (field === 'description') {
+      return props.form.description && props.form.description.trim()
     }
     return props.form[field] && props.form[field].toString().trim()
   })
@@ -233,7 +235,7 @@ const suggestedTags = computed(() => {
 
 // Auto-save functionality
 const autoSave = async () => {
-  if (hasUnsavedChanges.value && props.isAuthenticated) {
+  if (hasUnsavedChanges.value && props.isAuthenticated && isFormValid.value) {
     try {
       emit('save-draft')
       lastSaved.value = new Date()
@@ -437,48 +439,23 @@ updateReadingTime()
             </p>
           </div>
 
-          <!-- Content Type Selection -->
+          <!-- Summary/Description -->
           <div>
-            <label class="block text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-              <IconPalette class="w-5 h-5 text-purple-600" />
-              <span>Content Type</span>
+            <label class="block text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+              <IconAlignLeft class="w-5 h-5 text-orange-600" />
+              <span>Summary</span>
+              <span class="text-red-500">*</span>
             </label>
-            
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div
-                v-for="type in contentTypes"
-                :key="type.value"
-                @click="form.type = type.value"
-                :class="[
-                  'p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-md text-center',
-                  form.type === type.value 
-                    ? 'border-orange-400 bg-orange-50 shadow-lg transform scale-105' 
-                    : 'border-gray-200 hover:border-orange-200 hover:bg-orange-25'
-                ]"
-              >
-                <div :class="[
-                  'w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-2',
-                  form.type === type.value ? 'bg-orange-100' : 'bg-gray-100'
-                ]">
-                  <component :is="type.icon" :class="[
-                    'w-4 h-4',
-                    form.type === type.value ? 'text-orange-600' : 'text-gray-500'
-                  ]" />
-                </div>
-                <h3 :class="[
-                  'font-medium text-sm mb-1',
-                  form.type === type.value ? 'text-orange-900' : 'text-gray-900'
-                ]">
-                  {{ type.label }}
-                </h3>
-                <p :class="[
-                  'text-xs',
-                  form.type === type.value ? 'text-orange-700' : 'text-gray-600'
-                ]">
-                  {{ type.description }}
-                </p>
-              </div>
-            </div>
+            <textarea
+              v-model="form.description"
+              rows="3"
+              placeholder="Write a brief summary of your blog post that will appear in previews..."
+              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white shadow-sm resize-none"
+              :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': !form.description.trim() }"
+            ></textarea>
+            <p class="text-xs text-gray-500 mt-2">
+              This summary will be used as the NIP-23 "summary" tag and shown in content previews
+            </p>
           </div>
         </div>
 
