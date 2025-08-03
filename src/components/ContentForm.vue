@@ -146,7 +146,6 @@ const estimatedReadTime = ref(0)
 const lastSaved = ref(null)
 const hasUnsavedChanges = ref(false)
 
-const editUnderstanding = ref(false)
 // Content helpers
 const updateWordCount = () => {
   const words = props.form.content.trim().split(/\s+/).filter(word => word.length > 0).length
@@ -760,7 +759,6 @@ Write naturally and let your thoughts flow. Your content will be published as a 
               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white"
             />
             <p class="text-xs text-gray-500 mt-2">
-    <div v-if="!isEditing || !showEditConfirmation">
               A cover image makes your blog post more engaging
             </p>
             
@@ -791,6 +789,7 @@ Write naturally and let your thoughts flow. Your content will be published as a 
       </div>
 
       <!-- Navigation Footer -->
+      <div v-if="!isEditing || !showEditConfirmation">
       <div class="border-t border-gray-200 bg-gradient-to-r from-gray-50 to-orange-50 px-6 py-4">
         <div class="flex items-center justify-between">
           <!-- Left: Previous Button -->
@@ -805,7 +804,10 @@ Write naturally and let your thoughts flow. Your content will be published as a 
             </button>
             <button
               @click="handleBackWithSave"
-    <div v-if="isAuthenticated" class="bg-white/95 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-lg overflow-hidden">
+          </div>
+          
+          <!-- Right: Action Buttons -->
+          <div class="flex items-center space-x-3">
               class="btn-secondary"
             >
               <IconArrowLeft class="w-4 h-4" />
@@ -852,7 +854,7 @@ Write naturally and let your thoughts flow. Your content will be published as a 
           <span>Please complete all required fields to continue</span>
         </div>
       </div>
-    </div>
+      </div>
     </div>
   </div>
 </template>
