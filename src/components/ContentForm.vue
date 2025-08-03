@@ -368,6 +368,7 @@ updateReadingTime()
             </div>
           </div>
         </div>
+      </div>
 
         <!-- Content -->
         <div class="p-6 space-y-6">
