@@ -324,6 +324,7 @@ export function useContent() {
         tags: [
           ['d', contentId], // Identifier tag (required for addressable events)
           ['title', content.title], // Article title
+          ['summary', content.description || ''], // Article summary
           ['published_at', Math.floor(new Date(content.createdAt).getTime() / 1000).toString()],
           ...content.tags.map(tag => ['t', tag]) // Topic tags
         ],
