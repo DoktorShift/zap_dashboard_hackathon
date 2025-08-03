@@ -4,23 +4,13 @@ import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrLongForm } from './useNostrLongForm.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import { contentService } from '../utils/contentService.js'
 
 // Content types
 const CONTENT_TYPES = {
   ARTICLE: 'article',
   NEWSLETTER: 'newsletter',
-  PODCAST: 'podcast',
-  VIDEO: 'video',
-  IMAGE: 'image',
-  DOCUMENT: 'document'
-}
-
-// Monetization models
-const MONETIZATION_MODELS = {
-  ONE_TIME: 'one-time',
-  SUBSCRIPTION: 'subscription',
-  FREE: 'free'
+  STORY: 'story',
+  REVIEW: 'review'
 }
 
 // Content status
@@ -88,14 +78,13 @@ watch(contentItems, saveContentToStorage, { deep: true })
 loadContentFromStorage()
 
 export function useContent() {
-  const { currentUser, isAuthenticated, userProfile, writeRelays, connectedRelays } = useNostrAuth()
+  const { currentUser, isAuthenticated, userProfile } = useNostrAuth()
   const { 
     startZapTracking, 
     getZapsForContent, 
     getTotalZapAmount,
     getZapCount,
     getAllContentZaps,
-    trackMultipleContent,
     initializeZapTracking
   } = useContentZaps()
   
@@ -125,69 +114,12 @@ export function useContent() {
       )
     )
     
-    return [...localItems, ...relayItems].sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
+    return [...localItems, ...relayItems].sort((a, b) => 
+      new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
     )
   })
 
   // Enhanced content items with zap data
-  const userContentItemsWithZaps = computed(() => {
-    const allZaps = getAllContentZaps.value
-    console.log('Content zaps data:', allZaps)
-
-    return userContentItems.value.map(item => {
-      console.log('Processing content item:', item.id, 'nostrEventId:', item.nostrEventId)
-      const zapData = allZaps[item.nostrEventId] || { zaps: [], totalAmount: 0, count: 0 }
-      console.log('Zap data for item:', item.id, zapData)
-      
-      return {
-        ...item,
-        zapCount: zapData.count,
-        zapAmount: zapData.totalAmount,
-        zaps: zapData.zaps,
-        traditionalRevenue: item.revenue || 0, // Store original revenue as traditionalRevenue
-        totalRevenue: (item.revenue || 0) + zapData.totalAmount // Combined revenue
-      }
-    })
-  })
-
-  // Computed properties based on user's content
-  const totalRevenue = computed(() => {
-    return combinedContentItemsWithZaps.value.reduce((sum, item) => sum + item.totalRevenue, 0)
-  })
-
-  const totalUnlocks = computed(() => {
-    return userContentItemsWithZaps.value.reduce((sum, item) => sum + item.unlocks, 0)
-  })
-
-  const publishedItems = computed(() => {
-    return combinedContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.PUBLISHED)
-  })
-
-  const draftItems = computed(() => {
-    return combinedContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.DRAFT)
-  })
-
-  const revenueInUSD = computed(() => {
-    return (totalRevenue.value * 0.0003).toFixed(2) // Rough BTC to USD conversion
-
-    const drafts = draftItems.value.length
-    const totalViews = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.views, 0)
-    const totalSubscribers = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.subscribers, 0)
-
-    return {
-      published,
-      drafts,
-      totalViews,
-      totalRevenue: totalRevenue.value,
-      content: event.content,
-      monetizationModel: 'free',
-  const topPerformingContent = computed(() => {
-    return [...combinedContentItemsWithZaps.value]
-      .sort((a, b) => b.totalRevenue - a.totalRevenue)
-      .slice(0, 3)
-  })
-
-  // Combined content items with zaps
   const combinedContentItemsWithZaps = computed(() => {
     const allZaps = getAllContentZaps.value
     
@@ -200,10 +132,36 @@ export function useContent() {
         zapCount: zapData.count,
         zapAmount: zapData.totalAmount,
         zaps: zapData.zaps,
-        traditionalRevenue: item.revenue || 0,
-        totalRevenue: (item.revenue || 0) + zapData.totalAmount
+        totalRevenue: zapData.totalAmount // Only zap revenue for free content
       }
     })
+  })
+
+  // Computed properties
+  const totalRevenue = computed(() => {
+    return combinedContentItemsWithZaps.value.reduce((sum, item) => sum + item.totalRevenue, 0)
+  })
+
+  const publishedItems = computed(() => {
+    return combinedContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.PUBLISHED)
+  })
+
+  const draftItems = computed(() => {
+    return combinedContentItemsWithZaps.value.filter(item => item.status === CONTENT_STATUS.DRAFT)
+  })
+
+  const contentStats = computed(() => {
+    const published = publishedItems.value.length
+    const drafts = draftItems.value.length
+    const totalViews = combinedContentItemsWithZaps.value.reduce((sum, item) => sum + (item.views || 0), 0)
+
+    return {
+      published,
+      drafts,
+      totalViews,
+      totalRevenue: totalRevenue.value,
+      totalUnlocks: 0 // Not applicable for free content
+    }
   })
 
   // Content management functions
@@ -221,11 +179,7 @@ export function useContent() {
         ...contentData,
         creatorPubkey: currentUser.value.pubkey,
         creatorName: userProfile.value?.name || 'Anonymous Creator',
-        unlocks: 0,
-        revenue: 0,
         views: 0,
-        subscribers: 0,
-        monetizationModel: 'free', // Always free
         status: CONTENT_STATUS.DRAFT,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -311,14 +265,6 @@ export function useContent() {
     }
   }
 
-  const publishContent = async (id) => {
-    return updateContent(id, { status: CONTENT_STATUS.PUBLISHED })
-  }
-
-  const unpublishContent = async (id) => {
-    return updateContent(id, { status: CONTENT_STATUS.DRAFT })
-  }
-
   const duplicateContent = async (id) => {
     if (!isAuthenticated.value) {
       throw new Error('Authentication required to duplicate content')
@@ -334,10 +280,7 @@ export function useContent() {
       id: Date.now().toString(),
       title: original.title + ' (Copy)',
       status: CONTENT_STATUS.DRAFT,
-      unlocks: 0,
-      revenue: 0,
       views: 0,
-      subscribers: 0,
       nostrEventId: null, // Clear Nostr event ID for duplicate
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -347,7 +290,7 @@ export function useContent() {
     return duplicate
   }
 
-  // Enhanced Nostr publishing functionality using the relay manager
+  // Enhanced Nostr publishing functionality
   const publishToNostr = async (contentId) => {
     if (!isAuthenticated.value || !window.nostr) {
       throw new Error('Nostr authentication required')
@@ -360,46 +303,39 @@ export function useContent() {
 
     try {
       isLoading.value = true
-      publishingStatus.value = 'Preparing content for Nostr...'
-      publishingProgress.value = 10
+      publishingStatus.value = 'Publishing to Nostr...'
+      publishingProgress.value = 25
 
-      // Check if relay manager is initialized and has write relays
+      // Check relay connections
       const stats = nostrRelayManager.getConnectionStats()
       if (stats.writeEnabled === 0) {
-        throw new Error('No write-enabled relays available. Please check your relay configuration in Settings > Nostr.')
+        throw new Error('No write-enabled relays available. Please check your relay configuration.')
       }
 
-      console.log(`Publishing to ${stats.writeEnabled} write-enabled relays`)
-
       // Create NIP-23 long-form content event (kind:30023)
-      // Reference: https://github.com/nostr-protocol/nips/blob/master/23.md
       let eventTemplate = {
         kind: 30023, // Long-form content (NIP-23)
         created_at: Math.floor(Date.now() / 1000),
         tags: [
           ['d', contentId], // Identifier tag (required for addressable events)
-          ['title', content.title], // Article title (NIP-23 standard)
-          ['published_at', content.publishedAt ? 
-            Math.floor(new Date(content.publishedAt).getTime() / 1000).toString() :
-            Math.floor(new Date(content.createdAt).getTime() / 1000).toString()], // First publication timestamp
-          ...content.tags.map(tag => ['t', tag])
+          ['title', content.title], // Article title
+          ['published_at', Math.floor(new Date(content.createdAt).getTime() / 1000).toString()],
+          ...content.tags.map(tag => ['t', tag]) // Topic tags
         ],
-        content: content.content // Use the main content field for NIP-23
+        content: content.content // Main blog content
       }
 
-      // Add image tag if cover image is provided (NIP-23 standard)
+      // Add optional tags
       if (content.coverImage) {
         eventTemplate.tags.push(['image', content.coverImage])
       }
-
-      // Add content type and monetization metadata
+      
       eventTemplate.tags.push(['content-type', content.type])
-      eventTemplate.tags.push(['monetization', 'free']) // Always free content
 
-      publishingStatus.value = 'Signing event with your Nostr key...'
-      publishingProgress.value = 30
+      publishingStatus.value = 'Signing with your Nostr key...'
+      publishingProgress.value = 50
 
-      // Sign the event using the browser extension
+      // Sign the event
       const signedEvent = await window.nostr.signEvent(eventTemplate)
       
       // Verify the signed event
@@ -408,24 +344,19 @@ export function useContent() {
         throw new Error('Event signature verification failed')
       }
 
-      publishingStatus.value = 'Broadcasting to Nostr relays...'
-      publishingProgress.value = 50
+      publishingStatus.value = 'Broadcasting to relays...'
+      publishingProgress.value = 75
 
-      console.log('Publishing event to Nostr network:', signedEvent.id)
-
-      // Use the relay manager to publish
+      // Publish to relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
       
-      publishingStatus.value = 'Waiting for relay confirmations...'
-      publishingProgress.value = 80
-
       publishingProgress.value = 100
 
       if (result.successful === 0) {
-        throw new Error('Failed to publish to any relays. Please check your relay connections.')
+        throw new Error('Failed to publish to any relays')
       }
 
-      // Update content status with Nostr event information
+      // Update content status
       await updateContent(contentId, {
         status: CONTENT_STATUS.PUBLISHED,
         nostrEventId: signedEvent.id,
@@ -433,23 +364,10 @@ export function useContent() {
         publishedAt: new Date().toISOString()
       })
 
-      // 🔥 START ZAP TRACKING FOR THIS CONTENT
-      console.log(`🔍 Starting zap tracking for newly published content: ${signedEvent.id}`)
+      // Start zap tracking
       await startZapTracking(signedEvent.id)
 
-      let statusMessage = `Successfully published to ${result.successful} relay${result.successful !== 1 ? 's' : ''}!`
-      
-      if (result.failed > 0) {
-        statusMessage += ` (${result.failed} relay${result.failed !== 1 ? 's' : ''} failed)`
-      }
-      
-      publishingStatus.value = statusMessage
-
-      console.log('✅ Content published to Nostr successfully:', {
-        eventId: signedEvent.id,
-        successfulRelays: result.successful,
-        failedRelays: result.failed
-      })
+      publishingStatus.value = `Published successfully to ${result.successful} relay${result.successful !== 1 ? 's' : ''}!`
 
       return {
         event: signedEvent,
@@ -458,37 +376,16 @@ export function useContent() {
       }
 
     } catch (err) {
-      error.value = 'Failed to publish to Nostr: ' + err.message
+      error.value = 'Failed to publish: ' + err.message
       publishingStatus.value = 'Publishing failed: ' + err.message
-      console.error('❌ Nostr publishing error:', err)
       throw err
     } finally {
       isLoading.value = false
-      // Clear publishing status after 5 seconds
+      // Clear status after 5 seconds
       setTimeout(() => {
         publishingStatus.value = ''
         publishingProgress.value = 0
       }, 5000)
-    }
-  }
-
-  // Content interaction functions
-  const purchaseContent = async (contentId, paymentHash) => {
-    // Simulate content purchase
-    const content = contentItems.value.find(item => item.id === contentId)
-    if (content) {
-      content.unlocks += 1
-      content.revenue += content.price
-      content.views += 1
-    }
-  }
-
-  const subscribeToContent = async (contentId, subscriptionData) => {
-    // Simulate subscription
-    const content = contentItems.value.find(item => item.id === contentId)
-    if (content) {
-      content.subscribers += 1
-      content.revenue += content.price
     }
   }
 
@@ -509,11 +406,10 @@ export function useContent() {
     currentView.value = 'preview'
   }
 
-  // Initialize zap tracking when the composable is used
+  // Initialize when authenticated
   if (isAuthenticated.value) {
     initializeZapTracking()
     
-    // Also fetch long-form content from relays
     setTimeout(() => {
       fetchUserLongFormContent().catch(err => {
         console.error('Failed to fetch long-form content:', err)
@@ -521,51 +417,17 @@ export function useContent() {
     }, 2000)
   }
 
-  // Watch for authentication changes to initialize zap tracking
+  // Watch for authentication changes
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
       setTimeout(() => {
         initializeZapTracking()
-        
-        // Also fetch long-form content from relays
         fetchUserLongFormContent().catch(err => {
           console.error('Failed to fetch long-form content:', err)
         })
-        
-        console.log('Initialized zap tracking and fetched long-form content')
-      }, 1000) // Small delay to ensure content is loaded
+      }, 1000)
     }
   })
-
-  // Utility functions
-  const formatPrice = (price) => {
-    return price.toLocaleString() + ' sats'
-  }
-
-  const formatRevenue = (revenue) => {
-    return revenue.toLocaleString() + ' sats'
-  }
-
-  const getContentTypeIcon = (type) => {
-    const icons = {
-      [CONTENT_TYPES.ARTICLE]: 'IconFileText',
-      [CONTENT_TYPES.NEWSLETTER]: 'IconMail',
-      [CONTENT_TYPES.PODCAST]: 'IconMicrophone',
-      [CONTENT_TYPES.VIDEO]: 'IconVideo',
-      [CONTENT_TYPES.IMAGE]: 'IconPhoto',
-      [CONTENT_TYPES.DOCUMENT]: 'IconFile'
-    }
-    return icons[type] || 'IconFileText'
-  }
-
-  const getStatusColor = (status) => {
-    const colors = {
-      [CONTENT_STATUS.PUBLISHED]: 'text-green-600 bg-green-100',
-      [CONTENT_STATUS.DRAFT]: 'text-yellow-600 bg-yellow-100',
-      [CONTENT_STATUS.ARCHIVED]: 'text-gray-600 bg-gray-100'
-    }
-    return colors[status] || 'text-gray-600 bg-gray-100'
-  }
 
   return {
     // State
@@ -580,46 +442,29 @@ export function useContent() {
     publishingProgress,
 
     // Computed
-    totalRevenue, 
-    totalUnlocks,
+    contentStats,
     publishedItems,
     draftItems,
-    revenueInUSD,
-    contentStats,
-    topPerformingContent,
 
     // Actions
     createContent,
     updateContent,
     deleteContent,
-    publishContent,
-    unpublishContent,
     duplicateContent,
-    purchaseContent,
-    subscribeToContent,
     publishToNostr,
-    initializeZapTracking,
     
     // View management
     setView,
     editContent,
     previewContent,
     
-    // Utilities
-    formatPrice,
-    formatRevenue,
-    getContentTypeIcon,
-    getStatusColor,
-    
     // Zap functions
     getZapsForContent,
     getTotalZapAmount,
     getZapCount,
-    initializeZapTracking,
     
     // Constants
     CONTENT_TYPES,
-    MONETIZATION_MODELS,
     CONTENT_STATUS
   }
 }
