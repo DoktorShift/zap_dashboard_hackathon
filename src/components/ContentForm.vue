@@ -10,7 +10,6 @@ import {
   IconFile,
   IconX,
   IconPlus,
-  IconLock,
   IconUser,
   IconBolt,
   IconShare,
@@ -34,7 +33,8 @@ import {
   IconHash,
   IconAlignLeft,
   IconDeviceFloppy,
-  IconSend
+  IconSend,
+  IconClock
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -58,116 +58,79 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'cancel', 'save-draft'])
 
-// Enhanced content types with better descriptions
+// Simplified content types for blogging
 const contentTypes = [
   { 
     value: 'article', 
     label: 'Article', 
     icon: IconFileText,
-    description: 'In-depth written content, tutorials, or thought pieces',
-    examples: 'How-to guides, opinion pieces, technical articles'
+    description: 'In-depth written content and tutorials'
   },
   { 
     value: 'newsletter', 
     label: 'Newsletter', 
     icon: IconMail,
-    description: 'Regular updates, news, or curated content for subscribers',
-    examples: 'Weekly updates, industry news, curated links'
+    description: 'Regular updates and curated content'
   },
   { 
     value: 'story', 
     label: 'Story', 
     icon: IconBookmark,
-    description: 'Creative writing, fiction, or personal narratives',
-    examples: 'Short stories, personal experiences, creative fiction'
+    description: 'Creative writing and personal narratives'
   },
   { 
     value: 'review', 
     label: 'Review', 
     icon: IconTarget,
-    description: 'Product reviews, book reviews, or critical analysis',
-    examples: 'Product comparisons, book reviews, service evaluations'
+    description: 'Product reviews and analysis'
   }
 ]
 
-const monetizationModels = [
-  { 
-    value: 'free', 
-    label: 'Free Content',
-    description: 'Accessible to everyone, great for building audience',
-    icon: IconGlobe,
-    color: 'green'
-  },
-  { 
-    value: 'one-time', 
-    label: 'Premium Content',
-    description: 'One-time payment to unlock full content',
-    icon: IconLock,
-    color: 'orange'
-  }
-]
-
-// Wizard steps
+// Simplified wizard steps for fast blogging
 const wizardSteps = [
   {
     id: 'basics',
-    title: 'Content Basics',
-    description: 'Define your content type and core information',
+    title: 'Blog Basics',
+    description: 'Title and content type',
     icon: IconEdit,
-    fields: ['title', 'type', 'description']
+    fields: ['title', 'type']
   },
   {
     id: 'content',
-    title: 'Write Your Content',
+    title: 'Write Your Blog',
     description: 'Create your blog post content',
     icon: IconEdit,
-    fields: ['previewText', 'fullContent']
+    fields: ['content']
   },
   {
-    id: 'monetization',
-    title: 'Monetization',
-    description: 'Set pricing and access model',
-    icon: IconBolt,
-    fields: ['monetizationModel', 'price']
-  },
-  {
-    id: 'metadata',
+    id: 'enhance',
     title: 'Enhance & Publish',
-    description: 'Add tags, images, and final touches',
+    description: 'Add tags and final touches',
     icon: IconSparkles,
-    fields: ['tags', 'coverImage']
+    fields: []
   }
 ]
 
 // State
 const currentStep = ref(0)
 const newTag = ref('')
-const showClientDropdown = ref(false)
-const dropdownRef = ref(null)
 const completedSteps = ref(new Set())
-const showAdvancedOptions = ref(false)
-const wordCount = ref({ preview: 0, full: 0 })
+const wordCount = ref(0)
 const estimatedReadTime = ref(0)
 
 // Auto-save state
 const lastSaved = ref(null)
 const hasUnsavedChanges = ref(false)
 
-// Content helpers - moved before watch statements
+// Content helpers
 const updateWordCount = () => {
-  const previewWords = props.form.previewText.trim().split(/\s+/).filter(word => word.length > 0).length
-  const fullWords = props.form.fullContent.trim().split(/\s+/).filter(word => word.length > 0).length
-  
-  wordCount.value = {
-    preview: previewWords,
-    full: fullWords
-  }
+  const words = props.form.content.trim().split(/\s+/).filter(word => word.length > 0).length
+  wordCount.value = words
 }
 
 const updateReadingTime = () => {
   const wordsPerMinute = 200 // Average reading speed
-  const totalWords = wordCount.value.full
-  estimatedReadTime.value = Math.ceil(totalWords / wordsPerMinute)
+  estimatedReadTime.value = Math.ceil(wordCount.value / wordsPerMinute)
 }
 
 // Watch for form changes to track unsaved changes
@@ -175,32 +138,15 @@ watch(() => props.form, () => {
   hasUnsavedChanges.value = true
 }, { deep: true })
 
-// Watch for monetization model changes
-watch(() => props.form.monetizationModel, (newModel) => {
-  if (newModel === 'free') {
-    props.form.price = 0
-  } else if (props.form.price === 0) {
-    props.form.price = 1000 // Default price for premium content
-  }
-})
-
 // Watch content for word count and reading time
-watch(() => props.form.fullContent, (content) => {
+watch(() => props.form.content, (content) => {
   updateWordCount()
   updateReadingTime()
 }, { immediate: true })
 
-watch(() => props.form.previewText, () => {
-  updateWordCount()
-}, { immediate: true })
-
 // Computed properties
 const isFormValid = computed(() => {
-  return props.form.title.trim() &&
-         props.form.description.trim() &&
-         props.form.previewText.trim() &&
-         props.form.fullContent.trim() &&
-         (props.form.monetizationModel === 'free' || props.form.price > 0)
+  return props.form.title.trim() && props.form.content.trim()
 })
 
 const currentStepData = computed(() => wizardSteps[currentStep.value])
@@ -208,11 +154,8 @@ const currentStepData = computed(() => wizardSteps[currentStep.value])
 const isStepValid = computed(() => {
   const step = wizardSteps[currentStep.value]
   return step.fields.every(field => {
-    if (field === 'price') {
-      return props.form.monetizationModel === 'free' || props.form.price > 0
-    }
-    if (field === 'tags' || field === 'coverImage') {
-      return true // These are optional
+    if (field === 'content') {
+      return props.form.content && props.form.content.trim()
     }
     return props.form[field] && props.form[field].toString().trim()
   })
@@ -279,10 +222,10 @@ const addSuggestedTag = (tag) => {
 // Suggested tags based on content type
 const suggestedTags = computed(() => {
   const tagMap = {
-    article: ['tutorial', 'guide', 'howto', 'tips', 'education'],
-    newsletter: ['news', 'updates', 'weekly', 'digest', 'curated'],
-    story: ['fiction', 'creative', 'narrative', 'personal', 'experience'],
-    review: ['review', 'analysis', 'comparison', 'recommendation', 'critique']
+    article: ['tutorial', 'guide', 'howto', 'bitcoin', 'nostr'],
+    newsletter: ['news', 'updates', 'weekly', 'digest', 'bitcoin'],
+    story: ['personal', 'experience', 'life', 'journey', 'thoughts'],
+    review: ['review', 'analysis', 'recommendation', 'bitcoin', 'tech']
   }
   
   return tagMap[props.form.type] || []
@@ -335,38 +278,23 @@ const handleCancel = () => {
   emit('cancel')
 }
 
-// Close dropdown when clicking outside
-const handleClickOutside = (event) => {
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
-    showClientDropdown.value = false
-  }
-}
-
-// Content templates
+// Content templates for quick start
 const contentTemplates = {
   article: {
-    title: 'How to Master [Your Topic]',
-    description: 'A comprehensive guide to understanding and implementing [your topic] effectively.',
-    previewText: 'In this article, we\'ll explore the fundamentals of [your topic] and provide practical steps you can take to improve your skills. Whether you\'re a beginner or looking to refine your approach, this guide has something for everyone.',
-    fullContent: '# Introduction\n\nWelcome to this comprehensive guide on [your topic]. In today\'s fast-paced world, understanding [your topic] has become increasingly important.\n\n## What You\'ll Learn\n\n- Key concepts and fundamentals\n- Practical implementation strategies\n- Common pitfalls to avoid\n- Advanced techniques for experts\n\n## Getting Started\n\n[Write your detailed content here...]\n\n## Conclusion\n\nBy following the strategies outlined in this article, you\'ll be well on your way to mastering [your topic]. Remember, practice makes perfect, and consistency is key to long-term success.'
+    title: 'How to Get Started with Bitcoin',
+    content: '# Getting Started with Bitcoin\n\nBitcoin is the world\'s first decentralized digital currency. In this guide, we\'ll explore the basics of Bitcoin and how you can get started.\n\n## What is Bitcoin?\n\nBitcoin is a peer-to-peer electronic cash system that allows online payments to be sent directly from one party to another without going through a financial institution.\n\n## Key Benefits\n\n- **Decentralized**: No central authority controls Bitcoin\n- **Transparent**: All transactions are recorded on a public ledger\n- **Secure**: Cryptographic security protects your funds\n- **Global**: Send money anywhere in the world\n\n## Getting Started\n\n1. **Learn the basics** - Understand how Bitcoin works\n2. **Get a wallet** - Choose a secure Bitcoin wallet\n3. **Buy Bitcoin** - Purchase from a reputable exchange\n4. **Practice security** - Learn about private keys and backups\n\n## Conclusion\n\nBitcoin represents a new paradigm in money and finance. Take your time to learn and always prioritize security when dealing with Bitcoin.'
   },
   newsletter: {
-    title: 'Weekly Update - [Date]',
-    description: 'Your weekly dose of insights, updates, and curated content.',
-    previewText: 'This week\'s newsletter covers the latest developments in [your field], upcoming events, and hand-picked resources to help you stay ahead of the curve.',
-    fullContent: '# This Week\'s Highlights\n\n## 🔥 Trending Topics\n\n- [Topic 1]: Brief description\n- [Topic 2]: Brief description\n- [Topic 3]: Brief description\n\n## 📚 Recommended Reading\n\n- [Article 1]: Why it matters\n- [Article 2]: Key takeaways\n\n## 🎯 Action Items\n\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3\n\n## 💭 Final Thoughts\n\n[Your personal insights and commentary]\n\n---\n\nThanks for reading! See you next week.'
+    title: 'Weekly Bitcoin Update',
+    content: '# This Week in Bitcoin\n\nWelcome to this week\'s Bitcoin newsletter! Here\'s what happened in the Bitcoin ecosystem.\n\n## 🔥 This Week\'s Highlights\n\n- Bitcoin price movements and market analysis\n- Lightning Network adoption updates\n- New Bitcoin-related developments\n\n## 📈 Market Update\n\n[Your market analysis here]\n\n## ⚡ Lightning Network News\n\n[Lightning Network updates]\n\n## 🛠️ Developer Updates\n\n[Bitcoin development news]\n\n## 📚 Educational Content\n\n[Links to educational resources]\n\n## 💭 Final Thoughts\n\n[Your personal insights and commentary]\n\n---\n\nThanks for reading! See you next week.'
   },
   story: {
-    title: 'The [Story Title]',
-    description: 'A captivating story about [brief description].',
-    previewText: 'It was a day like any other when [protagonist] discovered something that would change everything. This is the story of [brief hook that makes readers want to continue].',
-    fullContent: '# Chapter 1\n\nThe morning sun cast long shadows across [setting description]. [Protagonist name] had no idea that this ordinary Tuesday would become the most extraordinary day of their life.\n\n[Continue your story here...]\n\n## What Happens Next?\n\n[Build suspense and character development]\n\n## The Turning Point\n\n[Describe the crucial moment]\n\n## Resolution\n\n[Conclude your story with a satisfying ending]'
+    title: 'My Bitcoin Journey',
+    content: '# My Bitcoin Journey\n\nIt was 2017 when I first heard about Bitcoin. Like many people, I was skeptical at first.\n\n## The Beginning\n\nI remember thinking "digital money? That sounds like a scam." But something kept nagging at me to learn more.\n\n## The Learning Phase\n\nI started reading everything I could find about Bitcoin. The more I learned, the more fascinated I became.\n\n## The Realization\n\nThen it hit me - this wasn\'t just about money. This was about freedom, sovereignty, and taking control of your financial future.\n\n## Today\n\nNow, years later, I can\'t imagine a world without Bitcoin. It has fundamentally changed how I think about money, technology, and the future.\n\n## What\'s Your Story?\n\nEveryone has a unique Bitcoin journey. What\'s yours?'
   },
   review: {
-    title: '[Product/Service] Review: Is It Worth It?',
-    description: 'An honest, detailed review of [product/service] based on real-world testing.',
-    previewText: 'After using [product/service] for [time period], here\'s my honest assessment of its strengths, weaknesses, and whether it\'s worth your investment.',
-    fullContent: '# Overview\n\n[Product/service] promises to [main value proposition]. But does it deliver? Here\'s my comprehensive review.\n\n## What I Tested\n\n- Feature 1\n- Feature 2\n- Feature 3\n\n## The Good\n\n✅ [Positive aspect 1]\n✅ [Positive aspect 2]\n✅ [Positive aspect 3]\n\n## The Not-So-Good\n\n❌ [Negative aspect 1]\n❌ [Negative aspect 2]\n\n## Final Verdict\n\n**Rating: [X]/10**\n\n[Your final recommendation and who this is best suited for]'
+    title: 'Lightning Wallet Review: Finding the Best Option',
+    content: '# Lightning Wallet Review: Finding the Best Option\n\nWith so many Lightning wallets available, choosing the right one can be overwhelming. Here\'s my honest review after testing several options.\n\n## What I Tested\n\nI spent two weeks testing different Lightning wallets, focusing on:\n\n- Ease of use\n- Security features\n- Lightning Network integration\n- User interface\n- Customer support\n\n## The Contenders\n\n### Wallet A\n**Pros:**\n- Great user interface\n- Fast Lightning payments\n- Good security features\n\n**Cons:**\n- Limited advanced features\n- Higher fees\n\n### Wallet B\n**Pros:**\n- Advanced features\n- Lower fees\n- Great for power users\n\n**Cons:**\n- Steeper learning curve\n- Complex interface\n\n## Final Recommendation\n\nFor beginners, I recommend Wallet A for its simplicity. For advanced users, Wallet B offers more control and features.\n\n## Conclusion\n\nThe best wallet depends on your needs and experience level. Start simple and upgrade as you learn more about Lightning.'
   }
 }
 
@@ -386,21 +314,21 @@ updateReadingTime()
 
 <template>
   <div class="content-form-container space-y-6">
-    <!-- Wizard Header -->
-    <div class="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white rounded-xl p-6 shadow-lg">
+    <!-- Streamlined Header -->
+    <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white rounded-xl p-6 shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 class="text-2xl font-bold mb-2 flex items-center space-x-2">
-            <IconWand class="w-6 h-6" />
-            <span>{{ isEditing ? 'Edit Your Content' : 'Create Amazing Content' }}</span>
+            <IconEdit class="w-6 h-6" />
+            <span>{{ isEditing ? 'Edit Blog Post' : 'Write New Blog Post' }}</span>
           </h1>
-          <p class="text-purple-100">
-            {{ isEditing ? 'Update your published content' : 'Follow our guided process to create engaging, professional content' }}
+          <p class="text-orange-100">
+            {{ isEditing ? 'Update your blog post' : 'Share your thoughts with the world on Nostr' }}
           </p>
         </div>
         
         <!-- Progress Indicator -->
-        <div class="bg-white/20 backdrop-blur-sm rounded-lg p-4 min-w-[200px]">
+        <div class="bg-white/20 backdrop-blur-sm rounded-lg p-4 min-w-[180px]">
           <div class="flex items-center justify-between mb-2">
             <span class="text-sm font-medium">Progress</span>
             <span class="text-sm">{{ currentStep + 1 }}/{{ wizardSteps.length }}</span>
@@ -422,7 +350,7 @@ updateReadingTime()
         <div>
           <h3 class="font-semibold text-amber-800 text-lg">Authentication Required</h3>
           <p class="text-amber-700 mt-1">
-            Please connect your Nostr identity to create and manage content. Your content will be published as NIP-23 long-form content events.
+            Please connect your Nostr identity to create and publish blog posts.
           </p>
         </div>
       </div>
@@ -470,7 +398,7 @@ updateReadingTime()
             
             <!-- Auto-save Status -->
             <div v-if="lastSaved" class="hidden sm:flex items-center space-x-2 text-xs text-gray-500">
-              <IconSave class="w-3 h-3" />
+              <IconDeviceFloppy class="w-3 h-3" />
               <span>Saved {{ new Date(lastSaved).toLocaleTimeString() }}</span>
             </div>
           </nav>
@@ -488,420 +416,168 @@ updateReadingTime()
 
       <!-- Step Content -->
       <div class="p-6">
-        <!-- Step 1: Content Basics -->
+        <!-- Step 1: Blog Basics -->
         <div v-if="currentStep === 0" class="space-y-6">
-          <!-- Content Type Selection -->
-          <div>
-            <label class="block text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-              <IconPalette class="w-5 h-5 text-purple-600" />
-              <span>What type of content are you creating?</span>
-            </label>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div
-                v-for="type in contentTypes"
-                :key="type.value"
-                @click="form.type = type.value"
-                :class="[
-                  'p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-md',
-                  form.type === type.value 
-                    ? 'border-orange-400 bg-orange-50 shadow-lg transform scale-105' 
-                    : 'border-gray-200 hover:border-orange-200 hover:bg-orange-25'
-                ]"
-              >
-                <div class="flex items-start space-x-3">
-                  <div :class="[
-                    'w-10 h-10 rounded-lg flex items-center justify-center',
-                    form.type === type.value ? 'bg-orange-100' : 'bg-gray-100'
-                  ]">
-                    <component :is="type.icon" :class="[
-                      'w-5 h-5',
-                      form.type === type.value ? 'text-orange-600' : 'text-gray-500'
-                    ]" />
-                  </div>
-                  <div class="flex-1">
-                    <h3 :class="[
-                      'font-semibold mb-1',
-                      form.type === type.value ? 'text-orange-900' : 'text-gray-900'
-                    ]">
-                      {{ type.label }}
-                    </h3>
-                    <p :class="[
-                      'text-sm mb-2',
-                      form.type === type.value ? 'text-orange-700' : 'text-gray-600'
-                    ]">
-                      {{ type.description }}
-                    </p>
-                    <p :class="[
-                      'text-xs',
-                      form.type === type.value ? 'text-orange-600' : 'text-gray-500'
-                    ]">
-                      Examples: {{ type.examples }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Content Template -->
-          <div v-if="form.type" class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <div class="flex items-center justify-between mb-3">
-              <h4 class="font-semibold text-blue-900 flex items-center space-x-2">
-                <IconSparkles class="w-4 h-4" />
-                <span>Quick Start Template</span>
-              </h4>
-              <button
-                @click="applyTemplate(form.type)"
-                class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors"
-              >
-                Use Template
-              </button>
-            </div>
-            <p class="text-blue-800 text-sm">
-              Get started quickly with a pre-filled template for {{ contentTypes.find(t => t.value === form.type)?.label.toLowerCase() }} content.
-            </p>
-          </div>
-
           <!-- Title -->
           <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <IconEdit class="w-4 h-4 text-orange-600" />
-              <span>Content Title</span>
+            <label class="block text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+              <IconEdit class="w-5 h-5 text-orange-600" />
+              <span>Blog Post Title</span>
               <span class="text-red-500">*</span>
             </label>
             <input
               v-model="form.title"
               type="text"
-              placeholder="Enter a compelling title that grabs attention..."
+              placeholder="Write a compelling title for your blog post..."
               class="w-full px-4 py-4 text-lg border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white shadow-sm"
               :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': !form.title.trim() }"
             />
-            <div class="flex justify-between items-center mt-2">
-              <p class="text-xs text-gray-500">
-                Great titles are specific, benefit-focused, and create curiosity
-              </p>
-              <span class="text-xs text-gray-400">{{ form.title.length }}/100</span>
+            <p class="text-xs text-gray-500 mt-2">
+              Great titles are specific and create curiosity
+            </p>
+          </div>
+
+          <!-- Content Type Selection -->
+          <div>
+            <label class="block text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+              <IconPalette class="w-5 h-5 text-purple-600" />
+              <span>Content Type</span>
+            </label>
+            
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div
+                v-for="type in contentTypes"
+                :key="type.value"
+                @click="form.type = type.value"
+                :class="[
+                  'p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-md text-center',
+                  form.type === type.value 
+                    ? 'border-orange-400 bg-orange-50 shadow-lg transform scale-105' 
+                    : 'border-gray-200 hover:border-orange-200 hover:bg-orange-25'
+                ]"
+              >
+                <div :class="[
+                  'w-8 h-8 rounded-lg flex items-center justify-center mx-auto mb-2',
+                  form.type === type.value ? 'bg-orange-100' : 'bg-gray-100'
+                ]">
+                  <component :is="type.icon" :class="[
+                    'w-4 h-4',
+                    form.type === type.value ? 'text-orange-600' : 'text-gray-500'
+                  ]" />
+                </div>
+                <h3 :class="[
+                  'font-medium text-sm mb-1',
+                  form.type === type.value ? 'text-orange-900' : 'text-gray-900'
+                ]">
+                  {{ type.label }}
+                </h3>
+                <p :class="[
+                  'text-xs',
+                  form.type === type.value ? 'text-orange-700' : 'text-gray-600'
+                ]">
+                  {{ type.description }}
+                </p>
+              </div>
             </div>
           </div>
 
-          <!-- Description -->
-          <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <IconAlignLeft class="w-4 h-4 text-orange-600" />
-              <span>Brief Description</span>
-              <span class="text-red-500">*</span>
-            </label>
-            <textarea
-              v-model="form.description"
-              rows="3"
-              placeholder="Summarize your content in 1-2 sentences. This helps readers understand what they'll learn..."
-              class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white shadow-sm resize-none"
-              :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': !form.description.trim() }"
-            ></textarea>
-            <div class="flex justify-between items-center mt-2">
-              <p class="text-xs text-gray-500">
-                This appears in search results and social media previews
-              </p>
-              <span class="text-xs text-gray-400">{{ form.description.length }}/200</span>
+          <!-- Quick Start Template -->
+          <div v-if="form.type" class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="font-semibold text-blue-900 flex items-center space-x-2">
+                  <IconSparkles class="w-4 h-4" />
+                  <span>Quick Start Template</span>
+                </h4>
+                <p class="text-sm text-blue-800">Get started with a pre-filled template</p>
+              </div>
+              <button
+                @click="applyTemplate(form.type)"
+                class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Use Template
+              </button>
             </div>
           </div>
         </div>
 
         <!-- Step 2: Content Writing -->
         <div v-if="currentStep === 1" class="space-y-6">
-          <!-- Writing Tips -->
-          <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
-            <h4 class="font-semibold text-blue-900 mb-3 flex items-center space-x-2">
-              <IconInfoCircle class="w-4 h-4" />
-              <span>Writing Tips for {{ contentTypes.find(t => t.value === form.type)?.label }}</span>
-            </h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-blue-800">
-              <div v-if="form.type === 'article'">
-                <ul class="space-y-1">
-                  <li>• Start with a compelling hook</li>
-                  <li>• Use clear headings and subheadings</li>
-                  <li>• Include actionable takeaways</li>
-                  <li>• End with a strong conclusion</li>
-                </ul>
-              </div>
-              <div v-else-if="form.type === 'newsletter'">
-                <ul class="space-y-1">
-                  <li>• Keep sections scannable</li>
-                  <li>• Use bullet points and lists</li>
-                  <li>• Include relevant links</li>
-                  <li>• Add a personal touch</li>
-                </ul>
-              </div>
-              <div v-else-if="form.type === 'story'">
-                <ul class="space-y-1">
-                  <li>• Create relatable characters</li>
-                  <li>• Build tension and conflict</li>
-                  <li>• Show, don't tell</li>
-                  <li>• End with resolution</li>
-                </ul>
-              </div>
-              <div v-else-if="form.type === 'review'">
-                <ul class="space-y-1">
-                  <li>• Be honest and balanced</li>
-                  <li>• Include pros and cons</li>
-                  <li>• Provide specific examples</li>
-                  <li>• Give clear recommendations</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <!-- Preview Text -->
+          <!-- Writing Area -->
           <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <IconEye class="w-4 h-4 text-orange-600" />
-              <span>Preview Text (Hook)</span>
-              <span class="text-red-500">*</span>
-            </label>
-            <div class="relative">
-              <textarea
-                v-model="form.previewText"
-                rows="4"
-                placeholder="Write a compelling preview that makes readers want to unlock your full content. This is your hook - make it irresistible!"
-                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white shadow-sm resize-none"
-                :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': !form.previewText.trim() }"
-              ></textarea>
-              <div class="absolute bottom-3 right-3 text-xs text-gray-400 bg-white px-2 py-1 rounded">
-                {{ wordCount.preview }} words
+            <div class="flex items-center justify-between mb-3">
+              <label class="block text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <IconEdit class="w-5 h-5 text-orange-600" />
+                <span>Write Your Blog Post</span>
+                <span class="text-red-500">*</span>
+              </label>
+              
+              <!-- Content Stats -->
+              <div class="flex items-center space-x-4 text-sm text-gray-500">
+                <span class="flex items-center space-x-1">
+                  <IconEdit class="w-4 h-4" />
+                  <span>{{ wordCount }} words</span>
+                </span>
+                <span class="flex items-center space-x-1">
+                  <IconClock class="w-4 h-4" />
+                  <span>~{{ estimatedReadTime }} min read</span>
+                </span>
               </div>
-            </div>
-            <div class="flex justify-between items-center mt-2">
-              <p class="text-xs text-gray-500">
-                This preview is always visible - make it compelling enough to convert readers
-              </p>
-              <div class="flex items-center space-x-2 text-xs text-gray-400">
-                <span>{{ form.previewText.length }}/500</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Full Content -->
-          <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <IconEdit class="w-4 h-4 text-orange-600" />
-              <span>Full Content</span>
-              <span class="text-red-500">*</span>
-            </label>
-            
-            <!-- Content Stats -->
-            <div class="flex items-center space-x-4 mb-3 text-xs text-gray-500">
-              <span class="flex items-center space-x-1">
-                <IconEdit class="w-3 h-3" />
-                <span>{{ wordCount.full }} words</span>
-              </span>
-              <span class="flex items-center space-x-1">
-                <IconClock class="w-3 h-3" />
-                <span>~{{ estimatedReadTime }} min read</span>
-              </span>
             </div>
             
             <div class="relative">
               <textarea
-                v-model="form.fullContent"
-                rows="12"
-                placeholder="Write your full content here. Use Markdown formatting for headers, lists, and emphasis.
+                v-model="form.content"
+                rows="16"
+                placeholder="Start writing your blog post here...
+
+You can use Markdown formatting:
 
 # Main Heading
 ## Subheading
+**Bold text** and *italic text*
 - Bullet points
 - More points
 
-**Bold text** and *italic text* are supported.
-
-Remember: Great content provides value, tells a story, and keeps readers engaged!"
+Write naturally and let your thoughts flow. Your content will be published as a NIP-23 long-form content event on the Nostr network."
                 class="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white shadow-sm resize-none font-mono text-sm leading-relaxed"
-                :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': !form.fullContent.trim() }"
+                :class="{ 'border-red-300 focus:ring-red-500 focus:border-red-500': !form.content.trim() }"
               ></textarea>
             </div>
             
-            <!-- Markdown Help -->
-            <div class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <details class="text-sm">
-                <summary class="font-medium text-gray-700 cursor-pointer flex items-center space-x-2">
-                  <IconInfoCircle class="w-4 h-4" />
-                  <span>Markdown Formatting Guide</span>
-                </summary>
-                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-gray-600">
-                  <div>
-                    <h5 class="font-medium text-gray-800 mb-2">Headers</h5>
-                    <code class="block bg-white p-2 rounded border">
-                      # Main Title<br>
-                      ## Section<br>
-                      ### Subsection
-                    </code>
-                  </div>
-                  <div>
-                    <h5 class="font-medium text-gray-800 mb-2">Emphasis</h5>
-                    <code class="block bg-white p-2 rounded border">
-                      **Bold text**<br>
-                      *Italic text*<br>
-                      `Code text`
-                    </code>
-                  </div>
-                  <div>
-                    <h5 class="font-medium text-gray-800 mb-2">Lists</h5>
-                    <code class="block bg-white p-2 rounded border">
-                      - Bullet point<br>
-                      1. Numbered item<br>
-                      - [ ] Checkbox
-                    </code>
-                  </div>
-                  <div>
-                    <h5 class="font-medium text-gray-800 mb-2">Links</h5>
-                    <code class="block bg-white p-2 rounded border">
-                      [Link text](URL)<br>
-                      ![Image](image-url)
-                    </code>
-                  </div>
+            <!-- Quick Markdown Reference -->
+            <details class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <summary class="font-medium text-gray-700 cursor-pointer text-sm flex items-center space-x-2">
+                <IconInfoCircle class="w-4 h-4" />
+                <span>Markdown Quick Reference</span>
+              </summary>
+              <div class="mt-3 grid grid-cols-2 gap-4 text-xs text-gray-600">
+                <div>
+                  <code class="block bg-white p-2 rounded border">
+                    # Heading 1<br>
+                    ## Heading 2<br>
+                    **Bold** *Italic*
+                  </code>
                 </div>
-              </details>
-            </div>
+                <div>
+                  <code class="block bg-white p-2 rounded border">
+                    - List item<br>
+                    1. Numbered<br>
+                    [Link](url)
+                  </code>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
 
-        <!-- Step 3: Monetization -->
+        <!-- Step 3: Enhance & Publish -->
         <div v-if="currentStep === 2" class="space-y-6">
-          <!-- Monetization Model Selection -->
-          <div>
-            <label class="block text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-              <IconBolt class="w-5 h-5 text-orange-600" />
-              <span>How do you want to monetize this content?</span>
-            </label>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div
-                v-for="model in monetizationModels"
-                :key="model.value"
-                @click="form.monetizationModel = model.value"
-                :class="[
-                  'p-6 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-md',
-                  form.monetizationModel === model.value 
-                    ? `border-${model.color}-400 bg-${model.color}-50 shadow-lg transform scale-105` 
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-25'
-                ]"
-              >
-                <div class="text-center">
-                  <div :class="[
-                    'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4',
-                    form.monetizationModel === model.value 
-                      ? `bg-${model.color}-100` 
-                      : 'bg-gray-100'
-                  ]">
-                    <component :is="model.icon" :class="[
-                      'w-8 h-8',
-                      form.monetizationModel === model.value 
-                        ? `text-${model.color}-600` 
-                        : 'text-gray-500'
-                    ]" />
-                  </div>
-                  <h3 :class="[
-                    'font-semibold text-lg mb-2',
-                    form.monetizationModel === model.value 
-                      ? `text-${model.color}-900` 
-                      : 'text-gray-900'
-                  ]">
-                    {{ model.label }}
-                  </h3>
-                  <p :class="[
-                    'text-sm',
-                    form.monetizationModel === model.value 
-                      ? `text-${model.color}-700` 
-                      : 'text-gray-600'
-                  ]">
-                    {{ model.description }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Price Setting for Premium Content -->
-          <div v-if="form.monetizationModel === 'one-time'" class="bg-orange-50 border border-orange-200 rounded-xl p-6">
-            <h4 class="font-semibold text-orange-900 mb-4 flex items-center space-x-2">
-              <IconTarget class="w-5 h-5" />
-              <span>Set Your Price</span>
-            </h4>
-            
-            <!-- Price Input -->
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-orange-800 mb-2">Price in Satoshis</label>
-              <div class="relative">
-                <input
-                  v-model.number="form.price"
-                  type="number"
-                  min="1"
-                  step="100"
-                  placeholder="1000"
-                  class="w-full px-4 py-3 pr-16 border-2 border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white text-lg font-semibold"
-                />
-                <div class="absolute inset-y-0 right-0 flex items-center pr-4">
-                  <span class="text-orange-600 font-medium">sats</span>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Price Suggestions -->
-            <div class="mb-4">
-              <p class="text-sm font-medium text-orange-800 mb-2">Suggested Pricing</p>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button
-                  v-for="price in [500, 1000, 2500, 5000]"
-                  :key="price"
-                  @click="form.price = price"
-                  :class="[
-                    'px-3 py-2 text-sm rounded-lg border transition-colors',
-                    form.price === price 
-                      ? 'bg-orange-200 border-orange-300 text-orange-800' 
-                      : 'bg-white border-orange-200 text-orange-700 hover:bg-orange-100'
-                  ]"
-                >
-                  {{ price.toLocaleString() }} sats
-                </button>
-              </div>
-            </div>
-            
-            <!-- Pricing Guidelines -->
-            <div class="bg-white border border-orange-200 rounded-lg p-4">
-              <h5 class="font-medium text-orange-900 mb-2">💡 Pricing Guidelines</h5>
-              <div class="text-sm text-orange-800 space-y-1">
-                <p>• <strong>500-1000 sats:</strong> Short articles, quick tips</p>
-                <p>• <strong>1000-2500 sats:</strong> Medium articles, tutorials</p>
-                <p>• <strong>2500-5000 sats:</strong> Comprehensive guides, research</p>
-                <p>• <strong>5000+ sats:</strong> Premium content, exclusive insights</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Free Content Benefits -->
-          <div v-if="form.monetizationModel === 'free'" class="bg-green-50 border border-green-200 rounded-xl p-6">
-            <div class="text-center">
-              <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <IconGlobe class="w-8 h-8 text-green-600" />
-              </div>
-              <h4 class="font-semibold text-green-900 mb-2">Free Content Benefits</h4>
-              <div class="text-sm text-green-800 space-y-2">
-                <p>✅ Wider audience reach and discovery</p>
-                <p>✅ Build trust and establish expertise</p>
-                <p>✅ Grow your follower base</p>
-                <p>✅ Still eligible for Lightning tips (zaps)</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 4: Metadata & Enhancement -->
-        <div v-if="currentStep === 3" class="space-y-6">
           <!-- Tags Section -->
           <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <IconHash class="w-4 h-4 text-orange-600" />
-              <span>Tags & Topics</span>
+            <label class="block text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+              <IconHash class="w-5 h-5 text-orange-600" />
+              <span>Tags (Optional)</span>
             </label>
             
             <!-- Current Tags -->
@@ -927,7 +603,7 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
               <input
                 v-model="newTag"
                 type="text"
-                placeholder="Add a tag (e.g., bitcoin, tutorial, guide)..."
+                placeholder="Add a tag (e.g., bitcoin, tutorial, nostr)..."
                 @keyup.enter="addTag"
                 class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white"
               />
@@ -943,10 +619,7 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
             
             <!-- Suggested Tags -->
             <div v-if="suggestedTags.length > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h5 class="font-medium text-blue-900 mb-2 flex items-center space-x-2">
-                <IconSparkles class="w-4 h-4" />
-                <span>Suggested Tags for {{ contentTypes.find(t => t.value === form.type)?.label }}</span>
-              </h5>
+              <h5 class="font-medium text-blue-900 mb-2 text-sm">Suggested tags:</h5>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="tag in suggestedTags"
@@ -963,8 +636,8 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
 
           <!-- Cover Image -->
           <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-              <IconPhoto class="w-4 h-4 text-orange-600" />
+            <label class="block text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+              <IconPhoto class="w-5 h-5 text-orange-600" />
               <span>Cover Image (Optional)</span>
             </label>
             <input
@@ -974,7 +647,7 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white"
             />
             <p class="text-xs text-gray-500 mt-2">
-              A compelling cover image increases engagement. Recommended size: 1200x630px
+              A cover image makes your blog post more engaging
             </p>
             
             <!-- Image Preview -->
@@ -988,47 +661,15 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
             </div>
           </div>
 
-          <!-- Advanced Options -->
-          <div>
-            <button
-              @click="showAdvancedOptions = !showAdvancedOptions"
-              class="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <component :is="showAdvancedOptions ? IconChevronDown : IconChevronRight" class="w-4 h-4" />
-              <span>Advanced Options</span>
-            </button>
-            
-            <div v-if="showAdvancedOptions" class="mt-4 space-y-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <!-- Published Date -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Published Date (Optional)</label>
-                <input
-                  v-model="form.publishedAt"
-                  type="datetime-local"
-                  class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 bg-white text-sm"
-                />
-                <p class="text-xs text-gray-500 mt-1">
-                  Leave empty to use current date/time
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- NIP-23 Compliance Info -->
+          <!-- NIP-23 Info -->
           <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
             <div class="flex items-start space-x-3">
               <IconInfoCircle class="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h4 class="font-semibold text-purple-900 mb-2">NIP-23 Long-form Content</h4>
-                <p class="text-sm text-purple-800 leading-relaxed">
-                  Your content will be published as a NIP-23 long-form content event (kind:30023) to the Nostr network. 
-                  This ensures decentralized storage, censorship resistance, and enables Lightning-based monetization through zaps.
+                <h4 class="font-semibold text-purple-900 mb-1">Publishing to Nostr</h4>
+                <p class="text-sm text-purple-800">
+                  Your blog post will be published as a NIP-23 long-form content event, ensuring decentralized storage and censorship resistance.
                 </p>
-                <div class="mt-3 text-xs text-purple-700">
-                  <p><strong>Event Structure:</strong> Title, summary, content, tags, and metadata</p>
-                  <p><strong>Format:</strong> Markdown-compatible for maximum client compatibility</p>
-                  <p><strong>Addressable:</strong> Uses identifier tag for editability</p>
-                </div>
               </div>
             </div>
           </div>
@@ -1092,7 +733,7 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
             >
               <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
               <IconSend v-else class="w-4 h-4" />
-              {{ isLoading ? 'Publishing...' : (form.monetizationModel === 'free' ? 'Publish Free Content' : 'Publish Premium Content') }}
+              {{ isLoading ? 'Publishing...' : 'Publish Blog Post' }}
             </button>
           </div>
         </div>
@@ -1105,8 +746,8 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
       </div>
     </div>
 
-    <!-- Content Preview (Floating Panel) -->
-    <div v-if="form.title || form.previewText" class="fixed bottom-6 right-6 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-40 hidden lg:block">
+    <!-- Live Preview (Desktop) -->
+    <div v-if="form.title || form.content" class="fixed bottom-6 right-6 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-40 hidden lg:block">
       <div class="p-4 border-b border-gray-200">
         <h4 class="font-semibold text-gray-900 flex items-center space-x-2">
           <IconEye class="w-4 h-4 text-orange-600" />
@@ -1116,11 +757,8 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
       <div class="p-4 max-h-64 overflow-y-auto">
         <div class="space-y-3">
           <h3 class="font-bold text-gray-900 text-lg leading-tight">
-            {{ form.title || 'Your Title Here' }}
+            {{ form.title || 'Your Blog Title' }}
           </h3>
-          <p class="text-gray-600 text-sm">
-            {{ form.description || 'Your description will appear here' }}
-          </p>
           <div v-if="form.tags.length > 0" class="flex flex-wrap gap-1">
             <span
               v-for="tag in form.tags.slice(0, 3)"
@@ -1133,8 +771,11 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
               +{{ form.tags.length - 3 }} more
             </span>
           </div>
+          <div class="text-sm text-gray-600 line-clamp-4">
+            {{ form.content.substring(0, 200) }}{{ form.content.length > 200 ? '...' : '' }}
+          </div>
           <div class="flex items-center justify-between text-xs text-gray-500">
-            <span>{{ wordCount.full }} words</span>
+            <span>{{ wordCount }} words</span>
             <span>~{{ estimatedReadTime }} min read</span>
           </div>
         </div>
@@ -1162,26 +803,17 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
   background-color: rgba(251, 146, 60, 0.5);
 }
 
-/* Smooth transitions for step changes */
-.step-transition-enter-active,
-.step-transition-leave-active {
-  transition: all 0.3s ease-out;
-}
-
-.step-transition-enter-from {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
-.step-transition-leave-to {
-  opacity: 0;
-  transform: translateX(-20px);
+/* Line clamp utility */
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* Enhanced focus states */
 input:focus,
-textarea:focus,
-select:focus {
+textarea:focus {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(251, 146, 60, 0.15);
 }
@@ -1189,18 +821,8 @@ select:focus {
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .fixed.bottom-6.right-6 {
-    display: none; /* Hide preview panel on mobile */
+    display: none;
   }
-}
-
-/* Animation for progress bar */
-@keyframes progress-fill {
-  from { width: 0%; }
-  to { width: var(--progress-width); }
-}
-
-.progress-bar {
-  animation: progress-fill 0.5s ease-out;
 }
 
 /* Hover effects for interactive elements */
@@ -1216,12 +838,6 @@ select:focus {
 
 .btn-primary:disabled:hover {
   transform: none;
-}
-
-/* Enhanced card hover effects */
-.content-type-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
 /* Smooth color transitions */

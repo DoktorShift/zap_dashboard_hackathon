@@ -39,12 +39,8 @@ const contentItems = ref([])
 // Content form state
 const contentForm = reactive({
   title: '',
-  description: '',
   type: CONTENT_TYPES.ARTICLE,
-  monetizationModel: MONETIZATION_MODELS.FREE,
-  price: 1000,
-  previewText: '',
-  fullContent: '',
+  content: '',
   tags: [],
   coverImage: ''
 })
@@ -173,10 +169,7 @@ export function useContent() {
 
   const revenueInUSD = computed(() => {
     return (totalRevenue.value * 0.0003).toFixed(2) // Rough BTC to USD conversion
-  })
 
-  const contentStats = computed(() => {
-    const published = publishedItems.value.length 
     const drafts = draftItems.value.length
     const totalViews = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.views, 0)
     const totalSubscribers = userContentItemsWithZaps.value.reduce((sum, item) => sum + item.subscribers, 0)
@@ -185,12 +178,9 @@ export function useContent() {
       published,
       drafts,
       totalViews,
-      totalSubscribers,
       totalRevenue: totalRevenue.value,
-      totalUnlocks: totalUnlocks.value
-    }
-  })
-
+      content: event.content,
+      monetizationModel: 'free',
   const topPerformingContent = computed(() => {
     return [...combinedContentItemsWithZaps.value]
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
@@ -235,6 +225,7 @@ export function useContent() {
         revenue: 0,
         views: 0,
         subscribers: 0,
+        monetizationModel: 'free', // Always free
         status: CONTENT_STATUS.DRAFT,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -245,12 +236,8 @@ export function useContent() {
       // Reset form
       Object.assign(contentForm, {
         title: '',
-        description: '',
         type: CONTENT_TYPES.ARTICLE,
-        monetizationModel: MONETIZATION_MODELS.ONE_TIME,
-        price: 5000, // More reasonable default price
-        previewText: '',
-        fullContent: '',
+        content: '',
         tags: [],
         coverImage: ''
       })
@@ -392,13 +379,12 @@ export function useContent() {
         tags: [
           ['d', contentId], // Identifier tag (required for addressable events)
           ['title', content.title], // Article title (NIP-23 standard)
-          ['summary', content.description], // Article summary (NIP-23 standard)
           ['published_at', content.publishedAt ? 
             Math.floor(new Date(content.publishedAt).getTime() / 1000).toString() :
             Math.floor(new Date(content.createdAt).getTime() / 1000).toString()], // First publication timestamp
           ...content.tags.map(tag => ['t', tag])
         ],
-        content: content.monetizationModel === 'free' ? content.fullContent : content.previewText
+        content: content.content // Use the main content field for NIP-23
       }
 
       // Add image tag if cover image is provided (NIP-23 standard)
@@ -408,38 +394,7 @@ export function useContent() {
 
       // Add content type and monetization metadata
       eventTemplate.tags.push(['content-type', content.type])
-      eventTemplate.tags.push(['monetization', content.monetizationModel])
-
-      // Add price tag if monetized (not free)
-      if (content.monetizationModel !== MONETIZATION_MODELS.FREE && content.price > 0) {
-        eventTemplate.tags.push(['price_sats', content.price.toString()])
-        eventTemplate.tags.push(['unlock_via', 'lightning']) // Specify unlock method
-        
-        // Encrypt the full content
-        const { contentEncryption } = await import('../utils/contentEncryption.js')
-        const encryptionKey = contentEncryption.generateEncryptionKey()
-        const encryptedContent = await contentEncryption.encryptContent(content.fullContent, encryptionKey)
-        
-        // Store encrypted content and key
-        contentService.storeFullContent(contentId, {
-          encryptedContent,
-          encryptionKey: Array.from(encryptionKey),
-          originalContent: content.fullContent // For demo purposes, in production only store encrypted
-        })
-        
-        // Add encrypted content hash to tags (for verification)
-        const contentHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(encryptedContent))
-        const hashHex = Array.from(new Uint8Array(contentHash))
-          .map(b => b.toString(16).padStart(2, '0'))
-          .join('')
-        
-        eventTemplate.tags.push(['content_hash', hashHex])
-        eventTemplate.tags.push(['encrypted', 'true'])
-        
-        // Add a reference to where the full content can be accessed (gated)
-        const fullContentUrl = `${window.location.origin}?page=content-unlock&eventId=${contentId}`
-        eventTemplate.tags.push(['full_content_url_gated', fullContentUrl])
-      }
+      eventTemplate.tags.push(['monetization', 'free']) // Always free content
 
       publishingStatus.value = 'Signing event with your Nostr key...'
       publishingProgress.value = 30
