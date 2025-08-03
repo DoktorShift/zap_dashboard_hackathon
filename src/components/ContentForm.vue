@@ -123,6 +123,7 @@ const estimatedReadTime = ref(0)
 const lastSaved = ref(null)
 const hasUnsavedChanges = ref(false)
 
+const editUnderstanding = ref(false)
 // Content helpers
 const updateWordCount = () => {
   const words = props.form.content.trim().split(/\s+/).filter(word => word.length > 0).length
