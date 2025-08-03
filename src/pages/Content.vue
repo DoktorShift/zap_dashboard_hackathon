@@ -474,19 +474,15 @@ onUnmounted(() => {
 
         <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Left Column: Content Details -->
-          <div class="lg:col-span-2 space-y-6">
-            <!-- Content Header Card -->
-            <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
-              <!-- Title and Meta -->
-              <div class="mb-4">
-                <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ selectedContent.title }}</h1>
-                <p class="text-gray-600 mb-3">{{ selectedContent.description }}</p>
-
-                <!-- Compact Status Badges -->
-                <div class="flex flex-wrap items-center gap-2">
+          <!-- Single Unified Blog Container -->
+          <div class="lg:col-span-2">
+            <article class="bg-white/95 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg overflow-hidden">
+              <!-- Article Header -->
+              <header class="px-8 pt-8 pb-6 border-b border-gray-100">
+                <!-- Status Badges Row -->
+                <div class="flex flex-wrap items-center gap-2 mb-6">
                   <span :class="[
-                    'px-2 py-1 rounded-full text-xs font-medium',
+                    'px-3 py-1.5 rounded-full text-sm font-medium',
                     selectedContent.status === 'published' ? 'bg-green-100 text-green-700' :
                     selectedContent.status === 'draft' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-gray-100 text-gray-700'
@@ -494,90 +490,149 @@ onUnmounted(() => {
                     {{ selectedContent.status.charAt(0).toUpperCase() + selectedContent.status.slice(1) }}
                   </span>
 
-                  <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                  <span class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                     {{ selectedContent.type.charAt(0).toUpperCase() + selectedContent.type.slice(1) }}
                   </span>
 
-                  <span v-if="selectedContent.monetizationModel === 'free'" class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  <span class="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium">
                     Free
                   </span>
-                  <span v-else class="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
-                    {{ selectedContent.price.toLocaleString() }} sats
-                  </span>
 
-                  <span v-if="selectedContent.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                  <span v-if="selectedContent.nostrEventId" class="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
                     On Nostr
                   </span>
+                  
+                  <!-- Zap Badge -->
+                  <span v-if="selectedContent.nostrEventId && getTotalZapAmount(selectedContent.nostrEventId) > 0" 
+                        class="px-3 py-1.5 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 rounded-full text-sm font-medium flex items-center space-x-1">
+                    <IconBolt class="w-4 h-4" />
+                    <span>{{ formatZapAmount(getTotalZapAmount(selectedContent.nostrEventId)) }} sats</span>
+                    <span class="text-orange-500">({{ getZapCount(selectedContent.nostrEventId) }})</span>
+                  </span>
+                </div>
+                
+                <!-- Article Title -->
+                <h1 class="text-4xl font-bold text-gray-900 leading-tight mb-4">
+                  {{ selectedContent.title }}
+                </h1>
+                
+                <!-- Article Summary -->
+                <div v-if="selectedContent.description" class="mb-6">
+                  <p class="text-xl text-gray-600 leading-relaxed italic border-l-4 border-orange-400 pl-4 bg-orange-50/50 py-3 rounded-r-lg">
+                    {{ selectedContent.description }}
+                  </p>
+                </div>
+                
+                <!-- Author & Meta Information -->
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-4">
+                    <!-- Author Avatar -->
+                    <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
+                      <img 
+                        :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                        :alt="userProfile?.name || 'Author'"
+                        class="w-full h-full object-cover"
+                      />
+                    </div>
+                    
+                    <!-- Author Info -->
+                    <div>
+                      <div class="flex items-center space-x-2">
+                        <h3 class="font-semibold text-gray-900">{{ userProfile?.name || 'Anonymous Creator' }}</h3>
+                        <span v-if="userProfile?.nip05" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                          <IconCheck class="w-3 h-3 mr-1" />
+                          Verified
+                        </span>
+                      </div>
+                      <div class="flex items-center space-x-3 text-sm text-gray-500">
+                        <span>{{ new Date(selectedContent.publishedAt || selectedContent.createdAt).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        }) }}</span>
+                        <span>•</span>
+                        <span>{{ Math.ceil(selectedContent.fullContent.split(' ').length / 200) }} min read</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Action Buttons -->
+                  <div class="flex items-center space-x-2">
+                    <!-- Open in Client Dropdown -->
+                    <div v-if="selectedContent.nostrEventId" class="relative" ref="dropdownRef">
+                      <button
+                        @click="toggleClientDropdown"
+                        class="btn-secondary text-sm"
+                      >
+                        <IconExternalLink class="w-4 h-4" />
+                        <span class="hidden sm:inline">Open in Client</span>
+                        <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
+                      </button>
+
+                      <!-- Client Dropdown -->
+                      <div
+                        v-if="showClientDropdown"
+                        class="absolute right-0 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+                      >
+                        <a :href="getNostrClientUrl('primal', selectedContent)" target="_blank" rel="noopener noreferrer"
+                           class="block px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
+                          <span class="text-orange-600">🌐</span>
+                          <span>Primal</span>
+                        </a>
+                        <a :href="getNostrClientUrl('yakihonne', selectedContent)" target="_blank" rel="noopener noreferrer"
+                           class="block px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2">
+                          <span class="text-purple-600">🍜</span>
+                          <span>Yakihonne</span>
+                        </a>
+                      </div>
+                    </div>
+
+                    <button
+                      v-if="selectedContent.status === 'draft'"
+                      @click="handlePublishToNostr(selectedContent)"
+                      :disabled="isLoading"
+                      class="btn-primary disabled:opacity-50"
+                    >
+                      <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+                      <IconShare v-else class="w-4 h-4" />
+                      <span class="hidden sm:inline">{{ isLoading ? 'Publishing...' : 'Publish' }}</span>
+                    </button>
+                  </div>
+                </div>
+              </header>
+              
+              <!-- Cover Image -->
+              <div v-if="selectedContent.coverImage" class="px-8 pt-6">
+                <div class="rounded-xl overflow-hidden shadow-md">
+                  <img
+                    :src="selectedContent.coverImage"
+                    :alt="selectedContent.title"
+                    class="w-full h-64 sm:h-80 object-cover"
+                  />
                 </div>
               </div>
-
-              <!-- Cover Image -->
-              <div v-if="selectedContent.coverImage" class="mb-4">
-                <img
-                  :src="selectedContent.coverImage"
-                  :alt="selectedContent.title"
-                  class="w-full h-48 object-cover rounded-lg border border-gray-200"
-                />
-              </div>
-
-              <!-- Tags -->
-              <div v-if="selectedContent.tags && selectedContent.tags.length > 0" class="mb-4">
-                <div class="flex flex-wrap gap-1.5">
+              
+              <!-- Article Content -->
+              <main class="px-8 py-8">
+                <div class="prose prose-lg max-w-none">
+                  <div class="text-gray-800 leading-relaxed whitespace-pre-wrap">{{ selectedContent.fullContent }}</div>
+                </div>
+              </main>
+              
+              <!-- Article Footer -->
+              <footer v-if="selectedContent.tags && selectedContent.tags.length > 0" class="px-8 pb-8 border-t border-gray-100 pt-6">
+                <div class="flex flex-wrap gap-2">
                   <span
                     v-for="tag in selectedContent.tags"
                     :key="tag"
-                    class="bg-gray-100 text-gray-700 px-2 py-1 rounded-md text-xs"
+                    class="inline-flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:from-orange-200 hover:to-amber-200 transition-all duration-200 cursor-pointer"
                   >
-                    #{{ tag }}
+                    <IconHash class="w-3 h-3" />
+                    <span>{{ tag }}</span>
                   </span>
                 </div>
-              </div>
-            </div>
-
-            <!-- Content Preview Card -->
-            <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
-              <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                <IconEye class="w-5 h-5 text-orange-600" />
-                <span>Content Preview</span>
-              </h3>
-
-              <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <p class="text-gray-700 leading-relaxed">{{ selectedContent.previewText }}</p>
-              </div>
-
-              <!-- Full Content Section -->
-              <div class="mt-4">
-                <div v-if="selectedContent.monetizationModel !== 'free'" class="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <div class="flex items-center space-x-3 mb-3">
-                    <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <IconLock class="w-4 h-4 text-orange-600" />
-                    </div>
-                    <div>
-                      <h4 class="font-medium text-orange-900">Premium Content</h4>
-                      <p class="text-sm text-orange-700">{{ selectedContent.fullContent.length }} characters</p>
-                    </div>
-                  </div>
-                  <div class="bg-white rounded-lg p-3 border border-orange-200 max-h-32 overflow-y-auto">
-                    <p class="text-sm text-gray-700">{{ selectedContent.fullContent }}</p>
-                  </div>
-                </div>
-
-                <div v-else class="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div class="flex items-center space-x-3 mb-3">
-                    <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <IconBolt class="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <h4 class="font-medium text-green-900">Free Content</h4>
-                      <p class="text-sm text-green-700">Accessible to all users</p>
-                    </div>
-                  </div>
-                  <div class="bg-white rounded-lg p-3 border border-green-200 max-h-32 overflow-y-auto">
-                    <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ selectedContent.fullContent }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+              </footer>
+            </article>
           </div>
 
           <!-- Right Column: Stats and Zaps -->
