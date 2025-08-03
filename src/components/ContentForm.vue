@@ -820,7 +820,6 @@ Write naturally and let your thoughts flow. Your content will be published as a 
               <IconArrowLeft class="w-4 h-4" />
               <span class="hidden sm:inline">Back</span>
             </button>
-            </button>
           </div>
         </div>
         
