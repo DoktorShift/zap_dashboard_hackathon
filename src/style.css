@@ -32,6 +32,10 @@
   border: 1px solid var(--ep-color-border);
   border-radius: 0.75rem;
   max-height: 350px;
+  backdrop-filter: none !important;
+  background: #ffffff !important;
+  position: relative;
+  z-index: 9999;
 }
 
 .v3-emoji-picker .v3-header {

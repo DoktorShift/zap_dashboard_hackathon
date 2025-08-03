@@ -511,7 +511,7 @@ onUnmounted(() => {
                 </button>
                 
                 <!-- Emoji Picker -->
-                <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-20 shadow-xl rounded-lg border border-orange-200">
+                <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-50 shadow-xl rounded-lg border border-orange-200 bg-white">
                   <EmojiPicker @select="handleEmojiSelect" :native="true" />
                 </div>
               </div>
