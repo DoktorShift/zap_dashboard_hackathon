@@ -475,7 +475,7 @@ updateReadingTime()
       </div>
     </div>
     <!-- Main Content (when not showing edit confirmation) -->
-    <div v-else class="space-y-6">
+    <div v-if="!showEditConfirmation" class="space-y-6">
       <!-- Streamlined Header -->
       <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white rounded-xl p-6 shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
