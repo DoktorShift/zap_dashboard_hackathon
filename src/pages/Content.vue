@@ -376,6 +376,14 @@ onUnmounted(() => {
             Back
           </button>
           <button
+            v-if="currentView === 'performance'"
+            @click="setView('list')"
+            class="btn-secondary"
+          >
+            <IconArrowLeft class="w-4 h-4" />
+            Back to Content
+          </button>
+          <button
             v-if="currentView === 'list'"
             @click="setView('performance')"
             class="btn-secondary"
