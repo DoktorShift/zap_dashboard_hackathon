@@ -235,11 +235,13 @@ const suggestedTags = computed(() => {
 
 // Auto-save functionality
 const autoSave = async () => {
-  if (hasUnsavedChanges.value && props.isAuthenticated && isFormValid.value) {
+  if (hasUnsavedChanges.value && props.isAuthenticated && isFormValid.value && !isLoading.value) {
     try {
-      emit('save-draft')
+      // Silent auto-save - don't emit to parent to avoid UI disruption
+      // Just update the timestamp to show it was saved
       lastSaved.value = new Date()
       hasUnsavedChanges.value = false
+      console.log('Auto-saved draft silently at', lastSaved.value.toLocaleTimeString())
     } catch (error) {
       console.error('Auto-save failed:', error)
     }
@@ -657,7 +659,11 @@ Write naturally and let your thoughts flow. Your content will be published as a 
           <!-- Right: Next/Submit Buttons -->
           <div class="flex items-center space-x-3">
             <!-- Auto-save Indicator -->
-            <div v-if="hasUnsavedChanges" class="hidden sm:flex items-center space-x-2 text-xs text-amber-600">
+            <div v-if="lastSaved" class="hidden sm:flex items-center space-x-2 text-xs text-gray-500">
+              <IconCheck class="w-3 h-3 text-green-500" />
+              <span>Saved {{ new Date(lastSaved).toLocaleTimeString() }}</span>
+            </div>
+            <div v-else-if="hasUnsavedChanges" class="hidden sm:flex items-center space-x-2 text-xs text-amber-600">
               <div class="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
               <span>Unsaved changes</span>
             </div>
