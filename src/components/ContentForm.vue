@@ -34,7 +34,7 @@ import {
   IconHash,
   IconType,
   IconAlignLeft,
-  IconSave,
+  IconDeviceFloppy,
   IconSend
 } from '@iconify-prerendered/vue-tabler'
 
@@ -1070,7 +1070,7 @@ Remember: Great content provides value, tells a story, and keeps readers engaged
               :disabled="isLoading"
               class="btn-secondary"
             >
-              <IconSave class="w-4 h-4" />
+              <IconDeviceFloppy class="w-4 h-4" />
               <span class="hidden sm:inline">Save Draft</span>
             </button>
             
