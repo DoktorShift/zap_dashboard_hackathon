@@ -11,7 +11,7 @@ onMounted(async () => {
   try {
     const { use } = await import('echarts/core')
     const { CanvasRenderer } = await import('echarts/renderers')
-    const { LineChart, BarChart } from await import('echarts/charts')
+    const { LineChart, BarChart } = await import('echarts/charts')
     const {
       TitleComponent,
       TooltipComponent,
