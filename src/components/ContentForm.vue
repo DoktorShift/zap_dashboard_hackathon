@@ -813,42 +813,13 @@ Write naturally and let your thoughts flow. Your content will be published as a 
           
           <!-- Right: Action Buttons -->
           <div class="flex items-center space-x-3">
+            <button
+              @click="handleBackWithSave"
               class="btn-secondary"
             >
               <IconArrowLeft class="w-4 h-4" />
               <span class="hidden sm:inline">Back</span>
             </button>
-            
-            <!-- Save Draft -->
-            <button
-              @click="handleSaveDraft"
-              :disabled="isLoading"
-              class="btn-secondary"
-            >
-              <IconDeviceFloppy class="w-4 h-4" />
-              <span class="hidden sm:inline">Save Draft</span>
-            </button>
-            
-            <!-- Next/Publish Button -->
-            <button
-              v-if="currentStep < wizardSteps.length - 1"
-              @click="nextStep"
-              :disabled="!canProceed"
-              class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-              <IconChevronRight class="w-4 h-4" />
-            </button>
-            
-            <button
-              v-else
-              @click="handleSubmit"
-              :disabled="!isFormValid || isLoading"
-              class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-            >
-              <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
-              <IconSend v-else class="w-4 h-4" />
-              {{ isLoading ? 'Publishing...' : (isEditing ? 'Publish New Version' : 'Publish Blog Post') }}
             </button>
           </div>
         </div>
