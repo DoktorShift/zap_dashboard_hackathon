@@ -15,7 +15,8 @@ import {
   IconCheck,
   IconAlertCircle,
   IconExternalLink,
-  IconChevronDown
+  IconChevronDown,
+  IconHash
 } from '@iconify-prerendered/vue-tabler'
 import { useContent } from '../composables/useContent.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
@@ -357,13 +358,13 @@ onUnmounted(() => {
       <!-- Page Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
-            <IconFileText class="w-6 h-6 text-orange-600" />
-            <span>Content Studio</span>
-          </h1>
-          <p class="text-gray-600">
-            Welcome back, {{ userProfile?.name || 'Creator' }}! Create and publish long-form content to the Nostr network.
-          </p>
+<!--          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
+<!--            <IconFileText class="w-6 h-6 text-orange-600" />-->
+<!--            <span>Content Studio</span>-->
+<!--          </h1>-->
+<!--          <p class="text-gray-600">-->
+<!--            Welcome back, {{ userProfile?.name || 'Creator' }}! Create and publish long-form content to the Nostr network.-->
+<!--          </p>-->
         </div>
 
         <div class="flex items-center space-x-3 mb-4">
@@ -386,7 +387,7 @@ onUnmounted(() => {
           <button
             v-if="currentView === 'list'"
             @click="setView('create')"
-            class="btn-primary bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            class="btn-primary"
           >
             <IconPlus class="w-4 h-4" />
             Create Content
@@ -485,41 +486,37 @@ onUnmounted(() => {
           <div class="p-4 border-b border-orange-100/50">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-3">
-                <button @click="setView('list')" class="btn-secondary">
-                  <IconArrowLeft class="w-4 h-4" />
-                  Back
-                </button>
                 <h2 class="text-lg font-semibold text-gray-900">Content Preview</h2>
               </div>
               <div class="flex items-center space-x-2">
                 <!-- Open in Client Dropdown -->
-                <div v-if="selectedContent.nostrEventId" class="relative" ref="dropdownRef">
-                  <button
-                    @click="toggleClientDropdown"
-                    class="btn-secondary text-xs"
-                  >
-                    <IconExternalLink class="w-3 h-3" />
-                    <span class="hidden sm:inline">Open</span>
-                    <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
-                  </button>
+<!--                <div v-if="selectedContent.nostrEventId" class="relative" ref="dropdownRef">-->
+<!--                  <button-->
+<!--                    @click="toggleClientDropdown"-->
+<!--                    class="btn-secondary text-xs"-->
+<!--                  >-->
+<!--                    <IconExternalLink class="w-3 h-3" />-->
+<!--                    <span class="hidden sm:inline">Open</span>-->
+<!--                    <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />-->
+<!--                  </button>-->
 
-                  <!-- Client Dropdown -->
-                  <div
-                    v-if="showClientDropdown"
-                    class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
-                  >
-                    <a :href="getNostrClientUrl('primal', selectedContent)" target="_blank" rel="noopener noreferrer"
-                       class="block px-3 py-1.5 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5">
-                      <span class="text-orange-600">🌐</span>
-                      <span>Primal</span>
-                    </a>
-                    <a :href="getNostrClientUrl('yakihonne', selectedContent)" target="_blank" rel="noopener noreferrer"
-                       class="block px-3 py-1.5 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5">
-                      <span class="text-purple-600">🍜</span>
-                      <span>Yakihonne</span>
-                    </a>
-                  </div>
-                </div>
+<!--                  &lt;!&ndash; Client Dropdown &ndash;&gt;-->
+<!--                  <div-->
+<!--                    v-if="showClientDropdown"-->
+<!--                    class="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"-->
+<!--                  >-->
+<!--                    <a :href="getNostrClientUrl('primal', selectedContent)" target="_blank" rel="noopener noreferrer"-->
+<!--                       class="block px-3 py-1.5 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5">-->
+<!--                      <span class="text-orange-600">🌐</span>-->
+<!--                      <span>Primal</span>-->
+<!--                    </a>-->
+<!--                    <a :href="getNostrClientUrl('yakihonne', selectedContent)" target="_blank" rel="noopener noreferrer"-->
+<!--                       class="block px-3 py-1.5 text-xs text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5">-->
+<!--                      <span class="text-purple-600">🍜</span>-->
+<!--                      <span>Yakihonne</span>-->
+<!--                    </a>-->
+<!--                  </div>-->
+<!--                </div>-->
 
                 <button
                   v-if="selectedContent.status === 'draft'"
@@ -530,6 +527,12 @@ onUnmounted(() => {
                   <IconLoader v-if="isLoading" class="w-3 h-3 animate-spin" />
                   <IconShare v-else class="w-3 h-3" />
                   <span class="hidden sm:inline">{{ isLoading ? 'Publishing...' : 'Publish' }}</span>
+                </button>
+
+
+                <button @click="setView('list')" class="btn-secondary">
+                  <IconArrowLeft class="w-4 h-4" />
+                  Back
                 </button>
               </div>
             </div>
@@ -665,16 +668,16 @@ onUnmounted(() => {
                       </div>
                     </div>
 
-                    <button
-                      v-if="selectedContent.status === 'draft'"
-                      @click="handlePublishToNostr(selectedContent)"
-                      :disabled="isLoading"
-                      class="btn-primary disabled:opacity-50"
-                    >
-                      <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
-                      <IconShare v-else class="w-4 h-4" />
-                      <span class="hidden sm:inline">{{ isLoading ? 'Publishing...' : 'Publish' }}</span>
-                    </button>
+<!--                    <button-->
+<!--                      v-if="selectedContent.status === 'draft'"-->
+<!--                      @click="handlePublishToNostr(selectedContent)"-->
+<!--                      :disabled="isLoading"-->
+<!--                      class="btn-primary disabled:opacity-50"-->
+<!--                    >-->
+<!--                      <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />-->
+<!--                      <IconShare v-else class="w-4 h-4" />-->
+<!--                      <span class="hidden sm:inline">{{ isLoading ? 'Publishing...' : 'Publish' }}</span>-->
+<!--                    </button>-->
                   </div>
                 </div>
               </header>
