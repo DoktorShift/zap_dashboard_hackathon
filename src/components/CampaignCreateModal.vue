@@ -397,7 +397,7 @@ const getEndOfDayTimestamp = (dateString) => {
         </div>
         
         <!-- Step 2: Tell Your Story -->
-        <div v-if="currentStep === 2" class="p-4 sm:p-6">
+        <div v-if="currentStep === 2" class="p-4 sm:p-6 pb-8">
           <div class="text-center mb-6">
             <h4 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Tell your story</h4>
             <p class="text-gray-600 text-sm sm:text-base">Help people understand why they should support you</p>
@@ -441,7 +441,7 @@ const getEndOfDayTimestamp = (dateString) => {
               
               <!-- Advanced Options Content -->
               <transition name="slide-down">
-                <div v-if="showAdvancedOptions" class="mt-4 space-y-6">
+                <div v-if="showAdvancedOptions" class="mt-4 space-y-4 pb-4">
                   <!-- Detailed Description -->
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -450,7 +450,7 @@ const getEndOfDayTimestamp = (dateString) => {
                     </label>
                     <textarea
                       v-model="form.descriptionLong"
-                      rows="6"
+                      rows="4"
                       placeholder="Provide more details about your campaign, timeline, how funds will be used..."
                       class="w-full px-3 py-3 text-sm border border-gray-300 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-colors resize-none placeholder-gray-400"
                     ></textarea>
@@ -472,7 +472,7 @@ const getEndOfDayTimestamp = (dateString) => {
                     />
                     
                     <!-- Image Preview -->
-                    <div v-if="imagePreview" class="mt-3 rounded-lg overflow-hidden border border-gray-200 h-32">
+                    <div v-if="imagePreview" class="mt-2 rounded-lg overflow-hidden border border-gray-200 h-24">
                       <img 
                         :src="imagePreview" 
                         alt="Preview" 
