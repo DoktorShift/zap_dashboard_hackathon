@@ -306,6 +306,14 @@ const getNostrClientUrl = (client, content) => {
         // Fallback to nevent format
         return `https://yakihonne.com/${nip19.neventEncode({ id: content.nostrEventId })}`
       case 'primal':
+        if (content.creatorPubkey && content.id && content.nostrEventId) {
+          // Create naddr format for long-form content
+          return `https://primal.net/a/${nip19.naddrEncode({
+            pubkey: content.creatorPubkey,
+            kind: 30023,
+            identifier: content.id
+          })}`
+        }
         return `https://primal.net/e/${content.nostrEventId}`
       default:
         return `https://primal.net/e/${content.nostrEventId}`
