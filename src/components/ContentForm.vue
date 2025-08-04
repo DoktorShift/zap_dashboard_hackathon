@@ -51,6 +51,7 @@ const emit = defineEmits(['submit', 'save-draft', 'cancel'])
 
 // Refs for editor functionality
 const contentTextarea = ref(null)
+const emojiButton = ref(null)
 const showEmojiPicker = ref(false)
 const showLinkModal = ref(false)
 const showImageModal = ref(false)
@@ -64,6 +65,16 @@ const videoForm = ref({ url: '', title: '' })
 // Form validation
 const isFormValid = computed(() => {
   return props.form.title?.trim() && props.form.content?.trim()
+})
+
+const emojiPickerStyle = computed(() => {
+  if (!emojiButton.value) return { display: 'none' }
+  
+  const rect = emojiButton.value.getBoundingClientRect()
+  return {
+    top: `${rect.bottom + 8}px`,
+    left: `${rect.left}px`,
+  }
 })
 
 // Add tag functionality
@@ -501,6 +512,7 @@ onUnmounted(() => {
             <div class="flex items-center space-x-1">
               <div class="relative emoji-picker-container">
                 <button
+                  ref="emojiButton"
                   @click="showEmojiPicker = !showEmojiPicker"
                   type="button"
                   class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
@@ -509,13 +521,17 @@ onUnmounted(() => {
                   <span class="text-xl leading-none">😊</span>
                   <span class="text-sm">Emoji</span>
                 </button>
-                
-                <!-- Emoji Picker -->
-                <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-50 shadow-xl rounded-lg border border-orange-200 bg-white">
-                  <EmojiPicker @select="handleEmojiSelect" :native="true" />
-                </div>
+
+                <Teleport to="body">
+                  <div v-if="showEmojiPicker" 
+                       class="fixed z-[9999] shadow-xl rounded-lg bg-white"
+                       :style="emojiPickerStyle"
+                       style="z-index: 9999;">
+                    <EmojiPicker @select="handleEmojiSelect" :native="true" />
+                  </div>
+                </Teleport>
               </div>
-              
+
               <button
                 @click="insertLightningBolt"
                 type="button"
