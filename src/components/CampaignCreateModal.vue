@@ -365,14 +365,14 @@ const getEndOfDayTimestamp = (dateString) => {
                   :key="goal.value"
                   @click="selectQuickGoal(goal.value)"
                   :class="[
-                    'p-4 rounded-xl border-2 text-left transition-all duration-200',
+                    'p-3 rounded-lg border-2 text-center transition-all duration-200',
                     form.goalAmount === goal.value
                       ? 'border-orange-400 bg-orange-50 shadow-md'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                   ]"
                 >
-                  <div class="font-bold text-gray-900">{{ goal.label }}</div>
-                  <div class="text-xs text-gray-500">{{ goal.description }}</div>
+                  <div class="font-bold text-gray-900 text-sm">{{ amount.label }}</div>
+                  <div class="text-xs text-gray-500">{{ amount.description }}</div>
                 </button>
               </div>
               
