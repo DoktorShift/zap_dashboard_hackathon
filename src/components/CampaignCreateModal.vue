@@ -372,6 +372,7 @@ const getEndOfDayTimestamp = (dateString) => {
                   ]"
                 >
                   <div class="font-bold text-gray-900 text-sm">{{ amount.label }}</div>
+                  <div class="font-bold text-gray-900 text-sm">{{ goal.label }}</div>
                   <div class="text-xs text-gray-500">{{ goal.description }}</div>
                 </button>
               </div>
