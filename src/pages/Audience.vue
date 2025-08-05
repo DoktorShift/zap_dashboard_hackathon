@@ -54,6 +54,7 @@ const {
   toggleInterest,
   searchInterests,
   fetchUserProfile,
+  getMergePreview,
   initializeAudience,
   interests
 } = useAudience()
@@ -61,6 +62,10 @@ const {
 // Local UI state
 const showCreateListModal = ref(false)
 const showMembersModal = ref(false)
+const showFollowConfirmModal = ref(false)
+const selectedListForFollow = ref(null)
+const mergePreview = ref(null)
+const isLoadingPreview = ref(false)
 const selectedListForView = ref(null)
 const showInterestDetails = ref(false)
 const selectedInterestForDetails = ref(null)
@@ -140,12 +145,50 @@ const handleUnfollowUser = async (user) => {
 
 // Handle follow all from list
 const handleFollowAllFromList = async (list) => {
+  selectedListForFollow.value = list
+  isLoadingPreview.value = true
+  
   try {
-    const result = await followAllFromList(list)
-    console.log(`Followed ${result.successful}/${result.total} users from list`)
+    // Get merge preview
+    const preview = await getMergePreview(list)
+    mergePreview.value = preview
+    
+    // Show confirmation modal
+    showFollowConfirmModal.value = true
+  } catch (error) {
+    console.error('Failed to get merge preview:', error)
+    alert('Failed to analyze follow list: ' + error.message)
+  } finally {
+    isLoadingPreview.value = false
+  }
+}
+
+// Confirm and execute follow all
+const confirmFollowAll = async () => {
+  if (!selectedListForFollow.value) return
+  
+  try {
+    const result = await followAllFromList(selectedListForFollow.value)
+    console.log('Follow all result:', result)
+    
+    // Show success message
+    alert(`Success! ${result.message}`)
+    
+    // Close modal
+    showFollowConfirmModal.value = false
+    selectedListForFollow.value = null
+    mergePreview.value = null
   } catch (error) {
     console.error('Failed to follow all from list:', error)
+    alert('Failed to follow users: ' + error.message)
   }
+}
+
+// Cancel follow all
+const cancelFollowAll = () => {
+  showFollowConfirmModal.value = false
+  selectedListForFollow.value = null
+  mergePreview.value = null
 }
 
 // Handle interest selection
@@ -449,12 +492,32 @@ onMounted(() => {
                     <IconUsers class="w-4 h-4" />
                     <span>{{ list.follows.length }} people</span>
                   </div>
+                  <div class="flex items-center space-x-2">
+                    <button
+                      @click="viewFollowListMembers(list)"
+                      class="btn-secondary text-sm"
+                    >
+                      <IconUsers class="w-3 h-3" />
+                      View Members
+                    </button>
+                    <button
+                      @click="handleFollowAllFromList(list)"
+                      :disabled="isLoadingPreview"
+                      class="btn-primary text-sm"
+                    >
+                      <IconLoader v-if="isLoadingPreview" class="w-3 h-3 animate-spin" />
+                      <IconUserPlus v-else class="w-3 h-3" />
+                      Follow All
+                    </button>
+                  </div>
                   <button
-                    @click="viewFollowListMembers(list)"
-                    class="btn-secondary text-sm"
+                    @click="handleFollowAllFromList(list)"
+                    :disabled="isLoadingPreview"
+                    class="btn-primary text-sm"
                   >
-                    <IconUsers class="w-3 h-3" />
-                    View Members
+                    <IconLoader v-if="isLoadingPreview" class="w-3 h-3 animate-spin" />
+                    <IconUserPlus v-else class="w-3 h-3" />
+                    Follow All
                   </button>
                 </div>
               </div>
@@ -1027,6 +1090,147 @@ onMounted(() => {
                 <button
                   @click="showMembersModal = false"
                   class="btn-secondary"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- Follow Confirmation Modal -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showFollowConfirmModal && selectedListForFollow && mergePreview" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <!-- Header -->
+            <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <IconUserPlus class="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 class="text-xl font-semibold text-gray-900">Follow List Members</h3>
+                  <p class="text-sm text-gray-600">{{ selectedListForFollow.title }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Merge Preview -->
+            <div class="p-6 space-y-6">
+              <!-- Safety Notice -->
+              <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-start space-x-3">
+                  <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <IconShield class="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <h4 class="font-medium text-green-900 mb-1">Safe Merge Protection</h4>
+                    <p class="text-sm text-green-800">
+                      Your existing follows will be preserved. We'll only add new people you're not already following.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Merge Statistics -->
+              <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-lg p-4 text-center">
+                  <div class="text-2xl font-bold text-gray-900">{{ mergePreview.currentCount }}</div>
+                  <div class="text-sm text-gray-600">Current Follows</div>
+                </div>
+                <div class="bg-blue-50 rounded-lg p-4 text-center">
+                  <div class="text-2xl font-bold text-blue-600">{{ mergePreview.newCount }}</div>
+                  <div class="text-sm text-blue-700">New Follows</div>
+                </div>
+              </div>
+
+              <!-- Final Count -->
+              <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 text-center border border-orange-200">
+                <div class="text-3xl font-bold text-orange-600 mb-1">{{ mergePreview.finalCount }}</div>
+                <div class="text-sm text-orange-700 font-medium">Total After Merge</div>
+                <div v-if="mergePreview.duplicateCount > 0" class="text-xs text-orange-600 mt-1">
+                  ({{ mergePreview.duplicateCount }} already following)
+                </div>
+              </div>
+
+              <!-- Preview New Follows -->
+              <div v-if="mergePreview.newFollows.length > 0">
+                <h4 class="font-medium text-gray-900 mb-3">New People You'll Follow</h4>
+                <div class="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
+                  <div
+                    v-for="follow in mergePreview.newFollows"
+                    :key="follow.pubkey"
+                    class="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-100"
+                  >
+                    <div class="w-8 h-8 rounded-full overflow-hidden border border-orange-200">
+                      <img 
+                        :src="follow.profile?.picture || generateFallbackAvatar(follow.pubkey)" 
+                        :alt="formatUserName(follow.profile)"
+                        class="w-full h-full object-cover"
+                        @error="$event.target.src = generateFallbackAvatar(follow.pubkey)"
+                      />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium text-gray-900 text-sm truncate">
+                        {{ formatUserName(follow.profile) }}
+                      </p>
+                      <p class="text-xs text-gray-500 truncate">
+                        {{ follow.profile?.nip05 || formatPubkey(follow.pubkey) }}
+                      </p>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                      <span v-if="follow.profile?.lud16" class="w-4 h-4 text-orange-500" title="Lightning Ready">
+                        <IconBolt class="w-4 h-4" />
+                      </span>
+                      <span v-if="follow.profile?.nip05" class="w-4 h-4 text-blue-500" title="Verified">
+                        <IconShield class="w-4 h-4" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="mergePreview.newCount > mergePreview.newFollows.length" class="text-center mt-2">
+                  <span class="text-xs text-gray-500">
+                    +{{ mergePreview.newCount - mergePreview.newFollows.length }} more people
+                  </span>
+                </div>
+              </div>
+
+              <!-- No New Follows Message -->
+              <div v-else class="text-center py-6">
+                <IconCheck class="w-12 h-12 mx-auto text-green-500 mb-3" />
+                <h4 class="text-lg font-medium text-gray-900 mb-2">Already Following Everyone</h4>
+                <p class="text-gray-600 text-sm">
+                  You're already following all {{ followList.follows.length }} people from this list.
+                </p>
+              </div>
+            </div>
+
+            <!-- Modal Actions -->
+            <div class="p-6 border-t border-gray-200 bg-gray-50">
+              <div class="flex flex-col sm:flex-row gap-3">
+                <button
+                  @click="cancelFollowAll"
+                  class="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  v-if="mergePreview.newCount > 0"
+                  @click="confirmFollowAll"
+                  :disabled="isLoading"
+                  class="btn-primary flex-1"
+                >
+                  <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+                  <IconUserPlus v-else class="w-4 h-4" />
+                  {{ isLoading ? 'Following...' : `Follow ${mergePreview.newCount} New People` }}
+                </button>
+                <button
+                  v-else
+                  @click="cancelFollowAll"
+                  class="btn-secondary flex-1"
                 >
                   Close
                 </button>

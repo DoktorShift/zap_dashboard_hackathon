@@ -598,27 +598,181 @@ export function useAudience() {
   }
 
   // Follow all users from a list
-  const followAllFromList = async (followList) => {
-    if (!followList.follows || followList.follows.length === 0) return
+  // Safe follow all users from a list with merge protection
+  const followAllFromList = async (followList, options = { merge: true, skipConfirmation: false }) => {
+    if (!followList.follows || followList.follows.length === 0) {
+      throw new Error('Follow list is empty')
+    }
+
+    if (!isAuthenticated.value || !window.nostr) {
+      throw new Error('Nostr authentication required')
+    }
 
     try {
-      console.log('Following all users from list:', followList.title)
+      console.log('Safe following all users from list:', followList.title)
       
-      const followPromises = followList.follows.map(follow => 
-        followUser(follow.pubkey, follow.relay, follow.petname)
-          .catch(error => {
-            console.warn('Failed to follow user:', follow.pubkey.substring(0, 8), error)
-            return null
-          })
+      // Get current contact list first
+      const currentContactEvent = await nostrRelayManager.getEvent({
+        kinds: [3],
+        authors: [currentUser.value.pubkey],
+        limit: 1
+      })
+
+      // Extract current follows
+      let currentTags = []
+      let currentFollowPubkeys = new Set()
+      
+      if (currentContactEvent) {
+        currentTags = [...currentContactEvent.tags]
+        currentFollowPubkeys = new Set(
+          currentContactEvent.tags
+            .filter(tag => tag[0] === 'p' && tag[1])
+            .map(tag => tag[1])
+        )
+      }
+
+      // Prepare new follows from the list
+      const newFollows = followList.follows.filter(follow => 
+        !currentFollowPubkeys.has(follow.pubkey)
       )
 
-      const results = await Promise.allSettled(followPromises)
-      const successful = results.filter(result => result.status === 'fulfilled').length
+      // Calculate merge statistics
+      const mergeStats = {
+        currentCount: currentFollowPubkeys.size,
+        newCount: newFollows.length,
+        duplicateCount: followList.follows.length - newFollows.length,
+        finalCount: currentFollowPubkeys.size + newFollows.length
+      }
+
+      console.log('Merge statistics:', mergeStats)
+
+      // If no new follows, return early
+      if (newFollows.length === 0) {
+        return {
+          ...mergeStats,
+          successful: 0,
+          skipped: followList.follows.length,
+          message: 'All users from this list are already in your follows'
+        }
+      }
+
+      // Add new follow tags
+      const newTags = newFollows.map(follow => {
+        const tag = ['p', follow.pubkey]
+        if (follow.relay) tag.push(follow.relay)
+        if (follow.petname) tag.push(follow.petname)
+        return tag
+      })
+
+      // Merge with existing tags
+      const mergedTags = [...currentTags, ...newTags]
+
+      // Create new contact list event
+      const eventTemplate = {
+        kind: 3,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: mergedTags,
+        content: currentContactEvent?.content || ''
+      }
+
+      // Sign and publish
+      const signedEvent = await window.nostr.signEvent(eventTemplate)
       
-      console.log(`Successfully followed ${successful}/${followList.follows.length} users`)
-      return { successful, total: followList.follows.length }
+      if (!verifyEvent(signedEvent)) {
+        throw new Error('Event signature verification failed')
+      }
+
+      const result = await nostrRelayManager.publishEvent(signedEvent)
+      
+      if (result.successful === 0) {
+        throw new Error('Failed to publish to any relays')
+      }
+
+      // Update local state with new follows
+      const newFollowObjects = await Promise.all(
+        newFollows.map(async (follow) => {
+          try {
+            const profile = await fetchUserProfile(follow.pubkey)
+            return {
+              pubkey: follow.pubkey,
+              relay: follow.relay,
+              petname: follow.petname,
+              profile
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch profile for ${follow.pubkey.substring(0, 8)}:`, error)
+            return {
+              pubkey: follow.pubkey,
+              relay: follow.relay,
+              petname: follow.petname,
+              profile: createFallbackProfile(follow.pubkey)
+            }
+          }
+        })
+      )
+
+      // Add to current follows
+      currentFollows.value.push(...newFollowObjects)
+
+      console.log(`Successfully merged ${newFollows.length} new follows`)
+      
+      return {
+        ...mergeStats,
+        successful: newFollows.length,
+        publishResult: result,
+        message: `Added ${newFollows.length} new follows to your list`
+      }
+
     } catch (error) {
-      console.error('Failed to follow all from list:', error)
+      console.error('Failed to safely follow all from list:', error)
+      throw error
+    }
+  }
+
+  // Get merge preview for a follow list
+  const getMergePreview = async (followList) => {
+    if (!followList.follows || followList.follows.length === 0) {
+      return {
+        currentCount: 0,
+        newCount: 0,
+        duplicateCount: 0,
+        finalCount: 0,
+        newFollows: []
+      }
+    }
+
+    try {
+      // Get current contact list
+      const currentContactEvent = await nostrRelayManager.getEvent({
+        kinds: [3],
+        authors: [currentUser.value.pubkey],
+        limit: 1
+      })
+
+      let currentFollowPubkeys = new Set()
+      
+      if (currentContactEvent) {
+        currentFollowPubkeys = new Set(
+          currentContactEvent.tags
+            .filter(tag => tag[0] === 'p' && tag[1])
+            .map(tag => tag[1])
+        )
+      }
+
+      // Calculate what would be new
+      const newFollows = followList.follows.filter(follow => 
+        !currentFollowPubkeys.has(follow.pubkey)
+      )
+
+      return {
+        currentCount: currentFollowPubkeys.size,
+        newCount: newFollows.length,
+        duplicateCount: followList.follows.length - newFollows.length,
+        finalCount: currentFollowPubkeys.size + newFollows.length,
+        newFollows: newFollows.slice(0, 10) // Preview first 10
+      }
+    } catch (error) {
+      console.error('Failed to get merge preview:', error)
       throw error
     }
   }
@@ -870,7 +1024,8 @@ export function useAudience() {
         
         // Fetch profiles for all follows in this list
         const profilePromises = list.follows.map(async (follow) => {
-          if (!follow.profile || !follow.profile.name || follow.profile.name.startsWith('user:')) {
+          // Always fetch fresh profiles to ensure we have the latest data
+          if (!follow.profile || !follow.profile.name || follow.profile.name.startsWith('user:') || !follow.profile.picture) {
             try {
               console.log(`Fetching profile for ${follow.pubkey.substring(0, 8)}...`)
               const profile = await fetchUserProfile(follow.pubkey)
@@ -958,7 +1113,7 @@ export function useAudience() {
     followAllFromList,
     updateFollowList,
     removeMemberFromList,
-    removeMemberFromList,
+    getMergePreview,
     toggleInterest,
     searchInterests,
     fetchUserProfile,
