@@ -428,21 +428,13 @@ onMounted(() => {
                     <IconUsers class="w-4 h-4" />
                     <span>{{ list.follows.length }} people</span>
                   </div>
-                  <div class="flex items-center space-x-2">
-                    <button
-                      @click="viewFollowListMembers(list)"
-                      class="btn-secondary text-sm"
-                    >
-                      <IconUsers class="w-3 h-3" />
-                      View Members
-                    </button>
-                    <button
-                      @click="handleDeleteFollowList(list)"
-                      class="btn-secondary text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <IconTrash class="w-3 h-3" />
-                    </button>
-                  </div>
+                  <button
+                    @click="viewFollowListMembers(list)"
+                    class="btn-secondary text-sm"
+                  >
+                    <IconUsers class="w-3 h-3" />
+                    View Members
+                  </button>
                 </div>
               </div>
             </div>

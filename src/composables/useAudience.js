@@ -837,6 +837,9 @@ export function useAudience() {
       // Fetch current follows
       await fetchCurrentFollows()
       
+      // Fetch and populate profiles for existing follow lists
+      await populateFollowListProfiles()
+      
       // Generate smart suggestions
       await generateSmartSuggestions()
       
@@ -852,6 +855,44 @@ export function useAudience() {
     } finally {
       isLoading.value = false
     }
+  }
+
+  // Populate profiles for existing follow lists
+  const populateFollowListProfiles = async () => {
+    if (followLists.value.length === 0) return
+
+    console.log('Populating profiles for existing follow lists...')
+    
+    // Process each follow list
+    for (const list of followLists.value) {
+      if (list.follows && list.follows.length > 0) {
+        console.log(`Fetching profiles for list "${list.title}" with ${list.follows.length} members`)
+        
+        // Fetch profiles for all follows in this list
+        const profilePromises = list.follows.map(async (follow) => {
+          if (!follow.profile || !follow.profile.name || follow.profile.name.startsWith('user:')) {
+            try {
+              console.log(`Fetching profile for ${follow.pubkey.substring(0, 8)}...`)
+              const profile = await fetchUserProfile(follow.pubkey)
+              follow.profile = profile
+              console.log(`✅ Profile fetched for ${profile.name}`)
+              return follow
+            } catch (error) {
+              console.warn(`Failed to fetch profile for ${follow.pubkey.substring(0, 8)}:`, error)
+              follow.profile = createFallbackProfile(follow.pubkey)
+              return follow
+            }
+          }
+          return follow
+        })
+
+        // Wait for all profiles to be fetched for this list
+        await Promise.allSettled(profilePromises)
+        console.log(`✅ Completed profile fetching for list "${list.title}"`)
+      }
+    }
+    
+    console.log('✅ All follow list profiles populated')
   }
 
   // Cleanup subscriptions
