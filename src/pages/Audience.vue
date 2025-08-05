@@ -1001,10 +1001,10 @@ onMounted(() => {
                     <!-- Avatar -->
                     <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
                       <img 
-                        :src="member.profile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                        :src="member.profile?.picture || generateFallbackAvatar(member.pubkey)" 
                         :alt="formatUserName(member.profile)"
                         class="w-full h-full object-cover"
-                        @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                        @error="$event.target.src = generateFallbackAvatar(member.pubkey)"
                       />
                     </div>
                     
