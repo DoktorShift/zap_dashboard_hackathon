@@ -193,18 +193,27 @@ export function useAudience() {
       })
 
       if (contactEvent) {
-        const follows = contactEvent.tags
+        const followTags = contactEvent.tags
           .filter(tag => tag[0] === 'p' && tag[1])
-          .map(tag => ({
+        
+        // Create follow objects
+        const follows = followTags.map(tag => ({
             pubkey: tag[1],
             relay: tag[2] || null,
-            petname: tag[3] || null
+            petname: tag[3] || null,
+            profile: null // Will be populated below
           }))
 
         // Fetch profiles for all follows
         const profilePromises = follows.map(async (follow) => {
-          const profile = await fetchUserProfile(follow.pubkey)
-          return { ...follow, profile }
+          try {
+            follow.profile = await fetchUserProfile(follow.pubkey)
+            return follow
+          } catch (error) {
+            console.warn(`Failed to fetch profile for ${follow.pubkey.substring(0, 8)}:`, error)
+            follow.profile = createFallbackProfile(follow.pubkey)
+            return follow
+          }
         })
 
         const followsWithProfiles = await Promise.allSettled(profilePromises)
@@ -241,13 +250,26 @@ export function useAudience() {
             const image = event.tags.find(tag => tag[0] === 'image')?.[1] || null
             
             // Extract follows from p tags
-            const follows = event.tags
+            const followTags = event.tags
               .filter(tag => tag[0] === 'p' && tag[1])
-              .map(tag => ({
+            
+            // Fetch profiles for all follows
+            const follows = followTags.map(tag => ({
                 pubkey: tag[1],
                 relay: tag[2] || null,
-                petname: tag[3] || null
+                petname: tag[3] || null,
+                profile: null // Will be populated asynchronously
               }))
+            
+            // Fetch profiles asynchronously
+            follows.forEach(async (follow) => {
+              try {
+                follow.profile = await fetchUserProfile(follow.pubkey)
+              } catch (error) {
+                console.warn(`Failed to fetch profile for ${follow.pubkey.substring(0, 8)}:`, error)
+                follow.profile = createFallbackProfile(follow.pubkey)
+              }
+            })
 
             // Extract interest tags
             const listInterests = event.tags
@@ -503,13 +525,26 @@ export function useAudience() {
       
       const dTag = Date.now().toString()
       
+      // Fetch profiles for all follows before creating the list
+      const followsWithProfiles = await Promise.all(
+        follows.map(async (follow) => {
+          try {
+            const profile = await fetchUserProfile(follow.pubkey)
+            return { ...follow, profile }
+          } catch (error) {
+            console.warn(`Failed to fetch profile for ${follow.pubkey.substring(0, 8)}:`, error)
+            return { ...follow, profile: createFallbackProfile(follow.pubkey) }
+          }
+        })
+      )
+      
       // Build tags
       const tags = [
         ['d', dTag],
         ['title', title],
         ['description', description],
         ...interests.map(interest => ['t', interest]),
-        ...follows.map(follow => {
+        ...followsWithProfiles.map(follow => {
           const tag = ['p', follow.pubkey]
           if (follow.relay) tag.push(follow.relay)
           if (follow.petname) tag.push(follow.petname)
@@ -545,7 +580,7 @@ export function useAudience() {
         title,
         description,
         author: currentUser.value.pubkey,
-        follows,
+        follows: followsWithProfiles,
         interests,
         createdAt: Date.now(),
         isLocal: false,
@@ -656,16 +691,87 @@ export function useAudience() {
 
   // Remove member from follow list
   const removeMemberFromList = async (listId, memberPubkey) => {
-    const list = followLists.value.find(list => list.id === listId)
-    if (!list) {
-      throw new Error('Follow list not found')
+    if (!isAuthenticated.value || !window.nostr) {
+      throw new Error('Nostr authentication required')
     }
 
-    // Remove the member from the follows array
-    const updatedFollows = list.follows.filter(follow => follow.pubkey !== memberPubkey)
-    
-    // Update the list using the updateFollowList function
-    return await updateFollowList(listId, updatedFollows)
+    try {
+      console.log('Removing member from follow list:', memberPubkey.substring(0, 8) + '...')
+      
+      // Find the list to update
+      const listIndex = followLists.value.findIndex(list => list.id === listId)
+      if (listIndex === -1) {
+        throw new Error('Follow list not found')
+      }
+
+      const list = followLists.value[listIndex]
+      
+      // Remove the member from the follows array
+      const updatedFollows = list.follows.filter(follow => follow.pubkey !== memberPubkey)
+      
+      console.log(`Updating follow list "${list.title}" - removing member, new count: ${updatedFollows.length}`)
+      
+      // Create updated follow list event following NIP-51 specification
+      const eventTemplate = {
+        kind: 30000, // Follow sets (NIP-51)
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', list.dTag || list.id], // Identifier tag (required for addressable events)
+          ['title', list.title], // List title
+          ['description', list.description || ''], // List description
+          // Add interest tags
+          ...list.interests.map(interest => ['t', interest]),
+          // Add follow tags with proper format
+          ...updatedFollows.map(follow => {
+            const tag = ['p', follow.pubkey]
+            if (follow.relay) tag.push(follow.relay)
+            if (follow.petname) tag.push(follow.petname)
+            return tag
+          })
+        ],
+        content: '' // Empty content for follow sets
+      }
+
+      console.log('Signing updated follow list event...')
+      
+      // Sign the event using Nostr extension
+      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      
+      // Verify the signed event
+      if (!verifyEvent(signedEvent)) {
+        throw new Error('Event signature verification failed')
+      }
+
+      console.log('Publishing updated follow list to relays...')
+      
+      // Publish to Nostr relays
+      const result = await nostrRelayManager.publishEvent(signedEvent)
+      
+      if (result.successful === 0) {
+        throw new Error('Failed to publish updated list to any relays')
+      }
+
+      console.log(`✅ Follow list updated successfully - published to ${result.successful} relays`)
+
+      // Update local state
+      const updatedList = {
+        ...list,
+        follows: updatedFollows,
+        rawEvent: signedEvent
+      }
+      
+      followLists.value[listIndex] = updatedList
+
+      return {
+        success: true,
+        updatedList,
+        removedMember: memberPubkey,
+        publishResult: result
+      }
+    } catch (error) {
+      console.error('Failed to remove member from follow list:', error)
+      throw error
+    }
   }
 
   // Toggle interest selection
@@ -810,6 +916,7 @@ export function useAudience() {
     createFollowList,
     followAllFromList,
     updateFollowList,
+    removeMemberFromList,
     removeMemberFromList,
     toggleInterest,
     searchInterests,

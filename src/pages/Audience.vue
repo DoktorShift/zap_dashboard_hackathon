@@ -50,6 +50,7 @@ const {
   unfollowUser,
   createFollowList,
   followAllFromList,
+  removeMemberFromList,
   toggleInterest,
   searchInterests,
   fetchUserProfile,
@@ -254,17 +255,19 @@ const handleRemoveMember = async (memberPubkey) => {
   isRemovingMember.value.add(memberPubkey)
   
   try {
-    await removeMemberFromList(selectedListForView.value.id, memberPubkey)
+    const result = await removeMemberFromList(selectedListForView.value.id, memberPubkey)
     
     // Update the selected list for view to reflect changes
     selectedListForView.value = {
       ...selectedListForView.value,
-      follows: selectedListForView.value.follows.filter(follow => follow.pubkey !== memberPubkey)
+      follows: result.updatedList.follows
     }
     
-    console.log('Successfully removed member from list')
+    console.log('Successfully removed member from list and published update to Nostr')
   } catch (error) {
     console.error('Failed to remove member:', error)
+    // Show user-friendly error message
+    alert(`Failed to remove member: ${error.message}`)
   } finally {
     isRemovingMember.value.delete(memberPubkey)
   }
@@ -425,13 +428,21 @@ onMounted(() => {
                     <IconUsers class="w-4 h-4" />
                     <span>{{ list.follows.length }} people</span>
                   </div>
-                  <button
-                    @click="handleFollowAllFromList(list)"
-                    class="btn-secondary text-sm"
-                  >
-                    <IconUserPlus class="w-3 h-3" />
-                    Follow All
-                  </button>
+                  <div class="flex items-center space-x-2">
+                    <button
+                      @click="viewFollowListMembers(list)"
+                      class="btn-secondary text-sm"
+                    >
+                      <IconUsers class="w-3 h-3" />
+                      View Members
+                    </button>
+                    <button
+                      @click="handleDeleteFollowList(list)"
+                      class="btn-secondary text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <IconTrash class="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -914,7 +925,7 @@ onMounted(() => {
                     <!-- Avatar -->
                     <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
                       <img 
-                        :src="member.profile?.picture" 
+                        :src="member.profile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
                         :alt="formatUserName(member.profile)"
                         class="w-full h-full object-cover"
                         @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
@@ -946,6 +957,34 @@ onMounted(() => {
                         <p v-if="member.profile?.nip05" class="truncate">{{ member.profile.nip05 }}</p>
                         <p v-else class="font-mono text-xs">{{ formatPubkey(member.pubkey) }}</p>
                         <p v-if="member.profile?.about" class="line-clamp-2 text-xs leading-relaxed">{{ member.profile.about }}</p>
+                      </div>
+                      
+                      <!-- External Profile Links -->
+                      <div class="flex items-center space-x-2 mt-2">
+                        <a 
+                          v-if="member.pubkey"
+                          :href="`https://primal.net/p/${nip19.npubEncode(member.pubkey)}`" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          class="text-xs text-orange-600 hover:text-orange-700 flex items-center space-x-1 hover:bg-orange-50 px-2 py-1 rounded transition-colors"
+                          title="View on Primal"
+                          @click.stop
+                        >
+                          <IconExternalLink class="w-3 h-3" />
+                          <span>Primal</span>
+                        </a>
+                        <a 
+                          v-if="member.pubkey"
+                          :href="`https://yakihonne.com/${nip19.npubEncode(member.pubkey)}`" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          class="text-xs text-purple-600 hover:text-purple-700 flex items-center space-x-1 hover:bg-purple-50 px-2 py-1 rounded transition-colors"
+                          title="View on Yakihonne"
+                          @click.stop
+                        >
+                          <IconExternalLink class="w-3 h-3" />
+                          <span>Yakihonne</span>
+                        </a>
                       </div>
                     </div>
                     
