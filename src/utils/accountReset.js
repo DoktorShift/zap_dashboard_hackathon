@@ -210,7 +210,10 @@ export const performCompleteReset = async () => {
       'user_content_items',
       
       // Other app data
-      'btc_price_data'
+      'btc_price_data',
+      
+      // Metrics cache
+      'zap_metrics_cache'
     ]
     
     // Clear all keys
