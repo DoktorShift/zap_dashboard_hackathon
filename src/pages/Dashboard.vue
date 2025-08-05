@@ -4,12 +4,8 @@ import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircl
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
-import { 
-  filterZapsByTimeRange, 
-  getTimeRangeDisplayText, 
-  getShortTimeRangeText,
-  getPeriodComparison 
-} from '../utils/timeFilter.js'
+import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText } from '../utils/timeFilter.js'
+import { getCachedMetrics } from '../utils/metricsCache.js'
 
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
@@ -106,77 +102,20 @@ onMounted(() => {
 
 // Dynamic stats based on real data and time range
 const stats = computed(() => {
-  // Fixed 30-day comparison logic (same as chart)
+  // Use cached metrics for 30-day comparison (same as chart)
   const allZaps = combinedZapData.value.filter(zap => zap.eventId) // Only NIP-57 zaps
   
-  // Current 30 days (same logic as chart)
-  const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-  const currentPeriodZaps = allZaps.filter(zap => {
-    const zapDate = new Date(zap.timestamp)
-    return zapDate >= thirtyDaysAgo && zapDate <= now
-  })
-  
-  // Previous 30 days (30-60 days ago)
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
-  const previousPeriodZaps = allZaps.filter(zap => {
-    const zapDate = new Date(zap.timestamp)
-    return zapDate >= sixtyDaysAgo && zapDate < thirtyDaysAgo
-  })
-  
-  // Calculate metrics for current period
-  const currentTotalZaps = currentPeriodZaps.length
-  const currentTotalSats = currentPeriodZaps.reduce((sum, zap) => sum + zap.amount, 0)
-  const currentUniqueSupporters = new Set(currentPeriodZaps.map(zap => zap.sender?.pubkey || zap.zapperPubkey || 'anonymous')).size
-  const currentAvgZap = currentTotalZaps > 0 ? Math.round(currentTotalSats / currentTotalZaps) : 0
-  
-  // Calculate metrics for previous period
-  const previousTotalZaps = previousPeriodZaps.length
-  const previousTotalSats = previousPeriodZaps.reduce((sum, zap) => sum + zap.amount, 0)
-  const previousUniqueSupporters = new Set(previousPeriodZaps.map(zap => zap.sender?.pubkey || zap.zapperPubkey || 'anonymous')).size
-  const previousAvgZap = previousTotalZaps > 0 ? Math.round(previousTotalSats / previousTotalZaps) : 0
-  
-  // Calculate percentage changes
-  const calculateChange = (current, previous) => {
-    if (previous === 0 && current === 0) {
-      return { percentage: 0, trend: 'neutral', isNew: false }
-    }
-    if (previous === 0 && current > 0) {
-      return { percentage: 100, trend: 'positive', isNew: true }
-    }
-    if (previous > 0 && current === 0) {
-      return { percentage: -100, trend: 'negative', isNew: false }
-    }
-    
-    const percentage = Math.round(((current - previous) / previous) * 100)
-    const trend = percentage > 0 ? 'positive' : percentage < 0 ? 'negative' : 'neutral'
-    
-    return { percentage, trend, isNew: false }
-  }
-  
-  const changes = {
-    totalZaps: calculateChange(currentTotalZaps, previousTotalZaps),
-    totalSats: calculateChange(currentTotalSats, previousTotalSats),
-    uniqueSupporters: calculateChange(currentUniqueSupporters, previousUniqueSupporters),
-    avgZap: calculateChange(currentAvgZap, previousAvgZap)
-  }
-  
-  console.log('📊 30-Day Dashboard Stats:', {
-    current: { totalZaps: currentTotalZaps, totalSats: currentTotalSats, uniqueSupporters: currentUniqueSupporters, avgZap: currentAvgZap },
-    previous: { totalZaps: previousTotalZaps, totalSats: previousTotalSats, uniqueSupporters: previousUniqueSupporters, avgZap: previousAvgZap },
-    changes,
-    currentPeriodCount: currentPeriodZaps.length,
-    previousPeriodCount: previousPeriodZaps.length
-  })
+  // Get cached metrics comparison for 30 days
+  const comparison = getCachedMetrics(allZaps, 30)
   
   return {
-    totalZaps: currentTotalZaps,
-    totalSats: currentTotalSats,
-    uniqueSupporters: currentUniqueSupporters,
-    avgZap: currentAvgZap,
-    totalUSD: satsToUSD(currentTotalSats),
+    totalZaps: comparison.current.totalZaps,
+    totalSats: comparison.current.totalSats,
+    uniqueSupporters: comparison.current.uniqueSupporters,
+    avgZap: comparison.current.avgZap,
+    totalUSD: satsToUSD(comparison.current.totalSats),
     walletBalance: walletBalance.value,
-    changes
+    changes: comparison.changes
   }
 })
 
@@ -347,11 +286,10 @@ const getPercentageChange = (metricType) => {
   const change = stats.value.changes[metricType]
   
   if (!change) {
-    console.warn(`No change data found for metric: ${metricType}`, stats.value.changes)
+    console.warn(`No change data found for metric: ${metricType}`)
     return { percentage: 0, trend: 'neutral', isNew: false }
   }
   
-  console.log(`📈 Displaying percentage change for ${metricType}:`, change)
   return change
 }
 
