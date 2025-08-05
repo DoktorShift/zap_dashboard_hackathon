@@ -1,121 +1,25 @@
 <script setup>
-import { ref, inject, computed, onMounted, onUnmounted } from 'vue'
+import { ref, inject, computed } from 'vue'
 import { 
-  IconSearch, 
-  IconUpload, 
+  IconDashboard, 
   IconBolt, 
-  IconMenu2, 
-  IconUser, 
-  IconSettings, 
-  IconLogout, 
-  IconChevronDown, 
-  IconRefresh,
-  IconDashboard,
-  IconChartBar,
-  IconWallet,
-  IconMessageCircle,
-  IconFileText,
-  IconGift,
-  IconShoppingCart,
-  IconEdit
+  IconChartBar, 
+  IconWallet, 
+  IconMessageCircle, 
+  IconFileText, 
+  IconGift, 
+  IconShoppingCart, 
+  IconSettings,
+  IconEdit,
+  IconUsers
 } from '@iconify-prerendered/vue-tabler'
-import NotificationDropdown from './NotificationDropdown.vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 
-const zapData = inject('zapData')
-const isRefreshingData = inject('isRefreshingData')
-const refreshZapData = inject('refreshZapData')
-const isWalletConnected = inject('isWalletConnected')
 const currentPage = inject('currentPage')
+const emit = defineEmits(['change-page'])
 
-const emit = defineEmits(['show-connection', 'toggle-mobile-menu', 'change-page'])
-
-// Use Nostr authentication
-const { isAuthenticated, userProfile, currentUser, logout } = useNostrAuth()
-
-const showProfileDropdown = ref(false)
-const profileDropdownRef = ref(null)
-
-// Page title, description, and icon mapping
-const pageInfo = computed(() => {
-  const pageMap = {
-    'dashboard': {
-      title: 'Dashboard',
-      description: 'Welcome back, track your lightning earnings',
-      icon: IconDashboard
-    },
-    'zap-feed': {
-      title: 'Zap Feed',
-      description: 'Real-time zap activity and notifications',
-      icon: IconBolt
-    },
-    'analytics': {
-      title: 'Analytics',
-      description: 'Deep insights into your zap performance',
-      icon: IconChartBar
-    },
-    'wallet': {
-      title: 'Wallet',
-      description: 'Manage your Lightning wallet and transactions',
-      icon: IconWallet
-    },
-    'chat-zaps': {
-      title: 'Chat + Zaps',
-      description: 'Interactive chat with zap integration',
-      icon: IconMessageCircle
-    },
-    'content': {
-      title: 'Content',
-      description: 'Manage and analyze your content performance',
-      icon: IconFileText
-    },
-    'donations': {
-      title: 'Donations',
-      description: 'Manage donation campaigns and goals',
-      icon: IconGift
-    },
-    'mini-pos': {
-      title: 'Mini PoS',
-      description: 'Point of Sale system for lightning payments',
-      icon: IconShoppingCart
-    },
-    'finances': {
-      title: 'Finances',
-      description: 'Financial overview and reporting',
-      icon: IconWallet
-    },
-    'settings': {
-      title: 'Settings',
-      description: 'Manage your zap dashboard preferences and integrations',
-      icon: IconSettings
-    },
-    'notes': {
-      title: 'Notes',
-      description: 'Keep track of your thoughts and ideas',
-      icon: IconEdit
-    }
-  }
-  
-  return pageMap[currentPage.value] || {
-    title: 'Dashboard',
-    description: 'Welcome back, track your lightning earnings',
-    icon: IconDashboard
-  }
-})
-
-// Watch for connection status based on zapData
-const hasConnection = computed(() => {
-  return localStorage.getItem('nwc_url') !== null
-})
-
-// Get user avatar with Nostr profile fallback
-const getUserAvatar = computed(() => {
-  if (isAuthenticated.value && userProfile.value?.picture) {
-    return userProfile.value.picture
-  }
-  // Fallback to default avatar
-  return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-})
+// Use Nostr authentication to get user profile
+const { isAuthenticated, userProfile } = useNostrAuth()
 
 // Get user name with Nostr profile fallback
 const getUserName = computed(() => {
@@ -125,256 +29,96 @@ const getUserName = computed(() => {
   return 'Creator'
 })
 
-// Get user email/identifier with Nostr profile fallback
-const getUserIdentifier = computed(() => {
-  if (isAuthenticated.value) {
-    if (userProfile.value?.nip05) {
-      return userProfile.value.nip05
-    }
-    if (currentUser.value?.npub) {
-      return currentUser.value.npub.substring(0, 20) + '...'
-    }
-  }
-  return 'creator@example.com'
-})
+const menuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
+  { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt },
+  { id: 'analytics', label: 'Analytics', icon: IconChartBar },
+  { id: 'wallet', label: 'Wallet', icon: IconWallet },
+  { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
+  { id: 'content', label: 'Content', icon: IconFileText },
+  { id: 'notes', label: 'Notes', icon: IconEdit },
+  { id: 'audience', label: 'Audience', icon: IconUsers },
+  // { id: 'donations', label: 'Donations', icon: IconGift },
+  // { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
+  // { id: 'finances', label: 'Finances', icon: IconWallet },
+  { id: 'settings', label: 'Settings', icon: IconSettings }
+]
 
-// Data status for header display
-const dataStatus = computed(() => {
-  if (!isWalletConnected.value) {
-    return {
-      show: false,
-      text: '',
-      color: ''
-    }
-  }
-
-  if (zapData.value.length > 0) {
-    return {
-      show: true,
-      text: `${zapData.value.length} zaps loaded`,
-      color: 'text-green-600'
-    }
-  }
-
-  return {
-    show: true,
-    text: 'No data yet',
-    color: 'text-gray-500'
-  }
-})
-
-// Close dropdown when clicking outside
-const handleClickOutside = (event) => {
-  if (profileDropdownRef.value && !profileDropdownRef.value.contains(event.target)) {
-    showProfileDropdown.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
-
-const toggleProfileDropdown = () => {
-  showProfileDropdown.value = !showProfileDropdown.value
-}
-
-const handleProfileAction = (action) => {
-  showProfileDropdown.value = false
-  
-  switch (action) {
-    case 'profile':
-      emit('change-page', 'settings', 'nostr')
-      break
-    case 'settings':
-      emit('change-page', 'settings', 'alerts')
-      break
-    case 'account':
-      console.log('Navigate to account')
-      break
-    case 'signout':
-      logout()
-      break
-  }
-}
-
-const handleRefresh = () => {
-  if (refreshZapData && !isRefreshingData.value) {
-    refreshZapData()
-  }
+const handlePageChange = (pageId) => {
+  emit('change-page', pageId)
 }
 </script>
 
 <template>
-  <div class="px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-    <div class="flex items-center justify-between">
-      <!-- Mobile Menu Button + Page Title -->
+  <div class="h-full bg-white/90 backdrop-blur-sm border-r border-orange-100/50 flex flex-col">
+    <!-- Logo/Brand -->
+    <div class="p-4 sm:p-6 border-b border-orange-100/50">
       <div class="flex items-center space-x-3">
-        <!-- Mobile Menu Toggle -->
-        <button 
-          @click="emit('toggle-mobile-menu')"
-          class="lg:hidden p-2 text-gray-600 hover:text-orange-600 transition-colors touch-target hover:bg-orange-50 rounded-lg"
-        >
-          <IconMenu2 class="w-6 h-6" />
-        </button>
-        
-        <!-- Page Title -->
+        <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-400 to-amber-400 rounded-lg flex items-center justify-center shadow-sm">
+          <IconBolt class="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+        </div>
         <div>
-          <h2 class="text-lg sm:text-xl font-semibold text-gray-800 flex items-center space-x-2">
-            <component :is="pageInfo.icon" class="w-5 h-5 text-orange-600" />
-            <span>{{ pageInfo.title }}</span>
-          </h2>
-          <p class="text-xs sm:text-sm text-gray-600 hidden sm:block">{{ pageInfo.description }}</p>
+          <h1 class="text-lg sm:text-xl font-bold text-gray-900">ZapTracker</h1>
+          <p class="text-xs text-gray-600 hidden sm:block">Lightning Dashboard</p>
         </div>
       </div>
-      
-      <!-- Right Side Actions -->
-      <div class="flex items-center space-x-2 sm:space-x-3">
-        <!-- Search - Hidden on mobile, shown on tablet+ -->
-<!--        <div class="relative hidden md:block">-->
-<!--          <input-->
-<!--            type="text"-->
-<!--            placeholder="Search zaps..."-->
-<!--            class="w-48 lg:w-64 pl-10 pr-4 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 bg-white/80 backdrop-blur-sm transition-all text-sm hover:shadow-sm"-->
-<!--          />-->
-<!--          <IconSearch class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />-->
-<!--        </div>-->
-
-        <!-- Data Status & Refresh (when connected) -->
-        <div v-if="dataStatus.show" class="flex items-center space-x-3">
-<!--          <div class="hidden sm:flex items-center space-x-2">-->
-<!--            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>-->
-<!--            <span :class="['text-xs font-medium', dataStatus.color]">-->
-<!--              {{ dataStatus.text }}-->
-<!--            </span>-->
-<!--          </div>-->
-
-          <!-- Refresh Button with Consistent Styling -->
-          <button
-            @click="handleRefresh"
-            :disabled="isRefreshingData"
-            :title="isRefreshingData ? 'Refreshing...' : 'Refresh data'"
-            class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target group disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+    </div>
+    
+    <!-- Welcome Message -->
+    <div class="px-4 sm:px-6 py-3 border-b border-orange-100/50 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
+      <p class="text-sm text-gray-700">
+        Welcome back, <span class="font-medium text-orange-600">{{ getUserName }}</span>!
+      </p>
+    </div>
+    
+    <!-- Navigation Menu -->
+    <nav class="flex-1 p-3 sm:p-4 space-y-1 overflow-y-auto scrollbar-thin">
+      <button
+        v-for="item in menuItems"
+        :key="item.id"
+        @click="handlePageChange(item.id)"
+        :class="[
+          'w-full flex items-center space-x-3 px-3 py-3 sm:py-3 rounded-lg text-left transition-all duration-200 touch-target group',
+          currentPage === item.id
+            ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white shadow-md transform scale-105'
+            : 'text-gray-700 hover:bg-orange-50 hover:text-orange-700 hover:shadow-sm hover:scale-105'
+        ]"
+      >
+        <component 
+          :is="item.icon" 
+          :class="[
+            'w-5 h-5 transition-all duration-200',
+            currentPage === item.id 
+              ? 'text-white' 
+              : 'text-gray-500 group-hover:text-orange-600 group-hover:scale-110'
+          ]" 
+        />
+        <span class="font-medium text-sm sm:text-base">{{ item.label }}</span>
+      </button>
+    </nav>
+    
+    <!-- Footer -->
+    <div class="p-3 sm:p-4 border-t border-orange-100/50 bg-gradient-to-r from-orange-50/30 to-amber-50/30">
+      <div class="text-center">
+        <p class="text-xs text-gray-500 mb-2">Made with ⚡ by</p>
+        <div class="flex items-center justify-center space-x-2">
+          <a 
+            href="https://github.com/pratik227" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="text-xs text-orange-600 hover:text-orange-700 font-medium transition-colors"
           >
-            <IconRefresh :class="[
-              'w-5 h-5 transition-all duration-200 group-hover:scale-110',
-              isRefreshingData ? 'animate-spin' : ''
-            ]" />
-          </button>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex items-center space-x-2">
-          <!-- Connection Button -->
-          <button 
-            @click="emit('show-connection')"
-            :class="[
-              'btn-secondary text-sm transition-all duration-200',
-              hasConnection ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : ''
-            ]"
+            Pratik
+          </a>
+          <span class="text-xs text-gray-400">&</span>
+          <a 
+            href="https://github.com/DoktorShift" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="text-xs text-orange-600 hover:text-orange-700 font-medium transition-colors"
           >
-            <IconBolt :class="['w-4 h-4', hasConnection ? 'text-green-600' : '']" />
-            <span class="hidden sm:inline">{{ hasConnection ? 'Connected' : 'Connect' }}</span>
-          </button>
-          
-          <!-- Notifications with Consistent Hover Effect -->
-          <div class="hover:bg-orange-50 rounded-lg transition-all duration-200 group">
-            <NotificationDropdown />
-          </div>
-        </div>
-        
-        <!-- Enhanced Profile Dropdown -->
-        <div class="relative" ref="profileDropdownRef">
-          <!-- Profile Trigger Button -->
-          <button 
-            @click="toggleProfileDropdown"
-            class="flex items-center space-x-2 sm:space-x-3 p-2 rounded-lg hover:bg-orange-50 transition-all duration-200 group touch-target"
-          >
-            <div class="relative">
-              <img 
-                :src="getUserAvatar"
-                :alt="getUserName"
-                class="w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 border-orange-200 group-hover:border-orange-300 transition-all duration-200"
-                @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
-              />
-              <!-- Online indicator -->
-              <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
-            </div>
-            
-            <!-- Profile Info - Hidden on mobile -->
-            <div class="hidden sm:block text-left">
-              <div class="flex items-center space-x-1">
-                <span class="text-sm font-medium text-gray-800 group-hover:text-orange-600 transition-colors duration-200">{{ getUserName }}</span>
-                <IconChevronDown :class="[
-                  'w-3 h-3 text-gray-400 group-hover:text-orange-500 transition-all duration-200',
-                  showProfileDropdown ? 'rotate-180' : ''
-                ]" />
-              </div>
-              <div class="text-xs text-gray-500 truncate max-w-[100px]">{{ getUserIdentifier }}</div>
-            </div>
-          </button>
-          
-          <!-- Dropdown Menu -->
-          <transition name="dropdown">
-            <div 
-              v-if="showProfileDropdown"
-              class="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50"
-            >
-              <!-- Profile Header -->
-              <div class="px-4 py-3 border-b border-gray-100">
-                <div class="flex items-center space-x-3">
-                  <img 
-                    :src="getUserAvatar"
-                    :alt="getUserName"
-                    class="w-10 h-10 rounded-full border-2 border-orange-200"
-                    @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <div class="font-medium text-gray-900 truncate">{{ getUserName }}</div>
-                    <div class="text-sm text-gray-500 truncate">{{ getUserIdentifier }}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Account Section -->
-              <div class="py-1">
-                <div class="px-4 py-2">
-                  <div class="text-xs font-medium text-gray-500 uppercase tracking-wider">My Account</div>
-                </div>
-                
-                <button 
-                  @click="handleProfileAction('profile')"
-                  class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors duration-200"
-                >
-                  <IconUser class="w-4 h-4" />
-                  <span>Profile</span>
-                </button>
-                
-                <button 
-                  @click="handleProfileAction('settings')"
-                  class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors duration-200"
-                >
-                  <IconSettings class="w-4 h-4" />
-                  <span>Settings</span>
-                </button>
-              </div>
-              
-              <!-- Divider -->
-              <div class="border-t border-gray-100 my-1"></div>
-              
-              <!-- Sign Out -->
-              <button 
-                @click="handleProfileAction('signout')"
-                class="w-full flex items-center space-x-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
-              >
-                <IconLogout class="w-4 h-4" />
-                <span>Sign out</span>
-              </button>
-            </div>
-          </transition>
+            DoktorShift
+          </a>
         </div>
       </div>
     </div>
@@ -382,19 +126,64 @@ const handleRefresh = () => {
 </template>
 
 <style scoped>
-/* Dropdown transition */
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: all 0.2s ease-out;
+/* Ensure proper touch targets on mobile */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }
 
-.dropdown-enter-from {
-  opacity: 0;
-  transform: translateY(-10px) scale(0.95);
+/* Smooth hover animations */
+.group:hover .group-hover\:scale-110 {
+  transform: scale(1.1);
 }
 
-.dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(-10px) scale(0.95);
+.group:hover .group-hover\:text-orange-600 {
+  color: #ea580c;
+}
+
+/* Active state animations */
+.transform.scale-105 {
+  transform: scale(1.05);
+}
+
+/* Custom scrollbar for navigation */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(251, 146, 60, 0.3);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(251, 146, 60, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .touch-target {
+    min-height: 48px; /* Larger touch targets on mobile */
+  }
+}
+
+/* Accessibility improvements */
+button:focus-visible {
+  outline: 2px solid #fb923c;
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .transition-all,
+  .group:hover .group-hover\:scale-110,
+  .transform.scale-105 {
+    transition: none !important;
+    transform: none !important;
+  }
 }
 </style>
