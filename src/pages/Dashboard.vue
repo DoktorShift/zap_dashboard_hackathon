@@ -315,10 +315,6 @@ const getPercentageChange = (metricType) => {
 
 // Format percentage change for display
 const formatPercentageChange = (change) => {
-  if (change.isNew) {
-    return 'New!'
-  }
-  
   if (change.percentage === 0) {
     return '0%'
   }
@@ -329,10 +325,6 @@ const formatPercentageChange = (change) => {
 
 // Get trend color class for percentage changes
 const getTrendColorClass = (change) => {
-  if (change.isNew) {
-    return 'text-blue-500 bg-blue-50 border-blue-200'
-  }
-  
   switch (change.trend) {
     case 'positive':
       return 'text-green-500 bg-green-50 border-green-200'

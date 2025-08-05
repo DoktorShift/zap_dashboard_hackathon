@@ -129,7 +129,7 @@ export function calculatePercentageChange(currentValue, previousValue) {
   }
   
   if (previousValue === 0 && currentValue > 0) {
-    return { percentage: 100, isNew: true, isInfinite: false, trend: 'positive' }
+    return { percentage: 100, isNew: false, isInfinite: false, trend: 'positive' }
   }
   
   if (previousValue > 0 && currentValue === 0) {
