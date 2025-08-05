@@ -5,7 +5,7 @@ import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
 import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText } from '../utils/timeFilter.js'
-import { getCachedMetrics } from '../utils/metricsCache.js'
+import { metricsCache } from '../utils/metricsCache.js'
 
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
@@ -100,13 +100,33 @@ onMounted(() => {
   fetchWalletData()
 })
 
-// Dynamic stats based on real data and time range
+// Dynamic stats based on cached metrics for 30-day comparison
 const stats = computed(() => {
-  // Use cached metrics for 30-day comparison (same as chart)
+  console.log('🔍 Computing stats with cached metrics...')
   const allZaps = combinedZapData.value.filter(zap => zap.eventId) // Only NIP-57 zaps
+  console.log('📊 Total NIP-57 zaps available:', allZaps.length)
   
-  // Get cached metrics comparison for 30 days
-  const comparison = getCachedMetrics(allZaps, 30)
+  if (allZaps.length === 0) {
+    console.log('⚠️ No NIP-57 zaps found, returning zero stats')
+    return {
+      totalZaps: 0,
+      totalSats: 0,
+      uniqueSupporters: 0,
+      avgZap: 0,
+      totalUSD: 0,
+      walletBalance: walletBalance.value,
+      changes: {
+        totalZaps: { percentage: 0, trend: 'neutral', isNew: false },
+        totalSats: { percentage: 0, trend: 'neutral', isNew: false },
+        uniqueSupporters: { percentage: 0, trend: 'neutral', isNew: false },
+        avgZap: { percentage: 0, trend: 'neutral', isNew: false }
+      }
+    }
+  }
+  
+  // Get cached metrics comparison for 30 days (fixed period like the chart)
+  const comparison = metricsCache.getPeriodComparison(allZaps, 30)
+  console.log('📈 Cached metrics comparison result:', comparison)
   
   return {
     totalZaps: comparison.current.totalZaps,
@@ -283,6 +303,7 @@ const formatTimeAgo = (timestamp) => {
 
 // Get percentage change data for a specific metric
 const getPercentageChange = (metricType) => {
+  console.log(`🔍 Getting percentage change for ${metricType}:`, stats.value.changes[metricType])
   const change = stats.value.changes[metricType]
   
   if (!change) {

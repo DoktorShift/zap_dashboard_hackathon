@@ -165,7 +165,11 @@ export class MetricsCache {
 
   // Get metrics for a period (e.g., last 30 days)
   getMetricsForPeriod(zaps, days = 30, endDate = new Date()) {
+    console.log(`🔄 getMetricsForPeriod called: ${days} days ending ${endDate.toISOString()}`)
+    console.log('📊 Input zaps:', zaps.length)
+    
     const cacheKey = `period_${days}_${this.getDateKey(endDate)}`
+    console.log('🔑 Cache key:', cacheKey)
     
     // Check if we have cached period data
     const cachedPeriod = this.cache.entries[cacheKey]
@@ -178,7 +182,13 @@ export class MetricsCache {
     console.log(`🔄 Calculating fresh period metrics for ${days} days ending ${this.getDateKey(endDate)}`)
     
     const startDate = new Date(endDate.getTime() - (days * 24 * 60 * 60 * 1000))
+    console.log('📅 Period range:', {
+      start: startDate.toISOString(),
+      end: endDate.toISOString()
+    })
+    
     const metrics = this.calculateMetricsForPeriod(zaps, startDate, endDate)
+    console.log('📊 Calculated metrics:', metrics)
     
     // Create cache entry for period
     const cacheEntry = {
@@ -199,14 +209,22 @@ export class MetricsCache {
 
   // Get comparison between current and previous periods
   getPeriodComparison(zaps, days = 30) {
+    console.log('📊 getPeriodComparison called with:', {
+      totalZaps: zaps.length,
+      days,
+      sampleZap: zaps[0]
+    })
+    
     const now = new Date()
     
     // Get current period metrics (last X days)
     const currentMetrics = this.getMetricsForPeriod(zaps, days, now)
+    console.log('📈 Current period metrics:', currentMetrics)
     
     // Get previous period metrics (X days before that)
     const previousEndDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000))
     const previousMetrics = this.getMetricsForPeriod(zaps, days, previousEndDate)
+    console.log('📉 Previous period metrics:', previousMetrics)
     
     // Calculate percentage changes
     const changes = {
@@ -215,6 +233,8 @@ export class MetricsCache {
       uniqueSupporters: this.calculatePercentageChange(currentMetrics.uniqueSupporters, previousMetrics.uniqueSupporters),
       avgZap: this.calculatePercentageChange(currentMetrics.avgZap, previousMetrics.avgZap)
     }
+    
+    console.log('📊 Calculated changes:', changes)
 
     console.log('📊 Period comparison (cached):', {
       current: currentMetrics,
