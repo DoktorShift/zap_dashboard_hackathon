@@ -59,10 +59,13 @@ const {
 
 // Local UI state
 const showCreateListModal = ref(false)
+const showMembersModal = ref(false)
+const selectedListForView = ref(null)
 const showInterestDetails = ref(false)
 const selectedInterestForDetails = ref(null)
 const interestSearchQuery = ref('')
 const isFollowingUser = ref(new Set())
+const isRemovingMember = ref(new Set())
 const expandedSections = ref(new Set(['discover']))
 
 // Create list form
@@ -238,6 +241,34 @@ const isUserFollowed = (pubkey) => {
   return currentFollows.value.some(follow => follow.pubkey === pubkey)
 }
 
+// View follow list members
+const viewFollowListMembers = (list) => {
+  selectedListForView.value = list
+  showMembersModal.value = true
+}
+
+// Remove member from follow list
+const handleRemoveMember = async (memberPubkey) => {
+  if (!selectedListForView.value) return
+  
+  isRemovingMember.value.add(memberPubkey)
+  
+  try {
+    await removeMemberFromList(selectedListForView.value.id, memberPubkey)
+    
+    // Update the selected list for view to reflect changes
+    selectedListForView.value = {
+      ...selectedListForView.value,
+      follows: selectedListForView.value.follows.filter(follow => follow.pubkey !== memberPubkey)
+    }
+    
+    console.log('Successfully removed member from list')
+  } catch (error) {
+    console.error('Failed to remove member:', error)
+  } finally {
+    isRemovingMember.value.delete(memberPubkey)
+  }
+}
 onMounted(() => {
   // Initialize if authenticated
   if (isAuthenticated.value) {
@@ -682,16 +713,13 @@ onMounted(() => {
                     <span>{{ list.interests.length }}</span>
                   </span>
                 </div>
-                <div class="flex items-center space-x-2">
-                  <button class="btn-secondary text-sm">
-                    <IconEye class="w-3 h-3" />
-                    View
-                  </button>
-                  <button class="btn-secondary text-sm">
-                    <IconExternalLink class="w-3 h-3" />
-                    Share
-                  </button>
-                </div>
+                <button
+                  @click="viewFollowListMembers(list)"
+                  class="btn-secondary text-sm"
+                >
+                  <IconUsers class="w-3 h-3" />
+                  View Members
+                </button>
               </div>
             </div>
           </div>
@@ -817,6 +845,140 @@ onMounted(() => {
                 <IconPlus v-else class="w-4 h-4" />
                 Create List
               </button>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- View Members Modal -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showMembersModal && selectedListForView" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden shadow-2xl">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-amber-50">
+              <div>
+                <h3 class="text-xl font-semibold text-gray-900">{{ selectedListForView.title }}</h3>
+                <p class="text-sm text-gray-600 mt-1">{{ selectedListForView.description }}</p>
+                <div class="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                  <span class="flex items-center space-x-1">
+                    <IconUsers class="w-4 h-4" />
+                    <span>{{ selectedListForView.follows.length }} members</span>
+                  </span>
+                  <span v-if="selectedListForView.interests.length > 0" class="flex items-center space-x-1">
+                    <IconHash class="w-4 h-4" />
+                    <span>{{ selectedListForView.interests.length }} interests</span>
+                  </span>
+                </div>
+              </div>
+              <button
+                @click="showMembersModal = false"
+                class="text-gray-400 hover:text-gray-600 p-2 rounded-lg transition-colors hover:bg-gray-100"
+                title="Close"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
+
+            <!-- Interests Tags (if any) -->
+            <div v-if="selectedListForView.interests.length > 0" class="p-4 border-b border-gray-100 bg-gray-50">
+              <h4 class="text-sm font-medium text-gray-700 mb-2">Related Interests</h4>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="interest in selectedListForView.interests"
+                  :key="interest"
+                  class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
+                >
+                  <IconHash class="w-3 h-3" />
+                  <span>{{ interest }}</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Members List -->
+            <div class="overflow-y-auto max-h-[60vh] scrollbar-thin">
+              <div v-if="selectedListForView.follows.length === 0" class="text-center py-12">
+                <IconUsers class="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                <h4 class="text-lg font-medium text-gray-900 mb-2">No Members</h4>
+                <p class="text-gray-600 text-sm">This follow list is empty.</p>
+              </div>
+
+              <div v-else class="divide-y divide-gray-100">
+                <div
+                  v-for="member in selectedListForView.follows"
+                  :key="member.pubkey"
+                  class="p-4 hover:bg-orange-25/50 transition-colors group"
+                >
+                  <div class="flex items-center space-x-4">
+                    <!-- Avatar -->
+                    <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
+                      <img 
+                        :src="member.profile?.picture" 
+                        :alt="formatUserName(member.profile)"
+                        class="w-full h-full object-cover"
+                        @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                      />
+                    </div>
+                    
+                    <!-- Member Info -->
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center space-x-2 mb-1">
+                        <h5 class="font-medium text-gray-900 truncate">
+                          {{ formatUserName(member.profile) }}
+                        </h5>
+                        
+                        <!-- Status Badges -->
+                        <div class="flex items-center space-x-1">
+                          <span v-if="member.profile?.lud16" class="inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs" title="Lightning Address Available">
+                            <IconBolt class="w-3 h-3" />
+                          </span>
+                          <span v-if="member.profile?.nip05" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs" title="NIP-05 Verified">
+                            <IconShield class="w-3 h-3" />
+                          </span>
+                          <span v-if="member.profile?.website" class="inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs" title="Website Available">
+                            <IconGlobe class="w-3 h-3" />
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div class="text-sm text-gray-500 space-y-1">
+                        <p v-if="member.profile?.nip05" class="truncate">{{ member.profile.nip05 }}</p>
+                        <p v-else class="font-mono text-xs">{{ formatPubkey(member.pubkey) }}</p>
+                        <p v-if="member.profile?.about" class="line-clamp-2 text-xs leading-relaxed">{{ member.profile.about }}</p>
+                      </div>
+                    </div>
+                    
+                    <!-- Remove Button -->
+                    <div class="flex-shrink-0">
+                      <button
+                        @click="handleRemoveMember(member.pubkey)"
+                        :disabled="isRemovingMember.has(member.pubkey)"
+                        class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50 touch-target"
+                        title="Remove from list"
+                      >
+                        <IconLoader v-if="isRemovingMember.has(member.pubkey)" class="w-4 h-4 animate-spin" />
+                        <IconX v-else class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-gray-200 bg-gray-50">
+              <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-600">
+                  {{ selectedListForView.follows.length }} member{{ selectedListForView.follows.length !== 1 ? 's' : '' }} in this list
+                </div>
+                <button
+                  @click="showMembersModal = false"
+                  class="btn-secondary"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
