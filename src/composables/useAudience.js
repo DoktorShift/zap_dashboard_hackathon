@@ -588,6 +588,86 @@ export function useAudience() {
     }
   }
 
+  // Update follow list by removing a member
+  const updateFollowList = async (listId, updatedFollows, updatedInterests = null) => {
+    if (!isAuthenticated.value || !window.nostr) {
+      throw new Error('Nostr authentication required')
+    }
+
+    try {
+      // Find the list to update
+      const listIndex = followLists.value.findIndex(list => list.id === listId)
+      if (listIndex === -1) {
+        throw new Error('Follow list not found')
+      }
+
+      const list = followLists.value[listIndex]
+      console.log('Updating follow list:', list.title)
+      
+      // Create updated follow list event (NIP-51 kind:30000)
+      const eventTemplate = {
+        kind: 30000, // Follow sets
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', list.dTag], // Keep the same identifier
+          ['title', list.title],
+          ['description', list.description],
+          ...(updatedInterests || list.interests).map(interest => ['t', interest]),
+          ...updatedFollows.map(follow => {
+            const tag = ['p', follow.pubkey]
+            if (follow.relay) tag.push(follow.relay)
+            if (follow.petname) tag.push(follow.petname)
+            return tag
+          })
+        ],
+        content: ''
+      }
+
+      // Sign and publish the updated event
+      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      
+      if (!verifyEvent(signedEvent)) {
+        throw new Error('Event signature verification failed')
+      }
+
+      const result = await nostrRelayManager.publishEvent(signedEvent)
+      
+      if (result.successful === 0) {
+        throw new Error('Failed to publish to any relays')
+      }
+
+      // Update local state
+      const updatedList = {
+        ...list,
+        follows: updatedFollows,
+        interests: updatedInterests || list.interests,
+        rawEvent: signedEvent
+      }
+      
+      followLists.value[listIndex] = updatedList
+
+      console.log('Successfully updated follow list')
+      return updatedList
+    } catch (error) {
+      console.error('Failed to update follow list:', error)
+      throw error
+    }
+  }
+
+  // Remove member from follow list
+  const removeMemberFromList = async (listId, memberPubkey) => {
+    const list = followLists.value.find(list => list.id === listId)
+    if (!list) {
+      throw new Error('Follow list not found')
+    }
+
+    // Remove the member from the follows array
+    const updatedFollows = list.follows.filter(follow => follow.pubkey !== memberPubkey)
+    
+    // Update the list using the updateFollowList function
+    return await updateFollowList(listId, updatedFollows)
+  }
+
   // Toggle interest selection
   const toggleInterest = (interest) => {
     if (selectedInterests.value.has(interest)) {
@@ -729,6 +809,8 @@ export function useAudience() {
     unfollowUser,
     createFollowList,
     followAllFromList,
+    updateFollowList,
+    removeMemberFromList,
     toggleInterest,
     searchInterests,
     fetchUserProfile,

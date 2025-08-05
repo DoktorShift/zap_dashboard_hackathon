@@ -154,6 +154,27 @@ const handleInterestToggle = async (interest) => {
   }
 }
 
+// Handle delete follow list
+const handleDeleteFollowList = async (list) => {
+  if (!confirm(`Are you sure you want to delete "${list.title}"? This action cannot be undone.`)) {
+    return
+  }
+
+  try {
+    // Remove from local state
+    const index = followLists.value.findIndex(l => l.id === list.id)
+    if (index !== -1) {
+      followLists.value.splice(index, 1)
+    }
+
+    // In a full implementation, you would also publish a deletion event (kind:5)
+    // For now, we just remove from local state
+    console.log('Deleted follow list:', list.title)
+  } catch (error) {
+    console.error('Failed to delete follow list:', error)
+  }
+}
+
 // Show interest details
 const showInterestDetailsModal = (interest) => {
   selectedInterestForDetails.value = interest
