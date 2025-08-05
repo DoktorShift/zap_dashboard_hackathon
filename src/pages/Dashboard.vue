@@ -109,6 +109,15 @@ const stats = computed(() => {
   // Get comprehensive period comparison data
   const periodData = getPeriodComparison(combinedZapData.value, selectedTimeRange.value)
   
+  console.log('📊 Dashboard stats calculation:', {
+    timeRange: selectedTimeRange.value,
+    totalZaps: periodData.current.totalZaps,
+    totalSats: periodData.current.totalSats,
+    changes: periodData.changes,
+    currentPeriodCount: periodData.currentPeriodCount,
+    previousPeriodCount: periodData.previousPeriodCount
+  })
+  
   return {
     ...periodData.current,
     totalUSD: satsToUSD(periodData.current.totalSats),
@@ -286,11 +295,15 @@ const formatTimeAgo = (timestamp) => {
 
 // Get percentage change data for a specific metric
 const getPercentageChange = (metricType) => {
-  if (!stats.value.changes || !stats.value.changes[metricType]) {
+  const change = stats.value.changes?.[metricType]
+  
+  if (!change) {
+    console.warn(`No change data found for metric: ${metricType}`)
     return { percentage: 0, trend: 'neutral', isNew: false }
   }
   
-  return stats.value.changes[metricType]
+  console.log(`📈 Percentage change for ${metricType}:`, change)
+  return change
 }
 
 // Format percentage change for display
@@ -366,7 +379,8 @@ const getTrendColorClass = (change) => {
           </div>
           <span :class="[
             'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
-            getTrendColorClass(getPercentageChange('totalZaps'))
+            getTrendColorClass(getPercentageChange('totalZaps')),
+            'animate-pulse-subtle'
           ]">
             {{ formatPercentageChange(getPercentageChange('totalZaps')) }}
           </span>
@@ -385,7 +399,8 @@ const getTrendColorClass = (change) => {
           </div>
           <span :class="[
             'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
-            getTrendColorClass(getPercentageChange('totalSats'))
+            getTrendColorClass(getPercentageChange('totalSats')),
+            'animate-pulse-subtle'
           ]">
             {{ formatPercentageChange(getPercentageChange('totalSats')) }}
           </span>
@@ -404,7 +419,8 @@ const getTrendColorClass = (change) => {
           </div>
           <span :class="[
             'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
-            getTrendColorClass(getPercentageChange('uniqueSupporters'))
+            getTrendColorClass(getPercentageChange('uniqueSupporters')),
+            'animate-pulse-subtle'
           ]">
             {{ formatPercentageChange(getPercentageChange('uniqueSupporters')) }}
           </span>
@@ -423,7 +439,8 @@ const getTrendColorClass = (change) => {
           </div>
           <span :class="[
             'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
-            getTrendColorClass(getPercentageChange('avgZap'))
+            getTrendColorClass(getPercentageChange('avgZap')),
+            'animate-pulse-subtle'
           ]">
             {{ formatPercentageChange(getPercentageChange('avgZap')) }}
           </span>
