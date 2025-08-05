@@ -4,7 +4,12 @@ import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircl
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
-import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText } from '../utils/timeFilter.js'
+import { 
+  filterZapsByTimeRange, 
+  getTimeRangeDisplayText, 
+  getShortTimeRangeText,
+  getPeriodComparison 
+} from '../utils/timeFilter.js'
 
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
@@ -101,25 +106,19 @@ onMounted(() => {
 
 // Dynamic stats based on real data and time range
 const stats = computed(() => {
-  const allZaps = combinedZapData.value
-  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
-  const nip57Zaps = allZaps.filter(zap => zap.eventId)
-  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
-  
-  const totalSats = filteredZaps.reduce((sum, zap) => sum + zap.amount, 0)
-  const totalUSD = satsToUSD(totalSats)
-  const avgZap = filteredZaps.length > 0 ? totalSats / filteredZaps.length : 0
-  
-  // Get unique supporters from filtered zaps
-  const uniqueSupporters = new Set(filteredZaps.map(zap => zap.sender.pubkey)).size
+  // Get comprehensive period comparison data
+  const periodData = getPeriodComparison(combinedZapData.value, selectedTimeRange.value)
   
   return {
-    totalZaps: filteredZaps.length,
-    totalSats,
-    totalUSD,
-    avgZap: Math.round(avgZap),
-    uniqueSupporters,
-    walletBalance: walletBalance.value
+    ...periodData.current,
+    totalUSD: satsToUSD(periodData.current.totalSats),
+    walletBalance: walletBalance.value,
+    changes: periodData.changes,
+    periodInfo: {
+      timeRange: selectedTimeRange.value,
+      currentPeriodCount: periodData.currentPeriodCount,
+      previousPeriodCount: periodData.previousPeriodCount
+    }
   }
 })
 
@@ -285,16 +284,43 @@ const formatTimeAgo = (timestamp) => {
   return `${Math.floor(diff / 86400000)}d ago`
 }
 
-// Calculate percentage changes (mock for now, could be enhanced with historical data)
-const getPercentageChange = (current, type) => {
-  // Mock percentage changes - in a real app, you'd compare with historical data
-  const changes = {
-    zaps: 12.5,
-    sats: 8.2,
-    supporters: 3.1,
-    avg: -2.1
+// Get percentage change data for a specific metric
+const getPercentageChange = (metricType) => {
+  if (!stats.value.changes || !stats.value.changes[metricType]) {
+    return { percentage: 0, trend: 'neutral', isNew: false }
   }
-  return changes[type] || 0
+  
+  return stats.value.changes[metricType]
+}
+
+// Format percentage change for display
+const formatPercentageChange = (change) => {
+  if (change.isNew) {
+    return 'New!'
+  }
+  
+  if (change.percentage === 0) {
+    return '0%'
+  }
+  
+  const sign = change.percentage > 0 ? '+' : ''
+  return `${sign}${change.percentage}%`
+}
+
+// Get trend color class for percentage changes
+const getTrendColorClass = (change) => {
+  if (change.isNew) {
+    return 'text-blue-500 bg-blue-50 border-blue-200'
+  }
+  
+  switch (change.trend) {
+    case 'positive':
+      return 'text-green-500 bg-green-50 border-green-200'
+    case 'negative':
+      return 'text-red-500 bg-red-50 border-red-200'
+    default:
+      return 'text-gray-500 bg-gray-50 border-gray-200'
+  }
 }
 </script>
 
@@ -312,7 +338,10 @@ const getPercentageChange = (current, type) => {
             <span v-if="combinedZapData.filter(zap => zap.eventId).length > 0">
               You've received {{ stats.totalZaps }} zaps worth {{ stats.totalSats.toLocaleString() }} sats
               <span v-if="selectedTimeRange !== 'all'" class="opacity-75">
-                ({{ getTimeRangeDisplayText(selectedTimeRange) }})
+                ({{ getTimeRangeDisplayText(selectedTimeRange) }}
+                <span v-if="stats.periodInfo && stats.periodInfo.previousPeriodCount > 0" class="ml-1">
+                  vs {{ stats.periodInfo.previousPeriodCount }} in previous period
+                </span>)
               </span>
             </span>
             <span v-else>
@@ -336,10 +365,10 @@ const getPercentageChange = (current, type) => {
             <IconBolt class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
           </div>
           <span :class="[
-            'text-xs sm:text-sm font-medium',
-            getPercentageChange(stats.totalZaps, 'zaps') >= 0 ? 'text-green-500' : 'text-red-500'
+            'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
+            getTrendColorClass(getPercentageChange('totalZaps'))
           ]">
-            {{ getPercentageChange(stats.totalZaps, 'zaps') >= 0 ? '+' : '' }}{{ getPercentageChange(stats.totalZaps, 'zaps') }}%
+            {{ formatPercentageChange(getPercentageChange('totalZaps')) }}
           </span>
         </div>
         <div>
@@ -355,10 +384,10 @@ const getPercentageChange = (current, type) => {
             <IconCurrencyBitcoin class="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
           </div>
           <span :class="[
-            'text-xs sm:text-sm font-medium',
-            getPercentageChange(stats.totalSats, 'sats') >= 0 ? 'text-green-500' : 'text-red-500'
+            'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
+            getTrendColorClass(getPercentageChange('totalSats'))
           ]">
-            {{ getPercentageChange(stats.totalSats, 'sats') >= 0 ? '+' : '' }}{{ getPercentageChange(stats.totalSats, 'sats') }}%
+            {{ formatPercentageChange(getPercentageChange('totalSats')) }}
           </span>
         </div>
         <div>
@@ -374,10 +403,10 @@ const getPercentageChange = (current, type) => {
             <IconUsers class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
           </div>
           <span :class="[
-            'text-xs sm:text-sm font-medium',
-            getPercentageChange(stats.uniqueSupporters, 'supporters') >= 0 ? 'text-green-500' : 'text-red-500'
+            'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
+            getTrendColorClass(getPercentageChange('uniqueSupporters'))
           ]">
-            {{ getPercentageChange(stats.uniqueSupporters, 'supporters') >= 0 ? '+' : '' }}{{ getPercentageChange(stats.uniqueSupporters, 'supporters') }}%
+            {{ formatPercentageChange(getPercentageChange('uniqueSupporters')) }}
           </span>
         </div>
         <div>
@@ -393,10 +422,10 @@ const getPercentageChange = (current, type) => {
             <IconChartLine class="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
           </div>
           <span :class="[
-            'text-xs sm:text-sm font-medium',
-            getPercentageChange(stats.avgZap, 'avg') >= 0 ? 'text-green-500' : 'text-red-500'
+            'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
+            getTrendColorClass(getPercentageChange('avgZap'))
           ]">
-            {{ getPercentageChange(stats.avgZap, 'avg') >= 0 ? '+' : '' }}{{ getPercentageChange(stats.avgZap, 'avg') }}%
+            {{ formatPercentageChange(getPercentageChange('avgZap')) }}
           </span>
         </div>
         <div>
