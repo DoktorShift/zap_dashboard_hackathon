@@ -4,7 +4,7 @@ import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircl
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
-import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText } from '../utils/timeFilter.js'
+import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, getPeriodComparison } from '../utils/timeFilter.js'
 
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
@@ -99,27 +99,42 @@ onMounted(() => {
   fetchWalletData()
 })
 
-// Dynamic stats based on real data and time range
+// Dynamic stats based on real data with 30-day comparison
 const stats = computed(() => {
-  const allZaps = combinedZapData.value
-  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
-  const nip57Zaps = allZaps.filter(zap => zap.eventId)
-  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
+  console.log('🔍 Computing stats with real data...')
+  const allZaps = combinedZapData.value.filter(zap => zap.eventId) // Only NIP-57 zaps
+  console.log('📊 Total NIP-57 zaps available:', allZaps.length)
   
-  const totalSats = filteredZaps.reduce((sum, zap) => sum + zap.amount, 0)
-  const totalUSD = satsToUSD(totalSats)
-  const avgZap = filteredZaps.length > 0 ? totalSats / filteredZaps.length : 0
+  if (allZaps.length === 0) {
+    console.log('⚠️ No NIP-57 zaps found, returning zero stats')
+    return {
+      totalZaps: 0,
+      totalSats: 0,
+      uniqueSupporters: 0,
+      avgZap: 0,
+      totalUSD: 0,
+      walletBalance: walletBalance.value,
+      changes: {
+        totalZaps: { percentage: 0, trend: 'neutral', isNew: false },
+        totalSats: { percentage: 0, trend: 'neutral', isNew: false },
+        uniqueSupporters: { percentage: 0, trend: 'neutral', isNew: false },
+        avgZap: { percentage: 0, trend: 'neutral', isNew: false }
+      }
+    }
+  }
   
-  // Get unique supporters from filtered zaps
-  const uniqueSupporters = new Set(filteredZaps.map(zap => zap.sender.pubkey)).size
+  // Get period comparison for 30 days (fixed period like the chart)
+  const comparison = getPeriodComparison(allZaps, '30d')
+  console.log('📈 Period comparison result:', comparison)
   
   return {
-    totalZaps: filteredZaps.length,
-    totalSats,
-    totalUSD,
-    avgZap: Math.round(avgZap),
-    uniqueSupporters,
-    walletBalance: walletBalance.value
+    totalZaps: comparison.current.totalZaps,
+    totalSats: comparison.current.totalSats,
+    uniqueSupporters: comparison.current.uniqueSupporters,
+    avgZap: comparison.current.avgZap,
+    totalUSD: satsToUSD(comparison.current.totalSats),
+    walletBalance: walletBalance.value,
+    changes: comparison.changes
   }
 })
 
@@ -285,16 +300,39 @@ const formatTimeAgo = (timestamp) => {
   return `${Math.floor(diff / 86400000)}d ago`
 }
 
-// Calculate percentage changes (mock for now, could be enhanced with historical data)
-const getPercentageChange = (current, type) => {
-  // Mock percentage changes - in a real app, you'd compare with historical data
-  const changes = {
-    zaps: 12.5,
-    sats: 8.2,
-    supporters: 3.1,
-    avg: -2.1
+// Get percentage change data for a specific metric
+const getPercentageChange = (metricType) => {
+  console.log(`🔍 Getting percentage change for ${metricType}:`, stats.value.changes[metricType])
+  const change = stats.value.changes[metricType]
+  
+  if (!change) {
+    console.warn(`No change data found for metric: ${metricType}`)
+    return { percentage: 0, trend: 'neutral', isNew: false }
   }
-  return changes[type] || 0
+  
+  return change
+}
+
+// Format percentage change for display
+const formatPercentageChange = (change) => {
+  if (change.percentage === 0) {
+    return '0%'
+  }
+  
+  const sign = change.percentage > 0 ? '+' : ''
+  return `${sign}${change.percentage}%`
+}
+
+// Get trend color class for percentage changes
+const getTrendColorClass = (change) => {
+  switch (change.trend) {
+    case 'positive':
+      return 'text-green-500 bg-green-50 border-green-200'
+    case 'negative':
+      return 'text-red-500 bg-red-50 border-red-200'
+    default:
+      return 'text-gray-500 bg-gray-50 border-gray-200'
+  }
 }
 </script>
 
@@ -309,10 +347,10 @@ const getPercentageChange = (current, type) => {
             <span>{{ combinedZapData.filter(zap => zap.eventId).length > 0 ? welcomeMessage : 'Connect your wallet to get started!' }}</span>
           </h1>
           <p class="text-orange-50 text-sm sm:text-base">
-            <span v-if="combinedZapData.filter(zap => zap.eventId).length > 0">
+            <span v-if="stats.totalZaps > 0">
               You've received {{ stats.totalZaps }} zaps worth {{ stats.totalSats.toLocaleString() }} sats
-              <span v-if="selectedTimeRange !== 'all'" class="opacity-75">
-                ({{ getTimeRangeDisplayText(selectedTimeRange) }})
+              <span class="opacity-75">
+                (last 30 days vs previous 30 days)
               </span>
             </span>
             <span v-else>
@@ -336,10 +374,11 @@ const getPercentageChange = (current, type) => {
             <IconBolt class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
           </div>
           <span :class="[
-            'text-xs sm:text-sm font-medium',
-            getPercentageChange(stats.totalZaps, 'zaps') >= 0 ? 'text-green-500' : 'text-red-500'
+            'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
+            getTrendColorClass(getPercentageChange('totalZaps')),
+            'animate-pulse-subtle'
           ]">
-            {{ getPercentageChange(stats.totalZaps, 'zaps') >= 0 ? '+' : '' }}{{ getPercentageChange(stats.totalZaps, 'zaps') }}%
+            {{ formatPercentageChange(getPercentageChange('totalZaps')) }}
           </span>
         </div>
         <div>
@@ -355,10 +394,11 @@ const getPercentageChange = (current, type) => {
             <IconCurrencyBitcoin class="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
           </div>
           <span :class="[
-            'text-xs sm:text-sm font-medium',
-            getPercentageChange(stats.totalSats, 'sats') >= 0 ? 'text-green-500' : 'text-red-500'
+            'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
+            getTrendColorClass(getPercentageChange('totalSats')),
+            'animate-pulse-subtle'
           ]">
-            {{ getPercentageChange(stats.totalSats, 'sats') >= 0 ? '+' : '' }}{{ getPercentageChange(stats.totalSats, 'sats') }}%
+            {{ formatPercentageChange(getPercentageChange('totalSats')) }}
           </span>
         </div>
         <div>
@@ -374,10 +414,11 @@ const getPercentageChange = (current, type) => {
             <IconUsers class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
           </div>
           <span :class="[
-            'text-xs sm:text-sm font-medium',
-            getPercentageChange(stats.uniqueSupporters, 'supporters') >= 0 ? 'text-green-500' : 'text-red-500'
+            'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
+            getTrendColorClass(getPercentageChange('uniqueSupporters')),
+            'animate-pulse-subtle'
           ]">
-            {{ getPercentageChange(stats.uniqueSupporters, 'supporters') >= 0 ? '+' : '' }}{{ getPercentageChange(stats.uniqueSupporters, 'supporters') }}%
+            {{ formatPercentageChange(getPercentageChange('uniqueSupporters')) }}
           </span>
         </div>
         <div>
@@ -393,10 +434,11 @@ const getPercentageChange = (current, type) => {
             <IconChartLine class="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
           </div>
           <span :class="[
-            'text-xs sm:text-sm font-medium',
-            getPercentageChange(stats.avgZap, 'avg') >= 0 ? 'text-green-500' : 'text-red-500'
+            'text-xs sm:text-sm font-medium px-2 py-1 rounded-full border transition-all duration-200',
+            getTrendColorClass(getPercentageChange('avgZap')),
+            'animate-pulse-subtle'
           ]">
-            {{ getPercentageChange(stats.avgZap, 'avg') >= 0 ? '+' : '' }}{{ getPercentageChange(stats.avgZap, 'avg') }}%
+            {{ formatPercentageChange(getPercentageChange('avgZap')) }}
           </span>
         </div>
         <div>
