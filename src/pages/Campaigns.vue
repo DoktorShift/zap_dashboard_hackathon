@@ -192,8 +192,6 @@ const editCampaignHandler = (campaign) => {
 }
 
 // Edit campaign (alias for template compatibility)
-const editCampaign = editCampaignHandler
-
 // Refresh campaigns
 const refreshCampaigns = async () => {
   isRefreshing.value = true
@@ -587,7 +585,7 @@ watch(isAuthenticated, async (isAuth) => {
                   <div class="flex items-center space-x-2">
                     <button
                       v-if="!isCampaignExpired(campaign) && getCampaignProgress(campaign.id).percentage < 100"
-                      @click="editCampaign(campaign)"
+                      @click="editCampaignHandler(campaign)"
                       class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
                       title="Edit campaign"
                     >
