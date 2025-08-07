@@ -48,6 +48,7 @@ const {
   isLoading, 
   error, 
   fetchUserCampaigns, 
+  editCampaign,
   deleteCampaign,
   publishCampaign,
   getCampaignProgress

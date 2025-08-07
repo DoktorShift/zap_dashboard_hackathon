@@ -227,10 +227,17 @@ const publishNewCampaign = async () => {
       closedAt: closedAtTimestamp
     }
     
-    // Publish campaign
-    const campaign = await publishCampaign(campaignData)
+    // Publish or edit campaign
+    let campaign
+    if (isEditing.value) {
+      // Edit existing campaign (creates new version and deletes old)
+      campaign = await editCampaign(props.campaign.id, campaignData)
+    } else {
+      // Create new campaign
+      campaign = await publishCampaign(campaignData)
+    }
     
-    console.log('Campaign published successfully:', campaign)
+    console.log(isEditing.value ? 'Campaign edited successfully:' : 'Campaign published successfully:', campaign)
     
     // Show success state
     publishSuccess.value = true
@@ -243,7 +250,7 @@ const publishNewCampaign = async () => {
     
   } catch (err) {
     localError.value = err.message
-    console.error('Failed to publish campaign:', err)
+    console.error(isEditing.value ? 'Failed to edit campaign:' : 'Failed to publish campaign:', err)
   } finally {
     isPublishing.value = false
   }
@@ -337,6 +344,20 @@ const getEndOfDayTimestamp = (dateString) => {
             <p class="text-gray-600 text-sm sm:text-base">Give your campaign a clear title and set your funding target</p>
           </div>
           
+          <div v-if="isEditing" class="px-6 pt-4">
+            <div class="p-4 bg-amber-50/80 rounded-lg mb-5 border border-amber-200 shadow-sm">
+              <div class="flex items-start space-x-3">
+                <IconAlertTriangle class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 class="font-medium text-amber-900 mb-1">How Campaign Editing Works</h4>
+                  <p class="text-sm text-amber-800 leading-relaxed">
+                    Nostr events cannot be directly edited. When you "edit" a campaign, we'll publish a new campaign with your changes and delete the original. This creates a new event ID and resets engagement metrics.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="space-y-6">
             <!-- Title -->
             <div>
