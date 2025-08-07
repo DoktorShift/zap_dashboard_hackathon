@@ -191,6 +191,9 @@ const editCampaignHandler = (campaign) => {
   showCreateModal.value = true
 }
 
+// Edit campaign (alias for template compatibility)
+const editCampaign = editCampaignHandler
+
 // Refresh campaigns
 const refreshCampaigns = async () => {
   isRefreshing.value = true
