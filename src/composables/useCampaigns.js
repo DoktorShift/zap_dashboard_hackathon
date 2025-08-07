@@ -1043,40 +1043,6 @@ export function useCampaigns() {
   }
 
   // Edit a campaign (creates new version and deletes old one)
-  const editCampaign = async (oldCampaignId, campaignData) => {
-    if (!isAuthenticated.value || !window.nostr) {
-      throw new Error('Nostr authentication required')
-    }
-
-    isLoading.value = true
-    error.value = ''
-
-    try {
-      console.log('Editing campaign:', oldCampaignId)
-      console.log('New campaign data:', campaignData)
-
-      // Step 1: Publish the new campaign
-      const newCampaign = await publishCampaign(campaignData)
-      console.log('✅ New campaign published:', newCampaign.id)
-
-      // Step 2: Delete the old campaign
-      try {
-        await deleteCampaign(oldCampaignId)
-        console.log('✅ Old campaign deleted:', oldCampaignId)
-      } catch (deleteError) {
-        console.warn('⚠️ Failed to delete old campaign, but new campaign was created successfully:', deleteError)
-        // Don't throw here - the new campaign was created successfully
-      }
-
-      return newCampaign
-    } catch (err) {
-      console.error('Failed to edit campaign:', err)
-      error.value = 'Failed to edit campaign: ' + err.message
-      throw err
-    } finally {
-      isLoading.value = false
-    }
-  }
   // Delete a campaign (publish kind 5 deletion event)
   const deleteCampaign = async (campaignId) => {
     if (!isAuthenticated.value || !window.nostr) {

@@ -48,7 +48,6 @@ const {
   isLoading, 
   error, 
   fetchUserCampaigns, 
-  editCampaign,
   deleteCampaign,
   publishCampaign,
   getCampaignProgress
@@ -186,7 +185,7 @@ const viewCampaign = (campaign) => {
 }
 
 // Edit campaign
-const editCampaign = (campaign) => {
+const editCampaignHandler = (campaign) => {
   // For now, we'll just open the create modal with the campaign data
   selectedCampaign.value = campaign
   showCreateModal.value = true
@@ -500,7 +499,7 @@ watch(isAuthenticated, async (isAuth) => {
           :key="campaign.id"
           :campaign="campaign"
           @view="viewCampaign"
-          @edit="editCampaign"
+          @edit="editCampaignHandler"
           @delete="openDeleteModal"
           @share="openShareModal"
         />
@@ -576,7 +575,7 @@ watch(isAuthenticated, async (isAuth) => {
                 <div class="flex items-center justify-between mt-auto pt-3 border-t border-orange-100/50">
                   <button
                     @click="viewCampaign(campaign)"
-                    class="text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center space-x-1 group"
+                    @click="editCampaignHandler(campaign)"
                   >
                     <span>View Details</span>
                     <IconArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
