@@ -575,7 +575,7 @@ watch(isAuthenticated, async (isAuth) => {
                 <div class="flex items-center justify-between mt-auto pt-3 border-t border-orange-100/50">
                   <button
                     @click="viewCampaign(campaign)"
-                    @click="editCampaignHandler(campaign)"
+                    class="group text-sm text-gray-600 hover:text-orange-600 transition-colors flex items-center space-x-1"
                   >
                     <span>View Details</span>
                     <IconArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
