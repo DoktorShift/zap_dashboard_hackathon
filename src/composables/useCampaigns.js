@@ -1043,6 +1043,43 @@ export function useCampaigns() {
   }
 
   // Edit a campaign (creates new version and deletes old one)
+  const editCampaign = async (campaignId, updatedCampaignData) => {
+    if (!isAuthenticated.value || !window.nostr) {
+      throw new Error('Nostr authentication required')
+    }
+
+    isLoading.value = true
+    error.value = ''
+
+    try {
+      console.log('Editing campaign:', campaignId)
+      console.log('Updated campaign data:', updatedCampaignData)
+      
+      // First, create the new campaign with updated data
+      const newCampaign = await publishCampaign(updatedCampaignData)
+      
+      console.log('New campaign created successfully:', newCampaign.id)
+      
+      // Then delete the old campaign
+      try {
+        console.log('Deleting old campaign:', campaignId)
+        await deleteCampaign(campaignId)
+        console.log('Old campaign deleted successfully')
+      } catch (deleteError) {
+        console.warn('Failed to delete old campaign, but new campaign was created:', deleteError)
+        // Don't throw here - the new campaign was created successfully
+      }
+      
+      return newCampaign
+    } catch (err) {
+      console.error('Failed to edit campaign:', err)
+      error.value = 'Failed to edit campaign: ' + err.message
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // Delete a campaign (publish kind 5 deletion event)
   const deleteCampaign = async (campaignId) => {
     if (!isAuthenticated.value || !window.nostr) {
@@ -1309,6 +1346,7 @@ export function useCampaigns() {
     fetchUserCampaigns,
     fetchCampaignById,
     publishCampaign,
+    editCampaign,
     editCampaign,
     deleteCampaign,
     shareCampaignOnNostr,

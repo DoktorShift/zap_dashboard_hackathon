@@ -29,7 +29,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
-const { publishCampaign, isLoading, error: campaignError } = useCampaigns()
+const { publishCampaign, editCampaign, isLoading, error: campaignError } = useCampaigns()
 
 // Form state
 const form = ref({

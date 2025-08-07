@@ -48,6 +48,7 @@ const {
   isLoading, 
   error, 
   fetchUserCampaigns, 
+  editCampaign,
   deleteCampaign,
   publishCampaign,
   getCampaignProgress
@@ -185,13 +186,12 @@ const viewCampaign = (campaign) => {
 }
 
 // Edit campaign
-const editCampaignHandler = (campaign) => {
+const handleEditCampaign = async (campaign) => {
   // For now, we'll just open the create modal with the campaign data
   selectedCampaign.value = campaign
   showCreateModal.value = true
 }
 
-// Edit campaign (alias for template compatibility)
 // Refresh campaigns
 const refreshCampaigns = async () => {
   isRefreshing.value = true
@@ -576,7 +576,7 @@ watch(isAuthenticated, async (isAuth) => {
                 <div class="flex items-center justify-between mt-auto pt-3 border-t border-orange-100/50">
                   <button
                     @click="viewCampaign(campaign)"
-                    class="group text-sm text-gray-600 hover:text-orange-600 transition-colors flex items-center space-x-1"
+                    @click="handleEditCampaign(campaign)"
                   >
                     <span>View Details</span>
                     <IconArrowRight class="w-4 h-4 transition-transform group-hover:translate-x-1" />
