@@ -65,6 +65,9 @@ const {
   followFromList,
   searchProfiles,
   searchLists,
+  refreshFollowing,
+  refreshFollowers,
+  refreshLists,
   
   // Getters
   getProfile,

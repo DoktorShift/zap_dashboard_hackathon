@@ -243,6 +243,21 @@ export function useAudience() {
       return
     }
 
+    // Check if relay manager is initialized
+    if (!nostrRelayManager.isInitialized) {
+      console.log('Relay manager not initialized, waiting...')
+      await new Promise((resolve) => {
+        const checkInit = () => {
+          if (nostrRelayManager.isInitialized) {
+            resolve()
+          } else {
+            setTimeout(checkInit, 100)
+          }
+        }
+        checkInit()
+      })
+    }
+
     isLoading.value = true
     error.value = ''
     syncStatus.value = 'syncing'
@@ -315,6 +330,21 @@ export function useAudience() {
       return
     }
 
+    // Check if relay manager is initialized
+    if (!nostrRelayManager.isInitialized) {
+      console.log('Relay manager not initialized, waiting...')
+      await new Promise((resolve) => {
+        const checkInit = () => {
+          if (nostrRelayManager.isInitialized) {
+            resolve()
+          } else {
+            setTimeout(checkInit, 100)
+          }
+        }
+        checkInit()
+      })
+    }
+
     isLoading.value = true
     error.value = ''
 
@@ -372,6 +402,21 @@ export function useAudience() {
     if (!isAuthenticated.value || !currentUser.value?.pubkey) {
       console.log('Not authenticated, cannot fetch lists')
       return
+    }
+
+    // Check if relay manager is initialized
+    if (!nostrRelayManager.isInitialized) {
+      console.log('Relay manager not initialized, waiting...')
+      await new Promise((resolve) => {
+        const checkInit = () => {
+          if (nostrRelayManager.isInitialized) {
+            resolve()
+          } else {
+            setTimeout(checkInit, 100)
+          }
+        }
+        checkInit()
+      })
     }
 
     isLoading.value = true
