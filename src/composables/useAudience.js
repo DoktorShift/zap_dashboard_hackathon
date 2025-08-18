@@ -8,7 +8,6 @@ import * as nip19 from 'nostr-tools/nip19'
 const following = ref([]) // Array of pubkeys
 const followers = ref([]) // Array of pubkeys
 const myLists = ref([]) // Array of follow list objects
-const discoveredLists = ref([]) // Array of discovered follow lists
 const profiles = reactive(new Map()) // Map<pubkey, profile>
 const isLoading = ref(false)
 const error = ref('')
@@ -391,10 +390,6 @@ export function useAudience() {
           kinds: [39089], // Follow lists
           authors: [currentUser.value.pubkey],
           limit: 100
-        },
-        {
-          kinds: [39089], // Discover other lists
-          limit: 50
         }
       ], {
         onevent: (event) => {
@@ -410,14 +405,6 @@ export function useAudience() {
               myLists.value[existingIndex] = list
             } else {
               myLists.value.push(list)
-            }
-          } else {
-            // Discovered list
-            const existingIndex = discoveredLists.value.findIndex(l => l.id === list.id)
-            if (existingIndex !== -1) {
-              discoveredLists.value[existingIndex] = list
-            } else {
-              discoveredLists.value.push(list)
             }
           }
         },
@@ -840,7 +827,6 @@ export function useAudience() {
       following.value = []
       followers.value = []
       myLists.value = []
-      discoveredLists.value = []
       profiles.clear()
     }
   }, { immediate: true })
@@ -858,7 +844,6 @@ export function useAudience() {
     following,
     followers,
     myLists,
-    discoveredLists,
     profiles,
     isLoading,
     error,

@@ -51,7 +51,6 @@ const {
   following,
   followers,
   myLists,
-  discoveredLists,
   profiles,
   isLoading,
   error,
@@ -66,9 +65,6 @@ const {
   followFromList,
   searchProfiles,
   searchLists,
-  refreshFollowing,
-  refreshFollowers,
-  refreshLists,
   
   // Getters
   getProfile,
@@ -96,8 +92,7 @@ const tabs = [
   { id: 'overview', label: 'Overview', icon: IconTarget, count: null },
   { id: 'following', label: 'Following', icon: IconUserCheck, count: computed(() => getFollowingCount()) },
   { id: 'followers', label: 'Followers', icon: IconUsers, count: computed(() => getFollowersCount()) },
-  { id: 'lists', label: 'Lists', icon: IconList, count: computed(() => myLists.value.length) },
-  { id: 'discover', label: 'Discover', icon: IconSearch, count: null }
+  { id: 'lists', label: 'Lists', icon: IconList, count: computed(() => myLists.value.length) }
 ]
 
 // Computed properties
@@ -502,11 +497,11 @@ watch(isAuthenticated, (authenticated) => {
             </p>
             <button
               v-if="!searchQuery"
-              @click="activeTab = 'discover'"
+              @click="activeTab = 'following'"
               class="btn-primary"
             >
               <IconSearch class="w-4 h-4" />
-              Discover People
+              Browse Following
             </button>
           </div>
 
@@ -612,74 +607,9 @@ watch(isAuthenticated, (authenticated) => {
           </div>
 
           <!-- Discovered Lists Section -->
-          <div>
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-semibold text-gray-900">Discover Lists</h3>
-              <button
-                @click="refreshLists"
-                :disabled="isLoading"
-                class="btn-secondary text-sm"
-              >
-                <IconRefresh :class="['w-4 h-4', isLoading ? 'animate-spin' : '']" />
-                Refresh
-              </button>
-            </div>
-
-            <div v-if="isLoading && discoveredLists.length === 0" class="text-center py-8">
-              <IconLoader class="w-8 h-8 animate-spin text-orange-600 mx-auto mb-4" />
-              <p class="text-gray-600">Discovering follow lists...</p>
-            </div>
-
-            <div v-else-if="discoveredLists.length === 0" class="text-center py-8">
-              <IconList class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <h4 class="text-lg font-medium text-gray-900 mb-2">No lists found</h4>
-              <p class="text-gray-600">Check back later for new follow lists from the community</p>
-            </div>
-
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <FollowListCard
-                v-for="list in discoveredLists"
-                :key="list.id"
-                :list="list"
-                :is-owner="false"
-                @follow-all="followFromList"
-                @view="$event => console.log('View list:', $event)"
-              />
-            </div>
-          </div>
         </div>
 
         <!-- Discover Tab -->
-        <div v-if="activeTab === 'discover'" class="p-6">
-          <!-- Search -->
-          <div class="relative mb-6">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search for people or lists..."
-              class="w-full pl-10 pr-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-            />
-            <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-          </div>
-
-          <!-- Topic Chips -->
-          <div class="flex flex-wrap gap-2 mb-6">
-            <button
-              v-for="topic in ['Bitcoin', 'Lightning', 'Developers', 'Artists', 'Writers', 'Podcasters']"
-              :key="topic"
-              class="px-3 py-2 bg-orange-100 text-orange-700 rounded-full text-sm font-medium hover:bg-orange-200 transition-colors"
-            >
-              #{{ topic }}
-            </button>
-          </div>
-
-          <!-- Search Results -->
-          <div class="text-center py-12">
-            <IconSearch class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Discover People & Lists</h3>
-            <p class="text-gray-600">Search functionality coming soon</p>
-          </div>
-        </div>
       </div>
     </div>
   </div>

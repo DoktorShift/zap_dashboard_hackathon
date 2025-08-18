@@ -32,14 +32,6 @@ const quickStartActions = [
     action: () => emit('create-list')
   },
   {
-    id: 'discover-people',
-    title: 'Discover New People',
-    description: 'Find interesting accounts to follow',
-    icon: IconSearch,
-    color: 'from-blue-400 to-indigo-400',
-    action: () => emit('switch-tab', 'discover')
-  },
-  {
     id: 'view-following',
     title: 'Manage Following',
     description: 'See and organize who you follow',
