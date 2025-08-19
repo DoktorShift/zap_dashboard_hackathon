@@ -428,23 +428,6 @@ watch(following, (newFollowing) => {
             >
               <IconExternalLink class="w-4 h-4" />
             </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Load More Button (if we have more suggestions) -->
-      <div v-if="suggestions.length > 12" class="text-center">
-        <button
-          @click="generateSuggestions"
-          class="btn-secondary"
-        >
-          <IconRefresh class="w-4 h-4" />
-          <span>Load More Suggestions</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .line-clamp-2 {
