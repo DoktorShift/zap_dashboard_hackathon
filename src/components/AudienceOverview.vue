@@ -318,29 +318,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Network Health Indicator -->
-    <div v-if="!userProgress.isNewUser" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-4">
-          <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-            <IconNetwork class="w-6 h-6 text-blue-600" />
-          </div>
-          <div>
-            <h4 class="font-semibold text-blue-900 mb-1">Network Health</h4>
-            <p class="text-blue-800 text-sm">
-              {{ getFollowingCount() > 0 ? 'Your network is growing!' : 'Start following people to build your network' }}
-            </p>
-          </div>
-        </div>
-        <div class="text-right">
-          <div class="text-2xl font-bold text-blue-600">
-            {{ Math.round((getFollowingCount() + getFollowersCount()) / 2) || 0 }}
-          </div>
-          <div class="text-xs text-blue-700">Network Score</div>
-        </div>
-      </div>
-    </div>
-
     <!-- Tips for Better Networking -->
     <div class="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-6">
       <div class="flex items-start space-x-4">
