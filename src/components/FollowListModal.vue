@@ -293,7 +293,6 @@ const generateFallbackAvatar = (pubkey) => {
                   <div v-if="form.image" class="mt-3 rounded-lg overflow-hidden border border-gray-200 h-24">
                     <img 
                       :src="form.image" 
-              v-model="memberSearchQuery"
                       class="w-full h-full object-cover"
                       @error="$event.target.style.display = 'none'"
                     />
@@ -306,16 +305,16 @@ const generateFallbackAvatar = (pubkey) => {
             <div v-if="currentStep === 2" class="p-6">
               <div class="text-center mb-6">
                 <h4 class="text-xl font-bold text-gray-900 mb-2">Add Members</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-40 overflow-y-auto">
+                <p class="text-gray-600">Choose who to include in this follow list</p>
               </div>
 
               <!-- Search -->
-                class="flex items-center space-x-3 bg-orange-50 border border-orange-200 rounded-lg p-3"
+              <div class="relative mb-6">
                 <input
-                  v-model="searchQuery"
-                  :src="getMemberAvatar(member.pubkey)"
-                  :alt="getMemberDisplayName(member.pubkey)"
-                  class="w-8 h-8 rounded-full border border-orange-300"
+                  v-model="memberSearchQuery"
+                  type="text"
+                  placeholder="Search users..."
+                  class="w-full pl-10 pr-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
                 />
                 <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
               </div>
@@ -356,7 +355,7 @@ const generateFallbackAvatar = (pubkey) => {
                 <div v-if="availableUsers.length === 0" class="text-center py-8">
                   <IconUser class="w-12 h-12 mx-auto text-gray-300 mb-3" />
                   <p class="text-gray-600">
-                    {{ searchQuery ? 'No matching users found' : 'All users are already in the list' }}
+                    {{ memberSearchQuery ? 'No matching users found' : 'All users are already in the list' }}
                   </p>
                 </div>
 
@@ -369,19 +368,12 @@ const generateFallbackAvatar = (pubkey) => {
                     <div class="flex items-center space-x-3">
                       <img
                         :src="getProfile(pubkey)?.picture || generateFallbackAvatar(pubkey)"
-                <div class="flex-1 min-w-0">
-                  <div class="font-medium text-gray-900 text-sm truncate">
-                    {{ getMemberDisplayName(member.pubkey) }}
-                  </div>
-                  <div class="text-xs text-gray-500 truncate">
-                    {{ member.pubkey.substring(0, 16) }}...
-                  </div>
-                </div>
+                        :alt="getProfile(pubkey)?.name || 'User'"
                         class="w-8 h-8 rounded-full"
                       />
-                  class="text-orange-600 hover:text-red-600 transition-colors"
+                      <div>
                         <p class="font-medium text-gray-900">
-                  <IconX class="w-4 h-4" />
+                          {{ getMemberDisplayName(pubkey) }}
                         </p>
                         <p v-if="getProfile(pubkey)?.about" class="text-xs text-gray-600 line-clamp-1">
                           {{ getProfile(pubkey).about }}
@@ -396,7 +388,7 @@ const generateFallbackAvatar = (pubkey) => {
                       Add
                     </button>
                   </div>
-                {{ memberSearchQuery ? 'No matching users found' : 'All users are already in the list' }}
+                </div>
               </div>
             </div>
 
@@ -404,70 +396,79 @@ const generateFallbackAvatar = (pubkey) => {
             <div v-if="currentStep === 3" class="p-6">
               <div class="text-center mb-6">
                 <h4 class="text-xl font-bold text-gray-900 mb-2">Preview & Publish</h4>
-            <div v-else class="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+                <p class="text-gray-600">Review your list before publishing</p>
               </div>
 
               <!-- List Preview -->
-                class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-orange-200 transition-all duration-200"
+              <div class="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-6 mb-6">
                 <!-- Image Preview -->
                 <div v-if="form.image" class="h-32 rounded-lg overflow-hidden mb-4">
                   <img 
-                    :src="getMemberAvatar(pubkey)"
-                    :alt="getMemberDisplayName(pubkey)"
-                    class="w-10 h-10 rounded-full border-2 border-gray-200"
+                    :src="form.image" 
+                    :alt="form.title"
+                    class="w-full h-full object-cover"
                   />
                 </div>
 
-                <h3 class="text-xl font-bold text-gray-900 mb-2">{{ form.title }}</h3>
-            <div class="flex items-center space-x-3 mb-4">
-              <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-400 rounded-xl flex items-center justify-center">
-                <IconList class="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 class="text-xl font-bold text-gray-900">{{ form.title }}</h3>
-                <p class="text-sm text-gray-600">{{ form.members.length }} member{{ form.members.length !== 1 ? 's' : '' }}</p>
-              </div>
-            </div>
-            
+                <div class="flex items-center space-x-3 mb-4">
+                  <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-400 rounded-xl flex items-center justify-center">
+                    <IconList class="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 class="text-xl font-bold text-gray-900">{{ form.title }}</h3>
+                    <p class="text-sm text-gray-600">{{ form.members.length }} member{{ form.members.length !== 1 ? 's' : '' }}</p>
+                  </div>
+                </div>
+                
+                <p v-if="form.description" class="text-gray-700 mb-4">{{ form.description }}</p>
                 
                 <div class="flex items-center space-x-4 text-sm text-gray-500">
-            <!-- Member Preview -->
-            <div v-if="form.members.length > 0" class="bg-white/60 rounded-lg p-4">
-              <h4 class="font-medium text-gray-900 mb-3 flex items-center space-x-2">
-                <IconUsers class="w-4 h-4" />
-                <span>Members Preview</span>
-              </h4>
-              <div class="flex flex-wrap gap-2">
-                <div
-                  v-for="pubkey in form.members.slice(0, 8)"
-                  :key="pubkey"
-                  class="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-3 py-2"
-                >
-                  <img
-                    :src="getMemberAvatar(pubkey)"
-                    :alt="getMemberDisplayName(pubkey)"
-                    class="w-6 h-6 rounded-full"
-                  />
-                  <span class="text-sm font-medium text-gray-900">
-                    {{ getMemberDisplayName(pubkey) }}
+                  <span class="flex items-center space-x-1">
+                    <IconUsers class="w-4 h-4" />
+                    <span>{{ form.members.length }} members</span>
                   </span>
                 </div>
-                <div v-if="form.members.length > 8" class="flex items-center justify-center bg-gray-100 border border-gray-200 rounded-lg px-3 py-2">
-                  <span class="text-sm text-gray-600">+{{ form.members.length - 8 }} more</span>
-                </div>
               </div>
+            
+              <!-- Member Preview -->
+              <div v-if="form.members.length > 0" class="bg-white/60 rounded-lg p-4">
+                <h4 class="font-medium text-gray-900 mb-3 flex items-center space-x-2">
+                  <IconUsers class="w-4 h-4" />
+                  <span>Members Preview</span>
+                </h4>
+                <div class="flex flex-wrap gap-2">
+                  <div
+                    v-for="pubkey in form.members.slice(0, 8)"
+                    :key="pubkey"
+                    class="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-3 py-2"
+                  >
+                    <img
+                      :src="getMemberAvatar(pubkey)"
+                      :alt="getMemberDisplayName(pubkey)"
+                      class="w-6 h-6 rounded-full"
+                    />
+                    <span class="text-sm font-medium text-gray-900">
+                      {{ getMemberDisplayName(pubkey) }}
+                    </span>
+                  </div>
+                  <div v-if="form.members.length > 8" class="flex items-center justify-center bg-gray-100 border border-gray-200 rounded-lg px-3 py-2">
+                    <span class="text-sm text-gray-600">+{{ form.members.length - 8 }} more</span>
+                  </div>
+                </div>
               </div>
 
               <!-- Publishing Info -->
-              <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div class="flex items-start space-x-3">
                   <IconList class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p class="font-medium text-gray-900 text-sm">
-                      {{ getMemberDisplayName(pubkey) }}
                       Your follow list will be published to the Nostr network where others can discover and use it.
                     </p>
-                    <p v-if="getProfile(pubkey)?.about" class="text-xs text-gray-600 line-clamp-1 mt-0.5">
+                    <p class="text-xs text-gray-500 mt-1">
+                      Lists are stored on the decentralized network and can be shared with others.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -490,10 +491,10 @@ const generateFallbackAvatar = (pubkey) => {
               <button
                 v-if="currentStep > 1"
                 @click="prevStep"
-                class="btn-secondary"
+                class="btn-secondary flex items-center space-x-2"
               >
-                ← Back
-            <IconArrowLeft class="w-4 h-4" />
+                <IconArrowLeft class="w-4 h-4" />
+                <span>Back</span>
               </button>
               <button
                 v-else
@@ -507,11 +508,11 @@ const generateFallbackAvatar = (pubkey) => {
               <button
                 v-if="currentStep < 3"
                 @click="nextStep"
-                class="btn-primary"
-            class="btn-primary flex items-center space-x-2"
-                Continue →
-            <span>{{ currentStep === 1 ? 'Add Members' : 'Preview' }}</span>
-            <IconArrowRight class="w-4 h-4" />
+                class="btn-primary flex items-center space-x-2"
+              >
+                <span>{{ currentStep === 1 ? 'Add Members' : 'Preview' }}</span>
+                <IconArrowRight class="w-4 h-4" />
+              </button>
               <button
                 v-else
                 @click="saveList"
@@ -534,7 +535,7 @@ const generateFallbackAvatar = (pubkey) => {
 .line-clamp-1 {
   display: -webkit-box;
   -webkit-line-clamp: 1;
-          <div class="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-6 mb-6">
+  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
