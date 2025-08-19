@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted, inject } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import {
   IconX,
   IconUser,
@@ -17,7 +17,6 @@ import {
   IconChevronUp
 } from '@iconify-prerendered/vue-tabler'
 import * as nip19 from 'nostr-tools/nip19'
-import { useAudience } from '../composables/useAudience.js'
 
 const props = defineProps({
   show: {
@@ -31,50 +30,33 @@ const props = defineProps({
   profile: {
     type: Object,
     default: null
+  },
+  isFollowing: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['close'])
-
-// Use audience composable for follow/unfollow functionality
-const { 
-  followUser, 
-  unfollowUser, 
-  isFollowing: checkIsFollowing,
-  getProfile,
-  fetchProfile
-} = useAudience()
+const emit = defineEmits(['close', 'follow', 'unfollow'])
 
 // UI state
 const copySuccess = ref('')
 const showFullDescription = ref(false)
 const isDescriptionLong = ref(false)
-const isFollowLoading = ref(false)
-const followError = ref('')
-
-// Check if we're following this user
-const isFollowing = computed(() => {
-  return checkIsFollowing(props.pubkey)
-})
-
-// Get the most up-to-date profile (from audience system or props)
-const currentProfile = computed(() => {
-  return getProfile(props.pubkey) || props.profile
-})
 
 // Computed properties
 const displayName = computed(() => {
-  return currentProfile.value?.name || 
-         currentProfile.value?.display_name || 
+  return props.profile?.name || 
+         props.profile?.display_name || 
          `user:${props.pubkey.substring(0, 8)}`
 })
 
 const avatar = computed(() => {
-  return currentProfile.value?.picture || generateFallbackAvatar(props.pubkey)
+  return props.profile?.picture || generateFallbackAvatar(props.pubkey)
 })
 
 const banner = computed(() => {
-  return currentProfile.value?.banner || null
+  return props.profile?.banner || null
 })
 
 const npub = computed(() => {
@@ -91,10 +73,10 @@ const shortNpub = computed(() => {
 })
 
 const truncatedDescription = computed(() => {
-  if (!currentProfile.value?.about) return ''
+  if (!props.profile?.about) return ''
   
   const maxLength = 200
-  const description = currentProfile.value.about
+  const description = props.profile.about
   
   if (description.length <= maxLength) {
     isDescriptionLong.value = false
@@ -103,18 +85,6 @@ const truncatedDescription = computed(() => {
   
   isDescriptionLong.value = true
   return showFullDescription.value ? description : description.substring(0, maxLength) + '...'
-})
-
-const hasVerification = computed(() => {
-  return !!currentProfile.value?.nip05
-})
-
-const hasLightning = computed(() => {
-  return !!currentProfile.value?.lud16
-})
-
-const hasWebsite = computed(() => {
-  return !!currentProfile.value?.website
 })
 
 // Generate fallback avatar
@@ -163,42 +133,12 @@ const getProfileUrl = (client) => {
   }
 }
 
-// Handle follow/unfollow with actual Nostr functionality
-const handleFollowToggle = async () => {
-  if (isFollowLoading.value) return
-  
-  isFollowLoading.value = true
-  followError.value = ''
-  
-  try {
-    if (isFollowing.value) {
-      console.log('Unfollowing user:', props.pubkey.substring(0, 8) + '...')
-      await unfollowUser(props.pubkey)
-      console.log('✅ Successfully unfollowed user')
-    } else {
-      console.log('Following user:', props.pubkey.substring(0, 8) + '...')
-      await followUser(props.pubkey)
-      console.log('✅ Successfully followed user')
-      
-      // Fetch updated profile if we don't have one
-      if (!currentProfile.value || !currentProfile.value.name) {
-        try {
-          await fetchProfile(props.pubkey)
-        } catch (profileError) {
-          console.warn('Failed to fetch profile after follow:', profileError)
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Follow/unfollow failed:', error)
-    followError.value = error.message || 'Failed to update follow status'
-    
-    // Show error for 5 seconds
-    setTimeout(() => {
-      followError.value = ''
-    }, 5000)
-  } finally {
-    isFollowLoading.value = false
+// Handle follow/unfollow
+const handleFollowToggle = () => {
+  if (props.isFollowing) {
+    emit('unfollow', props.pubkey)
+  } else {
+    emit('follow', props.pubkey)
   }
 }
 
@@ -280,17 +220,21 @@ onUnmounted(() => {
 
               <!-- Status Badges -->
               <div class="flex flex-wrap gap-2 mb-4">
-                <span v-if="currentProfile?.nip05" class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200 shadow-sm">
+                <span v-if="hasVerification" class="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200 shadow-sm">
                   <IconShield class="w-4 h-4 mr-1.5" />
                   NIP-05 Verified
                 </span>
-                <span v-if="currentProfile?.lud16" class="inline-flex items-center px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-sm font-medium border border-orange-200 shadow-sm">
+                <span v-if="hasLightning" class="inline-flex items-center px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-sm font-medium border border-orange-200 shadow-sm">
                   <IconBolt class="w-4 h-4 mr-1.5" />
                   Lightning Ready
                 </span>
-                <span v-if="currentProfile?.website" class="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200 shadow-sm">
+                <span v-if="hasWebsite" class="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200 shadow-sm">
                   <IconGlobe class="w-4 h-4 mr-1.5" />
                   Website
+                </span>
+                <span v-if="isFollowing" class="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm font-medium border border-green-200 shadow-sm">
+                  <IconUserCheck class="w-4 h-4 mr-1.5" />
+                  Following
                 </span>
               </div>
 
@@ -341,7 +285,7 @@ onUnmounted(() => {
               </div>
 
               <!-- Lightning Address -->
-              <div v-if="currentProfile?.lud16" class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
+              <div v-if="profile?.lud16" class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center space-x-3 flex-1 min-w-0">
                     <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
@@ -349,11 +293,11 @@ onUnmounted(() => {
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-900">Lightning Address</p>
-                      <code class="text-xs text-orange-600 font-mono truncate block">{{ currentProfile.lud16 }}</code>
+                      <code class="text-xs text-orange-600 font-mono truncate block">{{ profile.lud16 }}</code>
                     </div>
                   </div>
                   <button
-                    @click="copyToClipboard(currentProfile.lud16, 'lud16')"
+                    @click="copyToClipboard(profile.lud16, 'lud16')"
                     class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 hover:scale-110"
                     title="Copy Lightning address"
                   >
@@ -364,7 +308,7 @@ onUnmounted(() => {
               </div>
 
               <!-- NIP-05 Verification -->
-              <div v-if="currentProfile?.nip05" class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
+              <div v-if="profile?.nip05" class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center space-x-3 flex-1 min-w-0">
                     <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -372,11 +316,11 @@ onUnmounted(() => {
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-900">NIP-05 Verified</p>
-                      <code class="text-xs text-blue-600 font-mono truncate block">{{ currentProfile.nip05 }}</code>
+                      <code class="text-xs text-blue-600 font-mono truncate block">{{ profile.nip05 }}</code>
                     </div>
                   </div>
                   <button
-                    @click="copyToClipboard(currentProfile.nip05, 'nip05')"
+                    @click="copyToClipboard(profile.nip05, 'nip05')"
                     class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 hover:scale-110"
                     title="Copy NIP-05"
                   >
@@ -387,7 +331,7 @@ onUnmounted(() => {
               </div>
 
               <!-- Website -->
-              <div v-if="currentProfile?.website" class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
+              <div v-if="profile?.website" class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center space-x-3 flex-1 min-w-0">
                     <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
@@ -395,11 +339,11 @@ onUnmounted(() => {
                     </div>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-900">Website</p>
-                      <p class="text-xs text-green-600 truncate">{{ currentProfile.website }}</p>
+                      <p class="text-xs text-green-600 truncate">{{ profile.website }}</p>
                     </div>
                   </div>
                   <a
-                    :href="currentProfile.website"
+                    :href="profile.website"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 hover:scale-110"
@@ -416,18 +360,16 @@ onUnmounted(() => {
               <!-- Primary Action: Follow/Unfollow -->
               <button
                 @click="handleFollowToggle"
-                :disabled="isFollowLoading"
                 :class="[
                   'w-full px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]',
                   isFollowing 
                     ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white' 
-                    : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white',
-                  isFollowLoading ? 'opacity-50 cursor-not-allowed' : ''
+                    : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white'
                 ]"
               >
                 <IconUserX v-if="isFollowing" class="w-5 h-5" />
                 <IconUserPlus v-else class="w-5 h-5" />
-                <span>{{ isFollowLoading ? 'Loading...' : (isFollowing ? 'Unfollow' : 'Follow') }}</span>
+                <span>{{ isFollowing ? 'Unfollow' : 'Follow' }}</span>
               </button>
               
               <!-- Secondary Actions -->
@@ -455,16 +397,6 @@ onUnmounted(() => {
                 </a>
               </div>
             </div>
-
-            <!-- Error Message -->
-            <transition name="slide-up">
-              <div v-if="followError" class="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
-                <div class="flex items-center space-x-2">
-                  <IconX class="w-4 h-4 text-red-600" />
-                  <span class="text-sm text-red-800 font-medium">{{ followError }}</span>
-                </div>
-              </div>
-            </transition>
 
             <!-- Copy Success Feedback -->
             <transition name="slide-up">
