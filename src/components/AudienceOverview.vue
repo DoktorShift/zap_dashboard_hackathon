@@ -18,10 +18,12 @@ import {
   IconCheck,
   IconChevronRight,
   IconSparkles,
-  IconNetwork
+  IconNetwork,
+  IconShare
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useAudience } from '../composables/useAudience.js'
+import NostrProfileShareModal from './NostrProfileShareModal.vue'
 
 const emit = defineEmits(['create-list', 'switch-tab', 'follow-suggestions'])
 
@@ -31,6 +33,7 @@ const { getFollowingCount, getFollowersCount, myLists } = useAudience()
 // UI state
 const showQuickStart = ref(true)
 const completedSteps = ref(new Set())
+const showShareModal = ref(false)
 
 // Check user's progress
 const userProgress = computed(() => {
@@ -70,11 +73,11 @@ const onboardingSteps = computed(() => [
   },
   {
     id: 'engage',
-    title: 'Build Community',
-    description: 'Share your profile to gain followers',
-    icon: IconUsers,
+    title: 'Share Profile',
+    description: 'Share your Nostr profile to gain followers',
+    icon: IconShare,
     color: 'from-purple-400 to-pink-400',
-    action: () => emit('switch-tab', 'followers'),
+    action: () => showShareModal.value = true,
     completed: userProgress.value.hasFollowers,
     priority: 3
   }
@@ -115,6 +118,16 @@ const nextAction = computed(() => {
   const incompleteSteps = onboardingSteps.value.filter(step => !step.completed)
   return incompleteSteps.length > 0 ? incompleteSteps[0] : null
 })
+
+// Open share modal
+const openShareModal = () => {
+  showShareModal.value = true
+}
+
+// Close share modal
+const closeShareModal = () => {
+  showShareModal.value = false
+}
 
 onMounted(() => {
   // Auto-hide quick start for experienced users
@@ -297,20 +310,20 @@ onMounted(() => {
           </div>
         </button>
 
-        <!-- Manage Following -->
+        <!-- Share Profile -->
         <button
-          @click="emit('switch-tab', 'following')"
+          @click="openShareModal"
           class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-8 text-left group transform hover:-translate-y-1"
         >
           <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-6 bg-gradient-to-r from-purple-400 to-pink-400 group-hover:scale-110 transition-transform duration-200 shadow-lg">
-            <IconUsers class="w-6 h-6 text-white" />
+            <IconShare class="w-6 h-6 text-white" />
           </div>
           <h4 class="font-semibold text-gray-900 mb-3 text-lg group-hover:text-purple-600 transition-colors">
-            Manage Network
+            Share Profile
           </h4>
-          <p class="text-base text-gray-600 mb-4 leading-relaxed">Review and organize who you follow</p>
+          <p class="text-base text-gray-600 mb-4 leading-relaxed">Share your Nostr profile to gain followers</p>
           <div class="flex items-center text-purple-600 text-base font-medium">
-            <span>View Following</span>
+            <span>Share Now</span>
             <IconArrowRight class="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
           </div>
         </button>
@@ -336,13 +349,19 @@ onMounted(() => {
             </div>
             <div class="flex items-start space-x-3">
               <IconCheck class="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
-              <span class="leading-relaxed">Engage with content to attract followers naturally</span>
+              <span class="leading-relaxed">Share your profile on social media to attract followers</span>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Share Modal -->
+  <NostrProfileShareModal 
+    :show="showShareModal" 
+    @close="closeShareModal" 
+  />
 </template>
 
 <style scoped>
