@@ -27,7 +27,6 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import FollowListCard from './FollowListCard.vue'
 import FollowListModal from './FollowListModal.vue'
 import FollowListViewModal from './FollowListViewModal.vue'
-import FollowListDiscovery from './FollowListDiscovery.vue'
 
 const {
   myLists,
