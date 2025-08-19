@@ -273,7 +273,6 @@ watch(() => props.show, (newValue) => {
                 </div>
               </div>
             </div>
-
             <!-- No Lightning Address Message -->
             <div v-if="activeTab === 'lightning' && !userProfileData.profile?.lud16" class="text-center py-8">
               <IconBolt class="w-12 h-12 mx-auto text-gray-300 mb-3" />

@@ -11,6 +11,7 @@ import {
   IconShoppingCart, 
   IconWallet, 
   IconCreditCard,
+  IconUsers,
   IconSettings,
   IconEdit
 } from '@iconify-prerendered/vue-tabler'
@@ -82,6 +83,7 @@ const menuItems = [
   { id: 'content', label: 'Content', icon: IconFileText },
   { id: 'notes', label: 'Notes', icon: IconEdit },
   { id: 'campaigns', label: 'Campaigns', icon: IconTarget },
+  { id: 'audience', label: 'Audience', icon: IconUsers },
   // { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
   // { id: 'finances', label: 'Finances', icon: IconCreditCard },
   { id: 'settings', label: 'Settings', icon: IconSettings }

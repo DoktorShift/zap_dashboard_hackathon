@@ -15,6 +15,7 @@ import ContentUnlock from './pages/ContentUnlock.vue'
 import Campaigns from './pages/Campaigns.vue'
 import CampaignView from './pages/CampaignView.vue'
 import CampaignNotFound from './pages/CampaignNotFound.vue'
+import Audience from './pages/Audience.vue'
 import MiniPoS from './pages/MiniPoS.vue'
 import Wallet from './pages/Wallet.vue'
 import Finances from './pages/Finances.vue'
@@ -337,6 +338,7 @@ const components = {
   'campaigns': Campaigns,
   'campaign-view': CampaignView,
   'campaign-not-found': CampaignNotFound,
+  'audience': Audience,
   'mini-pos': MiniPoS,
   wallet: Wallet,
   finances: Finances,
