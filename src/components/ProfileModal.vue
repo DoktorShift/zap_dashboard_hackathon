@@ -110,16 +110,7 @@ const copyToClipboard = async (text, type) => {
   try {
     await navigator.clipboard.writeText(text)
     copySuccess.value = type
-        const result = await unfollowUser(props.pubkey)
-        
-        if (result.localOnly) {
-          // Show a subtle warning that it was local only
-          error.value = 'Unfollowed locally. Syncing to relays...'
-          // Clear the error after 3 seconds
-          setTimeout(() => {
-            error.value = ''
-          }, 3000)
-        }
+    setTimeout(() => {
       copySuccess.value = ''
     }, 2000)
   } catch (error) {
@@ -130,7 +121,7 @@ const copyToClipboard = async (text, type) => {
 // Get profile URL for different clients
 const getProfileUrl = (client) => {
   try {
-      error.value = `Failed to ${isCurrentlyFollowing.value ? 'unfollow' : 'follow'} user. Please try again.`
+    const npubValue = npub.value
     switch (client) {
       case 'primal':
         return `https://primal.net/p/${npubValue}`
