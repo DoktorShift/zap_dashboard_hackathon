@@ -96,9 +96,14 @@ const tabs = [
   { id: 'following', label: 'Following', icon: IconUserCheck, count: computed(() => getFollowingCount()) },
   { id: 'followers', label: 'Followers', icon: IconUsers, count: computed(() => getFollowersCount()) },
   { id: 'lists', label: 'Lists', icon: IconList, count: computed(() => myLists.value.length) }
+  { id: 'suggestions', label: 'Suggestions', icon: IconUserPlus, count: computed(() => suggestedUsers.value.length) }
 ]
 
 // Computed properties
+const suggestedUsers = ref([])
+const isLoadingSuggestions = ref(false)
+const suggestionsError = ref('')
+
 const filteredFollowing = computed(() => {
   let users = following.value
   
@@ -163,9 +168,100 @@ const filteredFollowers = computed(() => {
   return users
 })
 
+const filteredSuggestions = computed(() => {
+  if (!searchQuery.value) return suggestedUsers.value
+  const query = searchQuery.value.toLowerCase()
+  return suggestedUsers.value.filter(suggestion =>
+    suggestion.profile?.name?.toLowerCase().includes(query) ||
+    suggestion.profile?.about?.toLowerCase().includes(query) ||
+    suggestion.pubkey.toLowerCase().includes(query)
+  )
+})
+
 const relayStats = computed(() => {
   return nostrRelayManager.getConnectionStats()
 })
+
+// Generate smart suggestions based on mutual follows
+const generateSmartSuggestions = async () => {
+  if (following.value.length === 0) {
+    console.log('No following list available for suggestions')
+    return
+  }
+
+  isLoadingSuggestions.value = true
+  suggestionsError.value = ''
+
+  try {
+    console.log('Generating smart suggestions based on mutual follows...')
+    
+    const mutualConnections = new Map() // pubkey -> count
+    const followedPubkeys = new Set(following.value)
+
+    // Fetch contact lists of people we follow (limit to first 15 for performance)
+    const contactPromises = following.value.slice(0, 15).map(async (pubkey) => {
+      try {
+        const contactEvent = await nostrRelayManager.getEvent({
+          kinds: [3],
+          authors: [pubkey],
+          limit: 1
+        })
+
+        if (contactEvent) {
+          const theirFollows = contactEvent.tags
+            .filter(tag => tag[0] === 'p' && tag[1])
+            .map(tag => tag[1])
+
+          // Count mutual connections
+          theirFollows.forEach(theirFollowPubkey => {
+            if (!followedPubkeys.has(theirFollowPubkey) && theirFollowPubkey !== currentUser.value.pubkey) {
+              mutualConnections.set(theirFollowPubkey, (mutualConnections.get(theirFollowPubkey) || 0) + 1)
+            }
+          })
+        }
+      } catch (error) {
+        console.warn('Failed to fetch contact list for:', pubkey.substring(0, 8))
+      }
+    })
+
+    await Promise.allSettled(contactPromises)
+
+    // Sort by mutual connection count and take top suggestions
+    const suggestions = Array.from(mutualConnections.entries())
+      .filter(([, mutualCount]) => mutualCount >= 2) // At least 2 mutual connections
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 12)
+      .map(([pubkey, mutualCount]) => ({
+        pubkey,
+        mutualCount,
+        profile: null
+      }))
+
+    // Fetch profiles for suggestions
+    const profilePromises = suggestions.map(async (suggestion) => {
+      try {
+        suggestion.profile = await fetchProfile(suggestion.pubkey)
+        return suggestion
+      } catch (error) {
+        console.warn('Failed to fetch profile for suggestion:', suggestion.pubkey.substring(0, 8))
+        return null
+      }
+    })
+
+    const suggestionsWithProfiles = await Promise.allSettled(profilePromises)
+    suggestedUsers.value = suggestionsWithProfiles
+      .filter(result => result.status === 'fulfilled' && result.value)
+      .map(result => result.value)
+      .filter(suggestion => suggestion.profile) // Only include suggestions with valid profiles
+
+    console.log('Generated smart suggestions:', suggestedUsers.value.length)
+  } catch (error) {
+    console.error('Failed to generate smart suggestions:', error)
+    suggestionsError.value = 'Failed to generate suggestions'
+  } finally {
+    isLoadingSuggestions.value = false
+  }
+}
 
 // Handle Nostr login
 const handleNostrLogin = async () => {
@@ -269,6 +365,11 @@ onMounted(() => {
   if (isAuthenticated.value) {
     // Start with overview for first-time users
     refreshFollowing()
+    
+    // Generate suggestions after following list is loaded
+    setTimeout(() => {
+      generateSmartSuggestions()
+    }, 3000)
   }
 })
 
@@ -276,14 +377,29 @@ onMounted(() => {
 watch(isAuthenticated, (authenticated) => {
   if (authenticated) {
     refreshFollowing()
+    
+    // Generate suggestions after following list is loaded
+    setTimeout(() => {
+      generateSmartSuggestions()
+    }, 3000)
   } else {
     // Clear data when logged out
     activeTab.value = 'overview'
     searchQuery.value = ''
+    suggestedUsers.value = []
     clearSelection()
   }
 })
 </script>
+// Watch for changes in following list to regenerate suggestions
+watch(following, (newFollowing, oldFollowing) => {
+  if (isAuthenticated.value && newFollowing.length !== oldFollowing?.length) {
+    // Regenerate suggestions when following list changes
+    setTimeout(() => {
+      generateSmartSuggestions()
+    }, 2000)
+  }
+}, { deep: true })
 
 <template>
   <div class="space-y-6">
