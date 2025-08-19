@@ -125,23 +125,23 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-10">
     <!-- New User Welcome & Quick Start -->
-    <div v-if="userProgress.isNewUser" class="text-center">
-      <div class="w-20 h-20 bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+    <div v-if="userProgress.isNewUser" class="text-center py-8">
+      <div class="w-24 h-24 bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-xl">
         <IconSparkles class="w-10 h-10 text-white" />
       </div>
-      <h2 class="text-3xl font-bold text-gray-900 mb-4">
+      <h2 class="text-3xl font-bold text-gray-900 mb-6">
         Welcome to Nostr, {{ userProfile?.name || 'Creator' }}!
       </h2>
-      <p class="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8">
+      <p class="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed mb-10">
         Let's help you build your decentralized social network. Follow these simple steps to get started.
       </p>
       
       <!-- Primary CTA for New Users -->
       <button
         @click="emit('switch-tab', 'suggestions')"
-        class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-200 flex items-center justify-center space-x-3 mx-auto shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+        class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-10 py-5 rounded-xl font-bold text-lg transition-all duration-200 flex items-center justify-center space-x-3 mx-auto shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
       >
         <IconRocket class="w-6 h-6" />
         <span>Start Building Your Network</span>
@@ -150,18 +150,27 @@ onMounted(() => {
     </div>
 
     <!-- Existing User Dashboard -->
-    <div v-else class="text-center">
+    <div v-else class="text-center py-6">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-3">
+          Your Nostr Network
+        </h2>
+        <p class="text-gray-600 max-w-lg mx-auto">
+          Manage your connections and discover new people in the decentralized social network.
+        </p>
+      </div>
+    </div>
 
     <!-- Progress Steps for New Users -->
-    <div v-if="userProgress.isNewUser" class="bg-white/90 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg p-6 sm:p-8">
-      <div class="flex items-center justify-between mb-6">
+    <div v-if="userProgress.isNewUser" class="bg-white/90 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg p-8 sm:p-10">
+      <div class="flex items-center justify-between mb-8">
         <h3 class="text-xl font-bold text-gray-900">Getting Started</h3>
         <div class="text-sm text-gray-500">
           {{ onboardingSteps.filter(s => s.completed).length }}/{{ onboardingSteps.length }} completed
         </div>
       </div>
       
-      <div class="space-y-4">
+      <div class="space-y-6">
         <div
           v-for="(step, index) in onboardingSteps"
           :key="step.id"
@@ -170,7 +179,7 @@ onMounted(() => {
           <button
             @click="step.action"
             :class="[
-              'w-full p-4 rounded-xl border-2 transition-all duration-300 text-left',
+              'w-full p-6 rounded-xl border-2 transition-all duration-300 text-left',
               step.completed 
                 ? 'border-green-200 bg-green-50 hover:bg-green-100' 
                 : index === 0 || onboardingSteps[index - 1]?.completed
@@ -179,10 +188,10 @@ onMounted(() => {
             ]"
             :disabled="!step.completed && index > 0 && !onboardingSteps[index - 1]?.completed"
           >
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-5">
               <!-- Step Number/Status -->
               <div :class="[
-                'w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shadow-sm',
+                'w-14 h-14 rounded-xl flex items-center justify-center font-bold text-lg shadow-sm',
                 step.completed 
                   ? 'bg-green-500 text-white' 
                   : `bg-gradient-to-r ${step.color} text-white`
@@ -193,8 +202,8 @@ onMounted(() => {
               
               <!-- Step Content -->
               <div class="flex-1 min-w-0">
-                <div class="flex items-center space-x-2">
-                  <h4 class="font-semibold text-gray-900">{{ step.title }}</h4>
+                <div class="flex items-center space-x-3 mb-2">
+                  <h4 class="font-semibold text-gray-900 text-lg">{{ step.title }}</h4>
                   <span v-if="step.completed" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
                     ✓ Done
                   </span>
@@ -202,12 +211,12 @@ onMounted(() => {
                     Next
                   </span>
                 </div>
-                <p class="text-gray-600 text-sm mt-1">{{ step.description }}</p>
+                <p class="text-gray-600 text-base">{{ step.description }}</p>
               </div>
               
               <!-- Arrow -->
               <IconChevronRight :class="[
-                'w-5 h-5 transition-all duration-200',
+                'w-6 h-6 transition-all duration-200',
                 step.completed ? 'text-green-500' : 'text-orange-500 group-hover:translate-x-1'
               ]" />
             </div>
@@ -217,134 +226,133 @@ onMounted(() => {
     </div>
 
     <!-- Quick Stats for Existing Users -->
-    <div v-else class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-3 gap-6">
       <button
         v-for="stat in quickStats"
         :key="stat.label"
         @click="stat.action"
-        class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-6 text-center group transform hover:-translate-y-1"
+        class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-8 text-center group transform hover:-translate-y-1"
       >
-        <div :class="['w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-200', stat.color]">
+        <div :class="['w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200', stat.color]">
           <component :is="stat.icon" class="w-6 h-6" />
         </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1">{{ stat.value.toLocaleString() }}</div>
-        <div class="text-sm text-gray-600">{{ stat.label }}</div>
+        <div class="text-3xl font-bold text-gray-900 mb-2">{{ stat.value.toLocaleString() }}</div>
+        <div class="text-base text-gray-600">{{ stat.label }}</div>
       </button>
     </div>
 
     <!-- Next Recommended Action -->
-    <div v-if="nextAction && !userProgress.isNewUser" class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-6">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-4">
-          <div :class="['w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r', nextAction.color]">
+    <div v-if="nextAction && !userProgress.isNewUser" class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-8">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div class="flex items-center space-x-5">
+          <div :class="['w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-r shadow-lg', nextAction.color]">
             <component :is="nextAction.icon" class="w-6 h-6 text-white" />
           </div>
           <div>
-            <h4 class="font-semibold text-gray-900 mb-1">{{ nextAction.title }}</h4>
-            <p class="text-gray-600 text-sm">{{ nextAction.description }}</p>
+            <h4 class="font-semibold text-gray-900 mb-2 text-lg">{{ nextAction.title }}</h4>
+            <p class="text-gray-600 text-base">{{ nextAction.description }}</p>
           </div>
         </div>
         <button
           @click="nextAction.action"
-          class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 shadow-md hover:shadow-lg transform hover:scale-105"
+          class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-105 whitespace-nowrap"
         >
           <span>Get Started</span>
-          <IconArrowRight class="w-4 h-4" />
+          <IconArrowRight class="w-5 h-5" />
         </button>
       </div>
     </div>
 
     <!-- Quick Actions Grid -->
     <div v-if="!userProgress.isNewUser">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+      <h3 class="text-xl font-semibold text-gray-900 mb-6 flex items-center space-x-3">
         <IconTrendingUp class="w-5 h-5 text-orange-600" />
         <span>Quick Actions</span>
       </h3>
       
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <!-- Discover New People -->
         <button
           @click="emit('switch-tab', 'suggestions')"
-          class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-6 text-left group transform hover:-translate-y-1"
+          class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-8 text-left group transform hover:-translate-y-1"
         >
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-r from-blue-400 to-cyan-400 group-hover:scale-110 transition-transform duration-200">
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-6 bg-gradient-to-r from-blue-400 to-cyan-400 group-hover:scale-110 transition-transform duration-200 shadow-lg">
             <IconUserPlus class="w-6 h-6 text-white" />
           </div>
-          <h4 class="font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+          <h4 class="font-semibold text-gray-900 mb-3 text-lg group-hover:text-blue-600 transition-colors">
             Discover People
           </h4>
-          <p class="text-sm text-gray-600 mb-3">Find interesting people based on your network</p>
-          <div class="flex items-center text-blue-600 text-sm font-medium">
+          <p class="text-base text-gray-600 mb-4 leading-relaxed">Find interesting people based on your network</p>
+          <div class="flex items-center text-blue-600 text-base font-medium">
             <span>View Suggestions</span>
-            <IconArrowRight class="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
+            <IconArrowRight class="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
           </div>
         </button>
 
         <!-- Create Follow List -->
         <button
           @click="emit('create-list')"
-          class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-6 text-left group transform hover:-translate-y-1"
+          class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-8 text-left group transform hover:-translate-y-1"
         >
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-r from-green-400 to-emerald-400 group-hover:scale-110 transition-transform duration-200">
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-6 bg-gradient-to-r from-green-400 to-emerald-400 group-hover:scale-110 transition-transform duration-200 shadow-lg">
             <IconList class="w-6 h-6 text-white" />
           </div>
-          <h4 class="font-semibold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">
+          <h4 class="font-semibold text-gray-900 mb-3 text-lg group-hover:text-green-600 transition-colors">
             Create List
           </h4>
-          <p class="text-sm text-gray-600 mb-3">Organize people into themed collections</p>
-          <div class="flex items-center text-green-600 text-sm font-medium">
+          <p class="text-base text-gray-600 mb-4 leading-relaxed">Organize people into themed collections</p>
+          <div class="flex items-center text-green-600 text-base font-medium">
             <span>Start Creating</span>
-            <IconArrowRight class="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
+            <IconArrowRight class="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
           </div>
         </button>
 
         <!-- Manage Following -->
         <button
           @click="emit('switch-tab', 'following')"
-          class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-6 text-left group transform hover:-translate-y-1"
+          class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-lg transition-all duration-200 p-8 text-left group transform hover:-translate-y-1"
         >
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-gradient-to-r from-purple-400 to-pink-400 group-hover:scale-110 transition-transform duration-200">
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center mb-6 bg-gradient-to-r from-purple-400 to-pink-400 group-hover:scale-110 transition-transform duration-200 shadow-lg">
             <IconUsers class="w-6 h-6 text-white" />
           </div>
-          <h4 class="font-semibold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors">
+          <h4 class="font-semibold text-gray-900 mb-3 text-lg group-hover:text-purple-600 transition-colors">
             Manage Network
           </h4>
-          <p class="text-sm text-gray-600 mb-3">Review and organize who you follow</p>
-          <div class="flex items-center text-purple-600 text-sm font-medium">
+          <p class="text-base text-gray-600 mb-4 leading-relaxed">Review and organize who you follow</p>
+          <div class="flex items-center text-purple-600 text-base font-medium">
             <span>View Following</span>
-            <IconArrowRight class="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
+            <IconArrowRight class="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
           </div>
         </button>
       </div>
     </div>
 
     <!-- Tips for Better Networking -->
-    <div class="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-6">
-      <div class="flex items-start space-x-4">
-        <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+    <div class="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-8">
+      <div class="flex items-start space-x-5">
+        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
           <IconSparkles class="w-5 h-5 text-purple-600" />
         </div>
         <div>
-          <h4 class="font-semibold text-purple-900 mb-3">Pro Tips for Building Your Audience</h4>
-          <div class="space-y-2 text-sm text-purple-800">
-            <div class="flex items-start space-x-2">
+          <h4 class="font-semibold text-purple-900 mb-4 text-lg">Pro Tips for Building Your Audience</h4>
+          <div class="space-y-3 text-base text-purple-800">
+            <div class="flex items-start space-x-3">
               <IconCheck class="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
-              <span>Follow people who share your interests to build a relevant network</span>
+              <span class="leading-relaxed">Follow people who share your interests to build a relevant network</span>
             </div>
-            <div class="flex items-start space-x-2">
+            <div class="flex items-start space-x-3">
               <IconCheck class="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
-              <span>Create themed lists to organize different communities</span>
+              <span class="leading-relaxed">Create themed lists to organize different communities</span>
             </div>
-            <div class="flex items-start space-x-2">
+            <div class="flex items-start space-x-3">
               <IconCheck class="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
-              <span>Engage with content to attract followers naturally</span>
+              <span class="leading-relaxed">Engage with content to attract followers naturally</span>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
 </template>
 
 <style scoped>
