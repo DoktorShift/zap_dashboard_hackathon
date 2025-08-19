@@ -41,6 +41,7 @@ import ProfileModal from '../components/ProfileModal.vue'
 import FollowListModal from '../components/FollowListModal.vue'
 import FollowListCard from '../components/FollowListCard.vue'
 import AudienceOverview from '../components/AudienceOverview.vue'
+import FollowListManager from '../components/FollowListManager.vue'
 
 // Authentication
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -715,46 +716,7 @@ watch(following, (newFollowing, oldFollowing) => {
 
         <!-- Lists Tab -->
         <div v-if="activeTab === 'lists'" class="p-6">
-          <!-- My Lists Section -->
-          <div class="mb-8">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-semibold text-gray-900">My Lists</h3>
-              <button
-                @click="handleCreateList"
-                class="btn-primary text-sm"
-              >
-                <IconPlus class="w-4 h-4" />
-                Create List
-              </button>
-            </div>
-
-            <div v-if="myLists.length === 0" class="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-              <IconList class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <h4 class="text-lg font-medium text-gray-900 mb-2">No lists yet</h4>
-              <p class="text-gray-600 mb-4">Create your first follow list to organize your network</p>
-              <button
-                @click="handleCreateList"
-                class="btn-primary"
-              >
-                <IconPlus class="w-4 h-4" />
-                Create First List
-              </button>
-            </div>
-
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <FollowListCard
-                v-for="list in myLists"
-                :key="list.id"
-                :list="list"
-                :is-owner="true"
-                @edit="handleEditList"
-                @delete="deleteFollowList"
-                @share="$event => console.log('Share list:', $event)"
-              />
-            </div>
-          </div>
-
-          <!-- Discovered Lists Section -->
+          <FollowListManager />
         </div>
 
         <!-- Discover Tab -->

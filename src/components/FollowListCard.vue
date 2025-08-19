@@ -11,7 +11,10 @@ import {
   IconCopy,
   IconExternalLink,
   IconCalendar,
-  IconUser
+  IconUser,
+  IconCheck,
+  IconLoader,
+  IconDots
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -22,10 +25,14 @@ const props = defineProps({
   isOwner: {
     type: Boolean,
     default: false
+  },
+  isProcessing: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['edit', 'delete', 'share', 'follow-all', 'view'])
+const emit = defineEmits(['edit', 'delete', 'share', 'follow-all', 'view', 'follow-selected'])
 
 // Computed properties
 const memberCount = computed(() => {
@@ -165,10 +172,12 @@ const generateFallbackAvatar = (pubkey) => {
       <div v-else class="flex items-center space-x-2">
         <button
           @click="emit('follow-all', list)"
+          :disabled="isProcessing"
           class="btn-primary text-sm flex-1"
         >
+          <IconLoader v-if="isProcessing" class="w-4 h-4 animate-spin" />
           <IconUserPlus class="w-4 h-4" />
-          Follow All
+          {{ isProcessing ? 'Following...' : 'Follow All' }}
         </button>
         <button
           @click="emit('view', list)"
