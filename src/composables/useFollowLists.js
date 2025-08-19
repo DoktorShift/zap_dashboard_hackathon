@@ -310,6 +310,7 @@ export function useFollowLists() {
           limit: 50
         }
       ], {
+            console.log('⚠️ Follow list event already processed, skipping:', event.id.substring(0, 16) + '...')
         onevent: (event) => {
           if (processedEventIds.has(event.id)) return
           processedEventIds.add(event.id)
@@ -323,13 +324,13 @@ export function useFollowLists() {
               if (existingIndex !== -1) {
                 // Update existing list (newer created_at wins)
                 if (event.created_at > myLists.value[existingIndex].created_at) {
+                  console.log('Updating existing list via subscription:', list.title)
                   myLists.value[existingIndex] = list
-                  console.log('Updated existing list:', list.title)
                 }
               } else {
                 // Add new list
+                console.log('Adding new list via subscription:', list.title)
                 myLists.value.push(list)
-                console.log('Added new list:', list.title)
               }
             }
           } else if (event.kind === 5) {
@@ -516,6 +517,8 @@ export function useFollowLists() {
 
       console.log('Publishing follow list to relays...')
 
+      // Mark this event as processed BEFORE publishing to prevent duplicate processing
+      processedEventIds.add(signedEvent.id)
       // Publish to relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
       
@@ -529,10 +532,19 @@ export function useFollowLists() {
         failedRelays: result.failed
       })
 
-      // Add to local state
+      // Process and add to local state manually (since we marked it as processed)
       const newList = processFollowListEvent(signedEvent)
       if (newList) {
+        // Check if we already have this list (by event ID or d tag)
+        const existingIndex = myLists.value.findIndex(l => l.id === newList.id || l.d === newList.d)
+        
+        if (existingIndex === -1) {
+          console.log('Adding new list to local state:', newList.title)
         myLists.value.push(newList)
+        } else {
+          console.log('List already exists in local state, updating:', newList.title)
+          myLists.value[existingIndex] = newList
+        }
       }
 
       return newList
@@ -602,6 +614,8 @@ export function useFollowLists() {
         throw new Error('Event signature verification failed')
       }
 
+      // Mark this event as processed BEFORE publishing to prevent duplicate processing
+      processedEventIds.add(signedEvent.id)
       // Publish to relays
       const result = await nostrRelayManager.publishEvent(signedEvent)
       
@@ -615,12 +629,23 @@ export function useFollowLists() {
         failedRelays: result.failed
       })
 
-      // Update local state
+      // Process and update local state manually (since we marked it as processed)
       const updatedList = processFollowListEvent(signedEvent)
       if (updatedList) {
         const index = myLists.value.findIndex(l => l.id === listId)
         if (index !== -1) {
+          console.log('Updating list in local state:', updatedList.title)
           myLists.value[index] = updatedList
+        } else {
+          // If not found by old ID, try to find by d tag
+          const dIndex = myLists.value.findIndex(l => l.d === updatedList.d)
+          if (dIndex !== -1) {
+            console.log('Updating list by d tag in local state:', updatedList.title)
+            myLists.value[dIndex] = updatedList
+          } else {
+            console.log('Adding updated list as new to local state:', updatedList.title)
+            myLists.value.push(updatedList)
+          }
         }
       }
 
