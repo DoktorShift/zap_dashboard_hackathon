@@ -17,6 +17,7 @@ import {
   IconFileText,
   IconGift,
   IconShoppingCart,
+  IconUsers,
   IconEdit
 } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
@@ -93,6 +94,11 @@ const pageInfo = computed(() => {
       title: 'Notes',
       description: 'Keep track of your thoughts and ideas',
       icon: IconEdit
+    },
+    'audience': {
+      title: 'Audience',
+      description: 'Manage your Nostr network and follow lists',
+      icon: IconUsers
     }
   }
   
