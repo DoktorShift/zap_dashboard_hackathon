@@ -151,16 +151,6 @@ onMounted(() => {
 
     <!-- Existing User Dashboard -->
     <div v-else class="text-center">
-      <div class="w-16 h-16 bg-gradient-to-br from-orange-400 to-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-        <IconNetwork class="w-8 h-8 text-white" />
-      </div>
-      <h2 class="text-2xl font-bold text-gray-900 mb-3">
-        Your Nostr Network
-      </h2>
-      <p class="text-gray-600 max-w-xl mx-auto leading-relaxed">
-        Manage your connections and discover new people in the decentralized social network.
-      </p>
-    </div>
 
     <!-- Progress Steps for New Users -->
     <div v-if="userProgress.isNewUser" class="bg-white/90 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg p-6 sm:p-8">
