@@ -674,6 +674,12 @@ export function useFollowLists() {
     isLoading.value = true
     error.value = ''
 
+    // Store the list and its index for potential rollback
+    const listIndex = myLists.value.findIndex(l => l.id === listId)
+    const listBackup = { ...list }
+
+    // Optimistic update: remove from local state immediately
+    myLists.value.splice(listIndex, 1)
     try {
       console.log('Deleting follow list:', list.title)
 
@@ -703,15 +709,13 @@ export function useFollowLists() {
 
       console.log('✅ Follow list deletion published successfully')
 
-      // Remove from local state
-      const index = myLists.value.findIndex(l => l.id === listId)
-      if (index !== -1) {
-        myLists.value.splice(index, 1)
-      }
 
       return true
 
     } catch (err) {
+      // Rollback: re-add the list to local state if publishing failed
+      myLists.value.splice(listIndex, 0, listBackup)
+      
       error.value = 'Failed to delete follow list: ' + err.message
       console.error('❌ Follow list deletion error:', err)
       throw err
