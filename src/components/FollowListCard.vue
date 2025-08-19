@@ -105,6 +105,7 @@ const generateFallbackAvatar = (pubkey) => {
         <span class="text-xs font-medium text-gray-700">{{ memberCount }} members</span>
       </div>
     </div>
+  </div>
 
     <!-- Content -->
     <div class="p-4">
