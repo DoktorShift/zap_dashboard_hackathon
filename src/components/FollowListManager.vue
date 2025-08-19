@@ -41,7 +41,7 @@ const {
   createFollowList,
   updateFollowList,
   deleteFollowList,
-  followEntireList,
+  followEntirePack,
   followSelectedMembers,
   filterLists
 } = useFollowLists()
@@ -174,7 +174,7 @@ const handleSaveList = async (listId, listData) => {
 // Handle follow entire list
 const handleFollowEntireList = async (list) => {
   try {
-    const result = await followEntireList(list)
+    const result = await followEntirePack(list)
     
     // Show success feedback
     if (result.newFollows > 0) {
