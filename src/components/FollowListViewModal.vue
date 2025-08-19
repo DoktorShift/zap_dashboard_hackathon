@@ -350,10 +350,10 @@ onUnmounted(() => {
               <div v-if="filteredMembers.length === 0" class="text-center py-12">
                 <IconUsers class="w-12 h-12 mx-auto text-gray-300 mb-4" />
                 <h4 class="text-lg font-medium text-gray-900 mb-2">
-                  {{ searchQuery ? 'No matching members' : 'No members in this list' }}
+                  {{ searchQuery ? 'No matching members' : 'No members in this pack' }}
                 </h4>
                 <p class="text-gray-600">
-                  {{ searchQuery ? 'Try adjusting your search terms' : 'This list appears to be empty' }}
+                  {{ searchQuery ? 'Try adjusting your search terms' : 'This pack appears to be empty' }}
                 </p>
               </div>
 

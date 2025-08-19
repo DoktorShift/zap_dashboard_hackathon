@@ -452,24 +452,24 @@ export function useFollowLists() {
   }
 
   // Create a new follow list according to NIP-39089
-  const createFollowList = async (listData) => {
+  const createFollowPack = async (listData) => {
     if (!isAuthenticated.value || !window.nostr) {
       throw new Error('Nostr authentication required')
     }
 
     if (!listData.title?.trim()) {
-      throw new Error('List title is required')
+      throw new Error('Pack title is required')
     }
 
     if (!Array.isArray(listData.members) || listData.members.length === 0) {
-      throw new Error('List must have at least one member')
+      throw new Error('Pack must have at least one member')
     }
 
     isLoading.value = true
     error.value = ''
 
     try {
-      console.log('Creating new follow list:', listData.title)
+      console.log('Creating new follow pack:', listData.title)
 
       // Generate unique identifier for replaceability
       const d = crypto.randomUUID()
@@ -539,10 +539,10 @@ export function useFollowLists() {
         const existingIndex = myLists.value.findIndex(l => l.id === newList.id || l.d === newList.d)
         
         if (existingIndex === -1) {
-          console.log('Adding new list to local state:', newList.title)
+          console.log('Adding new pack to local state:', newList.title)
         myLists.value.push(newList)
         } else {
-          console.log('List already exists in local state, updating:', newList.title)
+          console.log('Pack already exists in local state, updating:', newList.title)
           myLists.value[existingIndex] = newList
         }
       }
@@ -550,8 +550,8 @@ export function useFollowLists() {
       return newList
 
     } catch (err) {
-      error.value = 'Failed to create follow list: ' + err.message
-      console.error('❌ Follow list creation error:', err)
+      error.value = 'Failed to create follow pack: ' + err.message
+      console.error('❌ Follow pack creation error:', err)
       throw err
     } finally {
       isLoading.value = false
@@ -559,21 +559,21 @@ export function useFollowLists() {
   }
 
   // Update an existing follow list (creates new version due to replaceability)
-  const updateFollowList = async (listId, listData) => {
+  const updateFollowPack = async (listId, listData) => {
     if (!isAuthenticated.value || !window.nostr) {
       throw new Error('Nostr authentication required')
     }
 
     const existingList = myLists.value.find(l => l.id === listId)
     if (!existingList) {
-      throw new Error('List not found')
+      throw new Error('Pack not found')
     }
 
     isLoading.value = true
     error.value = ''
 
     try {
-      console.log('Updating follow list:', listData.title)
+      console.log('Updating follow pack:', listData.title)
 
       // Use same 'd' tag for replaceability
       const tags = [
@@ -634,16 +634,16 @@ export function useFollowLists() {
       if (updatedList) {
         const index = myLists.value.findIndex(l => l.id === listId)
         if (index !== -1) {
-          console.log('Updating list in local state:', updatedList.title)
+          console.log('Updating pack in local state:', updatedList.title)
           myLists.value[index] = updatedList
         } else {
           // If not found by old ID, try to find by d tag
           const dIndex = myLists.value.findIndex(l => l.d === updatedList.d)
           if (dIndex !== -1) {
-            console.log('Updating list by d tag in local state:', updatedList.title)
+            console.log('Updating pack by d tag in local state:', updatedList.title)
             myLists.value[dIndex] = updatedList
           } else {
-            console.log('Adding updated list as new to local state:', updatedList.title)
+            console.log('Adding updated pack as new to local state:', updatedList.title)
             myLists.value.push(updatedList)
           }
         }
@@ -652,8 +652,8 @@ export function useFollowLists() {
       return updatedList
 
     } catch (err) {
-      error.value = 'Failed to update follow list: ' + err.message
-      console.error('❌ Follow list update error:', err)
+      error.value = 'Failed to update follow pack: ' + err.message
+      console.error('❌ Follow pack update error:', err)
       throw err
     } finally {
       isLoading.value = false
@@ -661,14 +661,14 @@ export function useFollowLists() {
   }
 
   // Delete a follow list (publish kind 5 deletion event)
-  const deleteFollowList = async (listId) => {
+  const deleteFollowPack = async (listId) => {
     if (!isAuthenticated.value || !window.nostr) {
       throw new Error('Nostr authentication required')
     }
 
     const list = myLists.value.find(l => l.id === listId)
     if (!list) {
-      throw new Error('List not found')
+      throw new Error('Pack not found')
     }
 
     isLoading.value = true
@@ -681,14 +681,14 @@ export function useFollowLists() {
     // Optimistic update: remove from local state immediately
     myLists.value.splice(listIndex, 1)
     try {
-      console.log('Deleting follow list:', list.title)
+      console.log('Deleting follow pack:', list.title)
 
       // Create deletion event
       const eventTemplate = {
         kind: 5, // Deletion
         created_at: Math.floor(Date.now() / 1000),
         tags: [['e', listId]], // Reference to the event being deleted
-        content: 'Deleting follow list'
+        content: 'Deleting follow pack'
       }
 
       // Sign the event
@@ -707,7 +707,7 @@ export function useFollowLists() {
         throw new Error('Failed to publish to any relays')
       }
 
-      console.log('✅ Follow list deletion published successfully')
+      console.log('✅ Follow pack deletion published successfully')
 
 
       return true
@@ -716,8 +716,8 @@ export function useFollowLists() {
       // Rollback: re-add the list to local state if publishing failed
       myLists.value.splice(listIndex, 0, listBackup)
       
-      error.value = 'Failed to delete follow list: ' + err.message
-      console.error('❌ Follow list deletion error:', err)
+      error.value = 'Failed to delete follow pack: ' + err.message
+      console.error('❌ Follow pack deletion error:', err)
       throw err
     } finally {
       isLoading.value = false
@@ -725,20 +725,20 @@ export function useFollowLists() {
   }
 
   // Follow all members from a list (merges with existing follows)
-  const followEntireList = async (list) => {
+  const followEntirePack = async (list) => {
     if (!isAuthenticated.value || !window.nostr) {
       throw new Error('Nostr authentication required')
     }
 
     if (!list.members || list.members.length === 0) {
-      throw new Error('List has no members to follow')
+      throw new Error('Pack has no members to follow')
     }
 
     isLoading.value = true
     error.value = ''
 
     try {
-      console.log('Following entire list:', list.title, 'with', list.members.length, 'members')
+      console.log('Following entire pack:', list.title, 'with', list.members.length, 'members')
 
       // Get current following list
       const currentFollowingEvent = await nostrRelayManager.getEvent({
@@ -760,7 +760,7 @@ export function useFollowLists() {
       const mergedFollows = [...currentFollows, ...newFollows]
 
       if (newFollows.length === 0) {
-        console.log('Already following all members of this list')
+        console.log('Already following all members of this pack')
         return { newFollows: 0, totalFollows: mergedFollows.length }
       }
 
@@ -804,8 +804,8 @@ export function useFollowLists() {
       }
 
     } catch (err) {
-      error.value = 'Failed to follow list: ' + err.message
-      console.error('❌ Follow list error:', err)
+      error.value = 'Failed to follow pack: ' + err.message
+      console.error('❌ Follow pack error:', err)
       throw err
     } finally {
       isLoading.value = false
@@ -986,10 +986,10 @@ export function useFollowLists() {
     // Actions
     fetchMyLists,
     discoverLists,
-    createFollowList,
-    updateFollowList,
-    deleteFollowList,
-    followEntireList,
+    createFollowPack,
+    updateFollowPack,
+    deleteFollowPack,
+    followEntirePack,
     followSelectedMembers,
     
     // Utilities

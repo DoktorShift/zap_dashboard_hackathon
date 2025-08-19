@@ -64,7 +64,8 @@ const onboardingSteps = computed(() => [
   {
     id: 'organize',
     title: 'Create Lists',
-    description: 'Organize your network into themed lists',
+    title: 'Create Follow Packs',
+    description: 'Organize your network into themed packs',
     icon: IconList,
     color: 'from-green-400 to-emerald-400',
     action: () => emit('create-list'),
@@ -101,6 +102,7 @@ const quickStats = computed(() => [
   },
   {
     label: 'Lists',
+    label: 'Follow Packs',
     value: myLists.value.length,
     icon: IconList,
     color: 'text-green-600 bg-green-100',
@@ -301,9 +303,9 @@ onMounted(() => {
             <IconList class="w-6 h-6 text-white" />
           </div>
           <h4 class="font-semibold text-gray-900 mb-3 text-lg group-hover:text-green-600 transition-colors">
-            Create List
+            Create Follow Pack
           </h4>
-          <p class="text-base text-gray-600 mb-4 leading-relaxed">Organize people into themed collections</p>
+          <p class="text-base text-gray-600 mb-4 leading-relaxed">Organize people into themed packs</p>
           <div class="flex items-center text-green-600 text-base font-medium">
             <span>Start Creating</span>
             <IconArrowRight class="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
@@ -345,7 +347,7 @@ onMounted(() => {
             </div>
             <div class="flex items-start space-x-3">
               <IconCheck class="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
-              <span class="leading-relaxed">Create themed lists to organize different communities</span>
+              <span class="leading-relaxed">Create themed packs to organize different communities</span>
             </div>
             <div class="flex items-start space-x-3">
               <IconCheck class="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />

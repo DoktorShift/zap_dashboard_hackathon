@@ -195,7 +195,7 @@ const saveList = async () => {
                 </div>
                 <div>
                   <h3 class="text-xl font-bold text-gray-900">
-                    {{ isEditing ? 'Edit Follow List' : 'Create Follow List' }}
+                    {{ isEditing ? 'Edit Follow Pack' : 'Create Follow Pack' }}
                   </h3>
                   <p class="text-sm text-gray-600">Step {{ currentStep }} of 3</p>
                 </div>
@@ -225,14 +225,14 @@ const saveList = async () => {
             <div v-if="currentStep === 1" class="p-6">
               <div class="space-y-6">
                 <div class="text-center mb-6">
-                  <h4 class="text-xl font-bold text-gray-900 mb-2">List Details</h4>
-                  <p class="text-gray-600">Give your follow list a name and description</p>
+                  <h4 class="text-xl font-bold text-gray-900 mb-2">Pack Details</h4>
+                  <p class="text-gray-600">Give your follow pack a name and description</p>
                 </div>
 
                 <!-- Title -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
-                    List Title <span class="text-red-500">*</span>
+                    Pack Title <span class="text-red-500">*</span>
                   </label>
                   <input
                     v-model="form.title"
@@ -253,7 +253,7 @@ const saveList = async () => {
                   <textarea
                     v-model="form.description"
                     rows="3"
-                    placeholder="Describe what this list is about..."
+                    placeholder="Describe what this pack is about..."
                     class="w-full px-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base resize-none"
                     maxlength="200"
                   ></textarea>
@@ -272,7 +272,7 @@ const saveList = async () => {
                     placeholder="https://example.com/image.jpg"
                     class="w-full px-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
                   />
-                  <p class="text-xs text-gray-500 mt-1">URL to an image that represents this list</p>
+                  <p class="text-xs text-gray-500 mt-1">URL to an image that represents this pack</p>
                   
                   <!-- Image Preview -->
                   <div v-if="form.image" class="mt-3 rounded-lg overflow-hidden border border-gray-200 h-24">
@@ -290,7 +290,7 @@ const saveList = async () => {
             <div v-if="currentStep === 2" class="p-6">
               <div class="text-center mb-6">
                 <h4 class="text-xl font-bold text-gray-900 mb-2">Add Members</h4>
-                <p class="text-gray-600">Choose who to include in this follow list</p>
+                <p class="text-gray-600">Choose who to include in this follow pack</p>
               </div>
 
               <!-- Search -->
@@ -340,7 +340,7 @@ const saveList = async () => {
                 <div v-if="availableUsers.length === 0" class="text-center py-8">
                   <IconUser class="w-12 h-12 mx-auto text-gray-300 mb-3" />
                   <p class="text-gray-600">
-                    {{ memberSearchQuery ? 'No matching users found' : 'All users are already in the list' }}
+                    {{ memberSearchQuery ? 'No matching users found' : 'All users are already in the pack' }}
                   </p>
                 </div>
 
@@ -381,10 +381,10 @@ const saveList = async () => {
             <div v-if="currentStep === 3" class="p-6">
               <div class="text-center mb-6">
                 <h4 class="text-xl font-bold text-gray-900 mb-2">Preview & Publish</h4>
-                <p class="text-gray-600">Review your list before publishing</p>
+                <p class="text-gray-600">Review your pack before publishing</p>
               </div>
 
-              <!-- List Preview -->
+              <!-- Pack Preview -->
               <div class="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-6 mb-6">
                 <!-- Image Preview -->
                 <div v-if="form.image" class="h-32 rounded-lg overflow-hidden mb-4">
@@ -448,10 +448,10 @@ const saveList = async () => {
                   <IconList class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p class="font-medium text-gray-900 text-sm">
-                      Your follow list will be published to the Nostr network where others can discover and use it.
+                      Your follow pack will be published to the Nostr network where others can discover and use it.
                     </p>
                     <p class="text-xs text-gray-500 mt-1">
-                      Lists are stored on the decentralized network and can be shared with others.
+                      Packs are stored on the decentralized network and can be shared with others.
                     </p>
                   </div>
                 </div>
@@ -506,7 +506,7 @@ const saveList = async () => {
               >
                 <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
                 <IconCheck v-else class="w-4 h-4" />
-                {{ isLoading ? 'Publishing...' : (isEditing ? 'Update List' : 'Publish List') }}
+                <span>{{ isLoading ? 'Publishing...' : (isEditing ? 'Update Pack' : 'Publish Pack') }}
               </button>
             </div>
           </div>
