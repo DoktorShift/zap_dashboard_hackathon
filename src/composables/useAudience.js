@@ -289,8 +289,7 @@ export function useAudience() {
             .map(tag => tag[1])
 
           following.value = followingPubkeys
-          console.log(`Updated following list: ${followingPubkeys.length} users`)
-
+          
           // Fetch profiles for all following users
           followingPubkeys.forEach(pubkey => {
             fetchProfile(pubkey).catch(error => {
@@ -922,9 +921,6 @@ export function useAudience() {
     isLoading,
     error,
     syncStatus,
-    suggestedUsers,
-    isLoadingSuggestions,
-    suggestionsError,
     
     // Actions
     followUser,
@@ -938,7 +934,6 @@ export function useAudience() {
     refreshFollowing,
     refreshFollowers,
     refreshLists,
-    generateSmartSuggestions,
     
     // Getters
     getProfile,
