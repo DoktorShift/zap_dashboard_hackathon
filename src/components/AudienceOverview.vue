@@ -235,7 +235,7 @@ onMounted(() => {
     <div v-if="nextAction && !userProgress.isNewUser" class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-8">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div class="flex items-center space-x-5">
-          <div :class="['w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-r shadow-lg', nextAction.color]">
+          <div class="w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-r from-orange-400 to-amber-400 shadow-lg">
             <component :is="nextAction.icon" class="w-6 h-6 text-white" />
           </div>
           <div>
