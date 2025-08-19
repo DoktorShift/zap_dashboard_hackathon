@@ -259,7 +259,7 @@ watch(isAuthenticated, async (isAuth) => {
           </p>
           
           <div class="flex flex-col sm:flex-row gap-4 justify-center sm:justify-start">
-            <!-- <button
+            <button
               v-if="isAuthenticated"
               @click="openCreateModal"
               class="btn-primary group px-6 py-3 text-base"
@@ -267,15 +267,7 @@ watch(isAuthenticated, async (isAuth) => {
               <IconPlus class="w-5 h-5" />
               <span>Start a Campaign</span>
               <IconArrowRight class="w-5 h-5 ml-1 transition-transform group-hover:translate-x-1" />
-            </button> -->
-            
-            <div
-              v-if="isAuthenticated"
-              class="btn-primary group px-6 py-3 text-base opacity-50 cursor-not-allowed"
-            >
-              <IconPlus class="w-5 h-5" />
-              <span>Coming Soon</span>
-            </div>
+            </button>
             
             <button
               v-else
@@ -415,14 +407,14 @@ watch(isAuthenticated, async (isAuth) => {
           <span>Refresh</span>
         </button>
         
-        <!-- Create Button - Commented out -->
-        <!-- <button
+        <!-- Create Button -->
+        <button
           @click="openCreateModal"
           class="btn-primary text-sm"
         >
           <IconPlus class="w-4 h-4" />
           <span>New Campaign</span>
-        </button> -->
+        </button>
       </div>
     </div>
 
@@ -483,9 +475,8 @@ watch(isAuthenticated, async (isAuth) => {
         <h3 class="text-2xl font-semibold text-gray-900 mb-3">No Campaigns Yet</h3>
         <p class="text-gray-600 mb-6 max-w-md mx-auto">Create your first funding campaign to start collecting sats for your goals. It only takes a minute to get started!</p>
         <button @click="openCreateModal" class="btn-primary px-6 py-3 text-base shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 transition-all duration-200">
-          <!-- <IconPlus class="w-5 h-5" />
-          <span>Create First Campaign</span> -->
-          <span>Coming Soon</span>
+          <IconPlus class="w-5 h-5" />
+          <span>Create First Campaign</span>
         </button>
       </div>
 
