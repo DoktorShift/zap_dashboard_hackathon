@@ -93,7 +93,9 @@ const showRelayStatus = ref(false)
 
 // Tabs configuration
 const tabs = [
-  { id: 'overview', label: 'Overview', icon: IconTarget, count: null },
+  {
+  }
+] id: 'overview', label: 'Overview', icon: IconTarget, count: null },
   { id: 'following', label: 'Following', icon: IconUserCheck, count: computed(() => getFollowingCount()) },
   { id: 'lists', label: 'Follow Packs', icon: IconList, count: computed(() => myLists.value.length) },
   { id: 'suggestions', label: 'Suggestions', icon: IconUserPlus, count: computed(() => suggestedUsers.value.length) }
