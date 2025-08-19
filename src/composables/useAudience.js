@@ -579,6 +579,30 @@ export function useAudience() {
     }
   }
 
+  // Follow all members from a list (merges with existing follows)
+  const followEntirePack = async (list) => {
+    const result = await followLists.followEntirePack(list)
+    
+    // Update local following state with the merged follows
+    if (result.success && result.updatedFollows) {
+      following.value = result.updatedFollows
+    }
+    
+    return result
+  }
+
+  // Follow selected members from a list
+  const followSelectedMembers = async (list, selectedPubkeys) => {
+    const result = await followLists.followSelectedMembers(list, selectedPubkeys)
+    
+    // Update local following state with the merged follows
+    if (result.success && result.updatedFollows) {
+      following.value = result.updatedFollows
+    }
+    
+    return result
+  }
+
   // Search profiles
   const searchProfiles = async (query) => {
     // Simplified search - in a full implementation, this would query relays

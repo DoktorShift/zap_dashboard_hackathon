@@ -815,9 +815,6 @@ export function useFollowLists() {
         successfulRelays: result.successful
       })
 
-      // Update local state with merged follows
-      following.value = mergedFollows
-      
       // Fetch profiles for new follows
       newFollows.forEach(pubkey => {
         fetchProfile(pubkey).catch(error => {
@@ -829,6 +826,7 @@ export function useFollowLists() {
         success: true,
         newFollows: newFollows.length,
         totalFollows: mergedFollows.length,
+        updatedFollows: mergedFollows,
         addedMembers: newFollows,
         alreadyFollowingAll: false,
         message: `Successfully followed ${newFollows.length} new people from "${list.title}"`
@@ -934,9 +932,6 @@ export function useFollowLists() {
         successfulRelays: result.successful
       })
 
-      // Update local state with merged follows
-      following.value = mergedFollows
-      
       // Fetch profiles for new follows
       newFollows.forEach(pubkey => {
         fetchProfile(pubkey).catch(error => {
@@ -948,6 +943,7 @@ export function useFollowLists() {
         success: true,
         newFollows: newFollows.length,
         totalFollows: mergedFollows.length,
+        updatedFollows: mergedFollows,
         addedMembers: newFollows,
         alreadyFollowingAll: false,
         message: `Successfully followed ${newFollows.length} new people from "${list.title}"`
