@@ -124,36 +124,6 @@ const stats = computed(() => [
       </div>
     </div>
 
-    <!-- Nostr Explainer -->
-    <div class="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-6">
-      <div class="flex items-start space-x-4">
-        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-          <IconShield class="w-6 h-6 text-purple-600" />
-        </div>
-        <div>
-          <h4 class="font-semibold text-purple-900 mb-2">Your Keys, Your Network</h4>
-          <p class="text-purple-800 text-sm leading-relaxed mb-3">
-            Unlike traditional social media, your Nostr identity and connections are owned by you. 
-            Follow lists are published to relays you choose, and you can take your network anywhere.
-          </p>
-          <div class="flex flex-wrap gap-2">
-            <span class="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-              <IconBolt class="w-3 h-3 mr-1" />
-              Decentralized
-            </span>
-            <span class="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-              <IconShield class="w-3 h-3 mr-1" />
-              Self-custodial
-            </span>
-            <span class="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-              <IconGlobe class="w-3 h-3 mr-1" />
-              Relay-native
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Popular Lists Preview (placeholder) -->
     <div>
       <div class="flex items-center justify-between mb-4">
