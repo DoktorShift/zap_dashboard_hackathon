@@ -155,12 +155,12 @@ const generateFallbackAvatar = (pubkey) => {
           <IconEdit class="w-4 h-4" />
           Edit
         </button>
-        <button
+        <!-- <button
           @click="emit('share', list)"
           class="btn-secondary text-sm"
         >
           <IconShare class="w-4 h-4" />
-        </button>
+        </button> -->
         <button
           @click="emit('delete', list.id)"
           class="btn-secondary text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -185,12 +185,12 @@ const generateFallbackAvatar = (pubkey) => {
         >
           <IconEye class="w-4 h-4" />
         </button>
-      </div>
-    </div>
-  </div>
-</template>
-
-<style scoped>
+        <!-- <button
+          @click="emit('share', list)"
+          class="btn-secondary text-sm"
+        >
+          <IconShare class="w-4 h-4" />
+        </button> -->
 .line-clamp-1 {
   display: -webkit-box;
   -webkit-line-clamp: 1;
