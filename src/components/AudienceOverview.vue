@@ -150,16 +150,6 @@ onMounted(() => {
     </div>
 
     <!-- Existing User Dashboard -->
-    <div v-else class="text-center py-6">
-      <div class="mb-8">
-        <h2 class="text-2xl font-bold text-gray-900 mb-3">
-          Your Nostr Network
-        </h2>
-        <p class="text-gray-600 max-w-lg mx-auto">
-          Manage your connections and discover new people in the decentralized social network.
-        </p>
-      </div>
-    </div>
 
     <!-- Progress Steps for New Users -->
     <div v-if="userProgress.isNewUser" class="bg-white/90 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg p-8 sm:p-10">
