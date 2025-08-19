@@ -506,7 +506,7 @@ const saveList = async () => {
               >
                 <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
                 <IconCheck v-else class="w-4 h-4" />
-                <span>{{ isLoading ? 'Publishing...' : (isEditing ? 'Update Pack' : 'Publish Pack') }}
+                <span>{{ isLoading ? 'Publishing...' : (isEditing ? 'Update Pack' : 'Publish Pack') }}</span>
               </button>
             </div>
           </div>
