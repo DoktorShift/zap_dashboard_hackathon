@@ -240,7 +240,7 @@ onUnmounted(() => {
               <!-- Nostr URL -->
               <div>
                 <div class="flex items-center justify-between mb-2">
-                  <label class="text-sm font-medium text-orange-600">Nostr URL</label>
+                  <label class="text-sm font-medium text-orange-600">Nostr npub</label>
                 </div>
                 <div class="bg-gray-100 rounded-lg p-3 flex items-center justify-between">
                   <code class="text-sm text-gray-700 truncate flex-1 mr-2">
