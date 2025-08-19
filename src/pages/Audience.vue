@@ -495,14 +495,15 @@ watch(following, (newFollowing, oldFollowing) => {
           </div>
 
           <!-- Sync Button -->
-          <button
+          <!-- Sync Button - Commented out for later proper integration -->
+          <!-- <button
             @click="refreshFollowing"
             :disabled="isLoading"
             class="btn-secondary"
           >
             <IconRefresh :class="['w-4 h-4', isLoading ? 'animate-spin' : '']" />
             <span class="hidden sm:inline">Sync</span>
-          </button>
+          </button> -->
 
           <!-- New List Button -->
           <button
