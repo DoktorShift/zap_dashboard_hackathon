@@ -589,7 +589,7 @@ export function useAudience() {
     
     // Utilities
     fetchProfile,
-    generateFallbackAvatar
+    generateFallbackAvatar,
     
     // Re-export follow lists functionality
     ...followLists
