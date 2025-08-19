@@ -428,6 +428,12 @@ watch(following, (newFollowing) => {
             >
               <IconExternalLink class="w-4 h-4" />
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 .line-clamp-2 {
