@@ -7,10 +7,11 @@ import {
   IconChartBar, 
   IconMessageCircle, 
   IconFileText, 
-  IconGift, 
+  IconTarget, 
   IconShoppingCart, 
   IconWallet, 
   IconCreditCard,
+  IconUsers,
   IconSettings,
   IconEdit
 } from '@iconify-prerendered/vue-tabler'
@@ -81,7 +82,8 @@ const menuItems = [
   { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
   { id: 'content', label: 'Content', icon: IconFileText },
   { id: 'notes', label: 'Notes', icon: IconEdit },
-  // { id: 'donations', label: 'Donations', icon: IconGift },
+  { id: 'campaigns', label: 'Campaigns', icon: IconTarget },
+  { id: 'audience', label: 'Audience', icon: IconUsers },
   // { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
   // { id: 'finances', label: 'Finances', icon: IconCreditCard },
   { id: 'settings', label: 'Settings', icon: IconSettings }
