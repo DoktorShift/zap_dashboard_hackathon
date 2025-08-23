@@ -223,14 +223,14 @@ const formatDate = (timestamp) => {
         </button>
         
         <div class="flex items-center space-x-1">
-          <button
-            v-if="status === 'active'"
-            @click="$emit('edit', campaign)"
-            class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-            title="Edit campaign"
-          >
-            <IconEdit class="w-4 h-4" />
-          </button>
+<!--          <button-->
+<!--            v-if="status === 'active'"-->
+<!--            @click="$emit('edit', campaign)"-->
+<!--            class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"-->
+<!--            title="Edit campaign"-->
+<!--          >-->
+<!--            <IconEdit class="w-4 h-4" />-->
+<!--          </button>-->
           
           <button
             @click="$emit('share', campaign)"
