@@ -1,58 +1,24 @@
-# ⚡ Zap Tracker - All-in-One Dashboard
+<h1 align="center">⚡ Zap Tracker - All-in-One Dashboard</h1>
 
-Zap Tracker is a comprehensive Bitcoin Lightning Network dashboard that provides complete visibility and management of your Zap ecosystem. Monitor analytics, manage wallets, engage with supporters, and share content - all from one powerful interface.
+<p align="center">
+  <img src="https://img.shields.io/badge/YakiHonne-Hackathon_Winner-orange?style=for-the-badge&logo=lightning&logoColor=white" alt="Hackathon Winner"/>
+  <img src="https://img.shields.io/badge/OpenSats-Grant_Supported-blue?style=for-the-badge&logo=bitcoin&logoColor=white" alt="OpenSats Grant"/>
+</p> 
+
+
+
 
 ### Project Overview
-Zap Tracker revolutionizes how creators and users interact with Bitcoin Lightning Network payments by providing a unified dashboard experience. In today's fragmented ecosystem, managing Zap payments, analytics, and community engagement requires juggling multiple platforms and tools. Zap Tracker eliminates this complexity by bringing everything together in one comprehensive interface.
-The platform serves as a central hub for Lightning Network payment management, offering real-time visibility into your Zap ecosystem. Users can monitor their complete payment history, track supporter engagement, and analyze performance metrics through intuitive visualizations. The dashboard provides immediate insights into total Zaps received, sats earned, unique supporters, and average Zap amounts, enabling data-driven decision making for content creators and businesses alike.
-Beyond basic analytics, Zap Tracker transforms how users engage with their communities. The integrated chat functionality allows direct communication with supporters while seamlessly incorporating Zap payments into conversations. This creates a more engaging and interactive experience that strengthens relationships between creators and their audience. The platform also includes robust content management capabilities, allowing users to post updates, announcements, and monetized content directly through the dashboard.
-The wallet management system provides comprehensive control over Lightning Network finances. Users can view real-time balances, track transaction history, and send payments directly from the platform. This eliminates the need to switch between different wallet applications and provides a streamlined financial management experience.
-Zap Tracker addresses the growing need for professional-grade Lightning Network tools by combining payment processing, analytics, community engagement, and content management in a single, user-friendly platform. Whether you're a content creator looking to monetize your work, a business accepting Lightning payments, or an enthusiast wanting better visibility into your Bitcoin transactions, Zap Tracker provides the comprehensive solution you need to succeed in the Lightning Network ecosystem.
+Zap Tracker revolutionizes how creators and users interact with Bitcoin Lightning & Nostr by providing a unified dashboard experience. In today's fragmented ecosystem, managing Zap payments, analytics, and community engagement requires juggling multiple platforms and tools. Zap Tracker eliminates this complexity by bringing everything together in one comprehensive interface.
+
+The platform serves as a central hub for Lightning Network payment management, offering real-time visibility into your Zap ecosystem. Users can monitor their complete payment history, track supporter engagement, and analyze performance metrics through intuitive visualizations.
 
 ### Getting Started
-Ready to take control of your Zap ecosystem? Zap Tracker provides everything you need to monitor, manage, and maximize your Lightning Network payment experience.
-
 A modern, real-time dashboard for managing and analyzing Lightning Network zaps (tips) with Nostr Wallet Connect integration.
 
-![Zap Dashboard Preview](public/dashboard.png)
+![ÅDashboard](https://storage.googleapis.com/geyser-images-distribution-prod-us/1d9cc125-120f-4c5c-b103-694fc61721ee_Dashboard_new/image_large.webp)
 
 > **🔒 Privacy First**: We don't store any of your data on our servers. All data is stored locally in your browser's local storage, ensuring your privacy and data sovereignty.
-
-## Features
-
-### **Real-time Analytics**
-- Live zap tracking and statistics
-- Interactive charts and visualizations
-- Performance metrics and insights
-- Daily, weekly, and monthly activity views
-
-### **Wallet Management**
-- Nostr Wallet Connect (NWC) integration
-- Real-time balance monitoring
-- Send and receive Lightning payments
-- QR code generation and scanning
-- Transaction history
-
-### **Chat + Zaps**
-- Interactive chat with zap integration
-- Real-time messaging with Lightning payments
-- Zap notifications within conversations
-- Seamless payment experience during chats
-
-### **Zap Feed**
-- Real-time zap notifications
-- Advanced filtering and search
-- Content performance tracking
-- Supporter analytics
-
-### **Content Management**
-- Create and manage content posts
-- Track content performance and engagement
-- Content monetization with zaps
-- Content analytics and insights
-
-### **Point of Sale (PoS)**
-- Coming soon: Mini PoS system for merchants
 
 [//]: # (### 📈 **Content Analytics**)
 
@@ -69,7 +35,8 @@ A modern, real-time dashboard for managing and analyzing Lightning Network zaps 
 ### Prerequisites
 - Node.js 18+ 
 - npm or yarn
-- A Nostr Wallet Connect enabled wallet (e.g., Alby)
+- A Nostr Wallet Connect enabled wallet (e.g., Alby, Buho, Coinos, LNBits)
+- A Nostr Identity
 
 ### Installation
 
@@ -99,28 +66,23 @@ npm run build
 npm run preview
 ```
 
-## 🔌 Wallet Connection
+## 🔌 Setup ZapTracker
 
-### Setting up Nostr Wallet Connect
+### Get your NWC URL
+- Open your NWC Provider
+- Go to Settings → Connect Apps
+- Copy your Nostr Wallet Connect URL
 
-1. **Get your NWC URL**
-   - Open your Alby wallet
-   - Go to Settings → Connect Apps
-   - Copy your Nostr Wallet Connect URL
+![Connect_NWC](https://storage.googleapis.com/geyser-images-distribution-prod-us/7effb1e8-904b-4d1d-9234-4c13c646fce5_nwc-connect-preview/image_large.webp)
 
-2. **Connect in the dashboard**
-   - Click "Connect Wallet" in the dashboard
-   - Paste your NWC URL
-   - Click "Connect"
+### Connect Nostr
+- Click "Settings"
+- Click "Connect Nostr"
+- Choose your Nostr Account 
 
-![Wallet Connection](/public/wallet.png)
-
-## 📱 Dashboard Overview
+![Connect_Nostr](https://storage.googleapis.com/geyser-images-distribution-prod-us/75fb28c3-c1b4-4601-bb3e-d260ef368def_nostr-login_new/image_large.webp)
 
 ### Main Dashboard
-![Dashboard Overview](/public/dashboard.png)
-
-The main dashboard provides:
 - **Total Zaps**: Real-time count of received zaps
 - **Total Sats**: Cumulative zap amount in satoshis
 - **Average Zap**: Mean zap amount
@@ -128,41 +90,65 @@ The main dashboard provides:
 - **Wallet Balance**: Current Lightning wallet balance
 - **Activity Chart**: 30-day zap activity visualization
 
+![Dashboard Overview](https://storage.googleapis.com/geyser-images-distribution-prod-us/1d9cc125-120f-4c5c-b103-694fc61721ee_Dashboard_new/image_large.webp)
+
 ### Zap Feed
-![Zap Feed](/public/zaps.png)
-
-Features:
 - Real-time zap notifications
-- Advanced filtering by amount, sender, and content type
-- Search functionality
-- Compact and detailed view modes
+- Content performance tracking
+- Supporter analytics
 
-### Chat + Zaps
-![Chat + Zaps Interface](/public/chat_zap.png)
+![Zap Feed](https://github.com/user-attachments/assets/2d4001fd-f9ea-4a7a-ba7a-7abf42ecbfaa)
 
-Interactive chat with zap integration:
-- Real-time messaging with Lightning payments
-- Zap notifications within conversations
-- Seamless payment experience during chats
-- Connection management for chat participants
+
+### Chat
+- Interactive chat
+- Community connection
+
+![Chat Interface](https://github.com/user-attachments/assets/21352e1d-3a1d-4160-96d2-88f7a467b4fe)
+
+### Wallet
+- Nostr Wallet Connect (NWC) integration
+- Real-time balance monitoring
+- Send and receive Lightning payments
+- QR code generation and scanning
+- Transaction history
+
+![Wallet-NWC](https://github.com/user-attachments/assets/02f5c67e-6e5d-4c29-bcff-7aff2e60ef5f)
 
 ### Content Management
-![Content Management](/public/image.png)
-
-Comprehensive content management system:
 - Create and manage content posts
 - Track content performance and engagement
 - Content monetization with zaps
-- Revenue analytics per content piece
+- Content analytics and insights
+
+![Content Management](https://storage.googleapis.com/geyser-images-distribution-prod-us/bdc7adfe-fd7c-43d4-a348-30ffd5f3ad99_new_content_ui_2/image_large.webp)
+
+[See Blog Post on Geyser](https://geyser.fund/project/zaptracker/posts/view/4860?hero=drshift)
+
 
 ### Analytics
-![Analytics Dashboard](/public/analytics.png)
+- Live zap tracking and statistics
+- Interactive charts and visualizations
+- Performance metrics and insights
+- Daily, weekly, and monthly activity views
 
-Comprehensive analytics including:
-- Daily zap activity trends
-- Top supporters analysis
-- Revenue performance metrics
-- Content engagement insights
+![Analytics Dashboard](https://storage.googleapis.com/geyser-images-distribution-prod-us/5508d59f-4a20-466f-87a4-5a6c38063a5f_Analytics_new/image_large.webp)
+
+
+### Audience
+- Build your community with [Follow Packs](https://github.com/callebtc/following.space)
+- Engage & grow your supporter base
+
+![Audience](https://storage.googleapis.com/geyser-images-distribution-prod-us/cd595b5c-2807-46f4-91f7-f8e722cea04f_Audience_2/image_large.webp)
+[See Blog Post on Geyser](https://geyser.fund/project/zaptracker/posts/view/4926?hero=drshift)
+
+### ZapGoals
+- Set funding goals like Kickstarter - but with Bitcoin zaps
+- Track progress, motivate supporters, unlock milestones
+
+![ZapGoals](https://storage.googleapis.com/geyser-images-distribution-prod-us/2069d1d6-edfb-4b78-b291-4de2b849c86a_sneak_peek_campaigns_4/image_large.webp)
+
+[See Blog Post on Geyser](https://geyser.fund/project/zaptracker/posts/view/4831?hero=drshift)
 
 [//]: # (## Technology Stack)
 
@@ -186,7 +172,7 @@ Comprehensive analytics including:
 
 [//]: # (- **Alby SDK** - Lightning wallet integration)
 
-[//]: # (- **QR Code** - Payment scanning and generation)
+[//]: # (- **QR Code** - BOLT11 Payment scanning and generation)
 
 [//]: # ()
 [//]: # (### Development Tools)
