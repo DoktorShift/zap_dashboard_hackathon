@@ -28,8 +28,10 @@ import {
 import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
+import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
 import { generateFallbackAvatar } from '../composables/useContentZaps.js'
+import EngagementMetrics from '../components/EngagementMetrics.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -63,6 +65,12 @@ const {
   getZapCount,
   getAllContentZaps
 } = useContentZaps()
+
+const {
+  startEngagementTracking,
+  getEngagementCounts,
+  cleanup: cleanupEngagement
+} = useEngagementMetrics()
 
 // Use BTC price composable
 const { satsToUSD, formatUSD } = useBtcPrice()
@@ -150,6 +158,24 @@ const noteStats = computed(() => {
     return sum + getTotalZapAmount(note.id)
   }, 0)
   
+  const totalLikes = notes.value.reduce((sum, note) => {
+    return sum + getEngagementCounts(note.id).likes
+  }, 0)
+  
+  const totalReposts = notes.value.reduce((sum, note) => {
+    return sum + getEngagementCounts(note.id).reposts
+  }, 0)
+  
+  const totalBookmarks = notes.value.reduce((sum, note) => {
+    return sum + getEngagementCounts(note.id).bookmarks
+  }, 0)
+  
+  const totalZapCount = notes.value.reduce((sum, note) => {
+    return sum + getZapCount(note.id)
+  }, 0)
+  
+  const totalEngagement = totalLikes + totalReposts + totalBookmarks
+  
   return {
     total: notes.value.length,
     thisWeek: notes.value.filter(note => {
@@ -157,7 +183,12 @@ const noteStats = computed(() => {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       return noteDate > weekAgo
     }).length,
-    totalZapRevenue
+    totalZapRevenue,
+    totalLikes,
+    totalReposts,
+    totalBookmarks,
+    totalZapCount,
+    totalEngagement
   }
 })
 
@@ -240,19 +271,32 @@ onMounted(() => {
   // Expose debug function globally for console access
   window.debugNotes = debugState
   
-  // Start tracking zaps for all notes
-  if (isAuthenticated.value && notes.value.length > 0) {
-    notes.value.forEach(note => {
-      startZapTracking(note.id)
-    })
+  // Start tracking zaps and engagement for all notes
+  if (isAuthenticated.value) {
+    if (notes.value.length > 0) {
+      notes.value.forEach(note => {
+        startZapTracking(note.id)
+        startEngagementTracking(note.id)
+      })
+    }
+    
+    setTimeout(() => {
+      if (notes.value.length > 0) {
+        notes.value.forEach(note => {
+          startZapTracking(note.id)
+          startEngagementTracking(note.id)
+        })
+      }
+    }, 1000)
   }
 })
 
-// Watch for notes changes to track zaps on new notes
+// Watch for notes changes to track zaps and engagement on new notes
 watch(notes, (newNotes) => {
   if (isAuthenticated.value && newNotes.length > 0) {
     newNotes.forEach(note => {
       startZapTracking(note.id)
+      startEngagementTracking(note.id)
     })
   }
 }, { deep: true })
@@ -326,6 +370,7 @@ const handleEmojiSelect = (emoji) => {
 onUnmounted(() => {
   // Clean up subscriptions when component unmounts
   cleanup()
+  cleanupEngagement()
   // Remove global debug function
   delete window.debugNotes
 })
@@ -416,7 +461,7 @@ onUnmounted(() => {
       <!-- Notes List View -->
       <div v-if="currentView === 'list'">
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <!-- Total Zap Revenue Card - Now Highlighted -->
           <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-4 rounded-xl shadow-sm">
             <div class="flex flex-col">
@@ -463,6 +508,34 @@ onUnmounted(() => {
               <IconBolt class="w-8 h-8 text-purple-600" />
             </div>
           </div>
+          
+          <!-- Total Engagement Card -->
+          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+            <div class="flex flex-col">
+              <p class="text-gray-600 text-sm mb-1">Engagement</p>
+              <p class="text-2xl font-bold text-gray-900">{{ noteStats.totalEngagement.toLocaleString() }}</p>
+              <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                <EngagementMetrics 
+                  :key="`stats-${noteStats.totalEngagement}-${noteStats.totalZapCount}`"
+                  :engagement-counts="{
+                    likes: noteStats.totalLikes,
+                    reposts: noteStats.totalReposts,
+                    bookmarks: noteStats.totalBookmarks,
+                    totalEngagement: noteStats.totalEngagement
+                  }"
+                  :zap-count="noteStats.totalZapCount"
+                  size="medium"
+                  text-size="text-sm"
+                  :show-all-metrics="false"
+                  :show-no-engagement-text="true"
+                  :show-tooltips="false"
+                />
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <IconUsers class="w-8 h-8 text-gray-600" />
+            </div>
+          </div>
         </div>
 
         <!-- Notes List -->
@@ -497,18 +570,18 @@ onUnmounted(() => {
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="flex-1 min-w-0 space-y-2">
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2 mb-2">
                     <h4 class="font-semibold text-gray-900 truncate">
                       {{ note.title }}
                     </h4>
                     <span v-if="getZapCount(note.id) > 0" 
                           class="flex items-center space-x-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">
-                      <IconBolt class="w-3 h-3" />
+                      <IconBolt class="w-3 h-3 text-orange-600 font-bold" />
                       <span>{{ formatZapAmount(getTotalZapAmount(note.id)) }}</span>
                     </span>
                   </div>
                   
-                  <p class="text-sm text-gray-600 line-clamp-2">
+                  <p class="text-sm text-gray-600 line-clamp-2 mb-3">
                     {{ note.preview }}
                   </p>
                   
@@ -517,6 +590,17 @@ onUnmounted(() => {
                       <IconCalendar class="w-3 h-3" />
                       <span>{{ formatDate(note.created_at) }}</span>
                     </span>
+                    
+                    <EngagementMetrics 
+                      :key="`engagement-${note.id}-${getEngagementCounts(note.id).totalEngagement}-${getZapCount(note.id)}`"
+                      :engagement-counts="getEngagementCounts(note.id)"
+                      :zap-count="getZapCount(note.id)"
+                      size="default"
+                      text-size="text-xs"
+                      :show-all-metrics="false"
+                      :show-no-engagement-text="true"
+                    />
+                    
                     <span v-if="note.hashtags && note.hashtags.length > 0" class="flex items-center gap-1">
                       <IconHash class="w-3 h-3" />
                       <span>{{ note.hashtags.slice(0, 2).join(', ') }}</span>
@@ -693,6 +777,14 @@ onUnmounted(() => {
                     <IconUser class="w-4 h-4" />
                     <span>{{ userProfile?.name || 'You' }}</span>
                   </span>
+                  <EngagementMetrics 
+                    :key="`detail-${selectedNote.id}-${getEngagementCounts(selectedNote.id).totalEngagement}-${getZapCount(selectedNote.id)}`"
+                    :engagement-counts="getEngagementCounts(selectedNote.id)"
+                    :zap-count="getZapCount(selectedNote.id)"
+                    size="default"
+                    text-size="text-sm"
+                    :show-no-engagement-text="true"
+                  />
                 </div>
               </div>
               
