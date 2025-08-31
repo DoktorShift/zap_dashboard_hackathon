@@ -226,9 +226,9 @@ const getSalesTooltip = (item) => {
 
                 <EngagementMetrics 
                   v-if="item.nostrEventId"
-                  :key="`content-engagement-${item.id}-${getEngagementCounts(item.nostrEventId).totalEngagement}-${item.zapAmount || 0}`"
+                  :key="`content-engagement-${item.id}-${getEngagementCounts(item.nostrEventId).totalEngagement}-${item.zapCount || 0}`"
                   :engagement-counts="getEngagementCounts(item.nostrEventId)"
-                  :zap-count="item.zapAmount || 0"
+                  :zap-count="item.zapCount || 0"
                   size="default"
                   text-size="text-xs"
                   :show-all-metrics="false"

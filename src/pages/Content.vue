@@ -737,9 +737,9 @@ onUnmounted(() => {
                     <span class="text-sm font-medium text-gray-600">Engagement</span>
                     <div class="flex items-center gap-2">
                       <EngagementMetrics 
-                        :key="`sidebar-engagement-${selectedContent.id}-${getEngagementCounts(selectedContent.nostrEventId).totalEngagement}-${getZapCount(selectedContent.nostrEventId)}`"
+                        :key="`sidebar-engagement-${selectedContent.id}-${getEngagementCounts(selectedContent.nostrEventId).totalEngagement}-${selectedContent.zapCount || 0}`"
                         :engagement-counts="getEngagementCounts(selectedContent.nostrEventId)"
-                        :zap-count="getZapCount(selectedContent.nostrEventId)"
+                        :zap-count="selectedContent.zapCount || 0"
                         size="default"
                         text-size="text-xs"
                         :show-all-metrics="false"
