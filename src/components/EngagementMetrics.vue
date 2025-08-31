@@ -58,6 +58,13 @@ const hasEngagement = computed(() =>
   (props.engagementCounts?.totalEngagement || 0) > 0 || props.zapCount > 0
 )
 
+const hasAnyEngagement = computed(() => 
+  (props.engagementCounts?.likes || 0) > 0 || 
+  (props.engagementCounts?.reposts || 0) > 0 || 
+  (props.engagementCounts?.bookmarks || 0) > 0 || 
+  props.zapCount > 0
+)
+
 const safeEngagementCounts = computed(() => ({
   likes: props.engagementCounts?.likes || 0,
   reposts: props.engagementCounts?.reposts || 0,
@@ -67,31 +74,31 @@ const safeEngagementCounts = computed(() => ({
 </script>
 
 <template>
-  <template v-if="hasEngagement || showAllMetrics">
-    <span v-if="safeEngagementCounts.likes > 0 || showAllMetrics" :class="['flex items-center gap-1', showTooltips ? 'tooltip-container' : '']">
+  <template v-if="hasAnyEngagement || showAllMetrics">
+    <span :class="['flex items-center gap-1', showTooltips ? 'tooltip-container' : '']">
       <IconHeartFilled v-if="safeEngagementCounts.likes > 0" :class="[iconSizeClass, 'text-red-500']" />
       <IconHeart v-else :class="[iconSizeClass, 'text-gray-400']" />
       <span :class="textSize">{{ safeEngagementCounts.likes }}</span>
-      <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.likes }} likes</div>
+      <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.likes }} {{ safeEngagementCounts.likes <= 1 ? 'like' : 'likes' }}</div>
     </span>
     
-    <span v-if="safeEngagementCounts.reposts > 0 || showAllMetrics" :class="['flex items-center gap-1', showTooltips ? 'tooltip-container' : '']">
+    <span :class="['flex items-center gap-1', showTooltips ? 'tooltip-container' : '']">
       <IconRepeat :class="[iconSizeClass, safeEngagementCounts.reposts > 0 ? 'text-green-500 font-bold' : 'text-gray-400']" />
       <span :class="textSize">{{ safeEngagementCounts.reposts }}</span>
-      <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.reposts }} reposts</div>
+      <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.reposts }} {{ safeEngagementCounts.reposts <= 1 ? 'repost' : 'reposts' }}</div>
     </span>
     
-    <span v-if="zapCount > 0 || showAllMetrics" :class="['flex items-center gap-1', showTooltips ? 'tooltip-container' : '']">
+    <span :class="['flex items-center gap-1', showTooltips ? 'tooltip-container' : '']">
       <IconBolt :class="[iconSizeClass, zapCount > 0 ? 'text-orange-500 font-bold' : 'text-gray-400']" />
       <span :class="textSize">{{ zapCount }}</span>
-      <div v-if="showTooltips" class="custom-tooltip">{{ zapCount }} zaps</div>
+      <div v-if="showTooltips" class="custom-tooltip">{{ zapCount }} {{ zapCount <= 1 ? 'zap' : 'zaps' }}</div>
     </span>
     
-    <span v-if="safeEngagementCounts.bookmarks > 0 || showAllMetrics" :class="['flex items-center gap-1', showTooltips ? 'tooltip-container' : '']">
+    <span :class="['flex items-center gap-1', showTooltips ? 'tooltip-container' : '']">
       <IconBookmarkFilled v-if="safeEngagementCounts.bookmarks > 0" :class="[iconSizeClass, 'text-blue-500']" />
       <IconBookmark v-else :class="[iconSizeClass, 'text-gray-400']" />
       <span :class="textSize">{{ safeEngagementCounts.bookmarks }}</span>
-      <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.bookmarks }} bookmarks</div>
+      <div v-if="showTooltips" class="custom-tooltip">{{ safeEngagementCounts.bookmarks }} {{ safeEngagementCounts.bookmarks <= 1 ? 'bookmark' : 'bookmarks' }}</div>
     </span>
   </template>
   

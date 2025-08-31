@@ -783,6 +783,7 @@ onUnmounted(() => {
                     :zap-count="getZapCount(selectedNote.id)"
                     size="default"
                     text-size="text-sm"
+                    :show-all-metrics="false"
                     :show-no-engagement-text="true"
                   />
                 </div>
