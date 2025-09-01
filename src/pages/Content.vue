@@ -22,11 +22,13 @@ import { useContent } from '../composables/useContent.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNostrLongForm } from '../composables/useNostrLongForm.js'
+import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { generateFallbackAvatar } from '../composables/useContentZaps.js'
 import ContentStats from '../components/ContentStats.vue'
 import ContentList from '../components/ContentList.vue'
 import ContentForm from '../components/ContentForm.vue'
 import ContentPerformance from '../components/ContentPerformance.vue'
+import EngagementMetrics from '../components/EngagementMetrics.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -80,6 +82,8 @@ if (!contentForm.description) {
 }
 
 const { getAllContentZaps } = useContentZaps()
+
+const { getEngagementCounts } = useEngagementMetrics()
 
 
 const handleCreateContent = async () => {
@@ -726,6 +730,24 @@ onUnmounted(() => {
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-gray-600">Revenue</span>
                   <span class="font-medium text-orange-600">{{ (selectedContent.revenue || 0).toLocaleString() }} sats</span>
+                </div>
+                
+                <div v-if="selectedContent.nostrEventId" class="border-t pt-3 mt-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-gray-600">Engagement</span>
+                    <div class="flex items-center gap-2">
+                      <EngagementMetrics 
+                        :key="`sidebar-engagement-${selectedContent.id}-${getEngagementCounts(selectedContent.nostrEventId).totalEngagement}-${selectedContent.zapCount || 0}`"
+                        :engagement-counts="getEngagementCounts(selectedContent.nostrEventId)"
+                        :zap-count="selectedContent.zapCount || 0"
+                        size="default"
+                        text-size="text-xs"
+                        :show-all-metrics="false"
+                        :show-no-engagement-text="true"
+                        :show-tooltips="false"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

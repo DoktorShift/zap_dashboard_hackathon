@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { 
   IconFileText, 
   IconMail, 
@@ -17,6 +17,8 @@ import {
   IconUsers,
   IconMenu
 } from '@iconify-prerendered/vue-tabler'
+import EngagementMetrics from './EngagementMetrics.vue'
+import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 
 const props = defineProps({
   items: {
@@ -24,6 +26,12 @@ const props = defineProps({
     required: true
   }
 })
+
+const { 
+  getEngagementCounts, 
+  startEngagementTracking,
+  startLongFormContentTracking
+} = useEngagementMetrics()
 
 // Track which dropdown is currently open
 const openDropdownId = ref(null)
@@ -38,11 +46,33 @@ const handleClickOutside = (event) => {
 // Add/remove event listener
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  
+      props.items.forEach(item => {
+      if (item.nostrEventId) {
+        if (item.creatorPubkey && item.id) {
+          startLongFormContentTracking(item.nostrEventId, item.creatorPubkey, item.id)
+        } else {
+          startEngagementTracking(item.nostrEventId)
+        }
+      }
+    })
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
+
+watch(() => props.items, (newItems) => {
+  newItems.forEach(item => {
+    if (item.nostrEventId) {
+      if (item.creatorPubkey && item.id) {
+        startLongFormContentTracking(item.nostrEventId, item.creatorPubkey, item.id)
+      } else {
+        startEngagementTracking(item.nostrEventId)
+      }
+    }
+  })
+}, { deep: true })
 
 const emit = defineEmits(['edit', 'delete', 'preview', 'duplicate', 'share', 'publish-nostr'])
 
@@ -193,6 +223,18 @@ const getSalesTooltip = (item) => {
                 <span v-if="item.nostrEventId && item.zapCount === 0" class="text-orange-500">
                   ⚡ Ready for zaps
                 </span>
+
+                <EngagementMetrics 
+                  v-if="item.nostrEventId"
+                  :key="`content-engagement-${item.id}-${getEngagementCounts(item.nostrEventId).totalEngagement}-${item.zapCount || 0}`"
+                  :engagement-counts="getEngagementCounts(item.nostrEventId)"
+                  :zap-count="item.zapCount || 0"
+                  size="default"
+                  text-size="text-xs"
+                  :show-all-metrics="false"
+                  :show-no-engagement-text="true"
+                  :show-tooltips="true"
+                />
               </div>
             </div>
           </div>
@@ -394,6 +436,7 @@ const getSalesTooltip = (item) => {
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
