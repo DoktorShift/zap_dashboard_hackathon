@@ -200,6 +200,7 @@ export function useEngagementMetrics() {
         })
       }
 
+      // Rely on relay manager for deduplication
       const subscription = nostrRelayManager.subscribeToEvents(filters, {
         onevent: (event) => {
           processEngagementEvent(event)
@@ -223,6 +224,7 @@ export function useEngagementMetrics() {
         }
       })
 
+      // Only track for UI cleanup, not deduplication
       const subscriptionId = `engagement-batch-${Date.now()}`
       activeSubscriptions.set(subscriptionId, subscription)
 
@@ -235,7 +237,6 @@ export function useEngagementMetrics() {
 
     } catch (error) {
       console.error('Failed to fetch engagement metrics:', error)
-      
       uniqueEventIds.forEach(eventId => {
         const metrics = engagementMetrics.get(eventId)
         if (metrics) {
