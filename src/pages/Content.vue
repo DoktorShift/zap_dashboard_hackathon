@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, onUnmounted } from 'vue'
+import { computed, onMounted, ref, onUnmounted, watch } from 'vue'
 import * as nip19 from 'nostr-tools/nip19'
 import {
   IconFileText,
