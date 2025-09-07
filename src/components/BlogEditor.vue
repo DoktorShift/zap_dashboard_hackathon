@@ -729,7 +729,7 @@ const syncScroll = (source) => {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Cover Image URL</label>
             <input
-              v-model="props.form.image"
+              v-model="props.form.coverImage"
               type="url"
               placeholder="https://example.com/image.jpg"
               class="w-full px-3 py-2 border-0 bg-gray-50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:bg-white transition-all duration-200 text-sm"
