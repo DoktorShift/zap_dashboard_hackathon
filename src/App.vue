@@ -34,6 +34,10 @@ const processedEventIds = new Set() // Track processed event IDs to prevent dupl
 // Track processed payment hashes for deduplication across NWC and NIP-57
 const processedPaymentHashes = new Set()
 
+// UI state for dismissible banners
+const showLargeDatasetBanner = ref(true)
+let largeDatasetBannerTimeout = null
+
 // Profile cache to avoid repeated fetches
 const profileCache = new Map()
 const profileFetchPromises = new Map()
@@ -342,6 +346,39 @@ const enhancedCombinedZapData = computed(() => {
     return zap
   })
 })
+
+// Auto-show and auto-hide logic for the large dataset banner
+const scheduleLargeDatasetBannerHide = () => {
+  if (largeDatasetBannerTimeout) {
+    clearTimeout(largeDatasetBannerTimeout)
+    largeDatasetBannerTimeout = null
+  }
+  largeDatasetBannerTimeout = setTimeout(() => {
+    showLargeDatasetBanner.value = false
+  }, 5000)
+}
+
+watch(
+  () => ({
+    len: enhancedCombinedZapData.value.filter(zap => zap.eventId).length,
+    loading: dataLoadingProgress.value.isLoading
+  }),
+  ({ len, loading }) => {
+    if (len > 50 && !loading) {
+      showLargeDatasetBanner.value = true
+      scheduleLargeDatasetBannerHide()
+    }
+  },
+  { immediate: true }
+)
+
+const dismissLargeDatasetBanner = () => {
+  showLargeDatasetBanner.value = false
+  if (largeDatasetBannerTimeout) {
+    clearTimeout(largeDatasetBannerTimeout)
+    largeDatasetBannerTimeout = null
+  }
+}
 
 // Provide data to child components
 provide('zapData', zapData)
@@ -910,7 +947,7 @@ provide('isPageLoading', isPageLoading)
           
           <!-- Data Summary for Large Datasets -->
           <transition name="slide-down">
-            <div v-if="enhancedCombinedZapData.length > 50 && !dataLoadingProgress.isLoading" class="mb-4 lg:mb-6">
+            <div v-if="enhancedCombinedZapData.length > 50 && !dataLoadingProgress.isLoading && showLargeDatasetBanner" class="mb-4 lg:mb-6">
               <div class="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3 sm:p-4">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div class="flex items-center space-x-2">
@@ -928,13 +965,18 @@ provide('isPageLoading', isPageLoading)
                       </p>
                     </div>
                   </div>
-                  <div class="text-xs text-green-600">
+                  <div class="text-xs text-green-600 flex items-center space-x-3">
                     <span class="inline-flex items-center">
                       <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
                       </svg>
                       Optimized for large datasets
                     </span>
+                    <button @click="dismissLargeDatasetBanner" class="text-green-700 hover:text-green-900 p-1 rounded-md hover:bg-green-100 transition-colors" aria-label="Dismiss">
+                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
