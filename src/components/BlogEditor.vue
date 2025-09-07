@@ -173,6 +173,183 @@ const makeItalic = () => insertAtCursor('*', '*', 'italic text')
 const makeStrikethrough = () => insertAtCursor('~~', '~~', 'strikethrough text')
 const makeInlineCode = () => insertAtCursor('`', '`', 'code')
 
+// Enhanced formatting functions with proper toggle behavior
+const toggleInlineFormat = (marker, placeholder) => {
+  const textarea = contentTextarea.value
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const selectedText = props.form.content.substring(start, end)
+  
+  if (!selectedText) {
+    // No selection - insert placeholder with markers
+    insertAtCursor(marker, marker, placeholder)
+    return
+  }
+  
+  // Check if selected text is already formatted
+  const beforeSelection = props.form.content.substring(Math.max(0, start - marker.length), start)
+  const afterSelection = props.form.content.substring(end, end + marker.length)
+  
+  const isAlreadyFormatted = beforeSelection === marker && afterSelection === marker
+  
+  if (isAlreadyFormatted) {
+    // Remove formatting (toggle off)
+    const newStart = start - marker.length
+    const newEnd = end + marker.length
+    const newContent = props.form.content.substring(0, newStart) + 
+                      selectedText + 
+                      props.form.content.substring(newEnd)
+    
+    props.form.content = newContent
+    
+    nextTick(() => {
+      textarea.focus()
+      textarea.setSelectionRange(newStart, newStart + selectedText.length)
+    })
+  } else {
+    // Add formatting (toggle on)
+    const newContent = props.form.content.substring(0, start) + 
+                      marker + selectedText + marker + 
+                      props.form.content.substring(end)
+    
+    props.form.content = newContent
+    
+    nextTick(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + marker.length, start + marker.length + selectedText.length)
+    })
+  }
+}
+
+const toggleBlockFormat = (prefix, placeholder) => {
+  const textarea = contentTextarea.value
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  
+  if (start === end) {
+    // No selection - insert at new line
+    insertAtNewLine(`${prefix} ${placeholder}`)
+    return
+  }
+  
+  // Get selected text and split into lines
+  const selectedText = props.form.content.substring(start, end)
+  const lines = selectedText.split('\n')
+  
+  // Check if all lines are already formatted
+  const allFormatted = lines.every(line => line.trim().startsWith(prefix + ' '))
+  
+  let newLines
+  if (allFormatted) {
+    // Remove formatting from all lines (toggle off)
+    newLines = lines.map(line => {
+      const trimmed = line.trim()
+      if (trimmed.startsWith(prefix + ' ')) {
+        const withoutPrefix = trimmed.substring(prefix.length + 1)
+        // Preserve original indentation
+        const leadingSpaces = line.match(/^(\s*)/)[1]
+        return leadingSpaces + withoutPrefix
+      }
+      return line
+    })
+  } else {
+    // Add formatting to all lines (toggle on)
+    newLines = lines.map(line => {
+      const trimmed = line.trim()
+      if (trimmed && !trimmed.startsWith(prefix + ' ')) {
+        // Preserve original indentation
+        const leadingSpaces = line.match(/^(\s*)/)[1]
+        return leadingSpaces + prefix + ' ' + trimmed
+      }
+      return line
+    })
+  }
+  
+  const newSelectedText = newLines.join('\n')
+  const newContent = props.form.content.substring(0, start) + 
+                    newSelectedText + 
+                    props.form.content.substring(end)
+  
+  props.form.content = newContent
+  
+  nextTick(() => {
+    textarea.focus()
+    textarea.setSelectionRange(start, start + newSelectedText.length)
+  })
+}
+
+// Updated formatting functions with toggle behavior
+const makeBoldToggle = () => toggleInlineFormat('**', 'bold text')
+const makeItalicToggle = () => toggleInlineFormat('*', 'italic text')
+const makeStrikethroughToggle = () => toggleInlineFormat('~~', 'strikethrough text')
+const makeInlineCodeToggle = () => toggleInlineFormat('`', 'code')
+
+const insertHeaderToggle = (level) => {
+  const prefix = '#'.repeat(level)
+  toggleBlockFormat(prefix, `Heading ${level}`)
+}
+
+const insertBulletListToggle = () => toggleBlockFormat('-', 'List item')
+const insertNumberedListToggle = () => {
+  const textarea = contentTextarea.value
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  
+  if (start === end) {
+    // No selection - insert at new line
+    insertAtNewLine('1. List item')
+    return
+  }
+  
+  // Get selected text and split into lines
+  const selectedText = props.form.content.substring(start, end)
+  const lines = selectedText.split('\n')
+  
+  // Check if all lines are already formatted as numbered list
+  const allFormatted = lines.every(line => /^\s*\d+\.\s/.test(line.trim()))
+  
+  let newLines
+  if (allFormatted) {
+    // Remove numbering from all lines (toggle off)
+    newLines = lines.map(line => {
+      const leadingSpaces = line.match(/^(\s*)/)[1]
+      const withoutNumber = line.replace(/^\s*\d+\.\s/, '')
+      return leadingSpaces + withoutNumber
+    })
+  } else {
+    // Add numbering to all lines (toggle on)
+    let counter = 1
+    newLines = lines.map(line => {
+      const trimmed = line.trim()
+      if (trimmed && !/^\d+\.\s/.test(trimmed)) {
+        const leadingSpaces = line.match(/^(\s*)/)[1]
+        return leadingSpaces + `${counter++}. ` + trimmed
+      }
+      return line
+    })
+  }
+  
+  const newSelectedText = newLines.join('\n')
+  const newContent = props.form.content.substring(0, start) + 
+                    newSelectedText + 
+                    props.form.content.substring(end)
+  
+  props.form.content = newContent
+  
+  nextTick(() => {
+    textarea.focus()
+    textarea.setSelectionRange(start, start + newSelectedText.length)
+  })
+}
+
+const insertQuoteToggle = () => toggleBlockFormat('>', 'Quote text')
+
 const insertHeader = (level) => {
   const hashes = '#'.repeat(level)
   insertAtNewLine(`${hashes} Heading ${level}`)
@@ -255,11 +432,11 @@ const handleKeydown = (event) => {
     switch (event.key) {
       case 'b':
         event.preventDefault()
-        makeBold()
+        makeBoldToggle()
         break
       case 'i':
         event.preventDefault()
-        makeItalic()
+        makeItalicToggle()
         break
       case 'Enter':
         if (event.shiftKey) {
@@ -597,16 +774,16 @@ const syncScroll = (source) => {
           <div class="flex items-center space-x-1">
             <!-- Text Formatting -->
             <div class="flex items-center space-x-0.5">
-              <button @click="makeBold" class="toolbar-btn" title="Bold (Ctrl+B)">
+              <button @click="makeBoldToggle" class="toolbar-btn" title="Bold (Ctrl+B) - Toggle">
                 <IconBold class="w-4 h-4" />
               </button>
-              <button @click="makeItalic" class="toolbar-btn" title="Italic (Ctrl+I)">
+              <button @click="makeItalicToggle" class="toolbar-btn" title="Italic (Ctrl+I) - Toggle">
                 <IconItalic class="w-4 h-4" />
               </button>
-              <button @click="makeStrikethrough" class="toolbar-btn" title="Strikethrough">
+              <button @click="makeStrikethroughToggle" class="toolbar-btn" title="Strikethrough - Toggle">
                 <IconStrikethrough class="w-4 h-4" />
               </button>
-              <button @click="makeInlineCode" class="toolbar-btn" title="Inline Code">
+              <button @click="makeInlineCodeToggle" class="toolbar-btn" title="Inline Code - Toggle">
                 <IconCode class="w-4 h-4" />
               </button>
             </div>
@@ -615,13 +792,13 @@ const syncScroll = (source) => {
 
             <!-- Headers -->
             <div class="flex items-center space-x-0.5">
-              <button @click="insertHeader(1)" class="toolbar-btn" title="Heading 1">
+              <button @click="insertHeaderToggle(1)" class="toolbar-btn" title="Heading 1 - Toggle">
                 <IconH1 class="w-4 h-4" />
               </button>
-              <button @click="insertHeader(2)" class="toolbar-btn" title="Heading 2">
+              <button @click="insertHeaderToggle(2)" class="toolbar-btn" title="Heading 2 - Toggle">
                 <IconH2 class="w-4 h-4" />
               </button>
-              <button @click="insertHeader(3)" class="toolbar-btn" title="Heading 3">
+              <button @click="insertHeaderToggle(3)" class="toolbar-btn" title="Heading 3 - Toggle">
                 <IconH3 class="w-4 h-4" />
               </button>
             </div>
@@ -630,13 +807,13 @@ const syncScroll = (source) => {
 
             <!-- Lists and Elements -->
             <div class="flex items-center space-x-0.5">
-              <button @click="insertBulletList" class="toolbar-btn" title="Bullet List">
+              <button @click="insertBulletListToggle" class="toolbar-btn" title="Bullet List - Toggle">
                 <IconList class="w-4 h-4" />
               </button>
-              <button @click="insertNumberedList" class="toolbar-btn" title="Numbered List">
+              <button @click="insertNumberedListToggle" class="toolbar-btn" title="Numbered List - Toggle">
                 <IconListNumbers class="w-4 h-4" />
               </button>
-              <button @click="insertQuote" class="toolbar-btn" title="Quote">
+              <button @click="insertQuoteToggle" class="toolbar-btn" title="Quote - Toggle">
                 <IconQuote class="w-4 h-4" />
               </button>
               <button @click="openLinkModal" class="toolbar-btn" title="Insert Link">
