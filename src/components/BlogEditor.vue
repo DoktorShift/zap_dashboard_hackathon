@@ -642,6 +642,22 @@ const syncScroll = (source) => {
               <button @click="openLinkModal" class="toolbar-btn" title="Insert Link">
                 <IconLink class="w-4 h-4" />
               </button>
+              <button
+                @click="openImageModal"
+                type="button"
+                class="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-200 group"
+                title="Insert Image"
+              >
+                <IconPhoto class="w-4 h-4 group-hover:scale-110 transition-transform" />
+              </button>
+              <button
+                @click="openVideoModal"
+                type="button"
+                class="p-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all duration-200 group"
+                title="Insert Video"
+              >
+                <IconVideo class="w-4 h-4 group-hover:scale-110 transition-transform" />
+              </button>
             </div>
           </div>
 
@@ -662,16 +678,11 @@ const syncScroll = (source) => {
                 <span class="text-lg leading-none">😊</span>
               </button>
 
-              <Teleport to="body">
-                <div v-if="showEmojiPicker" 
-                     class="fixed z-[9999] shadow-xl rounded-lg bg-white"
-                     :style="{ 
-                       top: emojiButton?.getBoundingClientRect().bottom + 8 + 'px',
-                       left: emojiButton?.getBoundingClientRect().left + 'px'
-                     }">
-                  <EmojiPicker @select="handleEmojiSelect" :native="true" />
-                </div>
-              </Teleport>
+              <!-- Emoji Picker positioned relative to button -->
+              <div v-if="showEmojiPicker" 
+                   class="absolute top-full right-0 mt-2 z-[9999] shadow-xl rounded-lg bg-white border border-gray-200">
+                <EmojiPicker @select="handleEmojiSelect" :native="true" />
+              </div>
             </div>
           </div>
         </div>
@@ -876,6 +887,58 @@ Focus on your content - everything else fades away."
         </div>
       </div>
     </div>
+
+    <!-- Video Modal -->
+    <div v-if="showVideoModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showVideoModal = false"></div>
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+          <div class="flex items-center justify-between p-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Insert Video</h3>
+            <button @click="showVideoModal = false" class="text-gray-400 hover:text-gray-600">
+              <IconX class="w-5 h-5" />
+            </button>
+          </div>
+          <div class="p-4 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Video URL</label>
+              <input
+                v-model="videoForm.url"
+                type="url"
+                placeholder="https://example.com/video.mp4"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                @keyup.enter="insertVideo"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Video Title</label>
+              <input
+                v-model="videoForm.title"
+                type="text"
+                placeholder="Video description"
+                class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                @keyup.enter="insertVideo"
+              />
+            </div>
+            <div class="flex justify-end space-x-3">
+              <button
+                @click="showVideoModal = false"
+                class="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                @click="insertVideo"
+                :disabled="!videoForm.url.trim()"
+                class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+              >
+                Insert Video
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1045,6 +1108,8 @@ textarea {
   border: 1px solid var(--ep-color-border);
   border-radius: 0.75rem;
   max-height: 350px;
+  position: relative;
+  z-index: 9999;
 }
 
 /* Mobile optimizations */
