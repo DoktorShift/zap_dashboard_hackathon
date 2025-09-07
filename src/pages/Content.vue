@@ -16,7 +16,11 @@ import {
   IconAlertCircle,
   IconExternalLink,
   IconChevronDown,
-  IconHash
+  IconHash,
+  IconEdit,
+  IconEyeOff,
+  IconColumns,
+  IconMaximize
 } from '@iconify-prerendered/vue-tabler'
 import { useContent } from '../composables/useContent.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
@@ -29,6 +33,7 @@ import ContentList from '../components/ContentList.vue'
 import ContentForm from '../components/ContentForm.vue'
 import ContentPerformance from '../components/ContentPerformance.vue'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
+import BlogEditor from '../components/BlogEditor.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -85,6 +90,19 @@ const { getAllContentZaps } = useContentZaps()
 
 const { getEngagementCounts } = useEngagementMetrics()
 
+
+// Writing mode state
+const isWritingMode = computed(() => {
+  return currentView.value === 'create' || currentView.value === 'edit'
+})
+
+// Emit writing mode changes to parent (App.vue) to hide navigation
+const emit = defineEmits(['writing-mode-change'])
+
+// Watch for writing mode changes and emit to parent
+watch(isWritingMode, (writingMode) => {
+  emit('writing-mode-change', writingMode)
+}, { immediate: true })
 
 const handleCreateContent = async () => {
   try {
@@ -480,7 +498,7 @@ onUnmounted(() => {
 
       <!-- Create/Edit Content Form -->
       <div v-else-if="currentView === 'create' || currentView === 'edit'">
-        <ContentForm
+        <BlogEditor
           :form="contentForm"
           :is-editing="currentView === 'edit'"
           :is-loading="isLoading"
