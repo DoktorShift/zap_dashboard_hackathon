@@ -59,7 +59,7 @@ const emit = defineEmits(['submit', 'save-draft', 'cancel'])
 const viewMode = ref('both') // 'edit', 'preview', 'both'
 const focusMode = ref(false)
 const showToolbar = ref(true)
-const showMetadata = ref(false)
+const showMetadata = ref(true)
 
 // Refs for editor functionality
 const contentTextarea = ref(null)
