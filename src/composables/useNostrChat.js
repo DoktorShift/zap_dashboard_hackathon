@@ -7,6 +7,7 @@ import { nip04 } from 'nostr-tools'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { payInvoice, makeInvoice } from '../utils/nwcClient.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { fetchProfile } from '../utils/profileFetcher.js'
 
 // Global state for chat
 const conversations = ref(new Map()) // Map<pubkey, conversation>
@@ -19,10 +20,6 @@ const error = ref('')
 let chatSubscription = null
 let profileSubscriptions = new Map()
 const processedEventIds = new Set()
-
-// Profile cache to avoid repeated fetches
-const profileCache = new Map()
-const profileFetchPromises = new Map()
 
 // Message structure
 const createMessage = (event, decryptedContent, isOutgoing = false) => {
@@ -82,113 +79,14 @@ const generateFallbackAvatar = (pubkey) => {
   return avatars[Math.abs(hash) % avatars.length]
 }
 
-// Enhanced profile fetching with caching and error handling
-const fetchUserProfileEnhanced = async (pubkey) => {
-  // Check cache first
-  if (profileCache.has(pubkey)) {
-    const cached = profileCache.get(pubkey)
-    // Use cached profile if it's less than 1 hour old
-    if (Date.now() - cached.timestamp < 3600000) {
-      return cached.profile
-    }
+// Fetch user profile using centralized profileFetcher
+const fetchUserProfile = async (pubkey) => {
+  const profile = await fetchProfile(pubkey, { ttl: 3600000 })
+  // Fallback avatar if missing
+  if (profile && !profile.picture) {
+    profile.picture = generateFallbackAvatar(pubkey)
   }
-
-  // Check if we're already fetching this profile
-  if (profileFetchPromises.has(pubkey)) {
-    return profileFetchPromises.get(pubkey)
-  }
-
-  // Create the fetch promise
-  const fetchPromise = _fetchProfileFromNostr(pubkey)
-  profileFetchPromises.set(pubkey, fetchPromise)
-
-  try {
-    const profile = await fetchPromise
-    
-    // Cache the result
-    profileCache.set(pubkey, {
-      profile,
-      timestamp: Date.now()
-    })
-    
-    return profile
-  } catch (error) {
-    console.warn(`Failed to fetch profile for ${pubkey.substring(0, 8)}:`, error)
-    // Return a fallback profile
-    return {
-      name: `User ${pubkey.substring(0, 8)}`,
-      picture: generateFallbackAvatar(pubkey),
-      nip05: null,
-      about: null
-    }
-  } finally {
-    profileFetchPromises.delete(pubkey)
-  }
-}
-
-// Internal function to fetch profile from Nostr relays
-const _fetchProfileFromNostr = async (pubkey) => {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('Profile fetch timeout'))
-    }, 15000) // 15 second timeout
-
-    try {
-      console.log('🔍 Fetching profile for:', pubkey.substring(0, 8) + '...')
-      
-      const profileSub = nostrRelayManager.subscribeToEvents([
-        {
-          kinds: [0], // Profile metadata
-          authors: [pubkey],
-          limit: 1
-        }
-      ], {
-        onevent: (event) => {
-          try {
-            clearTimeout(timeout)
-            const profileData = JSON.parse(event.content)
-            
-            const profile = {
-              name: profileData.name || profileData.display_name || `User ${pubkey.substring(0, 8)}`,
-              picture: profileData.picture || profileData.avatar || generateFallbackAvatar(pubkey),
-              nip05: profileData.nip05 || null,
-              about: profileData.about || null,
-              lud16: profileData.lud16 || null,
-              website: profileData.website || null
-            }
-            
-            console.log('✅ Profile fetched successfully for:', profile.name)
-            profileSub.close()
-            resolve(profile)
-          } catch (error) {
-            console.warn('⚠️ Failed to parse profile data:', error)
-            clearTimeout(timeout)
-            profileSub.close()
-            reject(error)
-          }
-        },
-        oneose: () => {
-          // If no profile found, resolve with fallback after a short delay
-          setTimeout(() => {
-            clearTimeout(timeout)
-            profileSub.close()
-            resolve({
-              name: `User ${pubkey.substring(0, 8)}`,
-              picture: generateFallbackAvatar(pubkey),
-              nip05: null,
-              about: null
-            })
-          }, 2000) // Wait 2 seconds for potential profile events
-        },
-        onclose: () => {
-          clearTimeout(timeout)
-        }
-      })
-    } catch (error) {
-      clearTimeout(timeout)
-      reject(error)
-    }
-  })
+  return profile
 }
 
 export function useNostrChat() {
@@ -293,7 +191,6 @@ export function useNostrChat() {
         : event.pubkey
 
       if (!otherPartyPubkey) {
-        console.warn('⚠️ No recipient found in message tags')
         return
       }
 
@@ -345,15 +242,11 @@ export function useNostrChat() {
       if (!conversation) {
         conversation = createConversation(otherPartyPubkey)
         conversations.value.set(otherPartyPubkey, conversation)
-        
-        // Fetch profile for new conversation with enhanced fetching
-        fetchUserProfileEnhanced(otherPartyPubkey).then(profile => {
+        // Fetch profile for new conversation using centralized fetcher
+        fetchUserProfile(otherPartyPubkey).then(profile => {
           if (conversation) {
             conversation.profile = profile
-            console.log('✅ Updated conversation profile for:', profile.name)
           }
-        }).catch(error => {
-          console.warn('Failed to update conversation profile:', error)
         })
       }
 
@@ -381,12 +274,6 @@ export function useNostrChat() {
     } catch (error) {
       console.error('❌ Failed to process incoming message:', error)
     }
-  }
-
-  // Fetch user profile
-  const fetchUserProfile = async (pubkey) => {
-    // Use the enhanced profile fetching
-    return fetchUserProfileEnhanced(pubkey)
   }
 
   // Send a message
@@ -527,7 +414,7 @@ export function useNostrChat() {
         messages.value.set(pubkey, [])
         
         // Fetch profile with enhanced fetching
-        fetchUserProfileEnhanced(pubkey).then(profile => {
+        fetchUserProfile(pubkey).then(profile => {
           if (conversation) {
             conversation.profile = profile
             console.log('✅ Updated new conversation profile for:', profile.name)
@@ -580,10 +467,7 @@ export function useNostrChat() {
   // Refresh profile for a conversation
   const refreshConversationProfile = async (pubkey) => {
     try {
-      // Clear cache for this pubkey to force fresh fetch
-      profileCache.delete(pubkey)
-      
-      const profile = await fetchUserProfileEnhanced(pubkey)
+      const profile = await fetchUserProfile(pubkey)
       const conversation = conversations.value.get(pubkey)
       
       if (conversation) {

@@ -3,6 +3,7 @@ import { useNostrAuth } from './useNostrAuth.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import * as nip19 from 'nostr-tools/nip19'
+import { fetchProfile, batchFetchProfiles, profileCache } from '../utils/profileFetcher.js'
 
 // Global state for follow lists
 const myLists = ref([]) // Lists created by current user
@@ -17,8 +18,8 @@ let discoveredListsSubscription = null
 let profileSubscriptions = new Map()
 const processedEventIds = new Set()
 
-// Profile cache for list members
-const profileCache = new Map()
+// Profile cache for list members (re-export local reference to shared cache)
+// const profileCache = new Map() // replaced by shared profileCache imported
 const profileFetchPromises = new Map()
 
 // Storage keys
@@ -55,12 +56,15 @@ const loadFromStorage = () => {
   try {
     const storedMyLists = localStorage.getItem(MY_LISTS_STORAGE_KEY)
     if (storedMyLists) {
-      myLists.value = JSON.parse(storedMyLists)
+      const parsed = JSON.parse(storedMyLists)
+      // ensure members arrays exist
+      myLists.value = parsed.map(list => ({ ...list, members: (list.members || []) }))
     }
     
     const storedDiscovered = localStorage.getItem(DISCOVERED_LISTS_STORAGE_KEY)
     if (storedDiscovered) {
-      discoveredLists.value = JSON.parse(storedDiscovered)
+      const parsed = JSON.parse(storedDiscovered)
+      discoveredLists.value = parsed.map(list => ({ ...list, members: (list.members || []) }))
     }
     
     const storedProfiles = localStorage.getItem(PROFILES_STORAGE_KEY)
@@ -98,119 +102,6 @@ const saveToStorage = () => {
   }
 }
 
-// Fetch profile with caching
-const fetchProfile = async (pubkey) => {
-  // Check cache first
-  if (profileCache.has(pubkey)) {
-    const cached = profileCache.get(pubkey)
-    // Use cached profile if it's less than 24 hours old
-    if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
-      return cached.profile
-    }
-  }
-
-  // Check if we're already fetching this profile
-  if (profileFetchPromises.has(pubkey)) {
-    return profileFetchPromises.get(pubkey)
-  }
-
-  // Create the fetch promise
-  const fetchPromise = _fetchProfileFromNostr(pubkey)
-  profileFetchPromises.set(pubkey, fetchPromise)
-
-  try {
-    const profile = await fetchPromise
-    
-    // Cache the result
-    profileCache.set(pubkey, {
-      profile,
-      timestamp: Date.now()
-    })
-    
-    return profile
-  } catch (error) {
-    console.warn(`Failed to fetch profile for ${pubkey.substring(0, 8)}:`, error)
-    // Return a fallback profile
-    const fallbackProfile = {
-      pubkey,
-      name: `user:${pubkey.substring(0, 8)}`,
-      picture: generateFallbackAvatar(pubkey),
-      nip05: null,
-      about: null
-    }
-    
-    profileCache.set(pubkey, { profile: fallbackProfile, timestamp: Date.now() })
-    return fallbackProfile
-  } finally {
-    profileFetchPromises.delete(pubkey)
-  }
-}
-
-// Internal function to fetch profile from Nostr relays
-const _fetchProfileFromNostr = async (pubkey) => {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('Profile fetch timeout'))
-    }, 15000)
-
-    try {
-      const profileSub = nostrRelayManager.subscribeToEvents([
-        {
-          kinds: [0],
-          authors: [pubkey],
-          limit: 1
-        }
-      ], {
-        onevent: (event) => {
-          try {
-            clearTimeout(timeout)
-            const profileData = JSON.parse(event.content)
-            
-            const profile = {
-              pubkey,
-              name: profileData.name || profileData.display_name || `user:${pubkey.substring(0, 8)}`,
-              picture: profileData.picture || generateFallbackAvatar(pubkey),
-              banner: profileData.banner || null,
-              about: profileData.about || null,
-              nip05: profileData.nip05 || null,
-              lud16: profileData.lud16 || null,
-              website: profileData.website || null,
-              updated_at: Date.now()
-            }
-            
-            profileSub.close()
-            resolve(profile)
-          } catch (error) {
-            clearTimeout(timeout)
-            profileSub.close()
-            reject(error)
-          }
-        },
-        oneose: () => {
-          setTimeout(() => {
-            clearTimeout(timeout)
-            profileSub.close()
-            resolve({
-              pubkey,
-              name: `user:${pubkey.substring(0, 8)}`,
-              picture: generateFallbackAvatar(pubkey),
-              nip05: null,
-              about: null,
-              updated_at: Date.now()
-            })
-          }, 2000)
-        },
-        onclose: () => {
-          clearTimeout(timeout)
-        }
-      })
-    } catch (error) {
-      clearTimeout(timeout)
-      reject(error)
-    }
-  })
-}
-
 // Process follow list event according to NIP-39089
 const processFollowListEvent = (event) => {
   try {
@@ -219,7 +110,7 @@ const processFollowListEvent = (event) => {
     const descriptionTag = event.tags.find(tag => tag[0] === 'description')
     const imageTag = event.tags.find(tag => tag[0] === 'image')
     
-    // Extract members from 'p' tags
+    // Extract members from 'p' tags (raw pubkeys)
     const members = event.tags
       .filter(tag => tag[0] === 'p' && tag[1])
       .map(tag => tag[1])
@@ -238,12 +129,12 @@ const processFollowListEvent = (event) => {
       rawEvent: event
     }
 
-    // Fetch profiles for all members asynchronously
+    // Fetch profiles for all members asynchronously (use shared fetchProfile and batch)
+    // call individual fetchProfile to ensure promises and cache usage, and batch for efficiency
     members.forEach(pubkey => {
-      fetchProfile(pubkey).catch(error => {
-        console.warn(`Failed to fetch profile for list member ${pubkey.substring(0, 8)}:`, error)
-      })
+      fetchProfile(pubkey).catch(() => {})
     })
+    batchFetchProfiles(members)
 
     return list
   } catch (error) {
@@ -760,7 +651,8 @@ export function useFollowLists() {
       }
 
       // CRITICAL: Merge with new follows using Set to avoid duplicates
-      const newFollows = list.members.filter(pubkey => !currentFollows.includes(pubkey))
+      const normalizedMembers = list.members || []
+      const newFollows = normalizedMembers.filter(pubkey => !currentFollows.includes(pubkey))
       const mergedFollows = [...new Set([...currentFollows, ...newFollows])]
       
       console.log('Follow merge analysis:', {
@@ -778,7 +670,8 @@ export function useFollowLists() {
           newFollows: 0, 
           totalFollows: mergedFollows.length,
           alreadyFollowingAll: true,
-          message: `You're already following all ${list.members.length} members of "${list.title}"`
+          message: `You're already following all ${list.members.length} members of "${list.title}"`,
+          updatedFollows: mergedFollows
         }
       }
 
@@ -817,10 +710,9 @@ export function useFollowLists() {
 
       // Fetch profiles for new follows
       newFollows.forEach(pubkey => {
-        fetchProfile(pubkey).catch(error => {
-          console.warn(`Failed to fetch profile for new follow ${pubkey.substring(0, 8)}:`, error)
-        })
+        fetchProfile(pubkey).catch(() => {})
       })
+      batchFetchProfiles(newFollows)
 
       return {
         success: true,
@@ -868,7 +760,7 @@ export function useFollowLists() {
       // Extract current follows
       let currentFollows = []
       if (currentFollowingEvent) {
-        currentFollows = currentFollowingEvent.tags
+        currentFollows = currentFollows = currentFollowingEvent.tags
           .filter(tag => tag[0] === 'p' && tag[1])
           .map(tag => tag[1])
         console.log('Current follows from Nostr:', currentFollows.length)
@@ -877,7 +769,8 @@ export function useFollowLists() {
       }
 
       // CRITICAL: Merge with selected follows using Set to avoid duplicates
-      const newFollows = selectedPubkeys.filter(pubkey => !currentFollows.includes(pubkey))
+      const normalizedSelected = selectedPubkeys || []
+      const newFollows = normalizedSelected.filter(pubkey => !currentFollows.includes(pubkey))
       const mergedFollows = [...new Set([...currentFollows, ...newFollows])]
       
       console.log('Selective follow merge analysis:', {
@@ -895,7 +788,8 @@ export function useFollowLists() {
           newFollows: 0, 
           totalFollows: mergedFollows.length,
           alreadyFollowingAll: true,
-          message: `You're already following all ${selectedPubkeys.length} selected members`
+          message: `You're already following all ${selectedPubkeys.length} selected members`,
+          updatedFollows: mergedFollows
         }
       }
 
@@ -934,10 +828,9 @@ export function useFollowLists() {
 
       // Fetch profiles for new follows
       newFollows.forEach(pubkey => {
-        fetchProfile(pubkey).catch(error => {
-          console.warn(`Failed to fetch profile for new follow ${pubkey.substring(0, 8)}:`, error)
-        })
+        fetchProfile(pubkey).catch(() => {})
       })
+      batchFetchProfiles(newFollows)
 
       return {
         success: true,
