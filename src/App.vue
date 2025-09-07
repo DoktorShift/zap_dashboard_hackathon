@@ -28,6 +28,7 @@ import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
 import { useNostrNotes } from './composables/useNostrNotes.js'
+import Calendar from './pages/Calendar.vue'
 
 // Track processed event IDs to prevent duplicates
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
@@ -344,7 +345,8 @@ const components = {
   finances: Finances,
   settings: Settings,
   'invoice-share': InvoiceShare,
-  notes: Notes
+  notes: Notes,
+  calendar: Calendar
 }
 
 // Check if current page is standalone
