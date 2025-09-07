@@ -18,7 +18,8 @@ import {
   IconGift,
   IconShoppingCart,
   IconUsers,
-  IconEdit
+  IconEdit,
+  IconCalendar
 } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from './NotificationDropdown.vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -99,6 +100,11 @@ const pageInfo = computed(() => {
       title: 'Audience',
       description: 'Manage your Nostr network and follow lists',
       icon: IconUsers
+    },
+    'calendar': {
+      title: 'Calendar',
+      description: 'Schedule and manage your zap-related events',
+      icon: IconCalendar
     }
   }
   

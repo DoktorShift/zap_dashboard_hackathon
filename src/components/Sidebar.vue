@@ -13,7 +13,8 @@ import {
   IconCreditCard,
   IconUsers,
   IconSettings,
-  IconEdit
+  IconEdit,
+  IconCalendar
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -83,6 +84,7 @@ const menuItems = [
   { id: 'content', label: 'Content', icon: IconFileText },
   { id: 'notes', label: 'Notes', icon: IconEdit },
   { id: 'campaigns', label: 'Campaigns', icon: IconTarget },
+  { id: 'calendar', label: 'Calendar', icon: IconCalendar },
   { id: 'audience', label: 'Audience', icon: IconUsers },
   // { id: 'mini-pos', label: 'Mini PoS', icon: IconShoppingCart },
   // { id: 'finances', label: 'Finances', icon: IconCreditCard },

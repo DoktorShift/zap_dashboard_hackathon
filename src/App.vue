@@ -28,6 +28,7 @@ import { useNostrConnections } from './composables/useNostrConnections.js'
 import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
 import { useNostrNotes } from './composables/useNostrNotes.js'
+import Calendar from './pages/Calendar.vue'
 
 // Track processed event IDs to prevent duplicates
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
@@ -180,6 +181,7 @@ const dataLoadingProgress = ref({
   loadedItems: 0,
   estimatedTimeRemaining: 0
 })
+const isWritingMode = ref(false)
 
 // Combine NWC payments (zapData) with NIP-57 zaps
 const combinedZapData = computed(() => {
@@ -420,7 +422,8 @@ const components = {
   finances: Finances,
   settings: Settings,
   'invoice-share': InvoiceShare,
-  notes: Notes
+  notes: Notes,
+  calendar: Calendar
 }
 
 // Check if current page is standalone
@@ -780,6 +783,11 @@ watch(connectionError, (error) => {
 // Provide error handling to child components
 provide('pageLoadingError', pageLoadingError)
 provide('isPageLoading', isPageLoading)
+
+// Handle writing mode changes from Content page
+const handleWritingModeChange = (writingMode) => {
+  isWritingMode.value = writingMode
+}
 </script>
 
 <template>
@@ -793,7 +801,10 @@ provide('isPageLoading', isPageLoading)
   </div>
 
   <!-- Main Application Layout -->
-  <div v-else class="h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25 flex overflow-hidden">
+  <div v-else :class="[
+    'h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25 flex overflow-hidden',
+    isWritingMode ? 'writing-mode' : ''
+  ]">
     <!-- Mobile Menu Overlay -->
     <transition name="overlay-fade">
       <div 
@@ -805,16 +816,16 @@ provide('isPageLoading', isPageLoading)
     
     <!-- Sidebar - Mobile Drawer / Desktop Fixed -->
     <div :class="[
-      'fixed top-0 left-0 h-screen w-64 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:z-30',
+      'fixed top-0 left-0 h-screen w-64 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:z-30', isWritingMode ? 'lg:-translate-x-full' : '',
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
     ]">
       <Sidebar @change-page="changePage" />
     </div>
     
     <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col h-screen overflow-hidden lg:ml-64">
+    <div :class="['flex-1 flex flex-col h-screen overflow-hidden', isWritingMode ? 'lg:ml-0' : 'lg:ml-64']">
       <!-- Fixed Top Bar -->
-      <header class="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-orange-100/50">
+      <header :class="['sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-orange-100/50', isWritingMode ? 'lg:hidden' : '']">
         <TopBar 
           @show-connection="showConnectionModal = true" 
           @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen"
@@ -823,7 +834,7 @@ provide('isPageLoading', isPageLoading)
       </header>
       
       <!-- Scrollable Main Content -->
-      <main class="flex-1 overflow-y-auto scrollbar-thin">
+      <main :class="['flex-1 overflow-y-auto scrollbar-thin', isWritingMode ? 'p-0' : 'p-3 sm:p-4 lg:p-6']">
         <div class="p-3 sm:p-4 lg:p-6">
           <!-- Connection Status Bar -->
           <transition name="slide-down">
@@ -991,6 +1002,7 @@ provide('isPageLoading', isPageLoading)
                 :key="currentPage"
                 :initial-tab="currentPage === 'settings' ? activeSettingsTab : undefined"
                 @change-page="changePage"
+                @writing-mode-change="handleWritingModeChange"
               />
             </ErrorBoundary>
           </transition>
@@ -1027,3 +1039,28 @@ provide('isPageLoading', isPageLoading)
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* Writing mode styles */
+.writing-mode {
+  background: #fafafa !important;
+}
+
+.writing-mode .lg\:ml-0 {
+  margin-left: 0 !important;
+}
+
+.writing-mode .lg\:-translate-x-full {
+  transform: translateX(-100%) !important;
+}
+
+.writing-mode .lg\:hidden {
+  display: none !important;
+}
+
+@media (min-width: 1024px) {
+  .writing-mode {
+    background: #fafafa !important;
+  }
+}
+</style>
