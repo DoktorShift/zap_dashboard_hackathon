@@ -32,6 +32,7 @@ const contentForm = reactive({
   type: CONTENT_TYPES.ARTICLE,
   content: '',
   coverImage: '',
+  description:'',
   tags: [],
   monetizationModel: 'free',
   price: 0
@@ -437,6 +438,24 @@ export function useContent() {
   const setView = (view) => {
     currentView.value = view
     error.value = ''
+    
+    if (view === 'create') {
+      editingContent.value = null
+      Object.assign(contentForm, {
+        title: '',
+        type: CONTENT_TYPES.ARTICLE,
+        content: '',
+        description:'',
+        coverImage: '',
+        tags: [],
+        monetizationModel: 'free',
+        price: 0
+      })
+    }
+
+    if (view !== 'edit' && view !== 'create') {
+      editingContent.value = null
+    }
   }
 
   const editContent = (content) => {
