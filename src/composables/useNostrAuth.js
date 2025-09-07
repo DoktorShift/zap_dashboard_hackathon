@@ -3,6 +3,7 @@ import { SimplePool } from 'nostr-tools/pool'
 import * as nip19 from 'nostr-tools/nip19'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { initializeNWC } from '../utils/nwcClient.js'
+import { fetchProfile } from '../utils/profileFetcher.js'
 
 // Global state for Nostr authentication
 const currentUser = ref(null)
@@ -123,83 +124,52 @@ const syncRelayStatuses = () => {
   saveRelaysToStorage(userRelays.value)
 }
 
-// Fetch user profile using the relay manager
+// Fetch user profile using centralized profileFetcher
 const fetchAndStoreProfile = async (pubkey) => {
   if (!pubkey) {
     throw new Error('No pubkey provided')
   }
-
   isLoading.value = true
   authError.value = ''
-
   try {
-    console.log('Fetching profile using relay manager for pubkey:', pubkey.substring(0, 8) + '...')
-    
-    // Use relay manager to get profile
-    const profileEvent = await nostrRelayManager.getEvent({
-      kinds: [0], // NIP-01 profile events
-      authors: [pubkey],
-      limit: 1
-    })
-    
-    if (profileEvent) {
-      return createUserData(pubkey, profileEvent)
-    } else {
-      // If no profile found, create minimal user data
-      const userData = createMinimalUserData(pubkey)
-      currentUser.value = userData
-      saveUserToStorage(userData)
-      console.log('No profile found, created minimal profile for pubkey:', pubkey)
-      return userData
+    const profile = await fetchProfile(pubkey)
+    const npub = nip19.npubEncode(pubkey)
+    const userData = {
+      pubkey,
+      npub,
+      profile,
+      lastUpdated: new Date().toISOString(),
+      profileEvent: null // Not used with centralized fetcher
     }
-
+    currentUser.value = userData
+    saveUserToStorage(userData)
+    return userData
   } catch (error) {
-    console.error('Failed to fetch profile:', error)
     authError.value = `Failed to fetch profile: ${error.message}`
-    
-    // Create minimal user data as fallback
-    const userData = createMinimalUserData(pubkey)
+    // Fallback minimal user data
+    const npub = nip19.npubEncode(pubkey)
+    const userData = {
+      pubkey,
+      npub,
+      profile: {
+        name: `User ${pubkey.substring(0, 8)}`,
+        display_name: null,
+        about: 'Nostr user',
+        picture: null,
+        nip05: null,
+        lud16: null,
+        lud06: null,
+        website: null,
+        banner: null
+      },
+      lastUpdated: new Date().toISOString(),
+      profileEvent: null
+    }
     currentUser.value = userData
     saveUserToStorage(userData)
     return userData
   } finally {
     isLoading.value = false
-  }
-}
-
-// Create user data from profile event
-const createUserData = (pubkey, profileEvent) => {
-  try {
-    const profileData = JSON.parse(profileEvent.content)
-    const npub = nip19.npubEncode(pubkey)
-    
-    const userData = {
-      pubkey,
-      npub,
-      profile: {
-        ...profileData,
-        // Ensure we have basic fields with proper fallback logic
-        name: profileData.name || `User ${pubkey.substring(0, 8)}`,
-        display_name: profileData.display_name || null,
-        about: profileData.about || 'Nostr user',
-        picture: profileData.picture || profileData.avatar || null,
-        nip05: profileData.nip05 || null,
-        lud16: profileData.lud16 || null,
-        lud06: profileData.lud06 || null,
-        website: profileData.website || null,
-        banner: profileData.banner || null
-      },
-      lastUpdated: new Date().toISOString(),
-      profileEvent: profileEvent
-    }
-
-    currentUser.value = userData
-    saveUserToStorage(userData)
-    console.log('Profile fetched and stored:', userData)
-    return userData
-  } catch (error) {
-    console.error('Failed to parse profile data:', error)
-    return createMinimalUserData(pubkey)
   }
 }
 
@@ -626,7 +596,10 @@ export function useNostrAuth() {
     login,
     logout,
     fetchAndStoreProfile,
-    refreshUserProfile,
+    refreshUserProfile: async () => {
+      if (!currentUser.value) throw new Error('No user logged in')
+      return await fetchAndStoreProfile(currentUser.value.pubkey)
+    },
     addRelay,
     removeRelay,
     checkRelayStatus,

@@ -3,7 +3,7 @@ import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from '
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/Sidebar.vue'
 import { IconTarget } from '@iconify-prerendered/vue-tabler'
-import { useContentZaps } from './composables/useContentZaps.js'
+import { useContentZaps, generateFallbackAvatar } from './composables/useContentZaps.js'
 import TopBar from './components/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
 import { useNostrLongForm } from './composables/useNostrLongForm.js'
@@ -34,6 +34,10 @@ import Calendar from './pages/Calendar.vue'
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
 // Track processed payment hashes for deduplication across NWC and NIP-57
 const processedPaymentHashes = new Set()
+
+// UI state for dismissible banners
+const showLargeDatasetBanner = ref(true)
+let largeDatasetBannerTimeout = null
 
 // Profile cache to avoid repeated fetches
 const profileCache = new Map()
@@ -169,6 +173,14 @@ const activeSettingsTab = ref('nostr')
 const showConnectionModal = ref(false)
 const isMobileMenuOpen = ref(false)
 const isRefreshingData = ref(false)
+const dataLoadingProgress = ref({
+  isLoading: false,
+  currentStep: '',
+  progress: 0,
+  totalItems: 0,
+  loadedItems: 0,
+  estimatedTimeRemaining: 0
+})
 const isWritingMode = ref(false)
 
 // Combine NWC payments (zapData) with NIP-57 zaps
@@ -229,28 +241,6 @@ const combinedZapData = computed(() => {
   )
 })
 
-// Generate a fallback avatar based on pubkey
-const generateFallbackAvatar = (pubkey) => {
-  if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  
-  // Use a deterministic approach to generate avatar based on pubkey
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  // Create a hash from the pubkey to consistently select an avatar
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Add error handling for page loading
 const pageLoadingError = ref('')
@@ -259,26 +249,79 @@ const isPageLoading = ref(false)
 // Reactive profile store
 const profileStore = ref(new Map())
 
-// Watch for new zaps and fetch profiles
+// Enhanced profile fetching with batching and progress tracking
+const fetchProfilesInBatches = async (pubkeys, batchSize = 10) => {
+  const batches = []
+  for (let i = 0; i < pubkeys.length; i += batchSize) {
+    batches.push(pubkeys.slice(i, i + batchSize))
+  }
+  
+  let totalProcessed = 0
+  const totalProfiles = pubkeys.length
+  
+  for (const batch of batches) {
+    const batchPromises = batch.map(pubkey => 
+      fetchAuthorProfile(pubkey).then(profile => {
+        profileStore.value.set(pubkey, profile)
+        totalProcessed++
+        
+        // Update progress
+        dataLoadingProgress.value.progress = Math.round((totalProcessed / totalProfiles) * 100)
+        dataLoadingProgress.value.loadedItems = totalProcessed
+        dataLoadingProgress.value.currentStep = `Loading profiles (${totalProcessed}/${totalProfiles})`
+        
+        return profile
+      }).catch(error => {
+        console.warn('Failed to fetch profile for pubkey:', pubkey, error)
+        totalProcessed++
+        
+        // Update progress even on error
+        dataLoadingProgress.value.progress = Math.round((totalProcessed / totalProfiles) * 100)
+        dataLoadingProgress.value.loadedItems = totalProcessed
+        dataLoadingProgress.value.currentStep = `Loading profiles (${totalProcessed}/${totalProfiles})`
+        
+        return null
+      })
+    )
+    
+    await Promise.allSettled(batchPromises)
+    
+    // Small delay between batches to prevent overwhelming the relays
+    if (batches.indexOf(batch) < batches.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+  }
+}
+
+// Watch for new zaps and fetch profiles with batching
 watch(combinedZapData, async (newZaps) => {
-  const profilePromises = []
+  const uniquePubkeys = new Set()
   
   newZaps.forEach(zap => {
     const pubkey = zap.sender?.pubkey || zap.sender?.zapperPubkey
     if (pubkey && !profileStore.value.has(pubkey)) {
-      profilePromises.push(
-        fetchAuthorProfile(pubkey).then(profile => {
-          profileStore.value.set(pubkey, profile)
-        }).catch(error => {
-          console.warn('Failed to fetch profile for pubkey:', pubkey, error)
-        })
-      )
+      uniquePubkeys.add(pubkey)
     }
   })
   
-  // Wait for all profile fetches to complete
-  if (profilePromises.length > 0) {
-    await Promise.allSettled(profilePromises)
+  if (uniquePubkeys.size > 0) {
+    console.log(`📊 Fetching ${uniquePubkeys.size} profiles in batches...`)
+    
+    // Only show profile loading progress if we're not already loading main data
+    if (!isRefreshingData.value) {
+      dataLoadingProgress.value.isLoading = true
+      dataLoadingProgress.value.totalItems = uniquePubkeys.size
+      dataLoadingProgress.value.currentStep = 'Preparing profile data...'
+    }
+    
+    await fetchProfilesInBatches(Array.from(uniquePubkeys))
+    
+    // Only clear profile loading if we're not loading main data
+    if (!isRefreshingData.value) {
+      dataLoadingProgress.value.isLoading = false
+    }
+    
+    console.log(`✅ Profile fetching completed: ${uniquePubkeys.size} profiles loaded`)
   }
 }, { immediate: true })
 
@@ -305,6 +348,39 @@ const enhancedCombinedZapData = computed(() => {
     return zap
   })
 })
+
+// Auto-show and auto-hide logic for the large dataset banner
+const scheduleLargeDatasetBannerHide = () => {
+  if (largeDatasetBannerTimeout) {
+    clearTimeout(largeDatasetBannerTimeout)
+    largeDatasetBannerTimeout = null
+  }
+  largeDatasetBannerTimeout = setTimeout(() => {
+    showLargeDatasetBanner.value = false
+  }, 5000)
+}
+
+watch(
+  () => ({
+    len: enhancedCombinedZapData.value.filter(zap => zap.eventId).length,
+    loading: dataLoadingProgress.value.isLoading
+  }),
+  ({ len, loading }) => {
+    if (len > 50 && !loading) {
+      showLargeDatasetBanner.value = true
+      scheduleLargeDatasetBannerHide()
+    }
+  },
+  { immediate: true }
+)
+
+const dismissLargeDatasetBanner = () => {
+  showLargeDatasetBanner.value = false
+  if (largeDatasetBannerTimeout) {
+    clearTimeout(largeDatasetBannerTimeout)
+    largeDatasetBannerTimeout = null
+  }
+}
 
 // Provide data to child components
 provide('zapData', zapData)
@@ -355,7 +431,7 @@ const isStandalonePage = computed(() => {
   return currentPage.value === 'invoice-share' || currentPage.value === 'campaign-view'
 })
 
-// Enhanced data refresh function with better error handling
+// Enhanced data refresh function with progressive loading and better error handling
 const refreshZapData = async (force = false, retryCount = 0) => {
   if (!activeConnection.value && !force) {
     console.log('No active connection, clearing zap data')
@@ -373,7 +449,25 @@ const refreshZapData = async (force = false, retryCount = 0) => {
   
   try {
     console.log(`Refreshing zap data... (attempt ${retryCount + 1}/${maxRetries + 1})`)
+    
+    // Update progress tracking
+    dataLoadingProgress.value.isLoading = true
+    dataLoadingProgress.value.currentStep = 'Loading zap data from wallet...'
+    dataLoadingProgress.value.progress = 0
+    
+    // Show loading progress for large datasets
+    const startTime = Date.now()
     const data = await loadZapData()
+    const loadTime = Date.now() - startTime
+    
+    // Update progress
+    dataLoadingProgress.value.progress = 50
+    dataLoadingProgress.value.currentStep = `Loaded ${data.length} zaps, processing data...`
+    
+    // Log performance metrics for large datasets
+    if (data.length > 100) {
+      console.log(`📊 Performance: Loaded ${data.length} zaps in ${loadTime}ms (${Math.round(data.length / (loadTime / 1000))} zaps/sec)`)
+    }
     
     // Check for new zaps and trigger notifications
     if (zapData.value.length > 0 && data.length > zapData.value.length) {
@@ -386,10 +480,19 @@ const refreshZapData = async (force = false, retryCount = 0) => {
     zapData.value = data
     console.log('Zap data refreshed successfully:', data.length, 'zaps')
     
+    // Update final progress
+    dataLoadingProgress.value.progress = 100
+    dataLoadingProgress.value.currentStep = `Data loaded successfully (${data.length} zaps)`
+    
     // Clear any connection errors on successful refresh
     if (connectionError.value) {
       connectionError.value = ''
     }
+    
+    // Clear loading state after a short delay to show completion
+    setTimeout(() => {
+      dataLoadingProgress.value.isLoading = false
+    }, 1000)
     
   } catch (error) {
     console.error(`Failed to refresh zap data (attempt ${retryCount + 1}):`, error)
@@ -405,8 +508,16 @@ const refreshZapData = async (force = false, retryCount = 0) => {
       return
     }
     
-    // Set connection error for display
-    connectionError.value = `Failed to refresh data: ${error.message}`
+    // Set connection error for display with more specific error messages
+    if (error.message.includes('timeout')) {
+      connectionError.value = 'Request timed out. The network may be slow or the dataset is large. Please try again.'
+    } else if (error.message.includes('network')) {
+      connectionError.value = 'Network error. Please check your connection and try again.'
+    } else if (error.message.includes('relay')) {
+      connectionError.value = 'Relay connection failed. Please try reconnecting your wallet.'
+    } else {
+      connectionError.value = `Failed to refresh data: ${error.message}`
+    }
     
     // Don't clear existing data on error, just log it
     if (zapData.value.length === 0) {
@@ -416,6 +527,7 @@ const refreshZapData = async (force = false, retryCount = 0) => {
     // Only clear loading state if this is not a retry
     if (retryCount === 0) {
       isRefreshingData.value = false
+      dataLoadingProgress.value.isLoading = false
     }
   }
 }
@@ -659,6 +771,7 @@ const handleManualRefresh = async () => {
 // Provide manual refresh function to child components
 provide('refreshZapData', handleManualRefresh)
 provide('isRefreshingData', isRefreshingData)
+provide('dataLoadingProgress', dataLoadingProgress)
 
 // Watch for connection errors and notify
 watch(connectionError, (error) => {
@@ -745,12 +858,37 @@ const handleWritingModeChange = (writingMode) => {
           
           <!-- Loading State -->
           <transition name="slide-down">
-            <div v-if="isLoadingConnection || isRefreshingData" class="mb-4 lg:mb-6">
+            <div v-if="isLoadingConnection || isRefreshingData || dataLoadingProgress.isLoading" class="mb-4 lg:mb-6">
               <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 mb-2">
                   <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
                   <span class="text-blue-800 text-sm sm:text-base">
-                    {{ isLoadingConnection ? 'Connecting to wallet...' : 'Refreshing data...' }}
+                    {{ isLoadingConnection ? 'Connecting to wallet...' : 
+                       dataLoadingProgress.isLoading ? dataLoadingProgress.currentStep : 'Refreshing data...' }}
+                  </span>
+                </div>
+                
+                <!-- Progress bar for data loading -->
+                <div v-if="dataLoadingProgress.isLoading && dataLoadingProgress.totalItems > 0" class="mt-2">
+                  <div class="flex justify-between text-xs text-blue-700 mb-1">
+                    <span>{{ dataLoadingProgress.currentStep }}</span>
+                    <span>{{ dataLoadingProgress.loadedItems }}/{{ dataLoadingProgress.totalItems }}</span>
+                  </div>
+                  <div class="w-full bg-blue-200 rounded-full h-2">
+                    <div 
+                      class="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                      :style="{ width: dataLoadingProgress.progress + '%' }"
+                    ></div>
+                  </div>
+                </div>
+                
+                <!-- Performance info for large datasets -->
+                <div v-if="dataLoadingProgress.isLoading && dataLoadingProgress.totalItems > 50" class="mt-2 text-xs text-blue-600">
+                  <span class="inline-flex items-center">
+                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    Large dataset detected - this may take a moment
                   </span>
                 </div>
               </div>
@@ -813,6 +951,44 @@ const handleWritingModeChange = (writingMode) => {
                 <div class="flex items-center space-x-2">
                   <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
                   <span class="text-blue-800 text-sm sm:text-base">Loading page...</span>
+                </div>
+              </div>
+            </div>
+          </transition>
+          
+          <!-- Data Summary for Large Datasets -->
+          <transition name="slide-down">
+            <div v-if="enhancedCombinedZapData.length > 50 && !dataLoadingProgress.isLoading && showLargeDatasetBanner" class="mb-4 lg:mb-6">
+              <div class="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3 sm:p-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div class="flex items-center space-x-2">
+                    <div class="p-2 bg-green-100 rounded-full">
+                      <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <span class="text-green-800 text-sm sm:text-base font-medium">
+                        Large dataset loaded successfully
+                      </span>
+                      <p class="text-green-700 text-xs">
+                        {{ enhancedCombinedZapData.filter(zap => zap.eventId).length }} zaps • {{ profileStore.size }} profiles • Ready for analysis
+                      </p>
+                    </div>
+                  </div>
+                  <div class="text-xs text-green-600 flex items-center space-x-3">
+                    <span class="inline-flex items-center">
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                      </svg>
+                      Optimized for large datasets
+                    </span>
+                    <button @click="dismissLargeDatasetBanner" class="text-green-700 hover:text-green-900 p-1 rounded-md hover:bg-green-100 transition-colors" aria-label="Dismiss">
+                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

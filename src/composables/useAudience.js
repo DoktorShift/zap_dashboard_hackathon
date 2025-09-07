@@ -4,12 +4,13 @@ import { useFollowLists } from './useFollowLists.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import * as nip19 from 'nostr-tools/nip19'
+import { fetchProfile, batchFetchProfiles, profileCache } from '../utils/profileFetcher.js'
 
 // Global state
 const following = ref([]) // Array of pubkeys
 const followers = ref([]) // Array of pubkeys
 const myLists = ref([]) // Array of follow list objects
-const profiles = reactive(new Map()) // Map<pubkey, profile>
+const profiles = reactive(new Map()) // Map<pubkey, profile> -- keep for backwards compat with components
 const isLoading = ref(false)
 const error = ref('')
 const syncStatus = ref('idle')
@@ -22,7 +23,7 @@ let profileSubscriptions = new Map()
 
 // Cache management
 const profileFetchPromises = new Map()
-const profileCache = new Map()
+// const profileCache = new Map() // replaced by shared profileCache import above
 const processedEventIds = new Set()
 
 // Storage keys
@@ -56,6 +57,7 @@ const loadFromStorage = () => {
   try {
     const storedFollowing = localStorage.getItem(FOLLOWING_STORAGE_KEY)
     if (storedFollowing) {
+      // normalize stored values
       following.value = JSON.parse(storedFollowing)
     }
     
@@ -68,6 +70,7 @@ const loadFromStorage = () => {
     if (storedProfiles) {
       const profileData = JSON.parse(storedProfiles)
       Object.entries(profileData).forEach(([pubkey, profile]) => {
+        profileCache.set(pubkey, { profile, timestamp: Date.now() })
         profiles.set(pubkey, profile)
       })
     }
@@ -92,122 +95,51 @@ const saveToStorage = () => {
   }
 }
 
-// Fetch profile with caching
-const fetchProfile = async (pubkey) => {
-  // Check cache first
-  if (profileCache.has(pubkey)) {
-    const cached = profileCache.get(pubkey)
-    // Use cached profile if it's less than 24 hours old
-    if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
-      return cached.profile
-    }
-  }
-
-  // Check if we're already fetching this profile
-  if (profileFetchPromises.has(pubkey)) {
-    return profileFetchPromises.get(pubkey)
-  }
-
-  // Create the fetch promise
-  const fetchPromise = _fetchProfileFromNostr(pubkey)
-  profileFetchPromises.set(pubkey, fetchPromise)
-
-  try {
-    const profile = await fetchPromise
-    
-    // Cache the result
-    profileCache.set(pubkey, {
-      profile,
-      timestamp: Date.now()
-    })
-    
-    // Update reactive profiles map
-    profiles.set(pubkey, profile)
-    
-    return profile
-  } catch (error) {
-    console.warn(`Failed to fetch profile for ${pubkey.substring(0, 8)}:`, error)
-    // Return a fallback profile
-    const fallbackProfile = {
-      pubkey,
-      name: `user:${pubkey.substring(0, 8)}`,
-      picture: generateFallbackAvatar(pubkey),
-      nip05: null,
-      about: null
-    }
-    
-    profiles.set(pubkey, fallbackProfile)
-    return fallbackProfile
-  } finally {
-    profileFetchPromises.delete(pubkey)
-  }
+// Fetch profile with caching wrapper that keeps reactive profiles map in sync
+const fetchProfileSynced = async (pubkey) => {
+  if (!pubkey) return null
+  const profile = await fetchProfile(pubkey)
+  if (profile) profiles.set(pubkey, profile)
+  return profile
 }
 
-// Internal function to fetch profile from Nostr relays
-const _fetchProfileFromNostr = async (pubkey) => {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('Profile fetch timeout'))
-    }, 15000)
+// Immediately load cached data so UI can show audience/followers/profiles on page refresh
+try {
+  loadFromStorage()
+} catch (e) {
+  console.warn('Failed to load audience data from storage at startup:', e)
+}
 
-    try {
-      const profileSub = nostrRelayManager.subscribeToEvents([
-        {
-          kinds: [0],
-          authors: [pubkey],
-          limit: 1
-        }
-      ], {
-        onevent: (event) => {
-          try {
-            clearTimeout(timeout)
-            const profileData = JSON.parse(event.content)
-            
-            const profile = {
-              pubkey,
-              name: profileData.name || profileData.display_name || `user:${pubkey.substring(0, 8)}`,
-              display_name: profileData.display_name || null,
-              picture: profileData.picture || generateFallbackAvatar(pubkey),
-              banner: profileData.banner || null,
-              about: profileData.about || null,
-              nip05: profileData.nip05 || null,
-              lud16: profileData.lud16 || null,
-              website: profileData.website || null,
-              updated_at: Date.now()
-            }
-            
-            profileSub.close()
-            resolve(profile)
-          } catch (error) {
-            clearTimeout(timeout)
-            profileSub.close()
-            reject(error)
-          }
-        },
-        oneose: () => {
-          setTimeout(() => {
-            clearTimeout(timeout)
-            profileSub.close()
-            resolve({
-              pubkey,
-              name: `user:${pubkey.substring(0, 8)}`,
-              picture: generateFallbackAvatar(pubkey),
-              nip05: null,
-              about: null,
-              updated_at: Date.now()
-            })
-          }, 2000)
-        },
-        onclose: () => {
-          clearTimeout(timeout)
-        }
-      })
-    } catch (error) {
-      clearTimeout(timeout)
-      reject(error)
-    }
+// Background refresh: once relay manager is initialized, refresh profiles for cached following/followers
+const _startAudienceBackgroundRefresh = async () => {
+  // collect all pubkeys from cached following and followers
+  const pubkeys = Array.from(new Set([
+    ...(Array.isArray(following.value) ? following.value : []),
+    ...(Array.isArray(followers.value) ? followers.value : [])
+  ]))
+  if (pubkeys.length === 0) return
+
+  // wait for relay manager init
+  const waitForInit = () => new Promise(resolve => {
+    if (nostrRelayManager.isInitialized) return resolve()
+    const check = setInterval(() => {
+      if (nostrRelayManager.isInitialized) {
+        clearInterval(check)
+        resolve()
+      }
+    }, 200)
+    setTimeout(() => { clearInterval(check); resolve() }, 15000)
   })
+
+  await waitForInit()
+  try {
+    batchFetchProfiles(pubkeys)
+  } catch (err) {
+    console.warn('Audience background batchFetchProfiles failed:', err)
+  }
 }
+
+setTimeout(() => { _startAudienceBackgroundRefresh().catch(err => console.warn('Audience background refresh error:', err)) }, 0)
 
 export function useAudience() {
   const { currentUser, isAuthenticated } = useNostrAuth()
@@ -218,7 +150,8 @@ export function useAudience() {
   const getFollowersCount = () => followers.value.length
 
   const getProfile = (pubkey) => {
-    return profiles.get(pubkey) || null
+    // Prefer reactive profiles map, fall back to shared cache
+    return profiles.get(pubkey) || (profileCache.get(pubkey) ? profileCache.get(pubkey).profile : null)
   }
 
   const isFollowing = (pubkey) => {
@@ -226,9 +159,7 @@ export function useAudience() {
   }
 
   const getMutualFollows = (pubkey) => {
-    // Get people who both you and the target user follow
-    // This would require fetching the target user's following list
-    return [] // Simplified for now
+    return []
   }
 
   // Fetch user's following list (kind 3)
@@ -266,11 +197,7 @@ export function useAudience() {
       }
 
       followingSubscription = nostrRelayManager.subscribeToEvents([
-        {
-          kinds: [3], // Contact lists
-          authors: [currentUser.value.pubkey],
-          limit: 1
-        }
+        { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
       ], {
         onevent: (event) => {
           if (processedEventIds.has(event.id)) return
@@ -285,12 +212,9 @@ export function useAudience() {
 
           following.value = followingPubkeys
           
-          // Fetch profiles for all following users
-          followingPubkeys.forEach(pubkey => {
-            fetchProfile(pubkey).catch(error => {
-              console.warn(`Failed to fetch profile for ${pubkey.substring(0, 8)}:`, error)
-            })
-          })
+          // Fetch profiles for all following users (use shared fetch + batch)
+          followingPubkeys.forEach(pk => fetchProfileSynced(pk).catch(() => {}))
+          batchFetchProfiles(followingPubkeys)
 
           syncStatus.value = 'idle'
         },
@@ -329,11 +253,8 @@ export function useAudience() {
       console.log('Relay manager not initialized, waiting...')
       await new Promise((resolve) => {
         const checkInit = () => {
-          if (nostrRelayManager.isInitialized) {
-            resolve()
-          } else {
-            setTimeout(checkInit, 100)
-          }
+          if (nostrRelayManager.isInitialized) resolve()
+          else setTimeout(checkInit, 100)
         }
         checkInit()
       })
@@ -350,26 +271,17 @@ export function useAudience() {
         followersSubscription.close()
       }
 
-      // This is expensive - we need to find all kind 3 events that include our pubkey
       followersSubscription = nostrRelayManager.subscribeToEvents([
-        {
-          kinds: [3], // Contact lists
-          '#p': [currentUser.value.pubkey], // Events that tag our pubkey
-          limit: 500
-        }
+        { kinds: [3], '#p': [currentUser.value.pubkey], limit: 500 }
       ], {
         onevent: (event) => {
           if (processedEventIds.has(event.id)) return
           processedEventIds.add(event.id)
 
-          // Add this user as a follower if not already included
-          if (!followers.value.includes(event.pubkey)) {
-            followers.value.push(event.pubkey)
-            
-            // Fetch their profile
-            fetchProfile(event.pubkey).catch(error => {
-              console.warn(`Failed to fetch follower profile for ${event.pubkey.substring(0, 8)}:`, error)
-            })
+          const pub = event.pubkey
+          if (!followers.value.includes(pub)) {
+            followers.value.push(pub)
+            fetchProfileSynced(pub).catch(() => {})
           }
         },
         oneose: () => {
@@ -405,18 +317,12 @@ export function useAudience() {
     try {
       // Get current following list from Nostr first to ensure we have the latest data
       console.log('Fetching current following list before adding new follow...')
-      const currentFollowingEvent = await nostrRelayManager.getEvent({
-        kinds: [3], // Contact lists
-        authors: [currentUser.value.pubkey],
-        limit: 1
-      })
+      const currentFollowingEvent = await nostrRelayManager.getEvent({ kinds: [3], authors: [currentUser.value.pubkey], limit: 1 })
 
       // Extract current follows from the latest event
       let currentFollows = []
       if (currentFollowingEvent) {
-        currentFollows = currentFollowingEvent.tags
-          .filter(tag => tag[0] === 'p' && tag[1])
-          .map(tag => tag[1])
+        currentFollows = currentFollowingEvent.tags.filter(tag => tag[0] === 'p' && tag[1]).map(tag => tag[1])
         console.log('Current follows from Nostr:', currentFollows.length)
       }
 
@@ -441,22 +347,14 @@ export function useAudience() {
 
       // Create new contact list event with merged follows
       const contactTags = mergedFollows.map(pk => ['p', pk])
-      
-      const eventTemplate = {
-        kind: 3,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: contactTags,
-        content: '' // Can contain relay recommendations
-      }
+      const eventTemplate = { kind: 3, created_at: Math.floor(Date.now()/1000), tags: contactTags, content: '' }
 
       const signedEvent = await window.nostr.signEvent(eventTemplate)
-      
       if (!verifyEvent(signedEvent)) {
         throw new Error('Event signature verification failed')
       }
 
       const result = await nostrRelayManager.publishEvent(signedEvent)
-      
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
       }
@@ -465,7 +363,7 @@ export function useAudience() {
       
       // Fetch their profile if we don't have it
       if (!profiles.has(pubkey)) {
-        fetchProfile(pubkey)
+        fetchProfileSynced(pubkey)
       }
 
       return { 
@@ -475,20 +373,14 @@ export function useAudience() {
         alreadyFollowing: false
       }
 
-    } catch (error) {
+    } catch (err) {
       // Revert optimistic update on error - restore to original state
       try {
         // Try to restore from the last known good state
-        const currentFollowingEvent = await nostrRelayManager.getEvent({
-          kinds: [3],
-          authors: [currentUser.value.pubkey],
-          limit: 1
-        })
+        const currentFollowingEvent = await nostrRelayManager.getEvent({ kinds: [3], authors: [currentUser.value.pubkey], limit: 1 })
         
         if (currentFollowingEvent) {
-          const originalFollows = currentFollowingEvent.tags
-            .filter(tag => tag[0] === 'p' && tag[1])
-            .map(tag => tag[1])
+          const originalFollows = currentFollowingEvent.tags.filter(tag => tag[0] === 'p' && tag[1]).map(tag => tag[1])
           following.value = originalFollows
           console.log('Reverted to original following list:', originalFollows.length)
         }
@@ -496,8 +388,8 @@ export function useAudience() {
         console.warn('Failed to revert following list:', revertError)
       }
       
-      console.error('Failed to follow user:', error)
-      throw error
+      console.error('Failed to follow user:', err)
+      throw err
     }
   }
 
@@ -519,16 +411,9 @@ export function useAudience() {
 
       // Create new contact list event
       const contactTags = following.value.map(pk => ['p', pk])
-      
-      const eventTemplate = {
-        kind: 3,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: contactTags,
-        content: ''
-      }
+      const eventTemplate = { kind: 3, created_at: Math.floor(Date.now()/1000), tags: contactTags, content: '' }
 
       const signedEvent = await window.nostr.signEvent(eventTemplate)
-      
       if (!verifyEvent(signedEvent)) {
         throw new Error('Event signature verification failed')
       }
@@ -570,52 +455,30 @@ export function useAudience() {
         relaysUpdated: result.successful
       }
 
-    } catch (error) {
-      // Revert optimistic update on error
+    } catch (err) {
       following.value.splice(index, 0, pubkey)
-      
-      console.error('Failed to unfollow user:', error)
-      throw error
+      console.error('Failed to unfollow user:', err)
+      throw err
     }
   }
 
-  // Follow all members from a list (merges with existing follows)
+  // Follow all members from a list (delegates to followLists)
   const followEntirePack = async (list) => {
     const result = await followLists.followEntirePack(list)
-    
-    // Update local following state with the merged follows
-    if (result.success && result.updatedFollows) {
-      following.value = result.updatedFollows
-    }
-    
+    if (result.success && result.updatedFollows) following.value = result.updatedFollows
     return result
   }
 
   // Follow selected members from a list
   const followSelectedMembers = async (list, selectedPubkeys) => {
     const result = await followLists.followSelectedMembers(list, selectedPubkeys)
-    
-    // Update local following state with the merged follows
-    if (result.success && result.updatedFollows) {
-      following.value = result.updatedFollows
-    }
-    
+    if (result.success && result.updatedFollows) following.value = result.updatedFollows
     return result
   }
 
-  // Search profiles
-  const searchProfiles = async (query) => {
-    // Simplified search - in a full implementation, this would query relays
-    console.log('Searching profiles for:', query)
-    return []
-  }
-
-  // Search lists
-  const searchLists = async (query) => {
-    // Simplified search - in a full implementation, this would query relays
-    console.log('Searching lists for:', query)
-    return []
-  }
+  // Search helpers
+  const searchProfiles = async (query) => { console.log('Searching profiles for:', query); return [] }
+  const searchLists = async (query) => { console.log('Searching lists for:', query); return [] }
 
   // Watch for data changes and save to storage
   watch([following, followers], saveToStorage, { deep: true })
@@ -625,53 +488,23 @@ export function useAudience() {
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
       loadFromStorage()
-      setTimeout(() => {
-        refreshFollowing()
-      }, 1000)
+      setTimeout(() => { refreshFollowing() }, 1000)
     } else {
-      // Clear data when logged out
       following.value = []
       followers.value = []
       profiles.clear()
+      profileCache.clear()
     }
   }, { immediate: true })
 
   // Cleanup on unmount
-  onUnmounted(() => {
-    if (followingSubscription) followingSubscription.close()
-    if (followersSubscription) followersSubscription.close()
-    profileSubscriptions.forEach(sub => sub.close())
-  })
+  onUnmounted(() => { if (followingSubscription) followingSubscription.close(); if (followersSubscription) followersSubscription.close(); profileSubscriptions.forEach(sub => sub.close()) })
 
   return {
-    // State
-    following,
-    followers,
-    profiles,
-    isLoading,
-    error,
-    syncStatus,
-    
-    // Actions
-    followUser,
-    unfollowUser,
-    searchProfiles,
-    searchLists,
-    refreshFollowing,
-    refreshFollowers,
-    
-    // Getters
-    getProfile,
-    isFollowing,
-    getMutualFollows,
-    getFollowersCount,
-    getFollowingCount,
-    
-    // Utilities
-    fetchProfile,
-    generateFallbackAvatar,
-    
-    // Re-export follow lists functionality
+    following, followers, profiles, isLoading, error, syncStatus,
+    followUser, unfollowUser, searchProfiles, searchLists, refreshFollowing, refreshFollowers,
+    getProfile, isFollowing, getMutualFollows, getFollowersCount, getFollowingCount,
+    fetchProfile: fetchProfileSynced, generateFallbackAvatar,
     ...followLists
   }
 }

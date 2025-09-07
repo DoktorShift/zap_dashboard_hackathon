@@ -27,6 +27,14 @@ class NostrRelayManager {
     this.retryDelay = 2000 // 2 seconds
     this.healthCheckInterval = 30000 // 30 seconds
     this.healthCheckTimer = null
+
+    // Memoization and deduplication
+    this._eventCache = new Map() // key: JSON.stringify(filters), value: {event, timestamp}
+    this._eventCacheTTL = 60 * 1000 // 1 minute default TTL
+    this._activeSubscriptions = new Map() // key: hash(filters+options), value: subscription
+    this._subscriptionTTL = 30 * 1000 // 30 seconds for deduped subs
+    this._relayBackoff = new Map() // url -> {backoffMs, lastFail}
+    this._maxBackoff = 5 * 60 * 1000 // 5 min
   }
 
   // Initialize the relay manager
@@ -307,45 +315,111 @@ class NostrRelayManager {
     }
   }
 
-  // Subscribe to events from read relays
+  // Utility: hash filters+options for deduplication
+  _hashSub(filters, options) {
+    return JSON.stringify({filters, options})
+  }
+
+  // Utility: check if relay is in backoff
+  _isRelayBackedOff(url) {
+    const entry = this._relayBackoff.get(url)
+    if (!entry) return false
+    return Date.now() - entry.lastFail < entry.backoffMs
+  }
+
+  // Utility: mark relay as failed and increase backoff
+  _markRelayBackoff(url) {
+    const entry = this._relayBackoff.get(url) || {backoffMs: 2000, lastFail: 0}
+    entry.backoffMs = Math.min(this._maxBackoff, entry.backoffMs * 2)
+    entry.lastFail = Date.now()
+    this._relayBackoff.set(url, entry)
+  }
+
+  // Utility: reset relay backoff on success
+  _resetRelayBackoff(url) {
+    if (this._relayBackoff.has(url)) {
+      this._relayBackoff.delete(url)
+    }
+  }
+
+  // Subscribe to events from read relays with deduplication
   subscribeToEvents(filters, options = {}) {
     if (!this.isInitialized) {
       throw new Error('Relay manager not initialized')
     }
-
-    const readRelays = this.getReadRelays()
+    const readRelays = this.getReadRelays().filter(r => !this._isRelayBackedOff(r.url))
     if (readRelays.length === 0) {
-      throw new Error('No read-enabled relays available')
+      throw new Error('No read-enabled relays available (all may be rate-limited or unhealthy)')
     }
-
     const relayUrls = readRelays.map(relay => relay.url)
-    console.log(`📥 Subscribing to events from ${relayUrls.length} relays`)
-
-    // Use pool.subscribeMany for reliable subscription
-    return this.pool.subscribeMany(relayUrls, filters, {
-      ...options,
-      maxWait: options.maxWait || 10000 // 10 second timeout
+    const hash = this._hashSub(filters, options)
+    // Deduplicate: if already active, return the same subscription
+    if (this._activeSubscriptions.has(hash)) {
+      const {sub, timeout} = this._activeSubscriptions.get(hash)
+      // Refresh TTL
+      clearTimeout(timeout)
+      this._activeSubscriptions.get(hash).timeout = setTimeout(() => {
+        sub.close()
+        this._activeSubscriptions.delete(hash)
+      }, this._subscriptionTTL)
+      return sub
+    }
+    // Wrap callbacks to handle relay failures
+    const wrappedOptions = {...options}
+    wrappedOptions.onclose = (reason) => {
+      if (Array.isArray(reason)) {
+        reason.forEach((r, i) => {
+          if (r && r.toLowerCase().includes('rate')) {
+            this._markRelayBackoff(relayUrls[i])
+          }
+        })
+      }
+      if (options.onclose) options.onclose(reason)
+    }
+    // Subscribe
+    const sub = this.pool.subscribeMany(relayUrls, filters, {
+      ...wrappedOptions,
+      maxWait: options.maxWait || 10000
     })
+    // Store for deduplication
+    const timeout = setTimeout(() => {
+      sub.close()
+      this._activeSubscriptions.delete(hash)
+    }, this._subscriptionTTL)
+    this._activeSubscriptions.set(hash, {sub, timeout})
+    return sub
   }
 
-  // Get a single event
+  // Memoized getEvent (in-memory, TTL)
   async getEvent(filters, options = {}) {
     if (!this.isInitialized) {
       throw new Error('Relay manager not initialized')
     }
-
-    const readRelays = this.getReadRelays()
-    if (readRelays.length === 0) {
-      throw new Error('No read-enabled relays available')
+    const cacheKey = JSON.stringify(filters)
+    const cached = this._eventCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this._eventCacheTTL) {
+      return cached.event
     }
-
+    const readRelays = this.getReadRelays().filter(r => !this._isRelayBackedOff(r.url))
+    if (readRelays.length === 0) {
+      throw new Error('No read-enabled relays available (all may be rate-limited or unhealthy)')
+    }
     const relayUrls = readRelays.map(relay => relay.url)
-    
     try {
       const event = await this.pool.get(relayUrls, filters)
+      if (event) {
+        this._eventCache.set(cacheKey, {event, timestamp: Date.now()})
+        // Reset backoff for all relays on success
+        relayUrls.forEach(url => this._resetRelayBackoff(url))
+      }
       return event
     } catch (error) {
-      console.error('❌ Failed to get event:', error)
+      // Mark relays as failed if error is rate limit or network
+      relayUrls.forEach(url => {
+        if (error.message && error.message.toLowerCase().includes('rate')) {
+          this._markRelayBackoff(url)
+        }
+      })
       throw error
     }
   }
