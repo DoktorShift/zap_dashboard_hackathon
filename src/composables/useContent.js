@@ -31,8 +31,8 @@ const contentForm = reactive({
   title: '',
   type: CONTENT_TYPES.ARTICLE,
   content: '',
+  image: '',
   tags: [],
-  coverImage: '',
   monetizationModel: 'free',
   price: 0
 })
@@ -197,8 +197,8 @@ export function useContent() {
         title: '',
         type: CONTENT_TYPES.ARTICLE,
         content: '',
-        tags: [],
-        coverImage: ''
+        image: '',
+        tags: []
       })
 
       currentView.value = 'list'

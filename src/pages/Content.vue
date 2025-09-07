@@ -397,7 +397,7 @@ onUnmounted(() => {
 <!--          </p>-->
         </div>
 
-        <div class="flex items-center space-x-3 mb-4">
+        <div class="flex items-center space-x-3 mb-4" v-if="!(currentView === 'create' || currentView === 'edit')">
           <button
             v-if="currentView !== 'list' && !selectedContent"
             @click="setView('list')"
