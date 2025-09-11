@@ -623,7 +623,7 @@ const formatRawEvent = (note) => {
                   
                   <!-- Engagement and Zap Metrics -->
                   <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4 text-sm">
+                    <div class="flex items-center space-x-3 text-sm">
                       <!-- Engagement Metrics -->
                       <EngagementMetrics 
                         :key="`note-engagement-${note.id}-${getEngagementCounts(note.id).totalEngagement}-${getZapCount(note.id)}`"
