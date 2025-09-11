@@ -27,7 +27,7 @@ const topPerformingNotes = computed(() => {
   
   if (filteredZaps.length === 0) return []
 
-  // Group by content and calculate performance for notes
+  // Group by eventId and calculate performance for notes
   const contentPerformance = new Map()
   
   filteredZaps.forEach(zap => {
@@ -39,6 +39,7 @@ const topPerformingNotes = computed(() => {
         type: 'note', // Assume note for now, will be updated if we find long-form data
         title: '',
         content: '',
+        noteText: '', // Add separate field for actual note text
         coverImage: null,
         zaps: 0,
         zapAmount: 0,
@@ -53,9 +54,17 @@ const topPerformingNotes = computed(() => {
     content.zaps += 1
     content.zapAmount += zap.amount
     
-    // Extract note content for preview
-    if (zap.note && !content.content) {
-      content.content = parseNoteContent(zap.note)
+    // Extract note content for preview - use the message from zap, not the complex zap data
+    if (zap.message && !content.noteText) {
+      content.noteText = zap.message.trim()
+    }
+    
+    // If no message in zap, try to get from the note field but parse it properly
+    if (!content.noteText && zap.note) {
+      const parsedNote = parseNoteContent(zap.note)
+      if (parsedNote && parsedNote !== 'Note content') {
+        content.noteText = parsedNote
+      }
     }
   })
 
@@ -160,37 +169,24 @@ const topPerformingLongForm = computed(() => {
 
 // Parse note content to extract meaningful text
 const parseNoteContent = (note) => {
+  // For notes, we should get the actual note content from the event
+  // The 'note' parameter here is likely zap data, not the actual note content
   if (typeof note === 'string') {
-    if (note.startsWith('{') && note.endsWith('}')) {
-      try {
-        const parsed = JSON.parse(note)
-        if (parsed && typeof parsed === 'object') {
-          if (parsed.content) {
-            return parsed.content.trim()
-          }
-          if (parsed.description) {
-            return parsed.description.trim()
-          }
-          return 'Note content'
-        }
-      } catch (error) {
-        return note.trim()
-      }
-    } else if (note.startsWith('[') && note.endsWith(']')) {
-      try {
-        const parsed = JSON.parse(note)
-        if (Array.isArray(parsed)) {
-          return extractTextFromArray(parsed)
-        }
-      } catch (error) {
-        return note.trim()
-      }
+    // If it's already a clean string, return it
+    if (!note.startsWith('{') && !note.startsWith('[')) {
+      return note.trim()
     }
-    return note.trim()
-  }
-  
-  if (Array.isArray(note)) {
-    return extractTextFromArray(note)
+    
+    // Try to parse if it's JSON
+    try {
+      const parsed = JSON.parse(note)
+      if (parsed && typeof parsed === 'object' && parsed.content) {
+        return parsed.content.trim()
+      }
+    } catch (error) {
+      // If parsing fails, return the original string
+      return note.trim()
+    }
   }
   
   return String(note || 'Note content').trim()
@@ -221,10 +217,10 @@ const generateContentFallbackImage = () => {
 
 // Get content title for display
 const getNoteTitle = (content) => {
-  if (!content.content) return 'Short note'
+  if (!content.noteText) return 'Short note'
   
   // Get first line or first 40 characters
-  const firstLine = content.content.split('\n')[0].trim()
+  const firstLine = content.noteText.split('\n')[0].trim()
   if (firstLine.length === 0) return 'Short note'
   
   return firstLine.length > 40 ? firstLine.substring(0, 40) + '...' : firstLine
