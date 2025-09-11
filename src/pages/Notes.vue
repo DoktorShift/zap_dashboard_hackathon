@@ -441,6 +441,25 @@ onUnmounted(() => {
   cleanupEngagement()
   delete window.debugNotes
 })
+
+// Format raw event as clean JSON
+const formatRawEvent = (note) => {
+  if (!note) return ''
+  
+  // Create a clean event object with proper ordering
+  const cleanEvent = {
+    id: note.id,
+    pubkey: note.pubkey,
+    created_at: note.created_at,
+    kind: note.kind,
+    tags: note.tags || [],
+    content: note.content,
+    sig: note.sig
+  }
+  
+  // Return formatted JSON with proper indentation
+  return JSON.stringify(cleanEvent, null, 2)
+}
 </script>
 
 <template>
