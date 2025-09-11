@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
-import * as nip19 from 'nostr-tools/nip19'
+import { ref, computed, onMounted, onUnmounted, watch, inject, nextTick } from 'vue'
 import {
   IconFileText, 
   IconPlus, 
