@@ -279,15 +279,29 @@ const formatNumber = (num) => {
 
 // Handle content clicks
 const handleNoteClick = (note) => {
-  // Navigate to note details view (you'll need to implement this)
-  console.log('Opening note details for:', note.eventId)
-  // changePage('note-details', { eventId: note.eventId })
+  // Navigate to notes page and show the specific note
+  changePage('notes')
+  
+  // Use a small delay to ensure the notes page loads, then trigger note view
+  setTimeout(() => {
+    // Dispatch a custom event to tell the Notes page to show this specific note
+    document.dispatchEvent(new CustomEvent('show-note-details', { 
+      detail: { eventId: note.eventId } 
+    }))
+  }, 100)
 }
 
 const handleLongFormClick = (article) => {
-  // Navigate to content details
+  // Navigate to content page and show the specific article
   changePage('content')
-  // You might want to add logic to show specific article
+  
+  // Use a small delay to ensure the content page loads, then trigger article preview
+  setTimeout(() => {
+    // Dispatch a custom event to tell the Content page to show this specific article
+    document.dispatchEvent(new CustomEvent('show-content-preview', { 
+      detail: { eventId: article.eventId } 
+    }))
+  }, 100)
 }
 
 // Check if we have any content to show

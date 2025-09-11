@@ -362,7 +362,25 @@ onMounted(() => {
     const list = Array.isArray(notes.value) ? notes.value : []
     list.forEach(note => ensureTrackingFor(note.id))
   }
+  
+  // Listen for show note details events from other components
+  document.addEventListener('show-note-details', handleShowNoteDetails)
 })
+
+// Handle show note details event from other components
+const handleShowNoteDetails = (event) => {
+  const { eventId } = event.detail
+  if (!eventId) return
+  
+  // Find the note by eventId
+  const note = notes.value.find(n => n.id === eventId)
+  if (note) {
+    // Open the detailed view for this note
+    openDetailedView(note)
+  } else {
+    console.warn('Note not found for eventId:', eventId)
+  }
+}
 
 // Watch for notes changes to track zaps and engagement on new notes
 watch(notes, (newNotes) => {
@@ -383,6 +401,7 @@ watch(isAuthenticated, (authed) => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('show-note-details', handleShowNoteDetails)
   cleanup()
   cleanupEngagement()
   delete window.debugNotes
