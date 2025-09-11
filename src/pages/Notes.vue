@@ -32,6 +32,7 @@ import { useContentZaps } from '../composables/useContentZaps.js'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
+import NoteSuccessModal from '../components/NoteSuccessModal.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -81,6 +82,8 @@ const noteTextarea = ref(null)
 const copySuccess = ref('')
 const showZapperModal = ref(false)
 const selectedZapper = ref(null)
+const showSuccessModal = ref(false)
+const lastPublishResult = ref(null)
 
 // Enhanced computed properties
 const noteStats = computed(() => {
@@ -162,10 +165,19 @@ const handleSubmit = async () => {
   if (!noteForm.content.trim()) return
   
   try {
+    let result
     if (editingNote.value) {
-      await updateNote(editingNote.value.id, noteForm.content, noteForm.tags)
+      result = await updateNote(editingNote.value.id, noteForm.content, noteForm.tags)
     } else {
-      await publishNote(noteForm.content, noteForm.tags)
+      result = await publishNote(noteForm.content, noteForm.tags)
+    }
+    
+    // Store the publish result and note content for the success modal
+    lastPublishResult.value = result
+    
+    // Show success modal for new notes (not edits)
+    if (!editingNote.value) {
+      showSuccessModal.value = true
     }
     
     // Reset form and go back to list
@@ -224,6 +236,12 @@ const closeDetailedView = () => {
   showRawDataModal.value = false
   showZapperModal.value = false
   selectedZapper.value = null
+}
+
+// Close success modal
+const closeSuccessModal = () => {
+  showSuccessModal.value = false
+  lastPublishResult.value = null
 }
 
 // Form validation
@@ -924,4 +942,12 @@ const formatRawEvent = (note) => {
 
     </div> <!-- closes <div v-else> -->
   </div>   <!-- closes <div class="space-y-6"> -->
+
+  <!-- Note Success Modal -->
+  <NoteSuccessModal
+    :show="showSuccessModal"
+    :note-content="noteForm.content"
+    :publish-result="lastPublishResult"
+    @close="closeSuccessModal"
+  />
 </template>
