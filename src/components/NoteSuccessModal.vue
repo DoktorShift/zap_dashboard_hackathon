@@ -28,11 +28,13 @@
             </div>
             
             <!-- Success Message -->
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">Your post is live</h2>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+              {{ contentType === 'article' ? 'Your article is live' : 'Your post is live' }}
+            </h2>
             <p class="text-gray-600">Published to {{ publishResult?.successfulRelays || 0 }} relays</p>
           </div>
           
-          <!-- Note Preview -->
+          <!-- Content Preview -->
           <div class="p-6" @click.stop>
             <div class="flex items-start space-x-3 bg-gray-50 rounded-xl p-4">
               <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0">
@@ -44,8 +46,12 @@
               </div>
               <div class="flex-1 min-w-0">
                 <div class="font-medium text-gray-900 mb-1">{{ userProfile?.name || 'You' }}</div>
-                <p class="text-gray-700 text-sm leading-relaxed line-clamp-3">
-                  {{ noteContent }}
+                <div v-if="contentType === 'article'" class="mb-2">
+                  <h4 class="font-semibold text-gray-900 text-base mb-1">{{ title }}</h4>
+                  <p class="text-gray-700 text-sm leading-relaxed line-clamp-3">{{ content }}</p>
+                </div>
+                <p v-else class="text-gray-700 text-sm leading-relaxed line-clamp-3">
+                  {{ content }}
                 </p>
               </div>
             </div>
@@ -99,7 +105,16 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  noteContent: {
+  content: {
+    type: String,
+    default: ''
+  },
+  contentType: {
+    type: String,
+    default: 'note', // 'note' or 'article'
+    validator: (value) => ['note', 'article'].includes(value)
+  },
+  title: {
     type: String,
     default: ''
   },

@@ -946,7 +946,8 @@ const formatRawEvent = (note) => {
   <!-- Note Success Modal -->
   <NoteSuccessModal
     :show="showSuccessModal"
-    :note-content="noteForm.content"
+    :content="noteForm.content"
+    content-type="note"
     :publish-result="lastPublishResult"
     @close="closeSuccessModal"
   />

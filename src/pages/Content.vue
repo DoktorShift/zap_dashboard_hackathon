@@ -34,12 +34,17 @@ import ContentForm from '../components/ContentForm.vue'
 import ContentPerformance from '../components/ContentPerformance.vue'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
 import BlogEditor from '../components/BlogEditor.vue'
+import NoteSuccessModal from '../components/NoteSuccessModal.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
 // UI state for dropdown
 const showClientDropdown = ref(false)
 const dropdownRef = ref(null)
+
+// Success modal state
+const showSuccessModal = ref(false)
+const lastPublishResult = ref(null)
 
 // Use the long-form content composable
 const { fetchUserLongFormContent } = useNostrLongForm()
@@ -170,14 +175,9 @@ const handlePublishToNostr = async (content) => {
   try {
     const result = await publishToNostr(content.id)
 
-    // Show success message with details
-    let message = `Content published successfully!\n\nEvent ID: ${result.event.id}\nPublished to ${result.successfulRelays} relay${result.successfulRelays !== 1 ? 's' : ''}`
-
-    if (result.failedRelays > 0) {
-      message += `\n\nNote: ${result.failedRelays} relay${result.failedRelays !== 1 ? 's' : ''} failed to publish`
-    }
-
-    alert(message)
+    // Store result and show success modal
+    lastPublishResult.value = result
+    showSuccessModal.value = true
   } catch (error) {
     console.error('Failed to publish to Nostr:', error)
     alert('Failed to publish to Nostr: ' + error.message)
@@ -190,6 +190,12 @@ const handleNostrLogin = async () => {
   } catch (error) {
     console.error('Login failed:', error)
   }
+}
+
+// Close success modal
+const closeSuccessModal = () => {
+  showSuccessModal.value = false
+  lastPublishResult.value = null
 }
 
 // Parse markdown content to HTML
@@ -850,4 +856,14 @@ onUnmounted(() => {
       </div>
     </div>
   </div>
+
+  <!-- Success Modal for Long-form Content -->
+  <NoteSuccessModal
+    :show="showSuccessModal"
+    :content="selectedContent?.description || selectedContent?.content || ''"
+    :title="selectedContent?.title || ''"
+    content-type="article"
+    :publish-result="lastPublishResult"
+    @close="closeSuccessModal"
+  />
 </template>
