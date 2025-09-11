@@ -175,7 +175,7 @@ const getNostrClientUrl = (client, noteId) => {
       case 'primal':
         return `https://primal.net/e/${noteId}`
       case 'yakihonne':
-        return `https://yakihonne.com/e/${nip19.neventEncode({ id: noteId })}`
+        return `https://yakihonne.com/notes/${nip19.neventEncode({ id: noteId })}`
       default:
         return `https://primal.net/e/${noteId}`
     }
