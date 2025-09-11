@@ -1,13 +1,12 @@
 <script setup>
 import { computed, inject } from 'vue'
 import {
-  IconTrendingUp,
   IconBolt,
   IconHeart,
   IconRepeat,
   IconBookmark,
-  IconStar,
-  IconExternalLink
+  IconExternalLink,
+  IconTrendingUp
 } from '@iconify-prerendered/vue-tabler'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
@@ -20,25 +19,19 @@ const { getEngagementCounts } = useEngagementMetrics()
 
 // Format numbers to user-friendly format
 const formatNumber = (num) => {
-  if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(1)}M`
-  } else if (num >= 1000) {
-    return `${(num / 1000).toFixed(1)}k`
-  }
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}k`
   return num.toString()
 }
 
 // Find best performing content with real engagement data
 const bestPerformingContent = computed(() => {
-  // Get NIP-57 zaps (those with eventId)
   const nip57Zaps = combinedZapData.value.filter(zap => zap.eventId)
   const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
   
-  if (filteredZaps.length === 0) {
-    return []
-  }
+  if (filteredZaps.length === 0) return []
 
-  // Group by content (eventId) and calculate performance scores
+  // Group by content and calculate performance
   const contentPerformance = new Map()
   
   filteredZaps.forEach(zap => {
@@ -61,130 +54,124 @@ const bestPerformingContent = computed(() => {
     content.zapAmount += zap.amount
   })
 
-  // Calculate performance scores and sort
+  // Calculate performance scores
   const contentArray = Array.from(contentPerformance.values())
-  
   contentArray.forEach(content => {
-    // Simple scoring: zaps are worth more since they're monetary
-    content.totalScore = (content.zaps * 10) + (content.likes * 2) + (content.reposts * 5) + content.bookmarks
+    // Weighted scoring: zaps worth most, then reposts, likes, bookmarks
+    content.totalScore = (content.zaps * 10) + (content.reposts * 3) + (content.likes * 1) + (content.bookmarks * 2)
   })
 
   return contentArray
     .filter(content => content.totalScore > 0)
     .sort((a, b) => b.totalScore - a.totalScore)
-    .slice(0, 3) // Top 3 performing content
+    .slice(0, 3)
 })
 
-// Get Nostr client URL for content
+// Get Nostr client URL
 const getNostrClientUrl = (eventId) => {
-  try {
-    return `https://primal.net/e/${eventId}`
-  } catch (error) {
-    return '#'
-  }
+  return `https://primal.net/e/${eventId}`
 }
+
+// Calculate totals for summary
+const totals = computed(() => {
+  return bestPerformingContent.value.reduce((acc, content) => ({
+    sats: acc.sats + content.zapAmount,
+    zaps: acc.zaps + content.zaps,
+    engagement: acc.engagement + content.likes + content.reposts + content.bookmarks
+  }), { sats: 0, zaps: 0, engagement: 0 })
+})
 </script>
 
 <template>
-  <div v-if="bestPerformingContent.length > 0" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
-    <div class="flex items-center justify-between mb-6">
-      <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-        <IconTrendingUp class="w-5 h-5 text-orange-600" />
-        <span>Best Performing Content</span>
-      </h3>
-      <div class="text-sm text-gray-500">
-        Top {{ bestPerformingContent.length }} posts
+  <div v-if="bestPerformingContent.length > 0" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <!-- Clean Header -->
+    <div class="px-6 py-4 border-b border-gray-50 bg-gray-50/50">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+            <IconTrendingUp class="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">Top Performing</h3>
+            <p class="text-sm text-gray-500">Your best content this period</p>
+          </div>
+        </div>
+        
+        <!-- Quick Summary -->
+        <div class="flex items-center space-x-4 text-sm">
+          <div class="text-center">
+            <div class="font-bold text-orange-600">{{ formatNumber(totals.sats) }}</div>
+            <div class="text-xs text-gray-500">sats</div>
+          </div>
+          <div class="text-center">
+            <div class="font-bold text-gray-900">{{ formatNumber(totals.zaps) }}</div>
+            <div class="text-xs text-gray-500">zaps</div>
+          </div>
+          <div class="text-center">
+            <div class="font-bold text-purple-600">{{ formatNumber(totals.engagement) }}</div>
+            <div class="text-xs text-gray-500">reactions</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Top Performing Content List -->
-    <div class="space-y-4">
+    <!-- Content List -->
+    <div class="divide-y divide-gray-50">
       <div
         v-for="(content, index) in bestPerformingContent"
         :key="content.eventId"
-        class="bg-gradient-to-r from-gray-50 to-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200"
+        class="px-6 py-4 hover:bg-gray-25 transition-colors group"
       >
         <div class="flex items-center justify-between">
-          <!-- Rank and Performance -->
+          <!-- Left: Rank + Metrics -->
           <div class="flex items-center space-x-4">
             <!-- Rank Badge -->
             <div :class="[
-              'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm',
+              'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
               index === 0 ? 'bg-yellow-100 text-yellow-700' :
-              index === 1 ? 'bg-gray-100 text-gray-700' :
-              'bg-orange-100 text-orange-700'
+              index === 1 ? 'bg-gray-100 text-gray-600' :
+              'bg-orange-100 text-orange-600'
             ]">
               {{ index + 1 }}
             </div>
             
-            <!-- Performance Metrics -->
-            <div>
-              <div class="flex items-center space-x-3 mb-1">
-                <!-- Zaps (Most Important) -->
-                <div class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full">
-                  <IconBolt class="w-4 h-4 text-orange-600" />
-                  <span class="font-bold text-orange-700">{{ formatNumber(content.zaps) }}</span>
-                  <span class="text-xs text-orange-600">zaps</span>
-                </div>
-                
-                <!-- Engagement Breakdown -->
-                <div class="flex items-center space-x-2 text-sm">
-                  <span v-if="content.likes > 0" class="flex items-center space-x-1 text-pink-600">
-                    <IconHeart class="w-3 h-3" />
-                    <span>{{ formatNumber(content.likes) }}</span>
-                  </span>
-                  <span v-if="content.reposts > 0" class="flex items-center space-x-1 text-green-600">
-                    <IconRepeat class="w-3 h-3" />
-                    <span>{{ formatNumber(content.reposts) }}</span>
-                  </span>
-                  <span v-if="content.bookmarks > 0" class="flex items-center space-x-1 text-blue-600">
-                    <IconBookmark class="w-3 h-3" />
-                    <span>{{ formatNumber(content.bookmarks) }}</span>
-                  </span>
-                </div>
+            <!-- Metrics Row -->
+            <div class="flex items-center space-x-3">
+              <!-- Zaps (Primary Metric) -->
+              <div class="flex items-center space-x-1.5 bg-orange-50 px-3 py-1.5 rounded-full">
+                <IconBolt class="w-4 h-4 text-orange-500" />
+                <span class="font-semibold text-orange-700">{{ formatNumber(content.zaps) }}</span>
+                <span class="text-xs text-orange-600">{{ formatNumber(content.zapAmount) }} sats</span>
               </div>
               
-              <!-- Revenue -->
-              <div class="text-sm text-gray-600">
-                <span class="font-medium text-orange-600">{{ formatNumber(content.zapAmount) }} sats earned</span>
+              <!-- Engagement Metrics -->
+              <div class="flex items-center space-x-2">
+                <span v-if="content.likes > 0" class="flex items-center space-x-1 text-pink-600">
+                  <IconHeart class="w-3.5 h-3.5" />
+                  <span class="text-sm font-medium">{{ formatNumber(content.likes) }}</span>
+                </span>
+                <span v-if="content.reposts > 0" class="flex items-center space-x-1 text-green-600">
+                  <IconRepeat class="w-3.5 h-3.5" />
+                  <span class="text-sm font-medium">{{ formatNumber(content.reposts) }}</span>
+                </span>
+                <span v-if="content.bookmarks > 0" class="flex items-center space-x-1 text-blue-600">
+                  <IconBookmark class="w-3.5 h-3.5" />
+                  <span class="text-sm font-medium">{{ formatNumber(content.bookmarks) }}</span>
+                </span>
               </div>
             </div>
           </div>
           
-          <!-- View Content Link -->
+          <!-- Right: View Link -->
           <a
             :href="getNostrClientUrl(content.eventId)"
             target="_blank"
             rel="noopener noreferrer"
-            class="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors"
+            class="opacity-0 group-hover:opacity-100 flex items-center space-x-1 text-gray-400 hover:text-blue-600 text-sm transition-all duration-200 bg-gray-50 hover:bg-blue-50 px-3 py-1.5 rounded-lg"
           >
             <span>View</span>
-            <IconExternalLink class="w-4 h-4" />
+            <IconExternalLink class="w-3.5 h-3.5" />
           </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Quick Summary -->
-    <div class="mt-6 pt-4 border-t border-gray-200">
-      <div class="grid grid-cols-3 gap-4 text-center">
-        <div>
-          <div class="text-lg font-bold text-orange-600">
-            {{ formatNumber(bestPerformingContent.reduce((sum, c) => sum + c.zapAmount, 0)) }}
-          </div>
-          <div class="text-xs text-gray-600">Total Sats</div>
-        </div>
-        <div>
-          <div class="text-lg font-bold text-gray-900">
-            {{ formatNumber(bestPerformingContent.reduce((sum, c) => sum + c.zaps, 0)) }}
-          </div>
-          <div class="text-xs text-gray-600">Total Zaps</div>
-        </div>
-        <div>
-          <div class="text-lg font-bold text-purple-600">
-            {{ formatNumber(bestPerformingContent.reduce((sum, c) => sum + c.likes + c.reposts + c.bookmarks, 0)) }}
-          </div>
-          <div class="text-xs text-gray-600">Engagement</div>
         </div>
       </div>
     </div>
@@ -192,16 +179,18 @@ const getNostrClientUrl = (eventId) => {
 </template>
 
 <style scoped>
-/* Smooth transitions for all elements */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 200ms;
+/* Clean transitions */
+.transition-colors {
+  transition: background-color 0.15s ease;
 }
 
-/* Hover effects for interactive elements */
-.hover\:shadow-md:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+.transition-all {
+  transition: all 0.2s ease;
+}
+
+/* Hover states */
+.group:hover .group-hover\:opacity-100 {
+  opacity: 1;
 }
 
 /* Focus states for accessibility */

@@ -729,62 +729,6 @@ const formatEngagementNumber = (num) => {
             </div>
           </div>
         </div>
-        
-        <!-- Enhanced Engagement Stats Card -->
-        <div class="card p-4 text-center hover:shadow-lg transition-all duration-200">
-          <div class="text-3xl mb-2">
-            <IconHeart class="w-8 h-8 mx-auto text-pink-600" />
-          </div>
-          <h4 class="font-medium text-gray-900 mb-3">Total Engagement</h4>
-          
-          <!-- Loading State -->
-          <div v-if="combinedZapData.filter(zap => zap.eventId).length === 0" class="text-center py-2">
-            <p class="text-sm text-gray-500">Connect to see engagement</p>
-          </div>
-          
-          <!-- Engagement Metrics -->
-          <div v-else class="space-y-3">
-            <!-- Total Engagement Number -->
-            <div class="text-2xl font-bold text-gray-900">
-              {{ formatEngagementNumber(summaryStats.totalEngagement + summaryStats.totalZapCount) }}
-            </div>
-            
-            <!-- Breakdown -->
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              <div class="bg-pink-50 rounded-lg p-2">
-                <div class="flex items-center justify-center space-x-1">
-                  <IconHeart class="w-3 h-3 text-pink-500" />
-                  <span class="font-medium text-pink-700">{{ formatEngagementNumber(summaryStats.totalLikes) }}</span>
-                </div>
-                <div class="text-pink-600 text-xs mt-1">Likes</div>
-              </div>
-              
-              <div class="bg-green-50 rounded-lg p-2">
-                <div class="flex items-center justify-center space-x-1">
-                  <IconRepeat class="w-3 h-3 text-green-500" />
-                  <span class="font-medium text-green-700">{{ formatEngagementNumber(summaryStats.totalReposts) }}</span>
-                </div>
-                <div class="text-green-600 text-xs mt-1">Reposts</div>
-              </div>
-              
-              <div class="bg-orange-50 rounded-lg p-2">
-                <div class="flex items-center justify-center space-x-1">
-                  <IconBolt class="w-3 h-3 text-orange-500" />
-                  <span class="font-medium text-orange-700">{{ formatEngagementNumber(summaryStats.totalZapCount) }}</span>
-                </div>
-                <div class="text-orange-600 text-xs mt-1">Zaps</div>
-              </div>
-              
-              <div class="bg-blue-50 rounded-lg p-2">
-                <div class="flex items-center justify-center space-x-1">
-                  <IconBookmark class="w-3 h-3 text-blue-500" />
-                  <span class="font-medium text-blue-700">{{ formatEngagementNumber(summaryStats.totalBookmarks) }}</span>
-                </div>
-                <div class="text-blue-600 text-xs mt-1">Saves</div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
       </div>
     </div>
