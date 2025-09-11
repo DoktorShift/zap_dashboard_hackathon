@@ -19,28 +19,18 @@ import {
   IconEye,
   IconUsers,
   IconAlertTriangle,
-  IconPhoto,
-  IconVideo, 
-  IconX,
-  IconExternalLink,
-  IconChevronDown,
-  IconCopy,
-  IconCheck,
-  IconCode,
-  IconShare,
   IconHeart,
   IconRepeat,
   IconBookmark,
-  IconDots,
-  IconChevronUp,
-  IconMessageCircle
+  IconX,
+  IconCheck,
+  IconCopy
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
-import { generateFallbackAvatar } from '../composables/useContentZaps.js'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -72,8 +62,7 @@ const {
   startZapTracking, 
   getZapsForContent, 
   getTotalZapAmount,
-  getZapCount,
-  getAllContentZaps
+  getZapCount
 } = useContentZaps()
 
 const {
@@ -87,45 +76,42 @@ const { satsToUSD, formatUSD } = useBtcPrice()
 
 // UI State
 const showViewModal = ref(false)
-const showMediaUrlInput = ref(false)
-const showVideoUrlInput = ref(false)
-const showEmojiPicker = ref(false)
-const showClientDropdown = ref(false)
 const showRawDataModal = ref(false)
-const showZapperModal = ref(false)
-const mediaUrl = ref('')
 const noteTextarea = ref(null)
-const dropdownRef = ref(null)
 const copySuccess = ref('')
-const selectedZapper = ref(null)
 
 // Enhanced computed properties
 const noteStats = computed(() => {
-  const totalZapRevenue = notes.value.reduce((sum, note) => {
+  const list = Array.isArray(notes.value) ? notes.value : []
+  
+  const totalZapRevenue = list.reduce((sum, note) => {
     return sum + getTotalZapAmount(note.id)
   }, 0)
   
-  const totalLikes = notes.value.reduce((sum, note) => {
-    return sum + getEngagementCounts(note.id).likes
+  const totalLikes = list.reduce((sum, note) => {
+    const { likes = 0 } = getEngagementCounts(note.id) || {}
+    return sum + likes
   }, 0)
   
-  const totalReposts = notes.value.reduce((sum, note) => {
-    return sum + getEngagementCounts(note.id).reposts
+  const totalReposts = list.reduce((sum, note) => {
+    const { reposts = 0 } = getEngagementCounts(note.id) || {}
+    return sum + reposts
   }, 0)
   
-  const totalBookmarks = notes.value.reduce((sum, note) => {
-    return sum + getEngagementCounts(note.id).bookmarks
+  const totalBookmarks = list.reduce((sum, note) => {
+    const { bookmarks = 0 } = getEngagementCounts(note.id) || {}
+    return sum + bookmarks
   }, 0)
   
-  const totalZapCount = notes.value.reduce((sum, note) => {
+  const totalZapCount = list.reduce((sum, note) => {
     return sum + getZapCount(note.id)
   }, 0)
   
   const totalEngagement = totalLikes + totalReposts + totalBookmarks
   
   return {
-    total: notes.value.length,
-    thisWeek: notes.value.filter(note => {
+    total: list.length,
+    thisWeek: list.filter(note => {
       const noteDate = new Date(note.created_at * 1000)
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       return noteDate > weekAgo
@@ -154,6 +140,8 @@ const enhancedSelectedNote = computed(() => {
   const totalZaps = getTotalZapAmount(note.id)
   const zapCount = getZapCount(note.id)
   
+  const words = (note.content || '').trim().split(/\s+/)
+  
   return {
     ...note,
     zapData,
@@ -162,8 +150,8 @@ const enhancedSelectedNote = computed(() => {
     zapCount,
     formattedDate: formatDate(note.created_at),
     timeAgo: getTimeAgo(note.created_at),
-    wordCount: note.content.split(/\s+/).length,
-    readTime: Math.ceil(note.content.split(/\s+/).length / 200)
+    wordCount: note.content ? words.length : 0,
+    readTime: note.content ? Math.ceil(words.length / 200) : 0
   }
 })
 
@@ -188,7 +176,8 @@ const handleSubmit = async () => {
 
 // Handle note deletion
 const handleDelete = async (note) => {
-  if (confirm(`Are you sure you want to delete "${note.title}"?`)) {
+  const label = note.content ? note.content.slice(0, 40) + (note.content.length > 40 ? '…' : '') : note.id
+  if (confirm(`Delete this note: "${label}"?`)) {
     try {
       await deleteNote(note.id)
       if (currentView.value === 'view' && selectedNote.value?.id === note.id) {
@@ -242,9 +231,8 @@ const isFormValid = computed(() => {
 
 // Close dropdown when clicking outside
 const handleClickOutside = (event) => {
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
-    showClientDropdown.value = false
-  }
+  if (!event?.target) return
+  // Handle any future dropdown logic here
 }
 
 // Get URL for different Nostr clients
@@ -256,9 +244,9 @@ const getNostrClientUrl = (client, noteId) => {
       case 'primal':
         return `https://primal.net/e/${noteId}`
       case 'yakihonne':
-        return `https://yakihonne.com/${nip19.neventEncode({ id: noteId })}`
+        return `https://yakihonne.com/e/${nip19.neventEncode({ id: noteId })}`
       case 'highlighter':
-        return `https://highlighter.com/a/note1${nip19.noteEncode(noteId)}`
+        return `https://highlighter.com/a/${nip19.noteEncode(noteId)}`
       default:
         return `https://primal.net/e/${noteId}`
     }
@@ -285,10 +273,10 @@ const formatZapperPubkey = (pubkey) => {
 }
 
 // Format zap timestamp
-const formatZapTime = (timestamp) => {
-  const date = new Date(timestamp)
+const formatZapTime = (timestampSec) => {
+  const date = new Date(timestampSec * 1000)
   const now = new Date()
-  const diff = now - date
+  const diff = now.getTime() - date.getTime()
   
   if (diff < 60000) return 'now'
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
@@ -333,70 +321,15 @@ const showZapperDetails = (zapper) => {
   showZapperModal.value = true
 }
 
-// Insert media URL at cursor position
-const insertMediaUrl = (type) => {
-  let url = mediaUrl.value.trim();
-  if (!url) {
-    showMediaUrlInput.value = false
-    showVideoUrlInput.value = false
-    return
-  }
-  
-  // Validate image URL if it's an image
-  if (type === 'image' && !url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-    alert('Please enter a valid image URL (ending with .jpg, .jpeg, .png, .gif, or .webp)');
-    return;
-  }
-  
-  const textarea = noteTextarea.value
-  
-  if (textarea) {
-    const cursorPos = textarea.selectionStart
-    const textBefore = noteForm.content.substring(0, cursorPos)
-    const textAfter = noteForm.content.substring(textarea.selectionEnd)
-    
-    // Just insert the raw URL with line breaks
-    const mediaText = `\n${url}\n`
-    
-    // Update content
-    noteForm.content = textBefore + mediaText + textAfter
-    
-    // Reset and close
-    mediaUrl.value = ''
-    showMediaUrlInput.value = false
-    showVideoUrlInput.value = false
-    
-    // Focus back on textarea
-    setTimeout(() => {
-      textarea.focus()
-      const newCursorPos = cursorPos + mediaText.length
-      textarea.setSelectionRange(newCursorPos, newCursorPos)
-    }, 50)
-  }
-}
 
-// Handle emoji selection
-const handleEmojiSelect = (emoji) => {
-  const textarea = noteTextarea.value
-  
-  if (textarea) {
-    const cursorPos = textarea.selectionStart
-    const textBefore = noteForm.content.substring(0, cursorPos)
-    const textAfter = noteForm.content.substring(textarea.selectionEnd)
-    
-    // Update content with emoji
-    noteForm.content = textBefore + emoji.i + textAfter
-    
-    // Reset emoji picker state
-    showEmojiPicker.value = false
-    
-    // Focus back on textarea and set cursor position after the emoji
-    setTimeout(() => {
-      textarea.focus()
-      const newCursorPos = cursorPos + emoji.i.length
-      textarea.setSelectionRange(newCursorPos, newCursorPos)
-    }, 50)
-  }
+// Track which notes we've already started tracking to prevent duplicates
+const tracked = new Set()
+
+function ensureTrackingFor(noteId) {
+  if (tracked.has(noteId)) return
+  startZapTracking(noteId)
+  startEngagementTracking(noteId)
+  tracked.add(noteId)
 }
 
 onMounted(() => {
@@ -405,35 +338,26 @@ onMounted(() => {
   // Expose debug function globally for console access
   window.debugNotes = debugState
   
-  // Start tracking zaps and engagement for all notes
   if (isAuthenticated.value) {
-    if (notes.value.length > 0) {
-      notes.value.forEach(note => {
-        startZapTracking(note.id)
-        startEngagementTracking(note.id)
-      })
-    }
-    
-    setTimeout(() => {
-      if (notes.value.length > 0) {
-        notes.value.forEach(note => {
-          startZapTracking(note.id)
-          startEngagementTracking(note.id)
-        })
-      }
-    }, 1000)
+    const list = Array.isArray(notes.value) ? notes.value : []
+    list.forEach(note => ensureTrackingFor(note.id))
   }
 })
 
 // Watch for notes changes to track zaps and engagement on new notes
 watch(notes, (newNotes) => {
-  if (isAuthenticated.value && newNotes.length > 0) {
-    newNotes.forEach(note => {
-      startZapTracking(note.id)
-      startEngagementTracking(note.id)
-    })
+  if (isAuthenticated.value) {
+    const list = Array.isArray(newNotes) ? newNotes : []
+    list.forEach(note => ensureTrackingFor(note.id))
   }
-}, { deep: true })
+
+// Watch for authentication changes
+watch(isAuthenticated, (authed) => {
+  if (authed) {
+    const list = Array.isArray(notes.value) ? notes.value : []
+    list.forEach(note => ensureTrackingFor(note.id))
+  }
+})
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
