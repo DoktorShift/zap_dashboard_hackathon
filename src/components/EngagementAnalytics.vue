@@ -10,7 +10,7 @@ import {
   IconTarget,
   IconClock,
   IconStar,
-  IconFire
+  IconFlame
 } from '@iconify-prerendered/vue-tabler'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
@@ -147,7 +147,7 @@ const getTrendIcon = (trend) => {
   <div v-if="engagementAnalytics.totalEngagement > 0" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
     <div class="flex items-center justify-between mb-6">
       <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-        <IconFire class="w-5 h-5 text-orange-600" />
+        <IconFlame class="w-5 h-5 text-orange-600" />
         <span>Engagement Analytics</span>
       </h3>
       <div :class="[
