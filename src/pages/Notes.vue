@@ -870,8 +870,6 @@ Express yourself freely!"
                   <div class="flex items-center space-x-2 text-sm text-gray-500">
                     <span>{{ enhancedSelectedNote.timeAgo }}</span>
                     <span>•</span>
-                    <span>{{ enhancedSelectedNote.wordCount }} words</span>
-                    <span>•</span>
                     <span>{{ enhancedSelectedNote.readTime }} min read</span>
                   </div>
                 </div>
