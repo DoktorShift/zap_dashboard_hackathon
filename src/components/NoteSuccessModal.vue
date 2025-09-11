@@ -1,10 +1,25 @@
 <template>
   <Teleport to="#modal-root">
     <transition name="modal-fade">
-      <div v-if="show" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+      <div 
+        v-if="show" 
+        class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+        @click="handleBackdropClick"
+      >
         <div class="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+          <!-- Close Button -->
+          <button
+            @click="closeModal"
+            class="absolute top-4 right-4 z-10 w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
+            aria-label="Close"
+          >
+            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+          
           <!-- Header -->
-          <div class="p-6 text-center border-b border-gray-100">
+          <div class="p-6 text-center border-b border-gray-100" @click.stop>
             <!-- Clean Checkmark -->
             <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -18,7 +33,7 @@
           </div>
           
           <!-- Note Preview -->
-          <div class="p-6">
+          <div class="p-6" @click.stop>
             <div class="flex items-start space-x-3 bg-gray-50 rounded-xl p-4">
               <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0">
                 <img 
@@ -37,7 +52,7 @@
           </div>
           
           <!-- Actions -->
-          <div class="px-6 pb-6">
+          <div class="px-6 pb-6" @click.stop>
             <div class="grid grid-cols-2 gap-3 mb-4">
               <a
                 :href="getNostrClientUrl('primal', publishResult?.event?.id)"
@@ -75,7 +90,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import * as nip19 from 'nostr-tools/nip19'
 
@@ -98,11 +113,12 @@ const emit = defineEmits(['close'])
 
 const { userProfile } = useNostrAuth()
 
-// Auto-close timer
+// Auto-close timer management
 let autoCloseTimer = null
 
-// Set up auto-close when modal shows
-const setupAutoClose = () => {
+// Set up auto-close timer
+const startAutoCloseTimer = () => {
+  // Clear any existing timer
   if (autoCloseTimer) {
     clearTimeout(autoCloseTimer)
   }
@@ -112,23 +128,44 @@ const setupAutoClose = () => {
   }, 5000) // 5 seconds
 }
 
-// Clean up timer
-const cleanupTimer = () => {
+// Clear the auto-close timer
+const clearAutoCloseTimer = () => {
   if (autoCloseTimer) {
     clearTimeout(autoCloseTimer)
     autoCloseTimer = null
   }
 }
 
-// Watch for show prop changes
-const handleShowChange = () => {
-  if (props.show) {
-    setupAutoClose()
-  } else {
-    cleanupTimer()
+// Manual close function
+const closeModal = () => {
+  clearAutoCloseTimer()
+  emit('close')
+}
+
+// Handle backdrop click (close when clicking outside)
+const handleBackdropClick = (event) => {
+  if (event.target === event.currentTarget) {
+    closeModal()
   }
 }
 
+// Handle escape key
+const handleKeydown = (event) => {
+  if (event.key === 'Escape' && props.show) {
+    closeModal()
+  }
+}
+
+// Watch for show prop changes to start/stop timer
+watch(() => props.show, (show) => {
+  if (props.show) {
+    startAutoCloseTimer()
+  } else {
+    clearAutoCloseTimer()
+  }
+})
+
+// Get URL for different Nostr clients
 // Get URL for different Nostr clients
 const getNostrClientUrl = (client, noteId) => {
   if (!noteId) return '#'
@@ -149,33 +186,15 @@ const getNostrClientUrl = (client, noteId) => {
 }
 
 onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
   if (props.show) {
-    setupAutoClose()
+    startAutoCloseTimer()
   }
 })
 
 onUnmounted(() => {
-  cleanupTimer()
-})
-
-// Watch for prop changes
-const unwatchShow = () => {
-  return () => {
-    if (props.show) {
-      setupAutoClose()
-    } else {
-      cleanupTimer()
-    }
-  }
-}
-
-// Set up watcher
-const stopWatcher = unwatchShow()
-
-// Clean up on unmount
-onUnmounted(() => {
-  stopWatcher()
-  cleanupTimer()
+  document.removeEventListener('keydown', handleKeydown)
+  clearAutoCloseTimer()
 })
 </script>
 
