@@ -585,3 +585,4 @@ const formatRawEvent = (note) => {
             </div>
           </div>
         </div>
+      </div>
