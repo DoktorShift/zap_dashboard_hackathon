@@ -23,7 +23,17 @@ import {
   IconVideo, 
   IconX,
   IconExternalLink,
-  IconChevronDown
+  IconChevronDown,
+  IconCopy,
+  IconCheck,
+  IconCode,
+  IconShare,
+  IconHeart,
+  IconRepeat,
+  IconBookmark,
+  IconDots,
+  IconChevronUp,
+  IconMessageCircle
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrNotes } from '../composables/useNostrNotes.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -75,6 +85,87 @@ const {
 // Use BTC price composable
 const { satsToUSD, formatUSD } = useBtcPrice()
 
+// UI State
+const showViewModal = ref(false)
+const showMediaUrlInput = ref(false)
+const showVideoUrlInput = ref(false)
+const showEmojiPicker = ref(false)
+const showClientDropdown = ref(false)
+const showRawDataModal = ref(false)
+const showZapperModal = ref(false)
+const mediaUrl = ref('')
+const noteTextarea = ref(null)
+const dropdownRef = ref(null)
+const copySuccess = ref('')
+const selectedZapper = ref(null)
+
+// Enhanced computed properties
+const noteStats = computed(() => {
+  const totalZapRevenue = notes.value.reduce((sum, note) => {
+    return sum + getTotalZapAmount(note.id)
+  }, 0)
+  
+  const totalLikes = notes.value.reduce((sum, note) => {
+    return sum + getEngagementCounts(note.id).likes
+  }, 0)
+  
+  const totalReposts = notes.value.reduce((sum, note) => {
+    return sum + getEngagementCounts(note.id).reposts
+  }, 0)
+  
+  const totalBookmarks = notes.value.reduce((sum, note) => {
+    return sum + getEngagementCounts(note.id).bookmarks
+  }, 0)
+  
+  const totalZapCount = notes.value.reduce((sum, note) => {
+    return sum + getZapCount(note.id)
+  }, 0)
+  
+  const totalEngagement = totalLikes + totalReposts + totalBookmarks
+  
+  return {
+    total: notes.value.length,
+    thisWeek: notes.value.filter(note => {
+      const noteDate = new Date(note.created_at * 1000)
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      return noteDate > weekAgo
+    }).length,
+    totalZapRevenue,
+    totalLikes,
+    totalReposts,
+    totalBookmarks,
+    totalZapCount,
+    totalEngagement
+  }
+})
+
+// Calculate total zap revenue in USD
+const revenueInUSD = computed(() => {
+  return formatUSD(satsToUSD(noteStats.value.totalZapRevenue))
+})
+
+// Enhanced note display data
+const enhancedSelectedNote = computed(() => {
+  if (!selectedNote.value) return null
+  
+  const note = selectedNote.value
+  const zapData = getZapsForContent(note.id)
+  const engagementData = getEngagementCounts(note.id)
+  const totalZaps = getTotalZapAmount(note.id)
+  const zapCount = getZapCount(note.id)
+  
+  return {
+    ...note,
+    zapData,
+    engagementData,
+    totalZaps,
+    zapCount,
+    formattedDate: formatDate(note.created_at),
+    timeAgo: getTimeAgo(note.created_at),
+    wordCount: note.content.split(/\s+/).length,
+    readTime: Math.ceil(note.content.split(/\s+/).length / 200)
+  }
+})
 
 // Handle form submission
 const handleSubmit = async () => {
@@ -121,7 +212,6 @@ const handleNostrLogin = async () => {
 // Set up editor content when editing
 const startEditing = (note) => {
   editNote(note)
-  // Set the content in the textarea
   noteForm.content = note.content
 }
 
@@ -130,77 +220,25 @@ const startCreating = () => {
   noteForm.content = ''
 }
 
-// Open view popup
-const openViewPopup = (note) => {
+// Open detailed view
+const openDetailedView = (note) => {
   selectedNote.value = note
-  showViewPopup.value = true
+  showViewModal.value = true
 }
 
-// Close view popup
-const closeViewPopup = () => {
-  showViewPopup.value = false
+// Close detailed view
+const closeDetailedView = () => {
+  showViewModal.value = false
   selectedNote.value = null
+  showRawDataModal.value = false
+  showZapperModal.value = false
+  selectedZapper.value = null
 }
 
-// Computed properties
+// Form validation
 const isFormValid = computed(() => {
   return noteForm.content.trim().length > 0
 })
-
-// Calculate total zap revenue in USD
-const revenueInUSD = computed(() => {
-  return formatUSD(satsToUSD(noteStats.value.totalZapRevenue))
-})
-
-const noteStats = computed(() => {
-  // Calculate total zap revenue across all notes
-  const totalZapRevenue = notes.value.reduce((sum, note) => {
-    return sum + getTotalZapAmount(note.id)
-  }, 0)
-  
-  const totalLikes = notes.value.reduce((sum, note) => {
-    return sum + getEngagementCounts(note.id).likes
-  }, 0)
-  
-  const totalReposts = notes.value.reduce((sum, note) => {
-    return sum + getEngagementCounts(note.id).reposts
-  }, 0)
-  
-  const totalBookmarks = notes.value.reduce((sum, note) => {
-    return sum + getEngagementCounts(note.id).bookmarks
-  }, 0)
-  
-  const totalZapCount = notes.value.reduce((sum, note) => {
-    return sum + getZapCount(note.id)
-  }, 0)
-  
-  const totalEngagement = totalLikes + totalReposts + totalBookmarks
-  
-  return {
-    total: notes.value.length,
-    thisWeek: notes.value.filter(note => {
-      const noteDate = new Date(note.created_at * 1000)
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-      return noteDate > weekAgo
-    }).length,
-    totalZapRevenue,
-    totalLikes,
-    totalReposts,
-    totalBookmarks,
-    totalZapCount,
-    totalEngagement
-  }
-})
-
-// UI state
-const showViewPopup = ref(false)
-const showMediaUrlInput = ref(false)
-const showClientDropdown = ref(false)
-const showEmojiPicker = ref(false)
-const showVideoUrlInput = ref(false)
-const mediaUrl = ref('')
-const noteTextarea = ref(null)
-const dropdownRef = ref(null)
 
 // Close dropdown when clicking outside
 const handleClickOutside = (event) => {
@@ -209,20 +247,11 @@ const handleClickOutside = (event) => {
   }
 }
 
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
-
 // Get URL for different Nostr clients
 const getNostrClientUrl = (client, noteId) => {
   if (!noteId) return '#'
   
   try {
-    // For all clients, use the event ID directly
     switch (client) {
       case 'primal':
         return `https://primal.net/e/${noteId}`
@@ -267,39 +296,42 @@ const formatZapTime = (timestamp) => {
   return `${Math.floor(diff / 86400000)}d ago`
 }
 
-onMounted(() => {
-  // Expose debug function globally for console access
-  window.debugNotes = debugState
+// Get time ago for notes
+const getTimeAgo = (timestamp) => {
+  const date = new Date(timestamp * 1000)
+  const now = new Date()
+  const diff = now - date
   
-  // Start tracking zaps and engagement for all notes
-  if (isAuthenticated.value) {
-    if (notes.value.length > 0) {
-      notes.value.forEach(note => {
-        startZapTracking(note.id)
-        startEngagementTracking(note.id)
-      })
-    }
-    
-    setTimeout(() => {
-      if (notes.value.length > 0) {
-        notes.value.forEach(note => {
-          startZapTracking(note.id)
-          startEngagementTracking(note.id)
-        })
-      }
-    }, 1000)
-  }
-})
+  if (diff < 60000) return 'now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`
+  return date.toLocaleDateString()
+}
 
-// Watch for notes changes to track zaps and engagement on new notes
-watch(notes, (newNotes) => {
-  if (isAuthenticated.value && newNotes.length > 0) {
-    newNotes.forEach(note => {
-      startZapTracking(note.id)
-      startEngagementTracking(note.id)
-    })
+// Copy to clipboard
+const copyToClipboard = async (text, type = 'text') => {
+  try {
+    await navigator.clipboard.writeText(text)
+    copySuccess.value = type
+    setTimeout(() => {
+      copySuccess.value = ''
+    }, 2000)
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error)
   }
-}, { deep: true })
+}
+
+// Show raw data modal
+const showRawData = () => {
+  showRawDataModal.value = true
+}
+
+// Show zapper details
+const showZapperDetails = (zapper) => {
+  selectedZapper.value = zapper
+  showZapperModal.value = true
+}
 
 // Insert media URL at cursor position
 const insertMediaUrl = (type) => {
@@ -367,11 +399,46 @@ const handleEmojiSelect = (emoji) => {
   }
 }
 
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  
+  // Expose debug function globally for console access
+  window.debugNotes = debugState
+  
+  // Start tracking zaps and engagement for all notes
+  if (isAuthenticated.value) {
+    if (notes.value.length > 0) {
+      notes.value.forEach(note => {
+        startZapTracking(note.id)
+        startEngagementTracking(note.id)
+      })
+    }
+    
+    setTimeout(() => {
+      if (notes.value.length > 0) {
+        notes.value.forEach(note => {
+          startZapTracking(note.id)
+          startEngagementTracking(note.id)
+        })
+      }
+    }, 1000)
+  }
+})
+
+// Watch for notes changes to track zaps and engagement on new notes
+watch(notes, (newNotes) => {
+  if (isAuthenticated.value && newNotes.length > 0) {
+    newNotes.forEach(note => {
+      startZapTracking(note.id)
+      startEngagementTracking(note.id)
+    })
+  }
+}, { deep: true })
+
 onUnmounted(() => {
-  // Clean up subscriptions when component unmounts
+  document.removeEventListener('click', handleClickOutside)
   cleanup()
   cleanupEngagement()
-  // Remove global debug function
   delete window.debugNotes
 })
 </script>
@@ -407,19 +474,6 @@ onUnmounted(() => {
     <div v-else>
       <!-- Page Header -->
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-       <div>
-  <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">
-   <!--  <IconFileText class="w-6 h-6 text-orange-600" /> -->
-   <!-- <span>My Notes</span> -->
-    
-  </h1>
-
-<!--<p class="text-gray-600">-->
-<!--    Welcome back, {{ userProfile?.name || 'Creator' }}! Write and publish notes to the Nostr network.-->
-<!--  </p>  -->
-
-</div>
-
         <div class="flex items-center space-x-3 mb-4">
           <button
             v-if="currentView !== 'list'"
@@ -438,15 +492,6 @@ onUnmounted(() => {
               New Note
             </button>
           </div>
-<!--          <button-->
-<!--            v-if="currentView === 'list'"-->
-<!--            @click="cleanupDuplicateNotes"-->
-<!--            class="btn-secondary text-sm"-->
-<!--            title="Clean up duplicate notes"-->
-<!--          >-->
-<!--            <IconLoader class="w-4 h-4" />-->
-<!--            Cleanup-->
-<!--          </button>-->
         </div>
       </div>
 
@@ -460,49 +505,36 @@ onUnmounted(() => {
 
       <!-- Notes List View -->
       <div v-if="currentView === 'list'">
-        <!-- Stats Cards -->
+        <!-- Enhanced Stats Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <!-- Total Zap Revenue Card - Now Highlighted -->
-          <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-4 rounded-xl shadow-sm">
+          <!-- Total Zap Revenue Card -->
+          <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-6 rounded-xl shadow-lg">
             <div class="flex flex-col">
               <p class="text-orange-100 text-sm mb-1">Total Revenue</p>
-              <p class="text-3xl font-bold mb-1">{{ noteStats.totalZapRevenue.toLocaleString() }} sats </p>
-              <p class="text-orange-100 text-xs">
-                ≈ {{ revenueInUSD }} USD
-              </p>
+              <p class="text-3xl font-bold mb-1">{{ noteStats.totalZapRevenue.toLocaleString() }} sats</p>
+              <p class="text-orange-100 text-xs">≈ {{ revenueInUSD }} USD</p>
             </div>
             <div class="flex justify-end">
               <IconBolt class="w-8 h-8 text-orange-200" />
             </div>
           </div>
           
-          <!-- Total Notes Card - Now Regular -->
-          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+          <!-- Total Notes Card -->
+          <div class="bg-white p-6 rounded-xl border border-orange-100/50 shadow-sm">
             <div class="flex flex-col">
               <p class="text-gray-600 text-sm mb-1">Total Notes</p>
-              <p class="text-2xl font-bold text-gray-900">{{ noteStats.total }}</p>
+              <p class="text-3xl font-bold text-gray-900">{{ noteStats.total }}</p>
             </div>
             <div class="flex justify-end">
               <IconFileText class="w-8 h-8 text-orange-600" />
             </div>
           </div>
           
-          <!-- This Week Card - Commented Out -->
-          <!-- <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
-            <div class="flex flex-col">
-              <p class="text-gray-600 text-sm">This Week</p>
-              <p class="text-3xl font-bold text-gray-900">{{ noteStats.thisWeek }}</p>
-            </div>
-            <div class="flex justify-end">
-              <IconCalendar class="w-8 h-8 text-orange-600" />
-            </div>
-          </div> -->
-          
           <!-- On Nostr Card -->
-          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+          <div class="bg-white p-6 rounded-xl border border-orange-100/50 shadow-sm">
             <div class="flex flex-col">
               <p class="text-gray-600 text-sm mb-1">On Nostr</p>
-              <p class="text-2xl font-bold text-purple-600">{{ noteStats.total }}</p>
+              <p class="text-3xl font-bold text-purple-600">{{ noteStats.total }}</p>
             </div>
             <div class="flex justify-end">
               <IconBolt class="w-8 h-8 text-purple-600" />
@@ -510,10 +542,10 @@ onUnmounted(() => {
           </div>
           
           <!-- Total Engagement Card -->
-          <div class="bg-white p-4 rounded-xl border border-orange-100/50 shadow-sm">
+          <div class="bg-white p-6 rounded-xl border border-orange-100/50 shadow-sm">
             <div class="flex flex-col">
               <p class="text-gray-600 text-sm mb-1">Engagement</p>
-              <p class="text-2xl font-bold text-gray-900">{{ noteStats.totalEngagement.toLocaleString() }}</p>
+              <p class="text-3xl font-bold text-gray-900">{{ noteStats.totalEngagement.toLocaleString() }}</p>
               <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
                 <EngagementMetrics 
                   :key="`stats-${noteStats.totalEngagement}-${noteStats.totalZapCount}`"
@@ -538,7 +570,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Notes List -->
+        <!-- Enhanced Notes List -->
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm">
           <div class="p-6 border-b border-orange-100/50">
             <h3 class="text-lg font-semibold text-gray-900">Your Notes</h3>
@@ -562,69 +594,105 @@ onUnmounted(() => {
           </div>
 
           <div v-else class="divide-y divide-orange-100/50">
+            <!-- Enhanced Note Cards -->
             <div
               v-for="note in notes"
               :key="note.id"
-              class="p-4 hover:bg-orange-25/80 transition-all duration-200 cursor-pointer rounded-lg border border-transparent hover:border-orange-200/50 hover:shadow-sm"
-              @click="viewNote(note)"
+              class="p-6 hover:bg-orange-25/80 transition-all duration-200 cursor-pointer group"
+              @click="openDetailedView(note)"
             >
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 min-w-0 space-y-2">
-                  <div class="flex items-center gap-2 mb-2">
-                    <h4 class="font-semibold text-gray-900 truncate">
-                      {{ note.title }}
-                    </h4>
-                    <span v-if="getZapCount(note.id) > 0" 
-                          class="flex items-center space-x-1 bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">
-                      <IconBolt class="w-3 h-3 text-orange-600 font-bold" />
-                      <span>{{ formatZapAmount(getTotalZapAmount(note.id)) }}</span>
-                    </span>
+              <!-- Note Header -->
+              <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center space-x-3">
+                  <!-- Author Avatar -->
+                  <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
+                    <img 
+                      :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                      :alt="userProfile?.name || 'You'"
+                      class="w-full h-full object-cover"
+                    />
                   </div>
                   
-                  <p class="text-sm text-gray-600 line-clamp-2 mb-3">
-                    {{ note.preview }}
-                  </p>
-                  
-                  <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                    <span class="flex items-center gap-1">
-                      <IconCalendar class="w-3 h-3" />
-                      <span>{{ formatDate(note.created_at) }}</span>
-                    </span>
-                    
-                    <EngagementMetrics 
-                      :key="`engagement-${note.id}-${getEngagementCounts(note.id).totalEngagement}-${getZapCount(note.id)}`"
-                      :engagement-counts="getEngagementCounts(note.id)"
-                      :zap-count="getZapCount(note.id)"
-                      size="default"
-                      text-size="text-xs"
-                      :show-all-metrics="false"
-                      :show-no-engagement-text="true"
-                    />
-                    
-                    <span v-if="note.hashtags && note.hashtags.length > 0" class="flex items-center gap-1">
-                      <IconHash class="w-3 h-3" />
-                      <span>{{ note.hashtags.slice(0, 2).join(', ') }}</span>
-                      <span v-if="note.hashtags.length > 2">+{{ note.hashtags.length - 2 }}</span>
-                    </span>
+                  <!-- Author Info -->
+                  <div>
+                    <div class="flex items-center space-x-2">
+                      <h4 class="font-semibold text-gray-900">{{ userProfile?.name || 'You' }}</h4>
+                      <span v-if="userProfile?.nip05" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                        Verified
+                      </span>
+                    </div>
+                    <div class="flex items-center space-x-2 text-sm text-gray-500">
+                      <span>{{ getTimeAgo(note.created_at) }}</span>
+                      <span>•</span>
+                      <span>{{ Math.ceil(note.content.split(/\s+/).length / 200) }} min read</span>
+                    </div>
                   </div>
                 </div>
                 
-                <div class="flex flex-col items-end space-y-2">
-                  <div class="flex items-center space-x-1">
-                    <button
-                      @click.stop="startEditing(note)"
-                      class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                      title="Edit note"
-                    >
-                      <IconEdit class="w-4 h-4" />
-                    </button>
-                    <button
-                      @click.stop="handleDelete(note)"
-                     class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                     title="Delete note"
-                   >
-                     <IconTrash class="w-4 h-4" />
-                   </button>
+                <!-- Note Actions -->
+                <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    @click.stop="startEditing(note)"
+                    class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                    title="Edit note"
+                  >
+                    <IconEdit class="w-4 h-4" />
+                  </button>
+                  <button
+                    @click.stop="handleDelete(note)"
+                    class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete note"
+                  >
+                    <IconTrash class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Note Content Preview -->
+              <div class="mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{{ note.title }}</h3>
+                <p class="text-gray-700 line-clamp-3 leading-relaxed">{{ note.preview }}</p>
+              </div>
+              
+              <!-- Hashtags -->
+              <div v-if="note.hashtags && note.hashtags.length > 0" class="mb-4">
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    v-for="tag in note.hashtags.slice(0, 3)"
+                    :key="tag"
+                    class="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs hover:bg-orange-200 transition-colors"
+                  >
+                    <IconHash class="w-3 h-3" />
+                    <span>{{ tag }}</span>
+                  </span>
+                  <span v-if="note.hashtags.length > 3" class="text-xs text-gray-500 px-2 py-1">
+                    +{{ note.hashtags.length - 3 }} more
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Enhanced Engagement Bar -->
+              <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                <!-- Left: Engagement Metrics -->
+                <div class="flex items-center space-x-6">
+                  <EngagementMetrics 
+                    :key="`engagement-${note.id}-${getEngagementCounts(note.id).totalEngagement}-${getZapCount(note.id)}`"
+                    :engagement-counts="getEngagementCounts(note.id)"
+                    :zap-count="getZapCount(note.id)"
+                    size="default"
+                    text-size="text-sm"
+                    :show-all-metrics="true"
+                    :show-no-engagement-text="false"
+                    :show-tooltips="true"
+                  />
+                </div>
+                
+                <!-- Right: Zap Revenue -->
+                <div v-if="getTotalZapAmount(note.id) > 0" class="flex items-center space-x-2">
+                  <div class="bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-1 rounded-full flex items-center space-x-1">
+                    <IconBolt class="w-4 h-4 text-orange-600" />
+                    <span class="font-semibold">{{ formatZapAmount(getTotalZapAmount(note.id)) }} sats</span>
+                    <span class="text-orange-500">({{ getZapCount(note.id) }})</span>
                   </div>
                 </div>
               </div>
@@ -636,6 +704,7 @@ onUnmounted(() => {
       <!-- Create/Edit Note View -->
       <div v-else-if="currentView === 'create' || currentView === 'edit'">
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm">
+          <!-- Header -->
           <div class="p-6 border-b border-orange-100/50">
             <h2 class="text-xl font-semibold text-gray-900">
               {{ currentView === 'edit' ? 'Edit Note' : 'Create New Note' }}
@@ -645,7 +714,7 @@ onUnmounted(() => {
             </p>
           </div>
 
-          <!-- Edit Note Info Alert - Only show when editing -->
+          <!-- Edit Note Info Alert -->
           <div v-if="currentView === 'edit'" class="px-6 pt-4">
             <div class="p-4 bg-amber-50/80 rounded-lg mb-5 border border-amber-200 shadow-sm">
               <div class="flex items-start space-x-3">
@@ -675,46 +744,59 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- Plain Text Editor -->
+            <!-- Enhanced Editor -->
             <div class="border border-orange-200/50 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 focus-within:ring-2 focus-within:ring-orange-300 focus-within:border-orange-400 flex flex-col">
               <!-- Media Toolbar -->
-              <div class="flex items-center px-3 py-2 border-b border-orange-100/50 bg-orange-50/30">
-                <button 
-                  @click="showMediaUrlInput = true"
-                  class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
-                  title="Add image URL"
-                >
-                  <IconPhoto class="w-5 h-5" />
-                  <span class="text-sm">Image</span>
-                </button>
-                <button 
-                  @click="showVideoUrlInput = true"
-                  class="p-2 ml-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
-                  title="Add video URL"
-                >
-                  <IconVideo class="w-5 h-5" />
-                  <span class="text-sm">Video</span>
-                </button>
-                <div class="h-5 mx-3 border-r border-orange-200/50"></div>
-                <div class="relative">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-orange-100/50 bg-orange-50/30">
+                <div class="flex items-center space-x-2">
                   <button 
+                    @click="showMediaUrlInput = true"
                     class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
-                    title="Insert emoji"
-                    @click="showEmojiPicker = !showEmojiPicker"
+                    title="Add image URL"
                   >
-                    <span class="text-xl leading-none">😊</span>
-                    <span class="text-sm">Emoji</span>
+                    <IconPhoto class="w-4 h-4" />
+                    <span class="text-sm">Image</span>
                   </button>
-                  <!-- Emoji Picker -->
-                  <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-20 shadow-xl rounded-lg border border-orange-200">
-                    <EmojiPicker @select="handleEmojiSelect" :native="true" />
+                  <button 
+                    @click="showVideoUrlInput = true"
+                    class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                    title="Add video URL"
+                  >
+                    <IconVideo class="w-4 h-4" />
+                    <span class="text-sm">Video</span>
+                  </button>
+                  <div class="h-5 mx-2 border-r border-orange-200/50"></div>
+                  <div class="relative">
+                    <button 
+                      class="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-100/50 rounded transition-colors flex items-center space-x-1"
+                      title="Insert emoji"
+                      @click="showEmojiPicker = !showEmojiPicker"
+                    >
+                      <span class="text-lg leading-none">😊</span>
+                      <span class="text-sm">Emoji</span>
+                    </button>
+                    <!-- Emoji Picker -->
+                    <div v-if="showEmojiPicker" class="absolute top-full left-0 mt-2 z-20 shadow-xl rounded-lg border border-orange-200">
+                      <EmojiPicker @select="handleEmojiSelect" :native="true" />
+                    </div>
                   </div>
                 </div>
+                
+                <!-- Character Count -->
+                <div class="text-xs text-gray-500">
+                  {{ noteForm.content.length }} characters
+                </div>
               </div>
+              
+              <!-- Enhanced Textarea -->
               <textarea
                 v-model="noteForm.content"
-                placeholder="Write your note here... Use #hashtags to make your note discoverable."
-                class="w-full min-h-[300px] p-5 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none emoji-textarea"
+                placeholder="What's on your mind? Share your thoughts with the Nostr community...
+
+Use #hashtags to make your note discoverable.
+Add URLs to share links.
+Express yourself freely!"
+                class="w-full min-h-[300px] p-6 bg-white focus:outline-none resize-none text-gray-800 leading-relaxed border-none text-lg"
                 rows="12"
                 ref="noteTextarea"
               ></textarea>
@@ -758,46 +840,53 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- View Note -->
-      <div v-else-if="currentView === 'view' && selectedNote">
-        <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm">
-          <div class="p-4 sm:p-6 border-b border-orange-100/50">
-            <div class="flex items-center justify-between">
-              <div>
-                <h2 class="text-xl font-semibold text-gray-900 mb-1">
-                  {{ selectedNote.title }}
-                </h2>
-                <div class="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                  <span class="flex items-center gap-1">
-                    <IconCalendar class="w-4 h-4" />
-                    <span>{{ formatDate(selectedNote.created_at) }}</span>
-                  </span>
-                  <span class="flex items-center gap-1">
-                    <IconUser class="w-4 h-4" />
-                    <span>{{ userProfile?.name || 'You' }}</span>
-                  </span>
-                  <EngagementMetrics 
-                    :key="`detail-${selectedNote.id}-${getEngagementCounts(selectedNote.id).totalEngagement}-${getZapCount(selectedNote.id)}`"
-                    :engagement-counts="getEngagementCounts(selectedNote.id)"
-                    :zap-count="getZapCount(selectedNote.id)"
-                    size="default"
-                    text-size="text-sm"
-                    :show-all-metrics="false"
-                    :show-no-engagement-text="true"
+    <!-- Enhanced Detailed View Modal -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showViewModal && enhancedSelectedNote" class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden shadow-2xl">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-amber-50">
+              <div class="flex items-center space-x-3">
+                <!-- Author Avatar -->
+                <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
+                  <img 
+                    :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                    :alt="userProfile?.name || 'You'"
+                    class="w-full h-full object-cover"
                   />
+                </div>
+                
+                <!-- Author Info -->
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <h3 class="font-semibold text-gray-900">{{ userProfile?.name || 'You' }}</h3>
+                    <span v-if="userProfile?.nip05" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                      Verified
+                    </span>
+                  </div>
+                  <div class="flex items-center space-x-2 text-sm text-gray-500">
+                    <span>{{ enhancedSelectedNote.timeAgo }}</span>
+                    <span>•</span>
+                    <span>{{ enhancedSelectedNote.wordCount }} words</span>
+                    <span>•</span>
+                    <span>{{ enhancedSelectedNote.readTime }} min read</span>
+                  </div>
                 </div>
               </div>
               
-              <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-                <!-- Nostr Client Dropdown -->
-                <div class="relative">
+              <!-- Header Actions -->
+              <div class="flex items-center space-x-2">
+                <!-- Open in Client Dropdown -->
+                <div class="relative" ref="dropdownRef">
                   <button
                     @click="showClientDropdown = !showClientDropdown"
-                    class="btn-secondary p-2 text-xs sm:text-sm flex items-center gap-1"
+                    class="btn-secondary text-sm flex items-center gap-1"
                   >
                     <IconExternalLink class="w-4 h-4" />
-                    <span class="hidden sm:inline">Open in Client</span>
+                    <span class="hidden sm:inline">Open</span>
                     <IconChevronDown :class="['w-3 h-3 transition-transform', showClientDropdown ? 'rotate-180' : '']" />
                   </button>
                   
@@ -806,12 +895,12 @@ onUnmounted(() => {
                     v-if="showClientDropdown"
                     class="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
                   >
-                    <a :href="getNostrClientUrl('primal', selectedNote.id)" target="_blank" rel="noopener noreferrer" 
+                    <a :href="getNostrClientUrl('primal', enhancedSelectedNote.id)" target="_blank" rel="noopener noreferrer" 
                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2">
                       <span class="w-4 h-4 flex items-center justify-center text-orange-600">🌐</span>
                       <span>Primal.net</span>
                     </a>
-                    <a :href="getNostrClientUrl('yakihonne', selectedNote.id)" target="_blank" rel="noopener noreferrer"
+                    <a :href="getNostrClientUrl('yakihonne', enhancedSelectedNote.id)" target="_blank" rel="noopener noreferrer"
                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 flex items-center gap-2">
                       <span class="w-4 h-4 flex items-center justify-center text-purple-600">🍜</span>
                       <span>Yakihonne</span>
@@ -819,334 +908,384 @@ onUnmounted(() => {
                   </div>
                 </div>
                 
+                <!-- Technical Data Button -->
                 <button
-                  @click="startEditing(selectedNote)"
-                  class="btn-secondary p-2 text-xs sm:text-sm"
+                  @click="showRawData"
+                  class="btn-secondary text-sm"
+                  title="View technical data"
+                >
+                  <IconCode class="w-4 h-4" />
+                  <span class="hidden sm:inline">Data</span>
+                </button>
+                
+                <!-- Edit Button -->
+                <button
+                  @click="startEditing(enhancedSelectedNote); closeDetailedView()"
+                  class="btn-secondary text-sm"
                 >
                   <IconEdit class="w-4 h-4" />
                   <span class="hidden sm:inline">Edit</span>
                 </button>
+                
+                <!-- Close Button -->
                 <button
-                  @click="handleDelete(selectedNote)"
-                  class="btn-secondary p-2 text-xs sm:text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
+                  @click="closeDetailedView"
+                  class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Close"
                 >
-                  <IconTrash class="w-4 h-4" />
-                  <span class="hidden sm:inline">Delete</span>
+                  <IconX class="w-5 h-5" />
                 </button>
               </div>
             </div>
-          </div>
 
-          <div class="p-4 sm:p-6">
-            <!-- Hashtags -->
-            <div v-if="selectedNote.hashtags && selectedNote.hashtags.length > 0" class="mb-6">
-              <div class="flex flex-wrap gap-2 mb-2">
-                <span
-                  v-for="tag in selectedNote.hashtags"
-                  :key="tag"
-                  class="inline-flex items-center gap-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm hover:bg-orange-200 transition-colors"
+            <!-- Modal Content -->
+            <div class="overflow-y-auto max-h-[calc(95vh-120px)]">
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+                <!-- Main Content Column -->
+                <div class="lg:col-span-2 space-y-6">
+                  <!-- Note Content -->
+                  <article class="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
+                    <!-- Hashtags -->
+                    <div v-if="enhancedSelectedNote.hashtags && enhancedSelectedNote.hashtags.length > 0" class="mb-6">
+                      <div class="flex flex-wrap gap-2">
+                        <span
+                          v-for="tag in enhancedSelectedNote.hashtags"
+                          :key="tag"
+                          class="inline-flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:from-orange-200 hover:to-amber-200 transition-all duration-200 cursor-pointer"
+                        >
+                          <IconHash class="w-3 h-3" />
+                          <span>{{ tag }}</span>
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <!-- Note Title -->
+                    <h1 class="text-3xl font-bold text-gray-900 mb-6 leading-tight">
+                      {{ enhancedSelectedNote.title }}
+                    </h1>
+                    
+                    <!-- Note Content -->
+                    <div class="prose prose-lg max-w-none">
+                      <div class="text-gray-800 leading-relaxed whitespace-pre-wrap text-lg">
+                        {{ enhancedSelectedNote.content }}
+                      </div>
+                    </div>
+                  </article>
+                  
+                  <!-- Enhanced Engagement Section -->
+                  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                      <IconHeart class="w-5 h-5 text-red-500" />
+                      <span>Community Engagement</span>
+                    </h3>
+                    
+                    <!-- Engagement Metrics Bar -->
+                    <div class="grid grid-cols-4 gap-4 mb-6">
+                      <div class="text-center p-4 bg-red-50 rounded-lg">
+                        <div class="text-2xl font-bold text-red-600">{{ enhancedSelectedNote.engagementData.likes }}</div>
+                        <div class="text-sm text-red-700">Likes</div>
+                      </div>
+                      <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <div class="text-2xl font-bold text-green-600">{{ enhancedSelectedNote.engagementData.reposts }}</div>
+                        <div class="text-sm text-green-700">Reposts</div>
+                      </div>
+                      <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <div class="text-2xl font-bold text-blue-600">{{ enhancedSelectedNote.engagementData.bookmarks }}</div>
+                        <div class="text-sm text-blue-700">Bookmarks</div>
+                      </div>
+                      <div class="text-center p-4 bg-orange-50 rounded-lg">
+                        <div class="text-2xl font-bold text-orange-600">{{ enhancedSelectedNote.zapCount }}</div>
+                        <div class="text-sm text-orange-700">Zaps</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sidebar Column -->
+                <div class="space-y-6">
+                  <!-- Zap Revenue Card -->
+                  <div v-if="enhancedSelectedNote.totalZaps > 0" class="bg-gradient-to-r from-orange-400 to-amber-400 text-white rounded-xl p-6 shadow-lg">
+                    <div class="flex items-center justify-between mb-4">
+                      <h3 class="text-lg font-semibold flex items-center space-x-2">
+                        <IconBolt class="w-5 h-5" />
+                        <span>Lightning Revenue</span>
+                      </h3>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-3xl font-bold mb-2">{{ formatZapAmount(enhancedSelectedNote.totalZaps) }}</div>
+                      <div class="text-orange-100 text-sm">sats earned</div>
+                      <div class="text-orange-200 text-xs mt-1">
+                        ≈ {{ formatUSD(satsToUSD(enhancedSelectedNote.totalZaps)) }} USD
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Enhanced Zappers List -->
+                  <div v-if="enhancedSelectedNote.zapData.length > 0" class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+                    <div class="flex items-center justify-between mb-4">
+                      <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                        <IconBolt class="w-5 h-5 text-orange-600" />
+                        <span>Supporters</span>
+                      </h3>
+                      <span class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                        {{ enhancedSelectedNote.zapCount }} zaps
+                      </span>
+                    </div>
+
+                    <!-- Zappers Grid -->
+                    <div class="space-y-3 max-h-80 overflow-y-auto">
+                      <div
+                        v-for="zap in enhancedSelectedNote.zapData"
+                        :key="zap.id"
+                        class="flex items-center justify-between p-3 bg-orange-50/50 rounded-lg border border-orange-100 hover:bg-orange-100/50 transition-colors cursor-pointer"
+                        @click="showZapperDetails(zap)"
+                      >
+                        <div class="flex items-center space-x-3">
+                          <!-- Zapper Avatar -->
+                          <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200">
+                            <img 
+                              :src="zap.sender?.avatar || zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey)" 
+                              :alt="zap.sender?.name || 'User'"
+                              class="w-full h-full object-cover"
+                            />
+                          </div>
+                          
+                          <!-- Zapper Info -->
+                          <div>
+                            <div class="font-medium text-gray-900 text-sm">
+                              {{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}
+                            </div>
+                            <div class="text-xs text-gray-500">{{ formatZapTime(zap.timestamp) }}</div>
+                            <div v-if="zap.message" class="text-xs text-gray-700 italic mt-1 line-clamp-1">
+                              "{{ zap.message }}"
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- Zap Amount -->
+                        <div class="text-right">
+                          <div class="font-bold text-orange-600 text-sm">{{ formatZapAmount(zap.amount) }}</div>
+                          <div class="text-xs text-gray-500">sats</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Note Stats Card -->
+                  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Note Statistics</h3>
+                    <div class="space-y-3">
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Published</span>
+                        <span class="text-sm font-medium text-gray-900">{{ enhancedSelectedNote.formattedDate }}</span>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Word Count</span>
+                        <span class="text-sm font-medium text-gray-900">{{ enhancedSelectedNote.wordCount }}</span>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Read Time</span>
+                        <span class="text-sm font-medium text-gray-900">{{ enhancedSelectedNote.readTime }} min</span>
+                      </div>
+                      <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">Event ID</span>
+                        <button 
+                          @click="copyToClipboard(enhancedSelectedNote.id, 'eventId')"
+                          class="text-sm font-mono text-gray-600 hover:text-orange-600 transition-colors flex items-center space-x-1"
+                        >
+                          <span>{{ enhancedSelectedNote.id.substring(0, 8) }}...</span>
+                          <IconCheck v-if="copySuccess === 'eventId'" class="w-3 h-3 text-green-600" />
+                          <IconCopy v-else class="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- Raw Data Modal -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showRawDataModal && enhancedSelectedNote" class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-100">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <IconCode class="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-900">Technical Data</h3>
+                  <p class="text-sm text-gray-600">Raw Nostr event data</p>
+                </div>
+              </div>
+              
+              <div class="flex items-center space-x-2">
+                <button
+                  @click="copyToClipboard(JSON.stringify(enhancedSelectedNote, null, 2), 'rawData')"
+                  class="btn-secondary text-sm"
                 >
-                  <IconHash class="w-3 h-3" />
-                  <span>{{ tag }}</span>
-                </span>
-              </div>
-              <div v-if="getZapCount(selectedNote.id) > 0" class="flex items-center gap-2 mt-2">
-                <span class="flex items-center gap-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-1 rounded-full text-sm">
-                  <IconBolt class="w-4 h-4 text-orange-600" />
-                  <span class="whitespace-nowrap font-medium">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }} sats</span>
-                  <span class="text-orange-500">({{ getZapCount(selectedNote.id) }} zaps)</span>
-                </span>
-              </div>
-            </div>
-
-            <!-- Note Content -->
-            <div class="border border-gray-200 rounded-lg p-4 sm:p-6 min-h-[200px] bg-white shadow-sm">
-              <div class="whitespace-pre-wrap text-gray-800 prose prose-orange max-w-none">
-                {{ selectedNote?.content }}
+                  <IconCheck v-if="copySuccess === 'rawData'" class="w-4 h-4 text-green-600" />
+                  <IconCopy v-else class="w-4 h-4" />
+                  Copy JSON
+                </button>
+                <button
+                  @click="showRawDataModal = false"
+                  class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <IconX class="w-5 h-5" />
+                </button>
               </div>
             </div>
+            
+            <!-- Raw Data Content -->
+            <div class="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <pre class="bg-gray-50 rounded-lg p-4 text-sm font-mono text-gray-800 overflow-x-auto whitespace-pre-wrap">{{ JSON.stringify(enhancedSelectedNote, null, 2) }}</pre>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
 
-            <!-- Nostr Event Details -->
-            <div class="mt-8 pt-6 border-t border-gray-200">
-              <h4 class="text-sm font-medium text-gray-700 mb-3">Nostr Event Details</h4>
-              <div class="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+    <!-- Zapper Details Modal -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showZapperModal && selectedZapper" class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-orange-400 to-amber-400 text-white p-6">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                  <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30">
+                    <img 
+                      :src="selectedZapper.sender?.avatar || selectedZapper.sender?.picture || generateFallbackAvatar(selectedZapper.zapperPubkey)" 
+                      :alt="selectedZapper.sender?.name || 'User'"
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-semibold">{{ selectedZapper.sender?.name || formatZapperPubkey(selectedZapper.zapperPubkey) }}</h3>
+                    <p class="text-orange-100 text-sm">Lightning Supporter</p>
+                  </div>
+                </div>
+                <button
+                  @click="showZapperModal = false"
+                  class="p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <IconX class="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <!-- Zapper Details -->
+            <div class="p-6">
+              <!-- Zap Amount -->
+              <div class="text-center mb-6">
+                <div class="text-4xl font-bold text-orange-600 mb-2">
+                  {{ formatZapAmount(selectedZapper.amount) }} sats
+                </div>
+                <div class="text-gray-500 text-sm">
+                  ≈ {{ formatUSD(satsToUSD(selectedZapper.amount)) }} USD
+                </div>
+              </div>
+              
+              <!-- Zap Message -->
+              <div v-if="selectedZapper.message" class="bg-gray-50 rounded-lg p-4 mb-4">
+                <h4 class="font-medium text-gray-900 mb-2">Message</h4>
+                <p class="text-gray-700 italic">"{{ selectedZapper.message }}"</p>
+              </div>
+              
+              <!-- Zapper Info -->
+              <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                  <span class="text-gray-600">Event ID:</span>
-                  <code class="text-gray-800 bg-gray-200 px-2 py-1 rounded text-xs">
-                    {{ selectedNote.id.substring(0, 16) }}...
-                  </code>
+                  <span class="text-sm text-gray-600">Zapped</span>
+                  <span class="text-sm font-medium text-gray-900">{{ formatZapTime(selectedZapper.timestamp) }}</span>
                 </div>
                 <div class="flex items-center justify-between">
-                  <span class="text-gray-600">Kind:</span>
-                  <span class="text-gray-800">1 (Text Note)</span>
-                </div>
-                <div class="flex items-center justify-between">
-                  <span class="text-gray-600">Published:</span>
-                  <span class="text-gray-800">{{ new Date(selectedNote.created_at * 1000).toLocaleString() }}</span>
+                  <span class="text-sm text-gray-600">Pubkey</span>
+                  <button 
+                    @click="copyToClipboard(selectedZapper.zapperPubkey, 'zapperPubkey')"
+                    class="text-sm font-mono text-gray-600 hover:text-orange-600 transition-colors flex items-center space-x-1"
+                  >
+                    <span>{{ formatZapperPubkey(selectedZapper.zapperPubkey) }}</span>
+                    <IconCheck v-if="copySuccess === 'zapperPubkey'" class="w-3 h-3 text-green-600" />
+                    <IconCopy v-else class="w-3 h-3" />
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+      </transition>
+    </Teleport>
 
-  <!-- Media URL Input Modal -->
-  <div v-if="showMediaUrlInput || showVideoUrlInput" class="fixed inset-0 z-50 overflow-y-auto">
-    <!-- Backdrop -->
-    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showMediaUrlInput = false; showVideoUrlInput = false"></div>
-    
-    <!-- Modal -->
-    <div class="flex min-h-full items-center justify-center p-4">
-      <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
-        <!-- Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
-          <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-            <component :is="showMediaUrlInput ? IconPhoto : IconVideo" class="w-5 h-5 text-orange-600" />
-            <span>{{ showMediaUrlInput ? 'Add Image URL' : 'Add Video URL' }}</span>
-          </h3>
-          <button
-            @click="showMediaUrlInput = false; showVideoUrlInput = false"
-            class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Close"
-          >
-            <IconX class="w-5 h-5" />
-          </button>
-        </div>
-
-        <!-- Content -->
-        <div class="p-4">
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              {{ showMediaUrlInput ? 'Image URL (.jpg, .jpeg, .png, .gif, .webp)' : 'Video URL' }}
-            </label>
-            <input
-              v-model="mediaUrl"
-              type="url"
-              :placeholder="showMediaUrlInput ? 'https://example.com/image.jpg' : 'https://example.com/video.mp4'"
-              class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-              @keyup.enter="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
-            />
-          </div>
-          
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-            <p class="text-sm text-blue-800">
-              {{ showMediaUrlInput 
-                ? 'Enter the URL of an image (must end with .jpg, .jpeg, .png, .gif, or .webp)' 
-                : 'Enter the URL of a video you want to include in your note' }}
-            </p>
-          </div>
-          
-          <div class="flex justify-end space-x-3">
+    <!-- Media URL Input Modal -->
+    <div v-if="showMediaUrlInput || showVideoUrlInput" class="fixed inset-0 z-50 overflow-y-auto">
+      <!-- Backdrop -->
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showMediaUrlInput = false; showVideoUrlInput = false"></div>
+      
+      <!-- Modal -->
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+          <!-- Header -->
+          <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+              <component :is="showMediaUrlInput ? IconPhoto : IconVideo" class="w-5 h-5 text-orange-600" />
+              <span>{{ showMediaUrlInput ? 'Add Image URL' : 'Add Video URL' }}</span>
+            </h3>
             <button
               @click="showMediaUrlInput = false; showVideoUrlInput = false"
-              class="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              @click="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
-              :disabled="!mediaUrl.trim()"
-              class="btn-primary disabled:opacity-50"
-            >
-              Insert
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- View Note Popup -->
-  <div v-if="showViewPopup && selectedNote" class="fixed inset-0 z-50 overflow-y-auto">
-    <!-- Backdrop -->
-    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="closeViewPopup"></div>
-    
-    <!-- Modal -->
-    <div class="flex min-h-full items-center justify-center p-4">
-      <div class="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        <!-- Header -->
-        <div class="flex items-center justify-between p-6 border-b border-gray-200">
-          <div>
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">
-              <div v-html="selectedNote.title"></div>
-            </h2>
-            <div class="flex items-center space-x-4 text-sm text-gray-600">
-              <span class="flex items-center space-x-1">
-                <IconCalendar class="w-4 h-4" />
-                <span>{{ formatDate(selectedNote.created_at) }}</span>
-              </span>
-              <span class="flex items-center space-x-1">
-                <IconUser class="w-4 h-4" />
-                <span>{{ userProfile?.name || 'You' }}</span>
-              </span>
-            </div>
-          </div>
-          
-          <div class="flex items-center space-x-2">
-            <button
-              @click="startEditing(selectedNote); closeViewPopup()"
-              class="btn-secondary"
-            >
-              <IconEdit class="w-4 h-4" />
-              Edit
-            </button>
-            <button
-              @click="handleDelete(selectedNote); closeViewPopup()"
-              class="btn-secondary text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <IconTrash class="w-4 h-4" />
-              Delete
-            </button>
-            <button
-              @click="closeViewPopup"
               class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               title="Close"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
+              <IconX class="w-5 h-5" />
             </button>
           </div>
-        </div>
 
-        <!-- Content -->
-        <div class="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-          <!-- Hashtags -->
-          <div v-if="selectedNote.hashtags && selectedNote.hashtags.length > 0" class="mb-6">
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="tag in selectedNote.hashtags"
-                :key="tag"
-                class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
+          <!-- Content -->
+          <div class="p-4">
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                {{ showMediaUrlInput ? 'Image URL (.jpg, .jpeg, .png, .gif, .webp)' : 'Video URL' }}
+              </label>
+              <input
+                v-model="mediaUrl"
+                type="url"
+                :placeholder="showMediaUrlInput ? 'https://example.com/image.jpg' : 'https://example.com/video.mp4'"
+                class="w-full px-3 py-2 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                @keyup.enter="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
+              />
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p class="text-sm text-blue-800">
+                {{ showMediaUrlInput 
+                  ? 'Enter the URL of an image (must end with .jpg, .jpeg, .png, .gif, or .webp)' 
+                  : 'Enter the URL of a video you want to include in your note' }}
+              </p>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+              <button
+                @click="showMediaUrlInput = false; showVideoUrlInput = false"
+                class="btn-secondary"
               >
-                <IconHash class="w-3 h-3" />
-                <span>{{ tag }}</span>
-              </span>
-            </div>
-          </div>
-
-          <!-- Note Content -->
-          <div class="border border-gray-200 rounded-lg p-4 min-h-[200px] bg-white">
-            <p class="whitespace-pre-wrap text-gray-800">{{ selectedNote?.content }}</p>
-          </div>
-
-          <!-- Zap Information -->
-          <div v-if="selectedNote && getZapCount(selectedNote.id) > 0" class="mt-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                <IconBolt class="w-5 h-5 text-orange-600" />
-                <span>Zaps Received</span>
-              </h3>
-              <div class="flex items-center space-x-4">
-                <div class="text-center">
-                  <div class="text-2xl font-bold text-orange-600">{{ getZapCount(selectedNote.id) }}</div>
-                  <div class="text-xs text-gray-600">Total Zaps</div>
-                </div>
-                <div class="text-center">
-                  <div class="text-2xl font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }} ({{ getZapCount(selectedNote.id) }})</div>
-                  <div class="text-xs text-gray-600">Total Sats</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Zap List -->
-            <div class="space-y-3 max-h-60 overflow-y-auto">
-              <div
-                v-for="zap in getZapsForContent(selectedNote.id)"
-                :key="zap.id"
-                class="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100"
+                Cancel
+              </button>
+              <button
+                @click="insertMediaUrl(showMediaUrlInput ? 'image' : 'video')"
+                :disabled="!mediaUrl.trim()"
+                class="btn-primary disabled:opacity-50"
               >
-                <div class="flex items-center space-x-3">
-                  <div class="w-8 h-8 rounded-full overflow-hidden">
-                    <img 
-                      :src="zap.sender?.avatar || zap.sender?.picture" 
-                      :alt="zap.sender?.name || 'User'"
-                      class="w-full h-full object-cover"
-                      @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
-                    />
-                  </div>
-                  <div>
-                    <div class="font-medium text-gray-900">{{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}</div>
-                    <div class="text-sm text-gray-600">{{ formatZapTime(zap.timestamp) }}</div>
-                    <div v-if="zap.message" class="text-sm text-gray-700 italic">"{{ zap.message }}"</div>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
-                </div>
-              </div>
+                Insert
+              </button>
             </div>
           </div>
-          <!-- Zap Information -->
-          <div v-if="selectedNote && getZapCount(selectedNote.id) > 0" class="mt-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                <IconBolt class="w-5 h-5 text-orange-600" />
-                <span>Zaps Received</span>
-              </h3>
-              <div class="flex items-center space-x-4">
-                <div class="text-center">
-                  <div class="text-2xl font-bold text-orange-600">{{ getZapCount(selectedNote.id) }}</div>
-                  <div class="text-xs text-gray-600">Total Zaps</div>
-                </div>
-                <div class="text-center">
-                  <div class="text-2xl font-bold text-orange-600">{{ formatZapAmount(getTotalZapAmount(selectedNote.id)) }}</div>
-                  <div class="text-xs text-gray-600">Total Sats</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Zap List -->
-            <div class="space-y-3 max-h-60 overflow-y-auto">
-              <div
-                v-for="zap in getZapsForContent(selectedNote.id)"
-                :key="zap.id"
-                class="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-100"
-              >
-                <div class="flex items-center space-x-3">
-                  <div class="w-8 h-8 rounded-full overflow-hidden">
-                    <img 
-                      :src="zap.sender?.avatar || zap.sender?.picture" 
-                      :alt="zap.sender?.name || 'User'"
-                      class="w-full h-full object-cover"
-                      @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
-                    />
-                  </div>
-                  <div>
-                    <div class="font-medium text-gray-900">{{ zap.sender?.name || formatZapperPubkey(zap.zapperPubkey) }}</div>
-                    <div class="text-sm text-gray-600">{{ formatZapTime(zap.timestamp) }}</div>
-                    <div v-if="zap.message" class="text-sm text-gray-700 italic">"{{ zap.message }}"</div>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <div class="font-bold text-orange-600">{{ formatZapAmount(zap.amount) }} sats</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Nostr Event Details -->
-          <!-- <div class="mt-8 pt-6 border-t border-gray-200">
-            <h4 class="text-sm font-medium text-gray-700 mb-3">Nostr Event Details</h4>
-            <div class="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
-              <div class="flex items-center justify-between">
-                <span class="text-gray-600">Event ID:</span>
-                <code class="text-gray-800 bg-gray-200 px-2 py-1 rounded text-xs">
-                  {{ selectedNote.id.substring(0, 16) }}...
-                </code>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-gray-600">Kind:</span>
-                <span class="text-gray-800">1 (Text Note)</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-gray-600">Published:</span>
-                <span class="text-gray-800">{{ new Date(selectedNote.created_at * 1000).toLocaleString() }}</span>
-              </div>
-            </div>
-          </div> -->
         </div>
       </div>
     </div>
@@ -1154,6 +1293,14 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.line-clamp-1 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 1 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
 .line-clamp-2 {
   display: -webkit-box !important;
   -webkit-line-clamp: 2 !important;
@@ -1162,9 +1309,17 @@ onUnmounted(() => {
   text-overflow: ellipsis !important;
 }
 
+.line-clamp-3 {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
 /* Scrollable areas */
-.max-h-60 {
-  max-height: 15rem;
+.max-h-80 {
+  max-height: 20rem;
 }
 
 .overflow-y-auto {
@@ -1188,46 +1343,164 @@ onUnmounted(() => {
   background-color: rgba(251, 146, 60, 0.5);
 }
 
-/* Plain text editor styles */
+/* Enhanced textarea styles */
 textarea {
   resize: none;
   font-family: inherit;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .whitespace-pre-wrap {
   white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 /* Prose styling for content */
 .prose {
-  font-size: 1rem;
-  line-height: 1.6;
+  font-size: 1.125rem;
+  line-height: 1.7;
+  max-width: none;
 }
 
-.prose a {
-  color: #f97316;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.prose p {
+  margin-bottom: 1.5rem;
 }
 
-.prose img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
-  margin: 1rem 0;
+/* Modal transitions */
+.modal-transition-enter-active,
+.modal-transition-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Responsive adjustments */
+.modal-transition-enter-from {
+  opacity: 0;
+  transform: scale(0.95) translateY(-20px);
+}
+
+.modal-transition-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(20px);
+}
+
+/* Enhanced hover effects */
+.group:hover .group-hover\:opacity-100 {
+  opacity: 1;
+}
+
+/* Mobile optimizations */
 @media (max-width: 640px) {
-  .flex-wrap {
-    flex-wrap: wrap;
+  .text-3xl {
+    font-size: 1.875rem;
   }
   
-  .gap-3 {
-    gap: 0.75rem;
+  .text-lg {
+    font-size: 1.125rem;
+  }
+  
+  .p-6 {
+    padding: 1rem;
+  }
+  
+  .space-x-6 > * + * {
+    margin-left: 1rem;
+  }
+}
+
+/* Focus states for accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
+/* Smooth transitions for interactive elements */
+button, input, textarea {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced button hover effects */
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Code block styling */
+pre {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  line-height: 1.5;
+}
+
+/* Gradient text effects */
+.gradient-text {
+  background: linear-gradient(135deg, #f97316, #fbbf24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Enhanced card shadows */
+.shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 1024px) {
+  .lg\:col-span-2 {
+    grid-column: span 1;
+  }
+  
+  .lg\:col-span-3 {
+    grid-column: span 1;
+  }
+}
+
+/* Enhanced focus ring */
+.focus-within\:ring-2:focus-within {
+  ring-width: 2px;
+  ring-color: rgb(251 146 60 / 0.5);
+}
+
+/* Improved text rendering */
+.leading-relaxed {
+  line-height: 1.625;
+}
+
+.leading-tight {
+  line-height: 1.25;
+}
+
+/* Custom emoji picker positioning */
+.emoji-picker-container {
+  position: relative;
+}
+
+/* Backdrop blur effects */
+.backdrop-blur-lg {
+  backdrop-filter: blur(16px);
+}
+
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+/* Enhanced border styles */
+.border-orange-100\/50 {
+  border-color: rgb(254 215 170 / 0.5);
+}
+
+/* Improved spacing for mobile */
+@media (max-width: 640px) {
+  .space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+  
+  .gap-4 {
+    gap: 1rem;
   }
 }
 </style>
