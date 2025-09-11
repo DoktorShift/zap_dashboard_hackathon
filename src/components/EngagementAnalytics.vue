@@ -209,13 +209,6 @@ const viewContentDetails = (content) => {
   }
 }
 
-// Handle view content details
-const viewContentDetails = (content) => {
-  // Navigate to content unlock page with the event ID
-  const url = `/?page=content-unlock&eventId=${content.eventId}`
-  window.open(url, '_blank')
-}
-
 // Calculate totals for summary
 const totals = computed(() => {
   return bestPerformingContent.value.reduce((acc, content) => ({
