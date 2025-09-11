@@ -152,7 +152,8 @@ const topPerformingNotes = computed(() => {
 const createNoteTitle = (content) => {
   if (!content || typeof content !== 'string') return 'Note'
   
-  // Get first line or first 50 characters
+  //
+} Get first line or first 50 characters
   const firstLine = content.split('\n')[0].trim()
   if (firstLine.length === 0) return 'Note'
   
