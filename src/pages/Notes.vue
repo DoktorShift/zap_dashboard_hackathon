@@ -40,8 +40,7 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useContentZaps } from '../composables/useContentZaps.js'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
-import { formatDate } from '../utils/dateUtils.js'
-import { nextTick } from 'vue'
+import { generateFallbackAvatar } from '../composables/useContentZaps.js'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -404,6 +403,11 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   
   // Expose debug function globally for console access
+  
+  // Set up auto-resize on mount
+  nextTick(() => {
+    autoResize()
+  })
   window.debugNotes = debugState
   
   // Start tracking zaps and engagement for all notes
