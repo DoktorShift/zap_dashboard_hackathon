@@ -693,9 +693,9 @@ const formatEngagementNumber = (num) => {
           
           <!-- Supporters List -->
           <div v-else-if="topSupporters.length > 0">
-            <div v-if="topSupporters[0]" @click="openUserProfile(topSupporters[0])" class="flex items-center justify-between p-2 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer">
+            <div v-if="topSupporters[0]" @click="openUserProfile(topSupporters[0])" class="flex items-center justify-between p-1 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer">
               <!-- Avatar -->
-              <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
+              <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
                 <img 
                   :src="topSupporters[0].profile?.picture || generateFallbackAvatar(topSupporters[0].pubkey)" 
                   :alt="topSupporters[0].profile?.name || 'Supporter'"
@@ -705,17 +705,17 @@ const formatEngagementNumber = (num) => {
               </div>
               
               <!-- Name -->
-              <div class="flex-1 min-w-0 mx-3">
-                <p class="font-medium text-gray-900 truncate text-sm">{{ topSupporters[0].profile?.name || topSupporters[0].pubkey.substring(0, 8) + '...' }}</p>
-                <p v-if="topSupporters[0].profile?.lud16" class="text-xs text-blue-600 truncate">
+              <div class="flex-1 min-w-0 mx-2">
+                <p class="font-medium text-gray-900 truncate text-xs">{{ topSupporters[0].profile?.name || topSupporters[0].pubkey.substring(0, 8) + '...' }}</p>
+                <p v-if="topSupporters[0].profile?.lud16" class="text-xs text-blue-600 truncate leading-tight">
                   {{ topSupporters[0].profile.lud16 }}
                 </p>
               </div>
               
               <!-- Amount -->
               <div class="text-right flex-shrink-0">
-                <p class="text-sm font-bold text-orange-600">{{ topSupporters[0].totalAmount.toLocaleString() }}</p>
-                <p class="text-xs text-gray-500">{{ topSupporters[0].zapCount }} zap{{ topSupporters[0].zapCount !== 1 ? 's' : '' }}</p>
+                <p class="text-xs font-bold text-orange-600">{{ topSupporters[0].totalAmount.toLocaleString() }}</p>
+                <p class="text-xs text-gray-500 leading-tight">{{ topSupporters[0].zapCount }} zap{{ topSupporters[0].zapCount !== 1 ? 's' : '' }}</p>
               </div>
             </div>
           </div>
