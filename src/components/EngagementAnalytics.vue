@@ -13,12 +13,55 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
+import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 
 const combinedZapData = inject('combinedZapData')
 const selectedTimeRange = inject('selectedTimeRange')
 const changePage = inject('changePage')
 
 const { getEngagementCounts } = useEngagementMetrics()
+
+// Cache for note content
+const noteContentCache = ref(new Map())
+const fetchingNotes = ref(new Set())
+
+// Fetch actual note content from Nostr
+const fetchNoteContent = async (eventId) => {
+  if (noteContentCache.value.has(eventId) || fetchingNotes.value.has(eventId)) {
+    return noteContentCache.value.get(eventId)
+  }
+
+  fetchingNotes.value.add(eventId)
+
+  try {
+    console.log('Fetching note content for:', eventId.substring(0, 8) + '...')
+    
+    const noteEvent = await nostrRelayManager.getEvent({
+      ids: [eventId],
+      kinds: [1] // Text notes
+    })
+
+    if (noteEvent && noteEvent.content) {
+      const content = {
+        text: noteEvent.content.trim(),
+        created_at: noteEvent.created_at,
+        pubkey: noteEvent.pubkey
+      }
+      
+      noteContentCache.value.set(eventId, content)
+      console.log('✅ Fetched note content:', content.text.substring(0, 50) + '...')
+      return content
+    } else {
+      console.warn('No note content found for:', eventId)
+      return null
+    }
+  } catch (error) {
+    console.error('Failed to fetch note content:', error)
+    return null
+  } finally {
+    fetchingNotes.value.delete(eventId)
+  }
+}
 
 // Separate notes and long-form content
 const topPerformingNotes = computed(() => {
@@ -27,7 +70,7 @@ const topPerformingNotes = computed(() => {
   
   if (filteredZaps.length === 0) return []
 
-  // Group by content and calculate performance for notes
+  // Group by eventId and calculate performance for notes
   const contentPerformance = new Map()
   
   filteredZaps.forEach(zap => {
@@ -39,6 +82,7 @@ const topPerformingNotes = computed(() => {
         type: 'note', // Assume note for now, will be updated if we find long-form data
         title: '',
         content: '',
+        noteText: 'Loading note content...', // Default loading text
         coverImage: null,
         zaps: 0,
         zapAmount: 0,
@@ -47,16 +91,28 @@ const topPerformingNotes = computed(() => {
         bookmarks: engagement.bookmarks,
         totalScore: 0
       })
+      
+      // Fetch actual note content asynchronously
+      fetchNoteContent(eventId).then(noteContent => {
+        if (noteContent && noteContent.text) {
+          const content = contentPerformance.get(eventId)
+          if (content) {
+            content.noteText = noteContent.text
+            content.title = createNoteTitle(noteContent.text)
+          }
+        }
+      }).catch(error => {
+        console.warn('Failed to fetch note content for analytics:', error)
+        const content = contentPerformance.get(eventId)
+        if (content) {
+          content.noteText = 'Unable to load note content'
+        }
+      })
     }
     
     const content = contentPerformance.get(eventId)
     content.zaps += 1
     content.zapAmount += zap.amount
-    
-    // Extract note content for preview
-    if (zap.note && !content.content) {
-      content.content = parseNoteContent(zap.note)
-    }
   })
 
   // Try to get content details from localStorage to identify long-form vs notes
@@ -91,6 +147,17 @@ const topPerformingNotes = computed(() => {
     .sort((a, b) => b.totalScore - a.totalScore)
     .slice(0, 3)
 })
+
+// Helper function to create note title from content
+const createNoteTitle = (content) => {
+  if (!content || typeof content !== 'string') return 'Note'
+  
+  // Get first line or first 50 characters
+  const firstLine = content.split('\n')[0].trim()
+  if (firstLine.length === 0) return 'Note'
+  
+  return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine
+}
 
 const topPerformingLongForm = computed(() => {
   const nip57Zaps = combinedZapData.value.filter(zap => zap.eventId)
@@ -158,62 +225,6 @@ const topPerformingLongForm = computed(() => {
     .slice(0, 3)
 })
 
-// Parse note content to extract meaningful text
-const parseNoteContent = (note) => {
-  if (typeof note === 'string') {
-    if (note.startsWith('{') && note.endsWith('}')) {
-      try {
-        const parsed = JSON.parse(note)
-        if (parsed && typeof parsed === 'object') {
-          if (parsed.content) {
-            return parsed.content.trim()
-          }
-          if (parsed.description) {
-            return parsed.description.trim()
-          }
-          return 'Note content'
-        }
-      } catch (error) {
-        return note.trim()
-      }
-    } else if (note.startsWith('[') && note.endsWith(']')) {
-      try {
-        const parsed = JSON.parse(note)
-        if (Array.isArray(parsed)) {
-          return extractTextFromArray(parsed)
-        }
-      } catch (error) {
-        return note.trim()
-      }
-    }
-    return note.trim()
-  }
-  
-  if (Array.isArray(note)) {
-    return extractTextFromArray(note)
-  }
-  
-  return String(note || 'Note content').trim()
-}
-
-const extractTextFromArray = (noteArray) => {
-  try {
-    const textPlain = noteArray.find(item => Array.isArray(item) && item[0] === 'text/plain')
-    if (textPlain && textPlain[1]) {
-      return textPlain[1].trim()
-    }
-    
-    const firstText = noteArray.find(item => Array.isArray(item) && typeof item[1] === 'string')
-    if (firstText && firstText[1]) {
-      return firstText[1].trim()
-    }
-    
-    return 'Note content'
-  } catch (error) {
-    return 'Note content'
-  }
-}
-
 // Generate fallback image
 const generateContentFallbackImage = () => {
   return '/new_logo3.png'
@@ -221,13 +232,34 @@ const generateContentFallbackImage = () => {
 
 // Get content title for display
 const getNoteTitle = (content) => {
-  if (!content.content) return 'Short note'
+  if (!content.noteText || content.noteText === 'Loading note content...') {
+    return 'Loading...'
+  }
+  
+  if (content.noteText === 'Unable to load note content') {
+    return 'Note (content unavailable)'
+  }
   
   // Get first line or first 40 characters
-  const firstLine = content.content.split('\n')[0].trim()
-  if (firstLine.length === 0) return 'Short note'
+  const firstLine = content.noteText.split('\n')[0].trim()
+  if (firstLine.length === 0) return 'Note'
   
   return firstLine.length > 40 ? firstLine.substring(0, 40) + '...' : firstLine
+}
+
+// Get note preview text for display
+const getNotePreview = (content) => {
+  if (!content.noteText || content.noteText === 'Loading note content...') {
+    return 'Loading note content...'
+  }
+  
+  if (content.noteText === 'Unable to load note content') {
+    return 'Content unavailable'
+  }
+  
+  // Get first 80 characters for preview
+  const preview = content.noteText.replace(/\n+/g, ' ').trim()
+  return preview.length > 80 ? preview.substring(0, 80) + '...' : preview
 }
 
 const getLongFormTitle = (content) => {
@@ -247,15 +279,29 @@ const formatNumber = (num) => {
 
 // Handle content clicks
 const handleNoteClick = (note) => {
-  // Navigate to note details view (you'll need to implement this)
-  console.log('Opening note details for:', note.eventId)
-  // changePage('note-details', { eventId: note.eventId })
+  // Navigate to notes page and show the specific note
+  changePage('notes')
+  
+  // Use a small delay to ensure the notes page loads, then trigger note view
+  setTimeout(() => {
+    // Dispatch a custom event to tell the Notes page to show this specific note
+    document.dispatchEvent(new CustomEvent('show-note-details', { 
+      detail: { eventId: note.eventId } 
+    }))
+  }, 100)
 }
 
 const handleLongFormClick = (article) => {
-  // Navigate to content details
+  // Navigate to content page and show the specific article
   changePage('content')
-  // You might want to add logic to show specific article
+  
+  // Use a small delay to ensure the content page loads, then trigger article preview
+  setTimeout(() => {
+    // Dispatch a custom event to tell the Content page to show this specific article
+    document.dispatchEvent(new CustomEvent('show-content-preview', { 
+      detail: { eventId: article.eventId } 
+    }))
+  }, 100)
 }
 
 // Check if we have any content to show
@@ -332,10 +378,6 @@ const hasContent = computed(() => {
                   <h5 class="font-medium text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
                     {{ getNoteTitle(note) }}
                   </h5>
-                  <div class="flex items-center space-x-2">
-                    <IconEdit class="w-3 h-3 text-purple-500" />
-                    <span class="text-xs text-gray-500">Note</span>
-                  </div>
                 </div>
                 
                 <!-- Arrow -->
@@ -418,10 +460,6 @@ const hasContent = computed(() => {
                   <h5 class="font-medium text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
                     {{ getLongFormTitle(article) }}
                   </h5>
-                  <div class="flex items-center space-x-2">
-                    <IconFileText class="w-3 h-3 text-blue-500" />
-                    <span class="text-xs text-gray-500">Article</span>
-                  </div>
                 </div>
                 
                 <!-- Arrow -->
@@ -463,6 +501,13 @@ const hasContent = computed(() => {
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
