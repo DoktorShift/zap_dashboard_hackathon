@@ -545,7 +545,7 @@ const formatRawEvent = (note) => {
                 </span>
                 <span class="flex items-center gap-1">
                   <IconBookmark class="w-3 h-3 text-blue-500" />
-                  <span class="text-blue-600 font-medium">{{ noteStats.totalBookmarks }}
+                  <span class="text-blue-600 font-medium">{{ noteStats.totalBookmarks }}</span>
                 </span>
               </div>
             </div>
