@@ -126,7 +126,7 @@ const noteStats = computed(() => {
     totalReposts,
     totalBookmarks,
     totalZapCount,
-    totalEngagement
+    totalEngagement: totalLikes + totalReposts + totalBookmarks + totalZapCount
   }
 })
 
@@ -532,16 +532,20 @@ const formatRawEvent = (note) => {
               <p class="text-3xl font-bold text-gray-900">{{ noteStats.totalEngagement.toLocaleString() }}</p>
               <div class="flex items-center gap-2 mt-1 text-xs text-gray-500">
                 <span class="flex items-center gap-1">
-                  <IconHeart class="w-3 h-3" />
-                  {{ noteStats.totalLikes }}
+                  <IconHeart class="w-3 h-3 text-red-500" />
+                  <span class="text-red-600 font-medium">{{ noteStats.totalLikes }}</span>
                 </span>
                 <span class="flex items-center gap-1">
-                  <IconRepeat class="w-3 h-3" />
-                  {{ noteStats.totalReposts }}
+                  <IconRepeat class="w-3 h-3 text-green-500" />
+                  <span class="text-green-600 font-medium">{{ noteStats.totalReposts }}</span>
                 </span>
                 <span class="flex items-center gap-1">
-                  <IconBookmark class="w-3 h-3" />
-                  {{ noteStats.totalBookmarks }}
+                  <IconBolt class="w-3 h-3 text-orange-500" />
+                  <span class="text-orange-600 font-medium">{{ noteStats.totalZapCount }}</span>
+                </span>
+                <span class="flex items-center gap-1">
+                  <IconBookmark class="w-3 h-3 text-blue-500" />
+                  <span class="text-blue-600 font-medium">{{ noteStats.totalBookmarks }}</span>
                 </span>
               </div>
             </div>
