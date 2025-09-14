@@ -232,7 +232,7 @@ const getTotalRevenue = (item) => {
             <span class="text-green-600 font-semibold relative tooltip-container cursor-help">
               {{ getTotalRevenue(item).toLocaleString() }} sats
               <div class="tooltip">
-                Total Lightning zap revenue: {{ getTotalRevenue(item).toLocaleString() }} sats
+                Total amount received from Lightning zaps and paid content access.
               </div>
             </span>
             <span class="text-gray-500">{{ formatDate(item.updatedAt) }}</span>
@@ -296,7 +296,7 @@ const getTotalRevenue = (item) => {
               <IconBolt class="w-3 h-3 text-orange-600" />
               <span class="text-xs font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
               <div class="tooltip">
-                Total revenue from Lightning zaps: {{ (item.zapAmount || 0).toLocaleString() }} sats
+                Total amount received from Lightning zaps and paid content access.
               </div>
             </div>
           </div>
@@ -428,7 +428,7 @@ const getTotalRevenue = (item) => {
               <IconBolt class="w-4 h-4 text-orange-600" />
               <span class="text-sm font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
               <div class="tooltip">
-                Total revenue from Lightning zaps: {{ (item.zapAmount || 0).toLocaleString() }} sats
+                Total amount received from Lightning zaps and paid content access.
               </div>
             </div>
           </div>
