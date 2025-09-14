@@ -340,9 +340,9 @@ const formatAmount = (amount) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
     <!-- Header Section -->
-    <div class="bg-white border-b border-gray-100 sticky top-0 z-10">
+    <div class="bg-white/80 backdrop-blur-sm border-b border-orange-100/50 sticky top-0 z-10">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <!-- Results Count -->
@@ -401,7 +401,7 @@ const formatAmount = (amount) => {
 
     <!-- Filters Section -->
     <transition name="slide-down">
-      <div v-if="showFilters" class="bg-white border-b border-gray-100">
+      <div v-if="showFilters" class="bg-white/80 backdrop-blur-sm border-b border-orange-100/50">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Filters />
         </div>
@@ -437,7 +437,7 @@ const formatAmount = (amount) => {
           v-for="(zap, index) in filteredZaps"
           :key="zap.id"
           @click="handleZapClick(zap)"
-          class="bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 cursor-pointer overflow-hidden"
+          class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 hover:border-orange-200/60 hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-1"
         >
           <div class="p-4 sm:p-6">
             <!-- Header -->
@@ -494,13 +494,13 @@ const formatAmount = (amount) => {
       </div>
 
       <!-- Compact View -->
-      <div v-else class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+      <div v-else class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
         <div class="divide-y divide-gray-50">
           <div
             v-for="(zap, index) in filteredZaps"
             :key="zap.id"
             @click="handleZapClick(zap)"
-            class="p-3 hover:bg-gray-50 transition-colors cursor-pointer"
+            class="p-3 hover:bg-orange-25/50 transition-colors cursor-pointer"
           >
             <div class="flex items-center space-x-3">
               <!-- Avatar -->
