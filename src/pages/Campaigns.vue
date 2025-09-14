@@ -334,90 +334,170 @@ watch(isAuthenticated, async (isAuth) => {
     </div>
 
     <!-- Search and Filters -->
-    <div v-if="isAuthenticated" class="bg-white rounded-xl border border-orange-100 shadow-sm p-5 mb-6">
-      <div class="flex flex-col sm:flex-row gap-4 items-center">
-        <!-- Search Input -->
-        <div class="relative flex-1">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search campaigns..."
-            class="w-full pl-10 pr-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200"
-          />
-          <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-          <button 
-            v-if="searchQuery" 
-            @click="searchQuery = ''" 
-            class="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
-          >
-            <IconX class="w-4 h-4" />
-          </button>
+    <!-- Clean Apple-like Header with Mobile-First Design -->
+    <div v-if="isAuthenticated" class="bg-white/95 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/40 overflow-hidden mb-6">
+      <!-- ZapTracker Brand Accent Line -->
+      <div class="h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400"></div>
+      
+      <!-- Header Content -->
+      <div class="px-4 sm:px-6 py-4 sm:py-5">
+        <!-- Mobile Layout: Stacked Design -->
+        <div class="block lg:hidden space-y-4">
+          <!-- Top Row: Search -->
+          <div class="relative">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search campaigns..."
+              class="w-full pl-10 pr-10 py-3 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200 shadow-sm"
+            />
+            <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+            <button 
+              v-if="searchQuery" 
+              @click="searchQuery = ''" 
+              class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconX class="w-4 h-4" />
+            </button>
+          </div>
+
+          <!-- Bottom Row: Controls -->
+          <div class="flex items-center justify-between">
+            <!-- Left: View Toggle -->
+            <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+              <button 
+                @click="activeView = 'grid'" 
+                :class="[
+                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out flex items-center space-x-1.5',
+                  activeView === 'grid' 
+                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                ]"
+              >
+                <span class="text-xs opacity-70">⊞</span>
+                <span>Grid</span>
+              </button>
+              <button 
+                @click="activeView = 'list'" 
+                :class="[
+                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out flex items-center space-x-1.5',
+                  activeView === 'list' 
+                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                ]"
+              >
+                <span class="text-xs opacity-70">☰</span>
+                <span>List</span>
+              </button>
+            </div>
+
+            <!-- Elegant Divider -->
+            <div class="h-8 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent"></div>
+
+            <!-- Right: Sort + Create -->
+            <div class="flex items-center space-x-3">
+              <!-- Sort Dropdown -->
+              <div class="relative">
+                <select 
+                  v-model="sortOption"
+                  class="appearance-none pl-3 pr-8 py-2.5 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm shadow-sm transition-all duration-200"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="progress">Progress</option>
+                  <option value="goal">Goal</option>
+                </select>
+                <IconChevronDown class="absolute right-3 top-3 w-3 h-3 text-gray-400 pointer-events-none" />
+              </div>
+              
+              <!-- Create Button -->
+              <button
+                @click="openCreateModal"
+                class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2.5 rounded-2xl font-semibold text-sm transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+              >
+                <IconPlus class="w-4 h-4" />
+                <span>New</span>
+              </button>
+            </div>
+          </div>
         </div>
-        
-        <!-- View Toggle -->
-        <div class="flex items-center bg-gray-100 rounded-lg p-1">
-          <button 
-            @click="activeView = 'grid'" 
-            :class="[
-              'px-3 py-2 rounded-md transition-all duration-200 flex items-center space-x-1',
-              activeView === 'grid' 
-                ? 'bg-white shadow-sm text-orange-600' 
-                : 'text-gray-600 hover:text-gray-800'
-            ]"
-          >
-            <IconGrid class="w-4 h-4" />
-            <span class="text-sm">Grid</span>
-          </button>
-          <button 
-            @click="activeView = 'list'" 
-            :class="[
-              'px-3 py-2 rounded-md transition-all duration-200 flex items-center space-x-1',
-              activeView === 'list' 
-                ? 'bg-white shadow-sm text-orange-600' 
-                : 'text-gray-600 hover:text-gray-800'
-            ]"
-          >
-            <IconList class="w-4 h-4" />
-            <span class="text-sm">List</span>
-          </button>
+
+        <!-- Desktop Layout: Single Row -->
+        <div class="hidden lg:flex items-center justify-between">
+          <!-- Left: Search -->
+          <div class="relative flex-1 max-w-md">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search campaigns..."
+              class="w-full pl-10 pr-10 py-3 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200 shadow-sm"
+            />
+            <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+            <button 
+              v-if="searchQuery" 
+              @click="searchQuery = ''" 
+              class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconX class="w-4 h-4" />
+            </button>
+          </div>
+          
+          <!-- Right: Controls -->
+          <div class="flex items-center space-x-4">
+            <!-- View Toggle -->
+            <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+              <button 
+                @click="activeView = 'grid'" 
+                :class="[
+                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out flex items-center space-x-1.5',
+                  activeView === 'grid' 
+                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                ]"
+              >
+                <span class="text-xs opacity-70">⊞</span>
+                <span>Grid</span>
+              </button>
+              <button 
+                @click="activeView = 'list'" 
+                :class="[
+                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out flex items-center space-x-1.5',
+                  activeView === 'list' 
+                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                ]"
+              >
+                <span class="text-xs opacity-70">☰</span>
+                <span>List</span>
+              </button>
+            </div>
+
+            <!-- Sort Dropdown -->
+            <div class="relative">
+              <select 
+                v-model="sortOption"
+                class="appearance-none pl-3 pr-8 py-2.5 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm shadow-sm transition-all duration-200"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="progress">Highest Progress</option>
+                <option value="goal">Highest Goal</option>
+              </select>
+              <IconChevronDown class="absolute right-3 top-3 w-3 h-3 text-gray-400 pointer-events-none" />
+            </div>
+            
+            <!-- Create Button -->
+            <button
+              @click="openCreateModal"
+              class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-2.5 rounded-2xl font-semibold text-sm transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+            >
+              <IconPlus class="w-4 h-4" />
+              <span>New Campaign</span>
+            </button>
+          </div>
         </div>
-        
-        <!-- Sort Dropdown -->
-        <div class="relative">
-          <select 
-            v-model="sortOption"
-            class="appearance-none pl-3 pr-8 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm bg-white"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="progress">Highest Progress</option>
-            <option value="goal">Highest Goal</option>
-          </select>
-          <IconChevronDown class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
-        </div>
-        
-        <!-- Refresh Button -->
-        <button
-          @click="refreshCampaigns"
-          :disabled="isRefreshing"
-          class="btn-secondary text-sm"
-          title="Refresh campaigns"
-        >
-          <IconRefresh :class="['w-4 h-4', isRefreshing ? 'animate-spin' : '']" />
-          <span>Refresh</span>
-        </button>
-        
-        <!-- Create Button -->
-        <button
-          @click="openCreateModal"
-          class="btn-primary text-sm"
-        >
-          <IconPlus class="w-4 h-4" />
-          <span>New Campaign</span>
-        </button>
       </div>
     </div>
-
     <!-- Authentication Required Banner -->
     <div v-if="!isAuthenticated" class="bg-white rounded-xl border border-orange-100 shadow-lg p-6 mb-6">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
