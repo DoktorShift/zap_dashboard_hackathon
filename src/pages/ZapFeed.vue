@@ -347,8 +347,74 @@ const formatAmount = (amount) => {
       <div class="h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400"></div>
       
       <!-- Header Content -->
-      <div class="px-6 py-5">
-        <div class="flex items-center justify-between">
+      <div class="px-4 sm:px-6 py-4 sm:py-5">
+        <!-- Mobile Layout: Stacked -->
+        <div class="block lg:hidden space-y-4">
+          <!-- Top Row: Count and View Mode -->
+          <div class="flex items-center justify-between">
+            <!-- Left: Zap Count -->
+            <div class="flex items-center space-x-2">
+              <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span class="text-sm font-medium text-gray-700">
+                {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
+              </span>
+            </div>
+
+            <!-- Right: View Mode Toggle -->
+            <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+              <button
+                @click="viewMode = 'feed'"
+                :class="[
+                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
+                  viewMode === 'feed' 
+                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                ]"
+              >
+                Feed
+              </button>
+              <button
+                @click="viewMode = 'compact'"
+                :class="[
+                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out',
+                  viewMode === 'compact' 
+                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                ]"
+              >
+                Compact
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom Row: Time Filter Buttons -->
+          <div class="flex justify-center">
+            <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
+              <button
+                v-for="range in [
+                  { value: '24h', label: '24h', icon: '🕐' },
+                  { value: '7d', label: '7d', icon: '📅' },
+                  { value: '30d', label: '30d', icon: '📊' },
+                  { value: 'all', label: 'All', icon: '∞' }
+                ]"
+                :key="range.value"
+                @click="selectedTimeRange = range.value"
+                :class="[
+                  'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out min-w-[70px] flex items-center justify-center space-x-1.5',
+                  selectedTimeRange === range.value
+                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30'
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                ]"
+              >
+                <span class="text-xs opacity-70">{{ range.icon }}</span>
+                <span>{{ range.label }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop Layout: Single Row -->
+        <div class="hidden lg:flex items-center justify-between">
           <!-- Left: Zap Count with Clean Typography -->
           <div class="flex items-center space-x-2">
             <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
