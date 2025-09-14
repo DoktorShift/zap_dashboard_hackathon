@@ -183,60 +183,42 @@ const getTotalRevenue = (item) => {
                 <IconEye class="w-4 h-4" />
               </button>
               
-                <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group relative tooltip-container">
+              <div class="relative dropdown-container">
                 <button
                   @click="openDropdownId = openDropdownId === item.id ? null : item.id"
                   class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <IconDots class="w-4 h-4" />
-                  <div class="tooltip">
-                    {{ getEngagementCounts(item.nostrEventId).likes || 0 }} {{ (getEngagementCounts(item.nostrEventId).likes || 0) === 1 ? 'like' : 'likes' }} from Nostr users
-                  </div>
                 </button>
                 
                 <div 
-                <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group relative tooltip-container">
+                  v-if="openDropdownId === item.id"
                   class="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50"
                 >
-                  <div class="tooltip">
-                    {{ getEngagementCounts(item.nostrEventId).reposts || 0 }} {{ (getEngagementCounts(item.nostrEventId).reposts || 0) === 1 ? 'repost' : 'reposts' }} on Nostr
-                  </div>
                   <button
                     @click="$emit('edit', item); openDropdownId = null"
                     class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center space-x-2"
-                <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group relative tooltip-container">
+                  >
                     <IconEdit class="w-3 h-3" />
                     <span>Edit</span>
                   </button>
                   
                   <button
-                  <div class="tooltip">
-                    {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatZapAmount(item.zapAmount || 0) }} sats total)
-                  </div>
                     v-if="item.status === 'draft'"
                     @click="$emit('publish-nostr', item); openDropdownId = null"
                     class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 flex items-center space-x-2"
-                <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group relative tooltip-container">
+                  >
                     <IconShare class="w-3 h-3" />
                     <span>Publish</span>
                   </button>
                   
                   <button
-                  <div class="tooltip">
-                    {{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }} {{ (getEngagementCounts(item.nostrEventId).bookmarks || 0) === 1 ? 'bookmark' : 'bookmarks' }} on Nostr
-                  </div>
                     @click="$emit('delete', item); openDropdownId = null"
                     class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center space-x-2"
                   >
                     <IconTrash class="w-3 h-3" />
-              <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container">
+                    <span>Delete</span>
                   </button>
-                </div>
-              <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container">
-                  Total revenue from Lightning zaps: {{ (item.zapAmount || 0).toLocaleString() }} sats
-                </div>
-                <div class="tooltip">
-                  Total revenue from Lightning zaps: {{ (item.zapAmount || 0).toLocaleString() }} sats
                 </div>
               </div>
             </div>
@@ -261,46 +243,61 @@ const getTotalRevenue = (item) => {
             <!-- Engagement Metrics -->
             <div class="flex items-center space-x-6">
               <!-- Likes -->
-              <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group">
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group relative tooltip-container">
                 <IconHeart :class="[
                   'w-4 h-4 transition-colors',
                   getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
                 ]" />
                 <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).likes || 0 }} {{ (getEngagementCounts(item.nostrEventId).likes || 0) === 1 ? 'like' : 'likes' }} from Nostr users
+                </div>
               </button>
               
               <!-- Reposts -->
-              <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group">
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group relative tooltip-container">
                 <IconRepeat :class="[
                   'w-4 h-4 transition-colors',
                   getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
                 ]" />
                 <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).reposts || 0 }} {{ (getEngagementCounts(item.nostrEventId).reposts || 0) === 1 ? 'repost' : 'reposts' }} on Nostr
+                </div>
               </button>
               
               <!-- Zaps -->
-              <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group">
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group relative tooltip-container">
                 <IconBolt :class="[
                   'w-4 h-4 transition-colors',
                   (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
                 ]" />
                 <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
+                <div class="tooltip">
+                  {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatZapAmount(item.zapAmount || 0) }} sats total)
+                </div>
               </button>
               
               <!-- Bookmarks -->
-              <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group">
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group relative tooltip-container">
                 <IconBookmark :class="[
                   'w-4 h-4 transition-colors',
                   getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
                 ]" />
                 <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }} {{ (getEngagementCounts(item.nostrEventId).bookmarks || 0) === 1 ? 'bookmark' : 'bookmarks' }} on Nostr
+                </div>
               </button>
             </div>
             
             <!-- Zap Amount Badge -->
-            <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full">
+            <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container cursor-help">
               <IconBolt class="w-3 h-3 text-orange-600" />
               <span class="text-xs font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
+              <div class="tooltip">
+                Total revenue from Lightning zaps: {{ (item.zapAmount || 0).toLocaleString() }} sats
+              </div>
             </div>
           </div>
         </div>
@@ -378,21 +375,27 @@ const getTotalRevenue = (item) => {
             <!-- Engagement Metrics -->
             <div class="flex items-center space-x-8">
               <!-- Likes -->
-              <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group">
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group relative tooltip-container">
                 <IconHeart :class="[
                   'w-5 h-5 transition-colors',
                   getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
                 ]" />
                 <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).likes || 0 }} {{ (getEngagementCounts(item.nostrEventId).likes || 0) === 1 ? 'like' : 'likes' }} from Nostr users
+                </div>
               </button>
               
               <!-- Reposts -->
-              <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group">
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group relative tooltip-container">
                 <IconRepeat :class="[
                   'w-5 h-5 transition-colors',
                   getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
                 ]" />
                 <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).reposts || 0 }} {{ (getEngagementCounts(item.nostrEventId).reposts || 0) === 1 ? 'repost' : 'reposts' }} on Nostr
+                </div>
               </button>
               
               <!-- Zaps -->
@@ -408,19 +411,25 @@ const getTotalRevenue = (item) => {
               </button>
               
               <!-- Bookmarks -->
-              <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group">
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group relative tooltip-container">
                 <IconBookmark :class="[
                   'w-5 h-5 transition-colors',
                   getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
                 ]" />
                 <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }} {{ (getEngagementCounts(item.nostrEventId).bookmarks || 0) === 1 ? 'bookmark' : 'bookmarks' }} on Nostr
+                </div>
               </button>
             </div>
             
             <!-- Revenue Badge -->
-            <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full">
+            <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container cursor-help">
               <IconBolt class="w-4 h-4 text-orange-600" />
               <span class="text-sm font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
+              <div class="tooltip">
+                Total revenue from Lightning zaps: {{ (item.zapAmount || 0).toLocaleString() }} sats
+              </div>
             </div>
           </div>
         </div>
@@ -474,7 +483,7 @@ const getTotalRevenue = (item) => {
 .group:hover .group-hover\:text-blue-500 {
   color: #3b82f6;
 }
-</style>
+
 /* Tooltip Styles with 0.5s delay */
 .tooltip-container {
   position: relative;
@@ -560,3 +569,4 @@ const getTotalRevenue = (item) => {
     transform: translateX(-50%) translateY(-8px);
   }
 }
+</style>
