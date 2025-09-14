@@ -594,7 +594,7 @@ const formatZapperPubkey = (pubkey) => {
                     <transition name="dropdown-fade">
                       <div 
                         v-if="showClientDropdown"
-                        class="absolute right-0 mt-2 w-44 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-black/10 border border-gray-200/50 py-2 z-10"
+                        class="absolute right-0 mt-2 w-44 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-black/10 border border-gray-200/50 py-2 z-[9999]"
                       >
                         <a 
                           :href="getNostrClientUrl('primal')" 
