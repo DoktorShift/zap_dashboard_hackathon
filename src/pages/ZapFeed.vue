@@ -13,7 +13,7 @@ import {
   IconFilter,
   IconX,
   IconChevronDown,
-  IconRefresh
+  IconTrash
 } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import ZapEventModal from '../components/ZapEventModal.vue'
@@ -25,8 +25,6 @@ const combinedZapData = inject('combinedZapData')
 const searchQuery = inject('searchQuery')
 const selectedFilters = inject('selectedFilters')
 const selectedTimeRange = inject('selectedTimeRange')
-const refreshZapData = inject('refreshZapData')
-const isRefreshingData = inject('isRefreshingData')
 
 // Get zap data from useContentZaps
 const { getAllContentZaps } = useContentZaps()
@@ -39,6 +37,26 @@ const selectedZapId = ref(null)
 // UI state
 const showFilters = ref(false)
 const viewMode = ref('feed') // 'feed' or 'compact'
+
+// Check if any filters are active
+const hasActiveFilters = computed(() => {
+  return searchQuery.value.trim() !== '' ||
+         selectedFilters.value.minAmount > 0 ||
+         selectedFilters.value.maxAmount !== null ||
+         selectedFilters.value.noteType !== 'all' ||
+         selectedFilters.value.sender.trim() !== '' ||
+         selectedTimeRange.value !== 'all'
+})
+
+// Clear all filters
+const clearAllFilters = () => {
+  searchQuery.value = ''
+  selectedFilters.value.minAmount = 0
+  selectedFilters.value.maxAmount = null
+  selectedFilters.value.noteType = 'all'
+  selectedFilters.value.sender = ''
+  selectedTimeRange.value = 'all'
+}
 
 const filteredZaps = computed(() => {
   let zaps = combinedZapData.value
@@ -319,13 +337,6 @@ const formatAmount = (amount) => {
   }
   return amount.toLocaleString()
 }
-
-// Handle refresh
-const handleRefresh = () => {
-  if (refreshZapData && !isRefreshingData.value) {
-    refreshZapData()
-  }
-}
 </script>
 
 <template>
@@ -334,27 +345,21 @@ const handleRefresh = () => {
     <div class="bg-white border-b border-gray-100 sticky top-0 z-10">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-          <!-- Title -->
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-              <IconBolt class="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <h1 class="text-lg font-semibold text-gray-900">Zap Feed</h1>
-              <p class="text-xs text-gray-500">{{ filteredZaps.length }} zaps</p>
-            </div>
+          <!-- Results Count -->
+          <div class="text-sm text-gray-600">
+            {{ filteredZaps.length }} zap{{ filteredZaps.length !== 1 ? 's' : '' }}
           </div>
 
           <!-- Actions -->
           <div class="flex items-center space-x-2">
-            <!-- Refresh Button -->
+            <!-- Clear Filters Button (only show when filters are active) -->
             <button
-              @click="handleRefresh"
-              :disabled="isRefreshingData"
-              class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
-              :class="{ 'animate-spin': isRefreshingData }"
+              v-if="hasActiveFilters"
+              @click="clearAllFilters"
+              class="flex items-center space-x-1 px-3 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 text-sm"
             >
-              <IconRefresh class="w-4 h-4" />
+              <IconTrash class="w-4 h-4" />
+              <span class="hidden sm:inline">Clear filters</span>
             </button>
 
             <!-- Filter Toggle -->
@@ -367,7 +372,7 @@ const handleRefresh = () => {
             </button>
 
             <!-- View Mode Toggle -->
-            <div class="hidden sm:flex items-center bg-gray-100 rounded-lg p-1">
+            <div class="flex items-center bg-gray-100 rounded-lg p-1">
               <button
                 @click="viewMode = 'feed'"
                 :class="[
@@ -375,7 +380,8 @@ const handleRefresh = () => {
                   viewMode === 'feed' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
                 ]"
               >
-                Feed
+                <span class="hidden sm:inline">Feed</span>
+                <span class="sm:hidden">📋</span>
               </button>
               <button
                 @click="viewMode = 'compact'"
@@ -384,7 +390,8 @@ const handleRefresh = () => {
                   viewMode === 'compact' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
                 ]"
               >
-                Compact
+                <span class="hidden sm:inline">Compact</span>
+                <span class="sm:hidden">📝</span>
               </button>
             </div>
           </div>
@@ -412,6 +419,16 @@ const handleRefresh = () => {
         <p class="text-gray-500 text-sm max-w-sm mx-auto">
           {{ zapData.length === 0 ? 'Connect your wallet to see real zap data' : 'Try adjusting your filters or search terms.' }}
         </p>
+        <!-- Clear filters button in empty state -->
+        <div v-if="hasActiveFilters" class="mt-4">
+          <button
+            @click="clearAllFilters"
+            class="btn-secondary"
+          >
+            <IconTrash class="w-4 h-4" />
+            Clear all filters
+          </button>
+        </div>
       </div>
 
       <!-- Feed View -->
