@@ -77,12 +77,16 @@ const topPerformingNotes = computed(() => {
     const eventId = zap.eventId
     if (!contentPerformance.has(eventId)) {
       const engagement = getEngagementCounts(eventId)
+      
+      // Get cached content if available
+      const cachedContent = noteContentCache.value.get(eventId)
+      
       contentPerformance.set(eventId, {
         eventId,
         type: 'note', // Assume note for now, will be updated if we find long-form data
-        title: '',
-        content: '',
-        noteText: 'Loading note content...', // Default loading text
+        title: cachedContent?.title || 'Loading...',
+        content: cachedContent?.text || '',
+        noteText: cachedContent?.text || 'Loading note content...', // Default loading text
         coverImage: null,
         zaps: 0,
         zapAmount: 0,
@@ -93,21 +97,30 @@ const topPerformingNotes = computed(() => {
       })
       
       // Fetch actual note content asynchronously
-      fetchNoteContent(eventId).then(noteContent => {
-        if (noteContent && noteContent.text) {
-          const content = contentPerformance.get(eventId)
-          if (content) {
-            content.noteText = noteContent.text
-            content.title = createNoteTitle(noteContent.text)
+      if (!cachedContent) {
+        fetchNoteContent(eventId).then(noteContent => {
+          if (noteContent && noteContent.text) {
+            // Update the cache with fetched content
+            noteContentCache.value.set(eventId, {
+              text: noteContent.text,
+              title: createNoteTitle(noteContent.text)
+            })
+          } else {
+            // Update the cache with unavailable content
+            noteContentCache.value.set(eventId, {
+              text: 'Unable to load note content',
+              title: 'Note (content unavailable)'
+            })
           }
-        }
-      }).catch(error => {
-        console.warn('Failed to fetch note content for analytics:', error)
-        const content = contentPerformance.get(eventId)
-        if (content) {
-          content.noteText = 'Unable to load note content'
-        }
-      })
+        }).catch(error => {
+          console.warn('Failed to fetch note content for analytics:', error)
+          // Update the cache with error state
+          noteContentCache.value.set(eventId, {
+            text: 'Unable to load note content',
+            title: 'Note (content unavailable)'
+          })
+        })
+      }
     }
     
     const content = contentPerformance.get(eventId)
@@ -232,24 +245,21 @@ const generateContentFallbackImage = () => {
 
 // Get content title for display
 const getNoteTitle = (content) => {
-  if (!content.noteText || content.noteText === 'Loading note content...') {
+  // Use the title from the content object, which is now reactive
+  if (content.title === 'Loading...' || !content.title) {
     return 'Loading...'
   }
   
-  if (content.noteText === 'Unable to load note content') {
+  if (content.title === 'Note (content unavailable)') {
     return 'Note (content unavailable)'
   }
   
-  // Get first line or first 40 characters
-  const firstLine = content.noteText.split('\n')[0].trim()
-  if (firstLine.length === 0) return 'Note'
-  
-  return firstLine.length > 40 ? firstLine.substring(0, 40) + '...' : firstLine
+  return content.title
 }
 
 // Get note preview text for display
 const getNotePreview = (content) => {
-  if (!content.noteText || content.noteText === 'Loading note content...') {
+  if (!content.noteText || content.noteText === 'Loading note content...' || content.noteText === 'Loading...') {
     return 'Loading note content...'
   }
   
