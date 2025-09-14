@@ -344,7 +344,7 @@ const formatAmount = (amount) => {
     <!-- Clean Apple-like Header with Blue Accent -->
     <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/40 overflow-hidden">
       <!-- Blue Accent Line -->
-      <div class="h-1 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600"></div>
+      <div class="h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400"></div>
       
       <!-- Header Content -->
       <div class="px-6 py-5">

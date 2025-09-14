@@ -564,8 +564,8 @@ const formatZapperPubkey = (pubkey) => {
         <!-- Modal Container -->
         <div class="flex min-h-full items-center justify-center p-4">
           <div class="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-black/10 max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-200/50">
-            <!-- Blue Accent Line (X-style) -->
-            <div class="h-1 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600"></div>
+            <!-- ZapTracker Brand Accent Line -->
+            <div class="h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400"></div>
             
             <!-- Clean Header -->
             <div class="bg-white/80 backdrop-blur-sm px-8 py-6 border-b border-gray-100/50">
@@ -585,7 +585,7 @@ const formatZapperPubkey = (pubkey) => {
                   <div v-if="event" class="relative" ref="dropdownRef">
                     <button
                       @click="toggleClientDropdown"
-                      class="w-10 h-10 bg-gray-100/80 hover:bg-gray-200/80 rounded-2xl flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-sm"
+                      class="w-10 h-10 bg-gray-100/80 hover:bg-gray-200/80 rounded-2xl flex items-center justify-center transition-all duration-200 hover:scale-105 shadow-sm relative z-50"
                     >
                       <IconShare class="w-5 h-5 text-gray-600" />
                     </button>
@@ -594,13 +594,13 @@ const formatZapperPubkey = (pubkey) => {
                     <transition name="dropdown-fade">
                       <div 
                         v-if="showClientDropdown"
-                        class="absolute right-0 mt-2 w-44 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-black/10 border border-gray-200/50 py-2 z-10"
+                        class="absolute right-0 mt-2 w-44 bg-white/98 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 border border-gray-200/50 py-2 z-[99999]"
                       >
                         <a 
                           :href="getNostrClientUrl('primal')" 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          class="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50/80 transition-colors"
+                          class="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-orange-50/80 hover:text-orange-700 transition-all duration-200 rounded-xl mx-2"
                         >
                           <span class="text-orange-600 text-lg">🌐</span>
                           <span class="font-medium">Primal</span>
@@ -609,7 +609,7 @@ const formatZapperPubkey = (pubkey) => {
                           :href="getNostrClientUrl('yakihonne')" 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          class="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50/80 transition-colors"
+                          class="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50/80 hover:text-purple-700 transition-all duration-200 rounded-xl mx-2"
                         >
                           <span class="text-purple-600 text-lg">🍜</span>
                           <span class="font-medium">Yakihonne</span>
