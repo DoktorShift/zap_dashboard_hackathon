@@ -8,17 +8,25 @@ import {
   IconDeviceMobile, 
   IconUser,
   IconWallet,
-  IconAlertCircle
+  IconAlertCircle,
+  IconSearch,
+  IconFilter,
+  IconX,
+  IconChevronDown,
+  IconRefresh
 } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import ZapEventModal from '../components/ZapEventModal.vue'
 import { useContentZaps } from '../composables/useContentZaps.js'
+import Filters from '../components/Filters.vue'
 
 const zapData = inject('zapData')
 const combinedZapData = inject('combinedZapData')
 const searchQuery = inject('searchQuery')
 const selectedFilters = inject('selectedFilters')
 const selectedTimeRange = inject('selectedTimeRange')
+const refreshZapData = inject('refreshZapData')
+const isRefreshingData = inject('isRefreshingData')
 
 // Get zap data from useContentZaps
 const { getAllContentZaps } = useContentZaps()
@@ -27,6 +35,10 @@ const { getAllContentZaps } = useContentZaps()
 const showEventModal = ref(false)
 const selectedEventId = ref(null)
 const selectedZapId = ref(null)
+
+// UI state
+const showFilters = ref(false)
+const viewMode = ref('feed') // 'feed' or 'compact'
 
 const filteredZaps = computed(() => {
   let zaps = combinedZapData.value
@@ -68,12 +80,9 @@ const filteredZaps = computed(() => {
 // Handle click on zap item
 const handleZapClick = (zap) => {
   if (zap.eventId) {
-    console.log('Opening event modal for eventId:', zap.eventId, 'zapId:', zap.id, 'source:', zap.source)
     selectedEventId.value = zap.eventId
     selectedZapId.value = zap.id
     showEventModal.value = true
-  } else {
-    console.log('No eventId available for this zap:', zap.id, 'source:', zap.source)
   }
 }
 
@@ -95,17 +104,13 @@ const formatDate = (timestamp) => {
   return `${Math.floor(diff / 86400000)}d`
 }
 
-// Enhanced note content parsing to handle both string and JSON array formats
+// Enhanced note content parsing
 const parseNoteContent = (note) => {
-  console.log(note)
-  console.log(typeof note)
   if (typeof note === 'string') {
-    // Handle JSON object strings (like Nostr events)
     if (note.startsWith('{') && note.endsWith('}')) {
       try {
         const parsed = JSON.parse(note)
         if (parsed && typeof parsed === 'object') {
-          // Handle Nostr zap events (kind 9734)
           if (parsed.kind === 9734) {
             const amountTag = parsed.tags?.find(tag => tag[0] === 'amount')
             const amount = amountTag ? amountTag[1] : null
@@ -114,24 +119,18 @@ const parseNoteContent = (note) => {
             }
             return 'Zap payment'
           }
-
-          // Handle other Nostr events with content
           if (parsed.content) {
             return parsed.content
           }
-
-          // Handle other object types
           if (parsed.description) {
             return parsed.description
           }
-
           return `${parsed.kind ? `Event (kind ${parsed.kind})` : 'Event'}`
         }
       } catch (error) {
         return note
       }
     }
-    // Handle JSON array strings
     else if (note.startsWith('[') && note.endsWith(']')) {
       try {
         const parsed = JSON.parse(note)
@@ -183,7 +182,7 @@ const extractTextFromArray = (noteArray) => {
   }
 }
 
-// Generate fallback avatar (same as ZapEventModal)
+// Generate fallback avatar
 const generateFallbackAvatar = (pubkey) => {
   const avatars = [
     'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
@@ -194,7 +193,6 @@ const generateFallbackAvatar = (pubkey) => {
     'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
   ]
   
-  // Create a hash from the pubkey to consistently select an avatar
   const hash = pubkey.split('').reduce((a, b) => {
     a = ((a << 5) - a) + b.charCodeAt(0)
     return a & a
@@ -206,11 +204,10 @@ const generateFallbackAvatar = (pubkey) => {
 // Inject profile store from parent
 const profileStore = inject('profileStore', ref(new Map()))
 
-// Dynamic avatar generation based on sender info with profile integration
+// Dynamic avatar generation with profile integration
 const generateAvatar = (sender, index) => {
   const pubkey = sender?.pubkey || sender?.zapperPubkey
   
-  // First check if we have a fetched profile
   if (pubkey && profileStore.value.has(pubkey)) {
     const profile = profileStore.value.get(pubkey)
     if (profile?.picture) {
@@ -218,31 +215,22 @@ const generateAvatar = (sender, index) => {
     }
   }
   
-  // Then check for picture (Nostr standard)
   if (sender?.picture) {
     return sender.picture
   }
   
-  // Then check for avatar (legacy)
   if (sender?.avatar) {
     return sender.avatar
   }
   
-  // If we have a pubkey, use it to generate consistent avatar
   if (pubkey) {
     return generateFallbackAvatar(pubkey)
   }
   
-  // Fallback to index-based avatar
   const avatars = [
     'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
     'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
   ]
   
   const identifier = sender?.name || `user-${index}`
@@ -254,11 +242,10 @@ const generateAvatar = (sender, index) => {
   return avatars[Math.abs(hash) % avatars.length]
 }
 
-// Get sender name with fallback and profile integration
+// Get sender name with profile integration
 const getSenderName = (sender) => {
   const pubkey = sender?.pubkey || sender?.zapperPubkey
   
-  // First check if we have a fetched profile
   if (pubkey && profileStore.value.has(pubkey)) {
     const profile = profileStore.value.get(pubkey)
     if (profile?.name) {
@@ -266,17 +253,14 @@ const getSenderName = (sender) => {
     }
   }
   
-  // Check for display_name first (Nostr standard)
   if (sender?.display_name) {
     return sender.display_name
   }
   
-  // Then check for name
   if (sender?.name) {
     return sender.name
   }
   
-  // Fallback to pubkey
   if (pubkey) {
     return `user:${pubkey.substring(0, 8)}`
   }
@@ -285,17 +269,17 @@ const getSenderName = (sender) => {
 }
 
 // Get transaction type display text
- const getTransactionTypeText = (zap) => {
+const getTransactionTypeText = (zap) => {
   return zap.type === 'outgoing' ? 'Sent' : 'Received'
 }
 
 // Get transaction type color class
- const getTransactionTypeColor = (zap) => {
+const getTransactionTypeColor = (zap) => {
   return zap.type === 'outgoing' ? 'text-red-600' : 'text-green-600'
 }
 
 // Get source icon
- const getSourceIcon = (zap) => {
+const getSourceIcon = (zap) => {
   return zap.source === 'nip57' ? IconBolt : IconWallet
 }
 
@@ -304,7 +288,7 @@ const getSourceColor = (zap) => {
   return zap.source === 'nip57' ? 'text-orange-600 bg-orange-100' : 'text-blue-600 bg-blue-100'
 }
 
- // Get transaction type background color class
+// Get transaction type background color class
 const getTransactionTypeBgColor = (zap) => {
   return zap.type === 'outgoing' ? 'from-red-100 to-pink-100' : 'from-orange-100 to-amber-100'
 }
@@ -325,124 +309,216 @@ const truncateNote = (note, maxLength = 120) => {
   if (content.length <= maxLength) return content
   return content.substring(0, maxLength) + '...'
 }
+
+// Format amount for display
+const formatAmount = (amount) => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(1)}k`
+  }
+  return amount.toLocaleString()
+}
+
+// Handle refresh
+const handleRefresh = () => {
+  if (refreshZapData && !isRefreshingData.value) {
+    refreshZapData()
+  }
+}
 </script>
 
 <template>
-  <div class="space-y-4 sm:space-y-6">
-    <!-- Filters -->
-    <div class="animate-fade-in" style="animation-delay: 0.1s;">
-      <Filters />
-    </div>
-    
-    <!-- Feed -->
-    <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm animate-fade-in" style="animation-delay: 0.2s;">
-      <div class="p-3 sm:p-4 border-b border-orange-100/50">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <p class="text-sm text-gray-600">
-            Showing {{ filteredZaps.length }} zaps
-          </p>
-          <button class="btn-secondary text-sm self-start sm:self-auto">
-            <IconBolt class="w-4 h-4 animate-pulse" />
-            Live Updates
-          </button>
-        </div>
-      </div>
-      
-      <div class="divide-y divide-orange-100/50">
-        <transition-group name="list-item" tag="div">
-          <div
-            v-for="(zap, index) in filteredZaps.length ? filteredZaps : []"
-            :key="zap.id"
-            class="p-3 hover:bg-orange-25/50 transition-all duration-200 hover:shadow-sm cursor-pointer"
-            @click="handleZapClick(zap)"
-            :style="{ animationDelay: `${index * 0.05}s` }"
-          >
-            <!-- Compact Layout -->
-            <div class="flex items-center space-x-3">
-              <!-- Smaller Avatar -->
-              <div class="relative flex-shrink-0">
-                <div class="w-8 h-8 rounded-full border-2 border-orange-200 transition-all duration-200 hover:border-orange-300 overflow-hidden">
-                  <img
-                    :src="generateAvatar(zap.sender, index)"
-                    :alt="getSenderName(zap.sender) || 'User'"
-                    class="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-              
-              <!-- Main Content - Single Row Layout -->
-              <div class="flex-1 min-w-0">
-                <!-- Header Row: Name, Amount, Time -->
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center space-x-2 min-w-0">
-                    <span class="font-medium text-gray-800 text-sm truncate hover:text-orange-600 transition-colors duration-200">
-                      {{ getSenderName(zap.sender) }}
-                    </span>
-                    <span v-if="zap.sender?.nip05" class="text-xs text-gray-500 truncate max-w-[100px]">
-                      {{ zap.sender.nip05 }}
-                    </span>
-                    <span class="text-xs text-gray-400">•</span>
-                    <span :class="['text-xs font-medium', getTransactionTypeColor(zap)]">
-                      {{ getTransactionTypeText(zap) }}
-                    </span>
-                    <!-- Source indicator -->
-                    <span :class="['px-1.5 py-0.5 rounded-full text-xs flex items-center space-x-1', getSourceColor(zap)]">
-                      <component :is="getSourceIcon(zap)" class="w-3 h-3" />
-                    </span>
-                  </div>
-                  
-                  <div class="flex items-center space-x-2 flex-shrink-0">
-                    <!-- Compact Zap Amount -->
-                    <div :class="['flex items-center space-x-1 px-2 py-1 rounded-full bg-gradient-to-r', getTransactionTypeBgColor(zap)]">
-                      <IconBolt class="w-3 h-3" :class="getTransactionTypeColor(zap)" />
-                      <span class="font-bold text-sm" :class="getTransactionTypeColor(zap)">{{ zap.amount?.toLocaleString() || 0 }}</span>
-                    </div>
-                    <span class="text-xs text-gray-400">{{ formatDate(zap.timestamp) }}</span>
-                  </div>
-                </div>
-                
-                <!-- Note Content Row -->
-                <div class="flex items-center justify-between">
-                  <p class="text-sm text-gray-700 flex-1 mr-3 truncate">
-                    <span v-if="zap.eventId" class="text-orange-600 font-medium mr-1">⚡</span>{{ truncateNote(zap.note) }}
-                  </p>
-                  
-                  <!-- Compact Metadata -->
-                  <div class="flex items-center space-x-1 flex-shrink-0">
-                    <span v-if="zap.noteType" class="bg-orange-100 px-1.5 py-0.5 rounded text-xs text-orange-700 flex items-center space-x-1">
-                      <component :is="getNoteTypeIcon(zap.noteType)" class="w-3 h-3" />
-                    </span>
-                    <span v-if="zap.client && !zap.eventId" class="bg-blue-100 px-1.5 py-0.5 rounded text-xs text-blue-700 flex items-center space-x-1">
-                      <IconDeviceMobile class="w-3 h-3" />
-                    </span>
-                  </div>
-                </div>
-              </div>
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header Section -->
+    <div class="bg-white border-b border-gray-100 sticky top-0 z-10">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <!-- Title -->
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+              <IconBolt class="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 class="text-lg font-semibold text-gray-900">Zap Feed</h1>
+              <p class="text-xs text-gray-500">{{ filteredZaps.length }} zaps</p>
             </div>
           </div>
-        </transition-group>
-      </div>
-      
-      <!-- Empty State -->
-      <div v-if="!filteredZaps.length" class="text-center py-8 animate-fade-in">
-        <div class="text-4xl mb-3 animate-bounce-subtle">
-          <IconBolt class="w-12 h-12 mx-auto text-gray-300" />
+
+          <!-- Actions -->
+          <div class="flex items-center space-x-2">
+            <!-- Refresh Button -->
+            <button
+              @click="handleRefresh"
+              :disabled="isRefreshingData"
+              class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              :class="{ 'animate-spin': isRefreshingData }"
+            >
+              <IconRefresh class="w-4 h-4" />
+            </button>
+
+            <!-- Filter Toggle -->
+            <button
+              @click="showFilters = !showFilters"
+              class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              :class="{ 'bg-orange-50 text-orange-600': showFilters }"
+            >
+              <IconFilter class="w-4 h-4" />
+            </button>
+
+            <!-- View Mode Toggle -->
+            <div class="hidden sm:flex items-center bg-gray-100 rounded-lg p-1">
+              <button
+                @click="viewMode = 'feed'"
+                :class="[
+                  'px-3 py-1 rounded-md text-sm font-medium transition-all duration-200',
+                  viewMode === 'feed' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
+                ]"
+              >
+                Feed
+              </button>
+              <button
+                @click="viewMode = 'compact'"
+                :class="[
+                  'px-3 py-1 rounded-md text-sm font-medium transition-all duration-200',
+                  viewMode === 'compact' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
+                ]"
+              >
+                Compact
+              </button>
+            </div>
+          </div>
         </div>
-        <h3 class="text-lg font-medium text-gray-800 mb-2">No zaps found</h3>
-        <p class="text-gray-600 text-sm px-4">
+      </div>
+    </div>
+
+    <!-- Filters Section -->
+    <transition name="slide-down">
+      <div v-if="showFilters" class="bg-white border-b border-gray-100">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <Filters />
+        </div>
+      </div>
+    </transition>
+
+    <!-- Main Content -->
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <!-- Empty State -->
+      <div v-if="!filteredZaps.length" class="text-center py-16">
+        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <IconBolt class="w-8 h-8 text-gray-400" />
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No zaps found</h3>
+        <p class="text-gray-500 text-sm max-w-sm mx-auto">
           {{ zapData.length === 0 ? 'Connect your wallet to see real zap data' : 'Try adjusting your filters or search terms.' }}
         </p>
       </div>
-      
-      <!-- Debug Info -->
-<!--      <div v-if="!filteredZaps.length && zapData.length > 0" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">-->
-<!--        <div class="flex items-center space-x-2">-->
-<!--          <IconAlertCircle class="w-5 h-5 text-amber-600" />-->
-<!--          <div>-->
-<!--            <p class="text-sm text-amber-800">You have {{ zapData.length }} zaps in your wallet, but none match your current filters.</p>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
+
+      <!-- Feed View -->
+      <div v-else-if="viewMode === 'feed'" class="space-y-4">
+        <div
+          v-for="(zap, index) in filteredZaps"
+          :key="zap.id"
+          @click="handleZapClick(zap)"
+          class="bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 cursor-pointer overflow-hidden"
+        >
+          <div class="p-4 sm:p-6">
+            <!-- Header -->
+            <div class="flex items-start space-x-3 mb-4">
+              <!-- Avatar -->
+              <div class="w-10 h-10 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+                <img
+                  :src="generateAvatar(zap.sender, index)"
+                  :alt="getSenderName(zap.sender)"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+
+              <!-- User Info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center space-x-2 mb-1">
+                  <h3 class="font-medium text-gray-900 truncate">
+                    {{ getSenderName(zap.sender) }}
+                  </h3>
+                  <span v-if="zap.sender?.nip05" class="text-xs text-gray-500 truncate">
+                    {{ zap.sender.nip05 }}
+                  </span>
+                </div>
+                <div class="flex items-center space-x-2 text-xs text-gray-500">
+                  <span>{{ formatDate(zap.timestamp) }}</span>
+                  <span>•</span>
+                  <span :class="getTransactionTypeColor(zap)">
+                    {{ getTransactionTypeText(zap) }}
+                  </span>
+                  <div :class="['px-1.5 py-0.5 rounded-full flex items-center space-x-1', getSourceColor(zap)]">
+                    <component :is="getSourceIcon(zap)" class="w-3 h-3" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Amount -->
+              <div class="text-right flex-shrink-0">
+                <div class="inline-flex items-center space-x-1 bg-orange-50 px-3 py-1.5 rounded-full">
+                  <IconBolt class="w-4 h-4 text-orange-600" />
+                  <span class="font-semibold text-orange-700">{{ formatAmount(zap.amount) }}</span>
+                  <span class="text-xs text-orange-600">sats</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Content -->
+            <div class="ml-13">
+              <p class="text-gray-700 leading-relaxed">
+                {{ parseNoteContent(zap.note) }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compact View -->
+      <div v-else class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div class="divide-y divide-gray-50">
+          <div
+            v-for="(zap, index) in filteredZaps"
+            :key="zap.id"
+            @click="handleZapClick(zap)"
+            class="p-3 hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            <div class="flex items-center space-x-3">
+              <!-- Avatar -->
+              <div class="w-8 h-8 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+                <img
+                  :src="generateAvatar(zap.sender, index)"
+                  :alt="getSenderName(zap.sender)"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+
+              <!-- Content -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between mb-1">
+                  <div class="flex items-center space-x-2 min-w-0">
+                    <span class="font-medium text-gray-900 text-sm truncate">
+                      {{ getSenderName(zap.sender) }}
+                    </span>
+                    <span class="text-xs text-gray-500">{{ formatDate(zap.timestamp) }}</span>
+                  </div>
+                  
+                  <div class="flex items-center space-x-1 flex-shrink-0">
+                    <IconBolt class="w-3 h-3 text-orange-600" />
+                    <span class="font-semibold text-orange-700 text-sm">{{ formatAmount(zap.amount) }}</span>
+                  </div>
+                </div>
+                
+                <p class="text-sm text-gray-600 truncate">
+                  {{ truncateNote(zap.note, 80) }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   
@@ -456,25 +532,75 @@ const truncateNote = (note, maxLength = 120) => {
 </template>
 
 <style scoped>
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Slide down animation */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s ease-out;
 }
 
-.animate-fade-in {
-  animation: fade-in 0.6s ease-out forwards;
+.slide-down-enter-from {
   opacity: 0;
+  transform: translateY(-10px);
 }
 
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Hover effects */
+.hover\:shadow-sm:hover {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Focus states for accessibility */
+button:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .ml-13 {
+    margin-left: 0;
+    margin-top: 0.75rem;
+  }
+}
+
+/* Ensure proper touch targets */
+@media (max-width: 768px) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Text truncation */
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Line clamp for multi-line truncation */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>
