@@ -129,42 +129,9 @@ const formatZapAmount = (amount) => {
   return amount.toString()
 }
 
-// 🔥 FIX: Use totalRevenue which combines both zaps and traditional revenue
+// Get total revenue for display
 const getTotalRevenue = (item) => {
-  console.log('Getting total revenue for item:', item.id, 'zapAmount:', item.zapAmount, 'traditionalRevenue:', item.traditionalRevenue)
   return item.totalRevenue || 0
-}
-
-// 🔥 FIX: Check if we should show revenue breakdown (both zaps AND traditional revenue exist)
-const shouldShowBreakdown = (item) => {
-  const zapAmount = item.zapAmount || 0
-  const traditionalRevenue = item.traditionalRevenue || 0
-  console.log('Checking breakdown for item:', item.id, 'zapAmount:', zapAmount, 'traditionalRevenue:', traditionalRevenue)
-  
-  // Show breakdown only if BOTH zaps and traditional revenue exist and are > 0
-  return zapAmount > 0 && traditionalRevenue > 0
-}
-
-// Generate tooltip text for zaps
-const getZapTooltip = (item) => {
-  const zapAmount = item.zapAmount || 0
-  const zapCount = item.zapCount || 0
-  
-  if (zapCount === 0) return 'No Lightning zaps received yet'
-  if (zapCount === 1) return `${zapAmount.toLocaleString()} sats from 1 Lightning zap`
-  return `${zapAmount.toLocaleString()} sats from ${zapCount} Lightning zaps`
-}
-
-// Generate tooltip text for traditional sales
-const getSalesTooltip = (item) => {
-  const revenue = item.traditionalRevenue || 0
-  const unlocks = item.unlocks || 0
-  
-  if (unlocks === 0) return 'No direct sales or subscriptions yet'
-  if (item.monetizationModel === 'subscription') {
-    return `${revenue.toLocaleString()} sats from ${unlocks} subscription${unlocks !== 1 ? 's' : ''}`
-  }
-  return `${revenue.toLocaleString()} sats from ${unlocks} direct purchase${unlocks !== 1 ? 's' : ''}`
 }
 </script>
 
@@ -173,46 +140,40 @@ const getSalesTooltip = (item) => {
     <div
       v-for="item in items"
       :key="item.id"
-      class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-sm hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 overflow-hidden hover:-translate-y-0.5"
+      class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-sm hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 overflow-hidden hover:-translate-y-0.5 group"
     >
-      <div class="p-3 sm:p-4">
+      <div class="p-4">
         <!-- Mobile Layout -->
-        <div class="block sm:hidden">
-          <!-- Top Row: Title and Actions -->
-          <div class="flex items-start justify-between mb-3">
+        <div class="block sm:hidden space-y-3">
+          <!-- Header Row -->
+          <div class="flex items-start justify-between">
             <div class="flex items-start space-x-3 flex-1 min-w-0">
-              <!-- Compact Type Icon -->
+              <!-- Type Icon -->
               <div :class="[
-                'w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0',
+                'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0',
                 getStatusColor(item.status)
               ]">
-                <component :is="getTypeIcon(item.type)" class="w-3 h-3" />
+                <component :is="getTypeIcon(item.type)" class="w-4 h-4" />
               </div>
               
-              <!-- Title and Status -->
+              <!-- Title and Badges -->
               <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-gray-900 text-sm leading-tight mb-1 line-clamp-1">{{ item.title }}</h3>
-                <div class="flex items-center space-x-1.5">
+                <h3 class="font-semibold text-gray-900 text-base leading-tight mb-2 line-clamp-2">{{ item.title }}</h3>
+                <div class="flex flex-wrap items-center gap-2">
                   <span :class="[
-                    'px-1.5 py-0.5 rounded-md text-xs font-medium',
+                    'px-2 py-1 rounded-full text-xs font-medium',
                     getStatusColor(item.status)
                   ]">
                     {{ item.status }}
                   </span>
-                  <span v-if="item.nostrEventId" class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-md text-xs font-medium">
-                    Nostr
+                  <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                    On Nostr
                   </span>
-                  <!-- Zap indicator for mobile -->
-                  <div v-if="item.nostrEventId && (item.zapCount > 0 || item.zapAmount > 0)" 
-                       class="flex items-center space-x-1 px-1.5 py-0.5 bg-gradient-to-r from-orange-100 to-amber-100 rounded-md">
-                    <IconBolt class="w-2.5 h-2.5 text-orange-600" />
-                    <span class="text-xs font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }}</span>
-                  </div>
                 </div>
               </div>
             </div>
             
-            <!-- Mobile Actions -->
+            <!-- Actions -->
             <div class="flex items-center space-x-1 flex-shrink-0">
               <button
                 @click="$emit('preview', item)"
@@ -263,66 +224,60 @@ const getSalesTooltip = (item) => {
             </div>
           </div>
           
-          <!-- Description (Mobile) -->
-          <p v-if="item.description" class="text-sm text-gray-600 leading-relaxed mb-3 line-clamp-2">{{ item.description }}</p>
+          <!-- Description -->
+          <p v-if="item.description" class="text-sm text-gray-600 leading-relaxed line-clamp-2">{{ item.description }}</p>
           
-          <!-- Bottom Row: Revenue and Date -->
-          <div class="flex items-center justify-between">
-            <!-- Revenue and Date Row -->
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center space-x-1">
-                <span class="text-xs text-green-600 font-medium">Revenue:</span>
-                <span class="text-sm font-bold text-gray-900">{{ getTotalRevenue(item).toLocaleString() }} sats</span>
-              </div>
-              <span class="text-xs text-gray-500">{{ formatDate(item.updatedAt) }}</span>
+          <!-- Revenue and Date Row -->
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-green-600 font-semibold">{{ getTotalRevenue(item).toLocaleString() }} sats</span>
+            <span class="text-gray-500">{{ formatDate(item.updatedAt) }}</span>
+          </div>
+          
+          <!-- Twitter-Style Engagement Row -->
+          <div v-if="item.nostrEventId" class="flex items-center justify-between pt-3 border-t border-gray-100">
+            <!-- Engagement Metrics -->
+            <div class="flex items-center space-x-6">
+              <!-- Likes -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group">
+                <IconHeart :class="[
+                  'w-4 h-4 transition-colors',
+                  getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
+              </button>
+              
+              <!-- Reposts -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group">
+                <IconRepeat :class="[
+                  'w-4 h-4 transition-colors',
+                  getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
+              </button>
+              
+              <!-- Zaps -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group">
+                <IconBolt :class="[
+                  'w-4 h-4 transition-colors',
+                  (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
+                ]" />
+                <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
+              </button>
+              
+              <!-- Bookmarks -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group">
+                <IconBookmark :class="[
+                  'w-4 h-4 transition-colors',
+                  getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
+              </button>
             </div>
             
-            <!-- Social Media Style Engagement Row -->
-            <div v-if="item.nostrEventId" class="flex items-center justify-between pt-3 border-t border-gray-100">
-              <!-- Left: Engagement Metrics in Social Media Style -->
-              <div class="flex items-center space-x-4">
-                <!-- Likes -->
-                <button class="flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-colors group">
-                  <IconHeart :class="[
-                    'w-4 h-4 transition-colors',
-                    getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
-                  ]" />
-                  <span class="text-xs font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
-                </button>
-                
-                <!-- Reposts -->
-                <button class="flex items-center space-x-1 text-gray-500 hover:text-green-500 transition-colors group">
-                  <IconRepeat :class="[
-                    'w-4 h-4 transition-colors',
-                    getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
-                  ]" />
-                  <span class="text-xs font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
-                </button>
-                
-                <!-- Zaps -->
-                <button class="flex items-center space-x-1 text-gray-500 hover:text-orange-500 transition-colors group">
-                  <IconBolt :class="[
-                    'w-4 h-4 transition-colors',
-                    (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
-                  ]" />
-                  <span class="text-xs font-medium">{{ item.zapCount || 0 }}</span>
-                </button>
-                
-                <!-- Bookmarks -->
-                <button class="flex items-center space-x-1 text-gray-500 hover:text-blue-500 transition-colors group">
-                  <IconBookmark :class="[
-                    'w-4 h-4 transition-colors',
-                    getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
-                  ]" />
-                  <span class="text-xs font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
-                </button>
-              </div>
-              
-              <!-- Right: Zap Amount (if any) -->
-              <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-orange-50 px-2 py-1 rounded-full">
-                <IconBolt class="w-3 h-3 text-orange-600" />
-                <span class="text-xs font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
-              </div>
+            <!-- Zap Amount Badge -->
+            <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full">
+              <IconBolt class="w-3 h-3 text-orange-600" />
+              <span class="text-xs font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
             </div>
           </div>
         </div>
@@ -342,7 +297,7 @@ const getSalesTooltip = (item) => {
               <!-- Content Info -->
               <div class="flex-1 min-w-0">
                 <div class="flex items-center space-x-2 mb-1">
-                  <h3 class="font-semibold text-gray-900 truncate">{{ item.title }}</h3>
+                  <h3 class="font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{{ item.title }}</h3>
                   <span :class="[
                     'px-2 py-1 rounded-full text-xs font-medium capitalize',
                     getStatusColor(item.status)
@@ -352,74 +307,11 @@ const getSalesTooltip = (item) => {
                   <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
                     On Nostr
                   </span>
-                  
-                  <!-- Zap indicator for desktop -->
-                  <div v-if="item.nostrEventId && (item.zapCount > 0 || item.zapAmount > 0)" 
-                       class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-orange-100 to-amber-100 rounded-full">
-                    <IconBolt class="w-3 h-3 text-orange-600" />
-                    <span class="text-xs font-bold text-orange-700">
-                      {{ formatZapAmount(item.zapAmount || 0) }}
-                    </span>
-                    <span class="text-xs text-orange-600">sats</span>
-                    <span v-if="item.zapCount > 1" class="text-xs text-orange-500">
-                      ({{ item.zapCount }})
-                    </span>
-                  </div>
                 </div>
                 <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ item.description }}</p>
                 <div class="flex items-center space-x-4 text-xs text-gray-500">
                   <span>Updated {{ formatDate(item.updatedAt) }}</span>
-                  
-                  <!-- Revenue info -->
-                  <span class="text-green-600 font-medium">{{ getTotalRevenue(item).toLocaleString() }} sats revenue</span>
-                </div>
-                
-                <!-- Social Media Style Engagement Row for Desktop -->
-                <div v-if="item.nostrEventId" class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
-                  <!-- Left: Engagement Metrics in Social Media Style -->
-                  <div class="flex items-center space-x-6">
-                    <!-- Likes -->
-                    <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group">
-                      <IconHeart :class="[
-                        'w-4 h-4 transition-colors',
-                        getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
-                      ]" />
-                      <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
-                    </button>
-                    
-                    <!-- Reposts -->
-                    <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group">
-                      <IconRepeat :class="[
-                        'w-4 h-4 transition-colors',
-                        getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
-                      ]" />
-                      <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
-                    </button>
-                    
-                    <!-- Zaps -->
-                    <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group">
-                      <IconBolt :class="[
-                        'w-4 h-4 transition-colors',
-                        (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
-                      ]" />
-                      <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
-                    </button>
-                    
-                    <!-- Bookmarks -->
-                    <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group">
-                      <IconBookmark :class="[
-                        'w-4 h-4 transition-colors',
-                        getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
-                      ]" />
-                      <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
-                    </button>
-                  </div>
-                  
-                  <!-- Right: Zap Amount (if any) -->
-                  <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-orange-50 px-3 py-1 rounded-full">
-                    <IconBolt class="w-3 h-3 text-orange-600" />
-                    <span class="text-sm font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
-                  </div>
+                  <span class="text-green-600 font-medium">{{ getTotalRevenue(item).toLocaleString() }} sats</span>
                 </div>
               </div>
             </div>
@@ -458,12 +350,51 @@ const getSalesTooltip = (item) => {
             </div>
           </div>
 
-          <!-- Desktop Stats -->
-          <!-- Simplified Desktop Stats -->
-          <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100 text-sm">
-            <div class="flex items-center space-x-4">
-              <span class="text-gray-600">Price: <span class="font-semibold text-gray-900">Free</span></span>
-              <span class="text-gray-600">Revenue: <span class="font-semibold text-green-600">{{ getTotalRevenue(item).toLocaleString() }} sats</span></span>
+          <!-- Twitter-Style Engagement Row -->
+          <div v-if="item.nostrEventId" class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
+            <!-- Engagement Metrics -->
+            <div class="flex items-center space-x-8">
+              <!-- Likes -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group">
+                <IconHeart :class="[
+                  'w-5 h-5 transition-colors',
+                  getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
+              </button>
+              
+              <!-- Reposts -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group">
+                <IconRepeat :class="[
+                  'w-5 h-5 transition-colors',
+                  getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
+              </button>
+              
+              <!-- Zaps -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group">
+                <IconBolt :class="[
+                  'w-5 h-5 transition-colors',
+                  (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
+                ]" />
+                <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
+              </button>
+              
+              <!-- Bookmarks -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group">
+                <IconBookmark :class="[
+                  'w-5 h-5 transition-colors',
+                  getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
+              </button>
+            </div>
+            
+            <!-- Revenue Badge -->
+            <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full">
+              <IconBolt class="w-4 h-4 text-orange-600" />
+              <span class="text-sm font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
             </div>
           </div>
         </div>
@@ -501,41 +432,20 @@ const getSalesTooltip = (item) => {
   overflow: hidden;
 }
 
-/* Enhanced tooltip styling */
-.group:hover .group-hover\:opacity-100 {
-  opacity: 1;
+/* Social media style engagement buttons */
+.group:hover .group-hover\:text-red-500 {
+  color: #ef4444;
 }
 
-/* Ensure tooltips appear above other elements */
-.z-10 {
-  z-index: 10;
+.group:hover .group-hover\:text-green-500 {
+  color: #10b981;
 }
 
-.z-50 {
-  z-index: 50;
+.group:hover .group-hover\:text-orange-500 {
+  color: #f97316;
 }
 
-/* Smooth tooltip transitions */
-.transition-opacity {
-  transition-property: opacity;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.duration-200 {
-  transition-duration: 200ms;
-}
-
-/* Tooltip positioning */
-.whitespace-nowrap {
-  white-space: nowrap;
-}
-
-.pointer-events-none {
-  pointer-events: none;
-}
-
-/* Cursor styling for interactive elements */
-.cursor-help {
-  cursor: help;
+.group:hover .group-hover\:text-blue-500 {
+  color: #3b82f6;
 }
 </style>
