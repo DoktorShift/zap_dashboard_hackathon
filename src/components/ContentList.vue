@@ -183,42 +183,60 @@ const getTotalRevenue = (item) => {
                 <IconEye class="w-4 h-4" />
               </button>
               
-              <div class="relative dropdown-container">
+                <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group relative tooltip-container">
                 <button
                   @click="openDropdownId = openDropdownId === item.id ? null : item.id"
                   class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                 >
                   <IconDots class="w-4 h-4" />
+                  <div class="tooltip">
+                    {{ getEngagementCounts(item.nostrEventId).likes || 0 }} {{ (getEngagementCounts(item.nostrEventId).likes || 0) === 1 ? 'like' : 'likes' }} from Nostr users
+                  </div>
                 </button>
                 
                 <div 
-                  v-if="openDropdownId === item.id"
+                <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group relative tooltip-container">
                   class="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50"
                 >
+                  <div class="tooltip">
+                    {{ getEngagementCounts(item.nostrEventId).reposts || 0 }} {{ (getEngagementCounts(item.nostrEventId).reposts || 0) === 1 ? 'repost' : 'reposts' }} on Nostr
+                  </div>
                   <button
                     @click="$emit('edit', item); openDropdownId = null"
                     class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center space-x-2"
-                  >
+                <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group relative tooltip-container">
                     <IconEdit class="w-3 h-3" />
                     <span>Edit</span>
                   </button>
                   
                   <button
+                  <div class="tooltip">
+                    {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatZapAmount(item.zapAmount || 0) }} sats total)
+                  </div>
                     v-if="item.status === 'draft'"
                     @click="$emit('publish-nostr', item); openDropdownId = null"
                     class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 flex items-center space-x-2"
-                  >
+                <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group relative tooltip-container">
                     <IconShare class="w-3 h-3" />
                     <span>Publish</span>
                   </button>
                   
                   <button
+                  <div class="tooltip">
+                    {{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }} {{ (getEngagementCounts(item.nostrEventId).bookmarks || 0) === 1 ? 'bookmark' : 'bookmarks' }} on Nostr
+                  </div>
                     @click="$emit('delete', item); openDropdownId = null"
                     class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center space-x-2"
                   >
                     <IconTrash class="w-3 h-3" />
-                    <span>Delete</span>
+              <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container">
                   </button>
+                </div>
+              <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container">
+                  Total revenue from Lightning zaps: {{ (item.zapAmount || 0).toLocaleString() }} sats
+                </div>
+                <div class="tooltip">
+                  Total revenue from Lightning zaps: {{ (item.zapAmount || 0).toLocaleString() }} sats
                 </div>
               </div>
             </div>
@@ -229,7 +247,12 @@ const getTotalRevenue = (item) => {
           
           <!-- Revenue and Date Row -->
           <div class="flex items-center justify-between text-sm">
-            <span class="text-green-600 font-semibold">{{ getTotalRevenue(item).toLocaleString() }} sats</span>
+            <span class="text-green-600 font-semibold relative tooltip-container cursor-help">
+              {{ getTotalRevenue(item).toLocaleString() }} sats
+              <div class="tooltip">
+                Total Lightning zap revenue: {{ getTotalRevenue(item).toLocaleString() }} sats
+              </div>
+            </span>
             <span class="text-gray-500">{{ formatDate(item.updatedAt) }}</span>
           </div>
           
@@ -373,12 +396,15 @@ const getTotalRevenue = (item) => {
               </button>
               
               <!-- Zaps -->
-              <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group">
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group relative tooltip-container">
                 <IconBolt :class="[
                   'w-5 h-5 transition-colors',
                   (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
                 ]" />
                 <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
+                <div class="tooltip">
+                  {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatZapAmount(item.zapAmount || 0) }} sats total)
+                </div>
               </button>
               
               <!-- Bookmarks -->
@@ -449,3 +475,88 @@ const getTotalRevenue = (item) => {
   color: #3b82f6;
 }
 </style>
+/* Tooltip Styles with 0.5s delay */
+.tooltip-container {
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  background-color: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  
+  /* Initial hidden state */
+  opacity: 0;
+  visibility: hidden;
+  
+  /* Smooth transition with 0.5s delay */
+  transition: opacity 0.2s ease-in-out 0.5s, 
+              visibility 0.2s ease-in-out 0.5s, 
+              transform 0.2s ease-in-out 0.5s;
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+.tooltip-container:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-8px);
+}
+
+/* Mobile: Reduce tooltip delay and size */
+@media (max-width: 640px) {
+  .tooltip {
+    font-size: 11px;
+    padding: 6px 10px;
+    /* Faster on mobile for better touch experience */
+    transition: opacity 0.15s ease-in-out 0.3s, 
+                visibility 0.15s ease-in-out 0.3s, 
+                transform 0.15s ease-in-out 0.3s;
+  }
+  
+  .tooltip::after {
+    border-width: 4px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .tooltip {
+    background-color: #000000;
+    border: 1px solid #ffffff;
+  }
+  
+  .tooltip::after {
+    border-top-color: #000000;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    transition: none;
+  }
+  
+  .tooltip-container:hover .tooltip {
+    transform: translateX(-50%) translateY(-8px);
+  }
+}
