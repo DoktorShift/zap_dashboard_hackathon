@@ -838,7 +838,7 @@ const handleWritingModeChange = (writingMode) => {
         <div class="p-3 sm:p-4 lg:p-6">
           <!-- Connection Status Bar -->
           <transition name="slide-down">
-            <div v-if="!isWalletConnected" class="mb-4 lg:mb-6">
+            <div v-if="!isWalletConnected && currentPage === 'wallet'" class="mb-4 lg:mb-6">
               <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 animate-pulse-subtle">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div class="flex items-center space-x-2">
