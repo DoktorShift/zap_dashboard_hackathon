@@ -80,7 +80,7 @@ const menuItems = [
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar },
   { id: 'wallet', label: 'Wallet', icon: IconWallet },
-  { id: 'chat-zaps', label: 'Chat + Zaps', icon: IconMessageCircle },
+  { id: 'chat-zaps', label: 'Chat', icon: IconMessageCircle },
   { id: 'content', label: 'Content', icon: IconFileText },
   { id: 'notes', label: 'Notes', icon: IconEdit },
   { id: 'campaigns', label: 'Campaigns', icon: IconTarget },

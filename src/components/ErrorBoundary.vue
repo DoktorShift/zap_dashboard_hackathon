@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, onErrorCaptured, inject, watch } from 'vue'
+import { ref, onErrorCaptured, inject, watch, computed } from 'vue'
 import { IconAlertTriangle } from '@iconify-prerendered/vue-tabler'
 
 const error = ref(null)

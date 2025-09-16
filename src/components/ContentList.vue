@@ -17,6 +17,11 @@ import {
   IconUsers,
   IconMenu
 } from '@iconify-prerendered/vue-tabler'
+import { 
+  IconHeart,
+  IconRepeat,
+  IconBookmark
+} from '@iconify-prerendered/vue-tabler'
 import EngagementMetrics from './EngagementMetrics.vue'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 
@@ -124,296 +129,309 @@ const formatZapAmount = (amount) => {
   return amount.toString()
 }
 
-// 🔥 FIX: Use totalRevenue which combines both zaps and traditional revenue
+// Get total revenue for display
 const getTotalRevenue = (item) => {
-  console.log('Getting total revenue for item:', item.id, 'zapAmount:', item.zapAmount, 'traditionalRevenue:', item.traditionalRevenue)
   return item.totalRevenue || 0
-}
-
-// 🔥 FIX: Check if we should show revenue breakdown (both zaps AND traditional revenue exist)
-const shouldShowBreakdown = (item) => {
-  const zapAmount = item.zapAmount || 0
-  const traditionalRevenue = item.traditionalRevenue || 0
-  console.log('Checking breakdown for item:', item.id, 'zapAmount:', zapAmount, 'traditionalRevenue:', traditionalRevenue)
-  
-  // Show breakdown only if BOTH zaps and traditional revenue exist and are > 0
-  return zapAmount > 0 && traditionalRevenue > 0
-}
-
-// Generate tooltip text for zaps
-const getZapTooltip = (item) => {
-  const zapAmount = item.zapAmount || 0
-  const zapCount = item.zapCount || 0
-  
-  if (zapCount === 0) return 'No Lightning zaps received yet'
-  if (zapCount === 1) return `${zapAmount.toLocaleString()} sats from 1 Lightning zap`
-  return `${zapAmount.toLocaleString()} sats from ${zapCount} Lightning zaps`
-}
-
-// Generate tooltip text for traditional sales
-const getSalesTooltip = (item) => {
-  const revenue = item.traditionalRevenue || 0
-  const unlocks = item.unlocks || 0
-  
-  if (unlocks === 0) return 'No direct sales or subscriptions yet'
-  if (item.monetizationModel === 'subscription') {
-    return `${revenue.toLocaleString()} sats from ${unlocks} subscription${unlocks !== 1 ? 's' : ''}`
-  }
-  return `${revenue.toLocaleString()} sats from ${unlocks} direct purchase${unlocks !== 1 ? 's' : ''}`
 }
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-3">
     <div
       v-for="item in items"
       :key="item.id"
-      class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+      class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-sm hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 overflow-hidden hover:-translate-y-0.5 group"
     >
-      <div class="p-4 sm:p-6">
-        <!-- Header -->
-        <div class="flex items-start justify-between mb-4">
-          <div class="flex items-start space-x-3 flex-1 min-w-0">
-            <!-- Type Icon -->
-            <div :class="[
-              'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-              getStatusColor(item.status)
-            ]">
-              <component :is="getTypeIcon(item.type)" class="w-4 h-4" />
-            </div>
-
-            <!-- Content Info -->
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center space-x-2 mb-1">
-                <h3 class="font-semibold text-gray-900 truncate">{{ item.title }}</h3>
-                <span :class="[
-                  'px-2 py-1 rounded-full text-xs font-medium capitalize',
-                  getStatusColor(item.status)
-                ]">
-                  {{ item.status }}
-                </span>
-                <span :class="[
-                  'px-2 py-1 rounded-full text-xs font-medium',
-                  getMonetizationColor(item.monetizationModel)
-                ]">
-                  {{ item.monetizationModel === 'one-time' ? 'One-time' :
-                     item.monetizationModel === 'subscription' ? 'Subscription' : 'Free' }}
-                </span>
-                <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                  On Nostr
-                </span>
-                
-                <!-- 🔥 ZAP INDICATOR - Show if content has received zaps -->
-                <div v-if="item.nostrEventId && (item.zapCount > 0 || item.zapAmount > 0)" 
-                     class="flex items-center space-x-1 px-2 py-1 bg-gradient-to-r from-orange-100 to-amber-100 rounded-full">
-                  <IconBolt class="w-3 h-3 text-orange-600" />
-                  <span class="text-xs font-bold text-orange-700">
-                    {{ formatZapAmount(item.zapAmount || 0) }}
+      <div class="p-4">
+        <!-- Mobile Layout -->
+        <div class="block sm:hidden space-y-3">
+          <!-- Header Row -->
+          <div class="flex items-start justify-between">
+            <div class="flex items-start space-x-3 flex-1 min-w-0">
+              <!-- Type Icon -->
+              <div :class="[
+                'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0',
+                getStatusColor(item.status)
+              ]">
+                <component :is="getTypeIcon(item.type)" class="w-4 h-4" />
+              </div>
+              
+              <!-- Title and Badges -->
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-gray-900 text-base leading-tight mb-2 line-clamp-2">{{ item.title }}</h3>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span :class="[
+                    'px-2 py-1 rounded-full text-xs font-medium',
+                    getStatusColor(item.status)
+                  ]">
+                    {{ item.status }}
                   </span>
-                  <span class="text-xs text-orange-600">sats</span>
-                  <span v-if="item.zapCount > 1" class="text-xs text-orange-500">
-                    ({{ item.zapCount }})
+                  <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                    On Nostr
                   </span>
                 </div>
               </div>
-              <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ item.description }}</p>
-              <div class="flex items-center space-x-4 text-xs text-gray-500">
-                <span>Updated {{ formatDate(item.updatedAt) }}</span>
-                <span>By {{ item.creatorName || 'You' }}</span>
-                <span v-if="item.nostrEventId && item.zapCount === 0" class="text-orange-500">
-                  ⚡ Ready for zaps
-                </span>
-
-                <EngagementMetrics 
-                  v-if="item.nostrEventId"
-                  :key="`content-engagement-${item.id}-${getEngagementCounts(item.nostrEventId).totalEngagement}-${item.zapCount || 0}`"
-                  :engagement-counts="getEngagementCounts(item.nostrEventId)"
-                  :zap-count="item.zapCount || 0"
-                  size="default"
-                  text-size="text-xs"
-                  :show-all-metrics="false"
-                  :show-no-engagement-text="true"
-                  :show-tooltips="true"
-                />
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex items-center space-x-1 flex-shrink-0">
+              <button
+                @click="$emit('preview', item)"
+                class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Preview"
+              >
+                <IconEye class="w-4 h-4" />
+              </button>
+              
+              <div class="relative dropdown-container">
+                <button
+                  @click="openDropdownId = openDropdownId === item.id ? null : item.id"
+                  class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <IconDots class="w-4 h-4" />
+                </button>
+                
+                <div 
+                  v-if="openDropdownId === item.id"
+                  class="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50"
+                >
+                  <button
+                    @click="$emit('edit', item); openDropdownId = null"
+                    class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center space-x-2"
+                  >
+                    <IconEdit class="w-3 h-3" />
+                    <span>Edit</span>
+                  </button>
+                  
+                  <button
+                    v-if="item.status === 'draft'"
+                    @click="$emit('publish-nostr', item); openDropdownId = null"
+                    class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 flex items-center space-x-2"
+                  >
+                    <IconShare class="w-3 h-3" />
+                    <span>Publish</span>
+                  </button>
+                  
+                  <button
+                    @click="$emit('delete', item); openDropdownId = null"
+                    class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center space-x-2"
+                  >
+                    <IconTrash class="w-3 h-3" />
+                    <span>Delete</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-
-          <!-- Actions - Desktop -->
-          <div class="hidden sm:flex items-center space-x-2 flex-shrink-0">
-            <button
-              @click="$emit('edit', item)"
-              class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-              title="Edit"
-            >
-              <IconEdit class="w-4 h-4" />
-            </button>
-            <button
-              @click="$emit('preview', item)"
-              class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Preview"
-            >
-              <IconEye class="w-4 h-4" />
-            </button>
-            <button
-              v-if="item.status === 'draft'"
-              @click="$emit('publish-nostr', item)"
-              class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-              title="Publish to Nostr"
-            >
-              <IconShare class="w-4 h-4" />
-            </button>
-<!--            <button-->
-<!--              @click="$emit('share', item)"-->
-<!--              class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"-->
-<!--              title="Share"-->
-<!--            >-->
-<!--              <IconCopy class="w-4 h-4" />-->
-<!--            </button>-->
-            <button
-              @click="$emit('delete', item)"
-              class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Delete"
-            >
-              <IconTrash class="w-4 h-4" />
-            </button>
+          
+          <!-- Description -->
+          <p v-if="item.description" class="text-sm text-gray-600 leading-relaxed line-clamp-2">{{ item.description }}</p>
+          
+          <!-- Revenue and Date Row -->
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-green-600 font-semibold relative tooltip-container cursor-help">
+              {{ getTotalRevenue(item).toLocaleString() }} sats
+              <div class="tooltip">
+                Total amount received from Lightning zaps and paid content access.
+              </div>
+            </span>
+            <span class="text-gray-500">{{ formatDate(item.updatedAt) }}</span>
           </div>
           
-          <!-- Mobile Actions -->
-          <div class="flex items-center space-x-2 flex-shrink-0 sm:hidden">
-            <!-- Preview button always visible -->
-            <button
-              @click="$emit('preview', item)"
-              class="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Preview"
-            >
-              <IconEye class="w-3.5 h-3.5" />
-            </button>
-            
-            <!-- Three-dot menu for other actions -->
-            <div class="relative dropdown-container">
-              <button
-                @click="openDropdownId = openDropdownId === item.id ? null : item.id"
-                class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                title="Edit (Creates new post, deletes original)"
-              >
-                <IconDots class="w-3.5 h-3.5" />
+          <!-- Twitter-Style Engagement Row -->
+          <div v-if="item.nostrEventId" class="flex items-center justify-between pt-3 border-t border-gray-100">
+            <!-- Engagement Metrics -->
+            <div class="flex items-center space-x-6">
+              <!-- Likes -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group relative tooltip-container">
+                <IconHeart :class="[
+                  'w-4 h-4 transition-colors',
+                  getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).likes || 0 }} {{ (getEngagementCounts(item.nostrEventId).likes || 0) === 1 ? 'like' : 'likes' }} from Nostr users
+                </div>
               </button>
               
-              <!-- Dropdown Menu -->
-              <div 
-                v-if="openDropdownId === item.id"
-                class="absolute right-0 top-full mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
-              >
-                <button
-                  @click="$emit('edit', item); openDropdownId = null"
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 flex items-center space-x-2"
-                >
-                  <IconEdit class="w-3.5 h-3.5" />
-                  <span>Edit (New Post)</span>
-                </button>
-                
-                <button
-                  v-if="item.status === 'draft'"
-                  @click="$emit('publish-nostr', item); openDropdownId = null"
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 flex items-center space-x-2"
-                >
-                  <IconShare class="w-3.5 h-3.5" />
-                  <span>Publish</span>
-                </button>
-                
-                <button
-                  @click="$emit('share', item); openDropdownId = null"
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-600 flex items-center space-x-2"
-                >
-                  <IconCopy class="w-3.5 h-3.5" />
-                  <span>Share</span>
-                </button>
-                
-                <button
-                  @click="$emit('delete', item); openDropdownId = null"
-                  class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center space-x-2"
-                >
-                  <IconTrash class="w-3.5 h-3.5" />
-                  <span>Delete</span>
-                </button>
+              <!-- Reposts -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group relative tooltip-container">
+                <IconRepeat :class="[
+                  'w-4 h-4 transition-colors',
+                  getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).reposts || 0 }} {{ (getEngagementCounts(item.nostrEventId).reposts || 0) === 1 ? 'repost' : 'reposts' }} on Nostr
+                </div>
+              </button>
+              
+              <!-- Zaps -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group relative tooltip-container">
+                <IconBolt :class="[
+                  'w-4 h-4 transition-colors',
+                  (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
+                ]" />
+                <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
+                <div class="tooltip">
+                  {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatZapAmount(item.zapAmount || 0) }} sats total)
+                </div>
+              </button>
+              
+              <!-- Bookmarks -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group relative tooltip-container">
+                <IconBookmark :class="[
+                  'w-4 h-4 transition-colors',
+                  getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }} {{ (getEngagementCounts(item.nostrEventId).bookmarks || 0) === 1 ? 'bookmark' : 'bookmarks' }} on Nostr
+                </div>
+              </button>
+            </div>
+            
+            <!-- Zap Amount Badge -->
+            <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container cursor-help">
+              <IconBolt class="w-3 h-3 text-orange-600" />
+              <span class="text-xs font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
+              <div class="tooltip">
+                Total amount received from Lightning zaps and paid content access.
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Stats -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-orange-100/50">
-          <div class="text-center">
-            <p class="text-sm font-medium text-orange-600">Price</p>
-            <p class="text-lg font-bold text-gray-900">
-              Free
-            </p>
-          </div>
-          <!--
-          <div class="text-center">
-            <p class="text-sm font-medium text-gray-600">
-              {{ item.monetizationModel === 'subscription' ? 'Subscribers' : 'Unlocks' }}
-            </p>
-            <p class="text-lg font-bold text-gray-900">
-              {{ item.monetizationModel === 'subscription' ? item.subscribers : item.unlocks }}
-            </p>
-          </div>
-          -->
-          <div class="text-center">
-            <p class="text-sm font-medium text-green-600">Revenue</p>
-            <p class="text-lg font-bold text-gray-900">
-              {{ getTotalRevenue(item).toLocaleString() }} sats
-            </p>
-            <!-- 🔥 REVENUE BREAKDOWN WITH TOOLTIPS - Show breakdown only if BOTH zaps AND traditional revenue exist -->
-            <div v-if="shouldShowBreakdown(item)" class="text-xs text-gray-500 mt-1 space-y-1">
-              <div class="flex items-center justify-center space-x-1">
-                <!-- Zap Amount with Tooltip -->
-                <div 
-                  class="flex items-center space-x-1 cursor-help relative group"
-                  :title="getZapTooltip(item)"
-                >
-                  <IconBolt class="w-3 h-3 text-orange-500" />
-                  <span>{{ (item.zapAmount || 0).toLocaleString() }}</span>
-                  
-                  <!-- Zap Tooltip -->
-                  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                    <div class="font-medium">⚡ Lightning Zaps</div>
-                    <div>{{ getZapTooltip(item) }}</div>
-                    <div class="text-gray-300 mt-1">Instant, decentralized payments</div>
-                    <!-- Tooltip arrow -->
-                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                  </div>
+        <!-- Desktop Layout -->
+        <div class="hidden sm:block">
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-start space-x-3 flex-1 min-w-0">
+              <!-- Type Icon -->
+              <div :class="[
+                'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
+                getStatusColor(item.status)
+              ]">
+                <component :is="getTypeIcon(item.type)" class="w-4 h-4" />
+              </div>
+
+              <!-- Content Info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center space-x-2 mb-1">
+                  <h3 class="font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{{ item.title }}</h3>
+                  <span :class="[
+                    'px-2 py-1 rounded-full text-xs font-medium capitalize',
+                    getStatusColor(item.status)
+                  ]">
+                    {{ item.status }}
+                  </span>
+                  <span v-if="item.nostrEventId" class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                    On Nostr
+                  </span>
                 </div>
-                
-                <span class="text-gray-400">+</span>
-                
-                <!-- Traditional Sales with Tooltip -->
-                <div 
-                  class="flex items-center space-x-1 cursor-help relative group"
-                  :title="getSalesTooltip(item)"
-                >
-                  <span>💰{{ (item.traditionalRevenue || 0).toLocaleString() }}</span>
-                  
-                  <!-- Sales Tooltip -->
-                  <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-                    <div class="font-medium">💰 Direct Sales</div>
-                    <div>{{ getSalesTooltip(item) }}</div>
-                    <div class="text-gray-300 mt-1">Traditional purchases & subscriptions</div>
-                    <!-- Tooltip arrow -->
-                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                  </div>
+                <p class="text-sm text-gray-600 line-clamp-2 mb-2">{{ item.description }}</p>
+                <div class="flex items-center space-x-4 text-xs text-gray-500">
+                  <span>Updated {{ formatDate(item.updatedAt) }}</span>
+                  <span class="text-green-600 font-medium">{{ getTotalRevenue(item).toLocaleString() }} sats</span>
                 </div>
               </div>
-              <div class="text-xs text-gray-400">zaps + sales</div>
+            </div>
+
+            <!-- Desktop Actions -->
+            <div class="flex items-center space-x-2 flex-shrink-0">
+              <button
+                @click="$emit('edit', item)"
+                class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                title="Edit"
+              >
+                <IconEdit class="w-4 h-4" />
+              </button>
+              <button
+                @click="$emit('preview', item)"
+                class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Preview"
+              >
+                <IconEye class="w-4 h-4" />
+              </button>
+              <button
+                v-if="item.status === 'draft'"
+                @click="$emit('publish-nostr', item)"
+                class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                title="Publish to Nostr"
+              >
+                <IconShare class="w-4 h-4" />
+              </button>
+              <button
+                @click="$emit('delete', item)"
+                class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete"
+              >
+                <IconTrash class="w-4 h-4" />
+              </button>
             </div>
           </div>
-          <!--
-          <div class="text-center">
-            <p class="text-sm font-medium text-blue-600">Views</p>
-            <p class="text-lg font-bold text-gray-900">{{ item.views }}</p>
+
+          <!-- Twitter-Style Engagement Row -->
+          <div v-if="item.nostrEventId" class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
+            <!-- Engagement Metrics -->
+            <div class="flex items-center space-x-8">
+              <!-- Likes -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors group relative tooltip-container">
+                <IconHeart :class="[
+                  'w-5 h-5 transition-colors',
+                  getEngagementCounts(item.nostrEventId).likes > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-red-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).likes || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).likes || 0 }} {{ (getEngagementCounts(item.nostrEventId).likes || 0) === 1 ? 'like' : 'likes' }} from Nostr users
+                </div>
+              </button>
+              
+              <!-- Reposts -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-green-500 transition-colors group relative tooltip-container">
+                <IconRepeat :class="[
+                  'w-5 h-5 transition-colors',
+                  getEngagementCounts(item.nostrEventId).reposts > 0 ? 'text-green-500' : 'text-gray-400 group-hover:text-green-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).reposts || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).reposts || 0 }} {{ (getEngagementCounts(item.nostrEventId).reposts || 0) === 1 ? 'repost' : 'reposts' }} on Nostr
+                </div>
+              </button>
+              
+              <!-- Zaps -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-orange-500 transition-colors group relative tooltip-container">
+                <IconBolt :class="[
+                  'w-5 h-5 transition-colors',
+                  (item.zapCount || 0) > 0 ? 'text-orange-500' : 'text-gray-400 group-hover:text-orange-500'
+                ]" />
+                <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
+                <div class="tooltip">
+                  {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatZapAmount(item.zapAmount || 0) }} sats total)
+                </div>
+              </button>
+              
+              <!-- Bookmarks -->
+              <button class="flex items-center space-x-2 text-gray-500 hover:text-blue-500 transition-colors group relative tooltip-container">
+                <IconBookmark :class="[
+                  'w-5 h-5 transition-colors',
+                  getEngagementCounts(item.nostrEventId).bookmarks > 0 ? 'text-blue-500' : 'text-gray-400 group-hover:text-blue-500'
+                ]" />
+                <span class="text-sm font-medium">{{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }}</span>
+                <div class="tooltip">
+                  {{ getEngagementCounts(item.nostrEventId).bookmarks || 0 }} {{ (getEngagementCounts(item.nostrEventId).bookmarks || 0) === 1 ? 'bookmark' : 'bookmarks' }} on Nostr
+                </div>
+              </button>
+            </div>
+            
+            <!-- Revenue Badge -->
+            <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container cursor-help">
+              <IconBolt class="w-4 h-4 text-orange-600" />
+              <span class="text-sm font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
+              <div class="tooltip">
+                Total amount received from Lightning zaps and paid content access.
+              </div>
+            </div>
           </div>
-          -->
         </div>
       </div>
     </div>
@@ -441,37 +459,114 @@ const getSalesTooltip = (item) => {
   overflow: hidden;
 }
 
-/* Enhanced tooltip styling */
-.group:hover .group-hover\:opacity-100 {
-  opacity: 1;
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-/* Ensure tooltips appear above other elements */
-.z-10 {
-  z-index: 10;
+/* Social media style engagement buttons */
+.group:hover .group-hover\:text-red-500 {
+  color: #ef4444;
 }
 
-/* Smooth tooltip transitions */
-.transition-opacity {
-  transition-property: opacity;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+.group:hover .group-hover\:text-green-500 {
+  color: #10b981;
 }
 
-.duration-200 {
-  transition-duration: 200ms;
+.group:hover .group-hover\:text-orange-500 {
+  color: #f97316;
 }
 
-/* Tooltip positioning */
-.whitespace-nowrap {
+.group:hover .group-hover\:text-blue-500 {
+  color: #3b82f6;
+}
+
+/* Tooltip Styles with 0.5s delay */
+.tooltip-container {
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  background-color: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
   white-space: nowrap;
-}
-
-.pointer-events-none {
+  z-index: 50;
   pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  
+  /* Initial hidden state */
+  opacity: 0;
+  visibility: hidden;
+  
+  /* Smooth transition with 0.5s delay */
+  transition: opacity 0.2s ease-in-out 0.5s, 
+              visibility 0.2s ease-in-out 0.5s, 
+              transform 0.2s ease-in-out 0.5s;
 }
 
-/* Cursor styling for interactive elements */
-.cursor-help {
-  cursor: help;
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+.tooltip-container:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-8px);
+}
+
+/* Mobile: Reduce tooltip delay and size */
+@media (max-width: 640px) {
+  .tooltip {
+    font-size: 11px;
+    padding: 6px 10px;
+    /* Faster on mobile for better touch experience */
+    transition: opacity 0.15s ease-in-out 0.3s, 
+                visibility 0.15s ease-in-out 0.3s, 
+                transform 0.15s ease-in-out 0.3s;
+  }
+  
+  .tooltip::after {
+    border-width: 4px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .tooltip {
+    background-color: #000000;
+    border: 1px solid #ffffff;
+  }
+  
+  .tooltip::after {
+    border-top-color: #000000;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    transition: none;
+  }
+  
+  .tooltip-container:hover .tooltip {
+    transform: translateX(-50%) translateY(-8px);
+  }
 }
 </style>

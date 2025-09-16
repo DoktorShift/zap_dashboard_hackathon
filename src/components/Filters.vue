@@ -1,6 +1,6 @@
 <script setup>
-import { ref, inject } from 'vue'
-import { IconSearch, IconSettings } from '@iconify-prerendered/vue-tabler'
+import { ref, inject, computed } from 'vue'
+import { IconSearch, IconSettings, IconTrash, IconX } from '@iconify-prerendered/vue-tabler'
 
 const selectedTimeRange = inject('selectedTimeRange')
 const searchQuery = inject('searchQuery')
@@ -21,6 +21,27 @@ const noteTypes = [
 ]
 
 const showAdvancedFilters = ref(false)
+
+// Check if any filters are active
+const hasActiveFilters = computed(() => {
+  return searchQuery.value.trim() !== '' ||
+         selectedFilters.value.minAmount > 0 ||
+         selectedFilters.value.maxAmount !== null ||
+         selectedFilters.value.noteType !== 'all' ||
+         selectedFilters.value.sender.trim() !== '' ||
+         selectedTimeRange.value !== 'all'
+})
+
+// Clear all filters
+const clearAllFilters = () => {
+  searchQuery.value = ''
+  selectedFilters.value.minAmount = 0
+  selectedFilters.value.maxAmount = null
+  selectedFilters.value.noteType = 'all'
+  selectedFilters.value.sender = ''
+  selectedTimeRange.value = 'all'
+  showAdvancedFilters.value = false
+}
 </script>
 
 <template>
@@ -36,6 +57,14 @@ const showAdvancedFilters = ref(false)
             class="w-full pl-10 pr-4 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 transition-all bg-white/80 backdrop-blur-sm text-sm sm:text-base touch-target"
           />
           <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+          <!-- Clear search button -->
+          <button
+            v-if="searchQuery"
+            @click="searchQuery = ''"
+            class="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <IconX class="w-4 h-4" />
+          </button>
         </div>
       </div>
       
@@ -58,20 +87,44 @@ const showAdvancedFilters = ref(false)
           </button>
         </div>
         
-        <!-- Advanced Filters Toggle -->
-        <button
-          @click="showAdvancedFilters = !showAdvancedFilters"
-          class="btn-secondary touch-target"
-        >
-          <IconSettings class="w-4 h-4" />
-          Filters
-        </button>
+        <!-- Filter Controls -->
+        <div class="flex items-center space-x-2">
+          <!-- Clear All Filters Button -->
+          <button
+            v-if="hasActiveFilters"
+            @click="clearAllFilters"
+            class="flex items-center space-x-1 px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200 text-sm font-medium"
+          >
+            <IconTrash class="w-4 h-4" />
+            <span>Clear all</span>
+          </button>
+          
+          <!-- Advanced Filters Toggle -->
+          <button
+            @click="showAdvancedFilters = !showAdvancedFilters"
+            class="btn-secondary touch-target"
+          >
+            <IconSettings class="w-4 h-4" />
+            <span class="hidden sm:inline">Filters</span>
+          </button>
+        </div>
       </div>
     </div>
     
     <!-- Advanced Filters -->
     <transition name="fade">
       <div v-if="showAdvancedFilters" class="mt-6 pt-6 border-t border-orange-100/50">
+        <!-- Clear All Button in Advanced Section -->
+        <div v-if="hasActiveFilters" class="mb-4 flex justify-end">
+          <button
+            @click="clearAllFilters"
+            class="flex items-center space-x-1 px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200 text-sm"
+          >
+            <IconTrash class="w-4 h-4" />
+            <span>Clear all filters</span>
+          </button>
+        </div>
+        
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <!-- Amount Range -->
           <div>
