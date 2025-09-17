@@ -51,15 +51,68 @@ const combinedZapData = inject('combinedZapData')
 const profileStore = inject('profileStore')
 const fetchAuthorProfile = inject('fetchAuthorProfile')
 const selectedTimeRange = inject('selectedTimeRange')
+const isWalletConnected = inject('isWalletConnected')
+const isAuthenticated = inject('isAuthenticated')
 
 // State for user profile modal
 const showUserModal = ref(false)
 const selectedUser = ref(null)
 
+// Computed property for connection-aware data filtering
+const analyticsData = computed(() => {
+  const allZaps = combinedZapData.value
+  
+  // Determine which data to use based on connection status
+  if (isWalletConnected.value && isAuthenticated.value) {
+    // Both connected: use all data (NWC + NIP-57)
+    return allZaps
+  } else if (isAuthenticated.value) {
+    // Only Nostr connected: use only NIP-57 zaps
+    return allZaps.filter(zap => zap.eventId)
+  } else if (isWalletConnected.value) {
+    // Only NWC connected: use only NWC payments
+    return allZaps.filter(zap => !zap.eventId)
+  } else {
+    // No connections
+    return []
+  }
+})
+
+// Connection status for messaging
+const connectionStatus = computed(() => {
+  const hasNWC = isWalletConnected.value
+  const hasNostr = isAuthenticated.value
+  
+  if (hasNWC && hasNostr) {
+    return {
+      type: 'both',
+      dataLabel: 'payments and zaps',
+      emptyMessage: 'No activity yet. Try receiving some zaps or making payments.'
+    }
+  } else if (hasNostr) {
+    return {
+      type: 'nostr-only',
+      dataLabel: 'Nostr zaps',
+      emptyMessage: 'No Nostr zaps yet. Try receiving some zaps or connect your NWC wallet for more data.'
+    }
+  } else if (hasNWC) {
+    return {
+      type: 'nwc-only', 
+      dataLabel: 'NWC payments',
+      emptyMessage: 'No NWC payments yet. Try making a payment or connect your Nostr account for more data.'
+    }
+  } else {
+    return {
+      type: 'none',
+      dataLabel: 'data',
+      emptyMessage: 'Connect your NWC wallet and/or Nostr account to view analytics.'
+    }
+  }
+})
+
 // Process real zap data for daily activity
 const dailyActivityOption = computed(() => {
-  // Filter to only show zaps with eventId (NIP-57 zaps)
-  const zaps = combinedZapData.value.filter(zap => zap.eventId)
+  const zaps = analyticsData.value
   
   if (zaps.length === 0) {
     // Show empty state with sample structure
@@ -74,7 +127,7 @@ const dailyActivityOption = computed(() => {
     
     return {
       title: {
-        text: 'Daily Zap Activity (Last 7 Days)',
+        text: `Daily ${connectionStatus.value.dataLabel} Activity (Last 7 Days)`,
         textStyle: { color: '#7c2d12', fontSize: 16, fontWeight: 'bold' }
       },
       tooltip: {
@@ -142,7 +195,7 @@ const dailyActivityOption = computed(() => {
   
   return {
     title: {
-      text: 'Daily Zap Activity (Last 7 Days)',
+      text: `Daily ${connectionStatus.value.dataLabel} Activity (Last 7 Days)`,
       textStyle: { color: '#7c2d12', fontSize: 16, fontWeight: 'bold' }
     },
     tooltip: {
@@ -190,8 +243,7 @@ const dailyActivityOption = computed(() => {
 
 // Process real data for top supporters
 const topSupportersOption = computed(() => {
-  // Filter to only show zaps with eventId (NIP-57 zaps)
-  const zaps = combinedZapData.value.filter(zap => zap.eventId)
+  const zaps = analyticsData.value
   
   if (zaps.length === 0) {
     return {
@@ -274,8 +326,7 @@ const topSupportersOption = computed(() => {
 
 // Process real data for amount distribution
 const amountDistributionOption = computed(() => {
-  // Filter to only show zaps with eventId (NIP-57 zaps)
-  const zaps = combinedZapData.value.filter(zap => zap.eventId)
+  const zaps = analyticsData.value
   
   const ranges = [
     { label: '1-10', min: 1, max: 10, count: 0 },
@@ -296,7 +347,7 @@ const amountDistributionOption = computed(() => {
   
   return {
     title: {
-      text: 'Zap Amount Distribution',
+      text: `${connectionStatus.value.dataLabel} Amount Distribution`,
       textStyle: { color: '#7c2d12', fontSize: 16, fontWeight: 'bold' }
     },
     tooltip: {
@@ -347,10 +398,9 @@ const amountDistributionOption = computed(() => {
   }
 })
 
-// Calculate top supporters from NIP-57 zaps
+// Calculate top supporters from connection-aware data
 const topSupporters = computed(() => {
-  // Filter to only show zaps with eventId (NIP-57 zaps)
-  const zaps = combinedZapData.value.filter(zap => zap.eventId)
+  const zaps = analyticsData.value
   
   // Apply time range filter
   const filteredZaps = filterZapsByTimeRange(zaps, selectedTimeRange.value)
@@ -416,27 +466,26 @@ const openUserProfile = (supporter) => {
 
 // Dynamic insights based on real data
 const insights = computed(() => {
-  // Filter to only show zaps with eventId (NIP-57 zaps)
-  const zaps = combinedZapData.value.filter(zap => zap.eventId)
+  const zaps = analyticsData.value
   
   if (zaps.length === 0) {
     return [
       {
-        title: 'Connect Wallet',
+        title: 'Connect Account',
         value: 'No Data',
-        description: 'Connect your wallet to see insights',
+        description: connectionStatus.value.emptyMessage,
         icon: IconClock
       },
       {
-        title: 'Total Zaps',
+        title: `Total ${connectionStatus.value.type === 'nwc-only' ? 'Payments' : 'Zaps'}`,
         value: '0',
-        description: 'No zaps received yet',
+        description: `No ${connectionStatus.value.dataLabel} yet`,
         icon: IconBook
       },
       {
         title: 'Average Amount',
         value: '0 sats',
-        description: 'No zaps to calculate average',
+        description: `No ${connectionStatus.value.dataLabel} to calculate average`,
         icon: IconChartLine
       },
       {
@@ -535,8 +584,7 @@ const insights = computed(() => {
 
 // Additional computed stats for summary
 const summaryStats = computed(() => {
-  // Filter to only show zaps with eventId (NIP-57 zaps)
-  const zaps = combinedZapData.value.filter(zap => zap.eventId)
+  const zaps = analyticsData.value
   const totalAmount = zaps.reduce((sum, zap) => sum + zap.amount, 0)
   const avgAmount = zaps.length > 0 ? Math.round(totalAmount / zaps.length) : 0
   const uniqueSupporters = new Set(zaps.map(zap => zap.sender?.pubkey || 'anonymous')).size
@@ -586,7 +634,7 @@ const formatEngagementNumber = (num) => {
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="text-center">
           <div class="text-2xl font-bold">{{ summaryStats.totalZaps }}</div>
-          <div class="text-orange-100 text-sm">Total Zaps</div>
+          <div class="text-orange-100 text-sm">Total {{ connectionStatus.type === 'nwc-only' ? 'Payments' : 'Zaps' }}</div>
         </div>
         <div class="text-center">
           <div class="text-2xl font-bold">{{ summaryStats.totalAmount.toLocaleString() }}</div>
@@ -594,7 +642,7 @@ const formatEngagementNumber = (num) => {
         </div>
         <div class="text-center">
           <div class="text-2xl font-bold">{{ summaryStats.avgAmount }}</div>
-          <div class="text-orange-100 text-sm">Avg Zap</div>
+          <div class="text-orange-100 text-sm">Avg {{ connectionStatus.type === 'nwc-only' ? 'Payment' : 'Zap' }}</div>
         </div>
         <div class="text-center">
           <div class="text-2xl font-bold">{{ summaryStats.uniqueSupporters }}</div>
@@ -726,17 +774,17 @@ const formatEngagementNumber = (num) => {
 
     <!-- Data Status Indicator -->
     <div class="text-center py-4">
-      <div v-if="zapData.length === 0" class="text-gray-500 text-sm">
+      <div v-if="connectionStatus.type === 'none'" class="text-gray-500 text-sm">
         <IconRefresh class="w-4 h-4 inline mr-2" />
-        Connect your wallet to see real analytics data
+        {{ connectionStatus.emptyMessage }}
       </div>
-      <div v-else-if="combinedZapData.filter(zap => zap.eventId).length > 0" class="text-green-600 text-sm">
+      <div v-else-if="analyticsData.length > 0" class="text-green-600 text-sm">
         <IconBolt class="w-4 h-4 inline mr-2" />
-        Analytics updated with {{ combinedZapData.filter(zap => zap.eventId).length }} Nostr zaps
+        Analytics updated with {{ analyticsData.length }} {{ connectionStatus.dataLabel }}
       </div>
       <div v-else class="text-amber-600 text-sm">
         <IconTrendingUp class="w-4 h-4 inline mr-2" />
-        Connect to Nostr to see zap analytics
+        {{ connectionStatus.emptyMessage }}
       </div>
     </div>
   </div>

@@ -42,9 +42,11 @@ onMounted(async () => {
 const zapData = inject('zapData')
 const combinedZapData = inject('combinedZapData')
 const selectedTimeRange = inject('selectedTimeRange')
+const isWalletConnected = inject('isWalletConnected')
+const isAuthenticated = inject('isAuthenticated')
 
 // Use Nostr authentication to get user profile
-const { isAuthenticated, userProfile } = useNostrAuth()
+const { userProfile } = useNostrAuth()
 
 // Use BTC price composable
 const { btcPriceUSD, satsToUSD, formatUSD } = useBtcPrice()
@@ -60,6 +62,56 @@ const welcomeMessage = computed(() => {
     return `Welcome back, ${userProfile.value.name}!`
   }
   return 'Welcome back, Creator!'
+})
+
+// Computed properties for connection-aware messaging
+const connectionStatus = computed(() => {
+  const hasNWC = isWalletConnected.value
+  const hasNostr = isAuthenticated.value
+  
+  if (hasNWC && hasNostr) {
+    return {
+      type: 'both',
+      title: 'Full Setup Complete!',
+      description: 'Both your NWC wallet and Nostr account are connected',
+      dataTypes: 'NWC payments + Nostr zaps'
+    }
+  } else if (hasNostr) {
+    return {
+      type: 'nostr-only',
+      title: 'Nostr Connected',
+      description: 'Connect your NWC wallet to see payment data too',
+      dataTypes: 'Nostr zaps only'
+    }
+  } else if (hasNWC) {
+    return {
+      type: 'nwc-only', 
+      title: 'Wallet Connected',
+      description: 'Connect your Nostr account to see social zap data too',
+      dataTypes: 'NWC payments only'
+    }
+  } else {
+    return {
+      type: 'none',
+      title: 'Connect to Get Started',
+      description: 'Connect your NWC wallet and/or Nostr account to view your data',
+      dataTypes: 'No data available'
+    }
+  }
+})
+
+const noDataMessage = computed(() => {
+  const status = connectionStatus.value
+  
+  if (status.type === 'none') {
+    return 'Connect your wallet or Nostr account to see activity'
+  } else if (status.type === 'nwc-only') {
+    return 'No NWC payments yet. Try making a payment or connect your Nostr account for more data.'
+  } else if (status.type === 'nostr-only') {
+    return 'No Nostr zaps yet. Try receiving some zaps or connect your NWC wallet for more data.'
+  } else {
+    return 'No activity yet. Try receiving some zaps or making payments.'
+  }
 })
 
 // Fetch real wallet data
@@ -102,11 +154,25 @@ onMounted(() => {
 // Dynamic stats based on real data with 30-day comparison
 const stats = computed(() => {
   console.log('🔍 Computing stats with real data...')
-  const allZaps = combinedZapData.value.filter(zap => zap.eventId) // Only NIP-57 zaps
-  console.log('📊 Total NIP-57 zaps available:', allZaps.length)
+  const allZaps = combinedZapData.value
   
-  if (allZaps.length === 0) {
-    console.log('⚠️ No NIP-57 zaps found, returning zero stats')
+  // Determine which data to use based on connection status
+  let zapsToAnalyze = []
+  if (isWalletConnected.value && isAuthenticated.value) {
+    // Both connected: use all data (NWC + NIP-57)
+    zapsToAnalyze = allZaps
+  } else if (isAuthenticated.value) {
+    // Only Nostr connected: use only NIP-57 zaps
+    zapsToAnalyze = allZaps.filter(zap => zap.eventId)
+  } else if (isWalletConnected.value) {
+    // Only NWC connected: use only NWC payments
+    zapsToAnalyze = allZaps.filter(zap => !zap.eventId)
+  } else {
+    // No connections
+    zapsToAnalyze = []
+  }
+  
+  if (zapsToAnalyze.length === 0) {
     return {
       totalZaps: 0,
       totalSats: 0,
@@ -124,7 +190,7 @@ const stats = computed(() => {
   }
   
   // Get period comparison for 30 days (fixed period like the chart)
-  const comparison = getPeriodComparison(allZaps, '30d')
+  const comparison = getPeriodComparison(zapsToAnalyze, '30d')
   console.log('📈 Period comparison result:', comparison)
   
   return {
@@ -141,9 +207,24 @@ const stats = computed(() => {
 // Dynamic chart data based on real zap timestamps
 const chartOption = computed(() => {
   const allZaps = combinedZapData.value
-  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
-  const nip57Zaps = allZaps.filter(zap => zap.eventId)
-  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
+  
+  // Determine which data to use based on connection status (same logic as stats)
+  let zapsToChart = []
+  if (isWalletConnected.value && isAuthenticated.value) {
+    // Both connected: use all data (NWC + NIP-57)
+    zapsToChart = allZaps
+  } else if (isAuthenticated.value) {
+    // Only Nostr connected: use only NIP-57 zaps
+    zapsToChart = allZaps.filter(zap => zap.eventId)
+  } else if (isWalletConnected.value) {
+    // Only NWC connected: use only NWC payments
+    zapsToChart = allZaps.filter(zap => !zap.eventId)
+  } else {
+    // No connections
+    zapsToChart = []
+  }
+  
+  const filteredZaps = filterZapsByTimeRange(zapsToChart, selectedTimeRange.value)
   
   if (filteredZaps.length === 0) {
     // Show empty chart with sample data
@@ -277,9 +358,24 @@ const chartOption = computed(() => {
 // Recent zaps from real data - NOW FILTERED BY TIME RANGE
 const recentZaps = computed(() => {
   const allZaps = combinedZapData.value
-  // Filter to only show zaps with eventId (NIP-57 zaps) first, then apply time range filter
-  const nip57Zaps = allZaps.filter(zap => zap.eventId)
-  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
+  
+  // Determine which data to use based on connection status (same logic as stats)
+  let zapsToShow = []
+  if (isWalletConnected.value && isAuthenticated.value) {
+    // Both connected: use all data (NWC + NIP-57)
+    zapsToShow = allZaps
+  } else if (isAuthenticated.value) {
+    // Only Nostr connected: use only NIP-57 zaps
+    zapsToShow = allZaps.filter(zap => zap.eventId)
+  } else if (isWalletConnected.value) {
+    // Only NWC connected: use only NWC payments
+    zapsToShow = allZaps.filter(zap => !zap.eventId)
+  } else {
+    // No connections
+    zapsToShow = []
+  }
+  
+  const filteredZaps = filterZapsByTimeRange(zapsToShow, selectedTimeRange.value)
   
   return filteredZaps
     .slice(0, 5) // Take only the first 5 after filtering
@@ -344,17 +440,17 @@ const getTrendColorClass = (change) => {
         <div>
           <h1 class="text-xl sm:text-2xl font-bold mb-2 flex items-center space-x-2">
             <IconBolt class="w-6 h-6" />
-            <span>{{ combinedZapData.filter(zap => zap.eventId).length > 0 ? welcomeMessage : 'Connect your wallet to get started!' }}</span>
+            <span>{{ stats.totalZaps > 0 ? welcomeMessage : connectionStatus.title }}</span>
           </h1>
           <p class="text-orange-50 text-sm sm:text-base">
             <span v-if="stats.totalZaps > 0">
-              You've received {{ stats.totalZaps }} zaps worth {{ stats.totalSats.toLocaleString() }} sats
+              You've received {{ stats.totalZaps }} {{ connectionStatus.type === 'nwc-only' ? 'payments' : 'zaps' }} worth {{ stats.totalSats.toLocaleString() }} sats
               <span class="opacity-75">
-                (last 30 days vs previous 30 days)
+                ({{ connectionStatus.dataTypes }} • last 30 days vs previous 30 days)
               </span>
             </span>
             <span v-else>
-              Connect your Lightning wallet to view your real zap data and earnings
+              {{ connectionStatus.description }}
             </span>
           </p>
         </div>
@@ -492,10 +588,10 @@ const getTrendColorClass = (change) => {
             <IconBolt class="w-12 h-12 mx-auto" />
           </div>
           <p class="text-gray-500 text-sm">
-            {{ zapData.length === 0 ? 'No zaps yet' : `No zaps in ${getTimeRangeDisplayText(selectedTimeRange)}` }}
+            {{ combinedZapData.length === 0 ? 'No activity yet' : `No activity in ${getTimeRangeDisplayText(selectedTimeRange)}` }}
           </p>
           <p class="text-gray-400 text-xs mt-1">
-            {{ zapData.length === 0 ? 'Connect your wallet to see activity' : 'Try selecting a different time range' }}
+            {{ combinedZapData.length === 0 ? noDataMessage : 'Try selecting a different time range' }}
           </p>
         </div>
         <div v-else class="space-y-4">
