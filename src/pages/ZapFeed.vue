@@ -97,11 +97,11 @@ const filteredZaps = computed(() => {
   
   // Apply connection-aware filtering
   if (connectionStatus.value.type === 'nostr-only') {
-    // Only Nostr connected: show only NIP-57 zaps
-    zaps = zaps.filter(zap => zap.eventId)
+    // Only Nostr connected: show only Nostr zaps
+    zaps = zaps.filter(zap => zap.source === 'nip57')
   } else if (connectionStatus.value.type === 'nwc-only') {
     // Only NWC connected: show only NWC payments
-    zaps = zaps.filter(zap => !zap.eventId)
+    zaps = zaps.filter(zap => zap.source === 'nwc')
   } else if (connectionStatus.value.type === 'none') {
     // No connections: show nothing
     zaps = []

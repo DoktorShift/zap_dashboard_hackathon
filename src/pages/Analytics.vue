@@ -61,21 +61,23 @@ const selectedUser = ref(null)
 // Computed property for connection-aware data filtering
 const analyticsData = computed(() => {
   const allZaps = combinedZapData.value
+  let zaps = allZaps
   
   // Determine which data to use based on connection status
   if (isWalletConnected.value && isAuthenticated.value) {
     // Both connected: use all data (NWC + NIP-57)
     return allZaps
-  } else if (isAuthenticated.value) {
-    // Only Nostr connected: use only NIP-57 zaps
-    return allZaps.filter(zap => zap.eventId)
-  } else if (isWalletConnected.value) {
-    // Only NWC connected: use only NWC payments
-    return allZaps.filter(zap => !zap.eventId)
-  } else {
-    // No connections
-    return []
+  } else  if (connectionStatus.value.type === 'nostr-only') {
+    // Only Nostr connected: show only Nostr zaps
+    zaps = zaps.filter(zap => zap.source === 'nip57')
+  } else if (connectionStatus.value.type === 'nwc-only') {
+    // Only NWC connected: show only NWC payments
+    zaps = zaps.filter(zap => zap.source === 'nwc')
+  } else if (connectionStatus.value.type === 'none') {
+    // No connections: show nothing
+    zaps = []
   }
+  return zaps
 })
 
 // Connection status for messaging

@@ -162,11 +162,11 @@ const stats = computed(() => {
     // Both connected: use all data (NWC + NIP-57)
     zapsToAnalyze = allZaps
   } else if (isAuthenticated.value) {
-    // Only Nostr connected: use only NIP-57 zaps
-    zapsToAnalyze = allZaps.filter(zap => zap.eventId)
+    // Only Nostr connected: use only Nostr zaps (those with source: 'nip57')
+    zapsToAnalyze = allZaps.filter(zap => zap.source === 'nip57')
   } else if (isWalletConnected.value) {
-    // Only NWC connected: use only NWC payments
-    zapsToAnalyze = allZaps.filter(zap => !zap.eventId)
+    // Only NWC connected: use only NWC payments (those with source: 'nwc')
+    zapsToAnalyze = allZaps.filter(zap => zap.source === 'nwc')
   } else {
     // No connections
     zapsToAnalyze = []
