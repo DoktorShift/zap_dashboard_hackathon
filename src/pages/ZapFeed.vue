@@ -25,6 +25,8 @@ const combinedZapData = inject('combinedZapData')
 const searchQuery = inject('searchQuery')
 const selectedFilters = inject('selectedFilters')
 const selectedTimeRange = inject('selectedTimeRange')
+const isWalletConnected = inject('isWalletConnected')
+const isAuthenticated = inject('isAuthenticated')
 
 // Get zap data from useContentZaps
 const { getAllContentZaps } = useContentZaps()
@@ -37,6 +39,38 @@ const selectedZapId = ref(null)
 // UI state
 const showFilters = ref(false)
 const viewMode = ref('feed') // 'feed' or 'compact'
+
+// Connection status for messaging
+const connectionStatus = computed(() => {
+  const hasNWC = isWalletConnected.value
+  const hasNostr = isAuthenticated.value
+  
+  if (hasNWC && hasNostr) {
+    return {
+      type: 'both',
+      dataLabel: 'payments and zaps',
+      emptyMessage: 'No activity found. Try adjusting your filters or check your connections.'
+    }
+  } else if (hasNostr) {
+    return {
+      type: 'nostr-only',
+      dataLabel: 'Nostr zaps',
+      emptyMessage: 'No Nostr zaps found. Connect your NWC wallet to see payment data too.'
+    }
+  } else if (hasNWC) {
+    return {
+      type: 'nwc-only', 
+      dataLabel: 'NWC payments',
+      emptyMessage: 'No NWC payments found. Connect your Nostr account to see social zap data too.'
+    }
+  } else {
+    return {
+      type: 'none',
+      dataLabel: 'data',
+      emptyMessage: 'Connect your NWC wallet and/or Nostr account to view your activity feed.'
+    }
+  }
+})
 
 // Check if any filters are active
 const hasActiveFilters = computed(() => {
@@ -61,8 +95,18 @@ const clearAllFilters = () => {
 const filteredZaps = computed(() => {
   let zaps = combinedZapData.value
   
-  // Filter to only show zaps with eventId (NIP-57 zaps)
-  zaps = zaps.filter(zap => zap.eventId)
+  // Apply connection-aware filtering
+  if (connectionStatus.value.type === 'nostr-only') {
+    // Only Nostr connected: show only Nostr zaps
+    zaps = zaps.filter(zap => zap.source === 'nip57')
+  } else if (connectionStatus.value.type === 'nwc-only') {
+    // Only NWC connected: show only NWC payments
+    zaps = zaps.filter(zap => zap.source === 'nwc')
+  } else if (connectionStatus.value.type === 'none') {
+    // No connections: show nothing
+    zaps = []
+  }
+  // For 'both' type, show all data (no additional filtering needed)
   
   // Apply search filter
   if (searchQuery.value) {
@@ -478,24 +522,24 @@ const formatAmount = (amount) => {
     <!-- Main Content with Proper Spacing -->
     <div class="">
       <!-- Empty State -->
-      <div v-if="!filteredZaps.length" class="text-center py-16">
-        <div class="w-16 h-16 bg-gray-100/80 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-          <IconBolt class="w-8 h-8 text-gray-400" />
+      <div v-if="filteredZaps.length === 0" class="text-center py-12">
+        <div class="text-gray-400 mb-4">
+          <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
         </div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No zaps found</h3>
-        <p class="text-gray-500 text-sm max-w-sm mx-auto">
-          {{ zapData.length === 0 ? 'Connect your wallet to see real zap data' : 'Try adjusting your filters or search terms.' }}
+        <h3 class="text-lg font-semibold text-gray-300 mb-2">No {{ connectionStatus.dataLabel }} found</h3>
+        <p class="text-gray-500 mb-4">
+          <span v-if="hasActiveFilters">Try adjusting your search or filters</span>
+          <span v-else>{{ connectionStatus.emptyMessage }}</span>
         </p>
-        <!-- Clear filters button in empty state -->
-        <div v-if="hasActiveFilters" class="mt-4">
-          <button
-            @click="clearAllFilters"
-            class="bg-gray-100/80 hover:bg-gray-200/80 text-gray-700 px-4 py-2 rounded-xl font-medium transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            <IconTrash class="w-4 h-4" />
-            Clear all filters
-          </button>
-        </div>
+        <button 
+          v-if="hasActiveFilters"
+          @click="clearAllFilters" 
+          class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          Clear Filters
+        </button>
       </div>
 
       <!-- Feed View -->

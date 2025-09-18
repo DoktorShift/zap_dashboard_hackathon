@@ -7,6 +7,7 @@ import { useContentZaps, generateFallbackAvatar } from './composables/useContent
 import TopBar from './components/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
 import { useNostrLongForm } from './composables/useNostrLongForm.js'
+import { useNostrAuth } from './composables/useNostrAuth.js'
 import ZapFeed from './pages/ZapFeed.vue'
 import Analytics from './pages/Analytics.vue'
 import ChatZaps from './pages/ChatZaps.vue'
@@ -138,6 +139,9 @@ const {
   getBalance
 } = useNostrConnections()
 
+// Use the Nostr auth composable
+const { isAuthenticated } = useNostrAuth()
+
 // Use the notifications composable
 const {
   handleConnectionSuccess: notifyConnectionSuccess,
@@ -183,57 +187,71 @@ const dataLoadingProgress = ref({
 })
 const isWritingMode = ref(false)
 
-// Combine NWC payments (zapData) with NIP-57 zaps
+// Combine NWC payments (zapData) with NIP-57 zaps based on connection status
 const combinedZapData = computed(() => {
   // Create a map to store unique zaps by payment hash/id
   const uniqueZapsMap = new Map()
   
-  // First, process NIP-57 zaps from useContentZaps (prioritize these)
-  const contentZapsMap = getAllContentZaps.value
+  // Check connection statuses
+  const hasNWCConnection = isWalletConnected.value
+  const hasNostrConnection = isAuthenticated.value
   
-  // Convert the map of content zaps to an array
-  Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
-    zapData.zaps.forEach(zap => {
-      // Add NIP-57 zap to the map with payment hash/id as key
-      uniqueZapsMap.set(zap.id, {
-        id: zap.id,
-        amount: zap.amount,
-        timestamp: zap.timestamp,
-        sender: {
-          name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
-          pubkey: zap.zapperPubkey,
-          nip05: zap.sender?.nip05 || null,
-          avatar: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey),
-          // Add profile fetching capability
-          fetchProfile: () => fetchAuthorProfile(zap.zapperPubkey)
-        },
-        note: zap.message || 'Zap',
-        noteType: 'original',
-        client: 'nostr',
-        source: 'nip57', // Explicitly mark as NIP-57 zap
-        eventId: eventId
+  // If neither connection is active, return empty array
+  if (!hasNWCConnection && !hasNostrConnection) {
+    return []
+  }
+  
+  // Process NIP-57 zaps only if Nostr account is connected
+  if (hasNostrConnection) {
+    const contentZapsMap = getAllContentZaps.value
+    
+    // Convert the map of content zaps to an array
+    Object.entries(contentZapsMap).forEach(([eventId, zapData]) => {
+      zapData.zaps.forEach(zap => {
+        // Add NIP-57 zap to the map with payment hash/id as key
+        uniqueZapsMap.set(zap.id, {
+          id: zap.id,
+          amount: zap.amount,
+          timestamp: zap.timestamp,
+          sender: {
+            name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
+            pubkey: zap.zapperPubkey,
+            nip05: zap.sender?.nip05 || null,
+            avatar: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey),
+            // Add profile fetching capability
+            fetchProfile: () => fetchAuthorProfile(zap.zapperPubkey)
+          },
+          note: zap.message || 'Zap',
+          noteType: 'original',
+          client: 'nostr',
+          source: 'nip57', // Explicitly mark as NIP-57 zap
+          eventId: eventId
+        })
       })
     })
-  })
+  }
   
-  // Now process NWC payments, only adding them if they don't already exist in the map
-  zapData.value.forEach(zap => {
-    // Only add NWC payment if we don't already have a NIP-57 zap with the same ID
-    if (!uniqueZapsMap.has(zap.id)) {
-      uniqueZapsMap.set(zap.id, {
-        ...zap,
-        source: 'nwc', // Explicitly mark as NWC payment
-        eventId: null, // NWC payments don't have associated event IDs
-        // Add profile fetching capability for NWC payments if they have sender pubkey
-        sender: zap.sender?.pubkey ? {
-          ...zap.sender,
-          fetchProfile: () => fetchAuthorProfile(zap.sender.pubkey)
-        } : zap.sender
-      })
-    } else {
-      console.log(`Skipping duplicate NWC payment with id ${zap.id?.substring(0, 16)}... (already have NIP-57 zap)`)
-    }
-  })
+  // Process NWC payments only if NWC wallet is connected
+  // if (hasNWCConnection) {
+  //   zapData.value.forEach(zap => {
+  //     // If both connections are active, only add NWC payment if we don't already have a NIP-57 zap with the same ID
+  //     // If only NWC is connected, add all NWC payments
+  //     if (!hasNostrConnection || !uniqueZapsMap.has(zap.id)) {
+  //       uniqueZapsMap.set(zap.id, {
+  //         ...zap,
+  //         source: 'nwc', // Explicitly mark as NWC payment
+  //         eventId: null, // NWC payments don't have associated event IDs
+  //         // Add profile fetching capability for NWC payments if they have sender pubkey
+  //         sender: zap.sender?.pubkey ? {
+  //           ...zap.sender,
+  //           fetchProfile: () => fetchAuthorProfile(zap.sender.pubkey)
+  //         } : zap.sender
+  //       })
+  //     } else if (hasNostrConnection && uniqueZapsMap.has(zap.id)) {
+  //       console.log(`Skipping duplicate NWC payment with id ${zap.id?.substring(0, 16)}... (already have NIP-57 zap)`)
+  //     }
+  //   })
+  // }
 
   // Convert map values to array and sort by timestamp
   return Array.from(uniqueZapsMap.values()).sort((a, b) => 
@@ -398,6 +416,7 @@ provide('activeConnection', activeConnection)
 provide('isLoadingConnection', isLoadingConnection)
 provide('connectionError', connectionError)
 provide('isWalletConnected', isWalletConnected)
+provide('isAuthenticated', isAuthenticated)
 provide('setActiveConnection', setActiveConnection)
 provide('clearActiveConnection', clearActiveConnection)
 
