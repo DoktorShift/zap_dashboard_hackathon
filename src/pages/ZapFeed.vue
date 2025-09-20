@@ -55,13 +55,13 @@ const connectionStatus = computed(() => {
     return {
       type: 'nostr-only',
       dataLabel: 'Nostr zaps',
-      emptyMessage: 'No Nostr zaps found. Connect your NWC wallet to see payment data too.'
+      emptyMessage: 'No Nostr zaps found. Connect your Nostr Account to see data.'
     }
   } else if (hasNWC) {
     return {
       type: 'nwc-only', 
       dataLabel: 'NWC payments',
-      emptyMessage: 'No NWC payments found. Connect your Nostr account to see social zap data too.'
+      emptyMessage: 'No NWC payments found. Connect your lightning wallet.'
     }
   } else {
     return {
