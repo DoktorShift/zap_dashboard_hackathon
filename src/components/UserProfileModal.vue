@@ -12,6 +12,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
 import * as nip19 from 'nostr-tools/nip19'
+import BadgeList from './BadgeList.vue'
 
 const props = defineProps({
   show: {
@@ -24,7 +25,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'badge-click'])
 
 // Local state
 const activeTab = ref('publickey')
@@ -95,6 +96,11 @@ const formatPubkey = (pubkey) => {
 // Close modal
 const closeModal = () => {
   emit('close')
+}
+
+// Handle badge click
+const handleBadgeClick = (badge) => {
+  emit('badge-click', badge)
 }
 
 // Reset state when modal is closed
@@ -179,6 +185,20 @@ watch(() => props.show, (newValue) => {
                 <div class="flex items-center justify-center space-x-2">
                   <IconBolt class="w-4 h-4" />
                   <span>Lightning address</span>
+                </div>
+              </button>
+              <button
+                @click="activeTab = 'badges'"
+                :class="[
+                  'flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors',
+                  activeTab === 'badges'
+                    ? 'border-orange-400 text-orange-600 bg-orange-50'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ]"
+              >
+                <div class="flex items-center justify-center space-x-2">
+                  <IconCheck class="w-4 h-4" />
+                  <span>Badges</span>
                 </div>
               </button>
             </nav>
@@ -279,6 +299,50 @@ watch(() => props.show, (newValue) => {
               <h4 class="text-lg font-medium text-gray-900 mb-2">No Lightning Address</h4>
               <p class="text-gray-600 text-sm">This user hasn't set up a Lightning address yet.</p>
             </div>
+
+            <!-- Badges Tab -->
+            <div v-if="activeTab === 'badges'" class="space-y-6">
+              <div class="text-center">
+                <h4 class="text-lg font-semibold text-gray-900 mb-4">NIP-58 Badges</h4>
+                <p class="text-sm text-gray-600 mb-6">
+                  Community recognition and achievements on Nostr
+                </p>
+              </div>
+
+              <!-- Badge List -->
+              <BadgeList
+                v-if="userProfileData?.pubkey"
+                :pubkey="userProfileData.pubkey"
+                size="large"
+                :max-display="20"
+                :show-count="true"
+                :show-view-all="false"
+                layout="grid"
+                @badge-click="handleBadgeClick"
+              >
+                <template #empty>
+                  <div class="text-center py-8">
+                    <IconCheck class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                    <h4 class="text-lg font-medium text-gray-900 mb-2">No Badges Yet</h4>
+                    <p class="text-gray-600 text-sm">This user hasn't received any badges yet.</p>
+                  </div>
+                </template>
+              </BadgeList>
+
+              <!-- Badge Info -->
+              <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div class="flex items-start space-x-3">
+                  <IconCheck class="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 class="font-medium text-orange-900 mb-1">About Badges</h4>
+                    <p class="text-sm text-orange-800">
+                      Badges represent community recognition, achievements, and credibility within the Nostr ecosystem. 
+                      They are awarded by trusted community members and organizations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -291,6 +355,7 @@ watch(() => props.show, (newValue) => {
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

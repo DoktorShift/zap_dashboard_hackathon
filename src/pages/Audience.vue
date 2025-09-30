@@ -44,6 +44,7 @@ import FollowListCard from '../components/FollowListCard.vue'
 import AudienceOverview from '../components/AudienceOverview.vue'
 import FollowListManager from '../components/FollowListManager.vue'
 import SuggestionsTab from '../components/SuggestionsTab.vue'
+import BadgeDetailModal from '../components/BadgeDetailModal.vue'
 
 // Authentication
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -93,6 +94,8 @@ const selectedUsers = ref(new Set())
 const filterBy = ref('all') // all, mutuals, new, not-followed-back
 const sortBy = ref('recent') // recent, alphabetical, popular
 const showRelayStatus = ref(false)
+const selectedBadge = ref(null)
+const showBadgeModal = ref(false)
 
 // Tabs configuration
 const tabs = [
@@ -292,6 +295,13 @@ const handleNostrLogin = async () => {
 const handleProfileClick = (pubkey) => {
   selectedProfile.value = pubkey
   showProfileModal.value = true
+}
+
+// Handle badge click
+const handleBadgeClick = (badge) => {
+  console.log('Badge clicked:', badge)
+  selectedBadge.value = badge
+  showBadgeModal.value = true
 }
 
 // Handle list creation
@@ -744,6 +754,7 @@ watch(following, (newFollowing, oldFollowing) => {
               @follow="followUser(pubkey)"
               @unfollow="unfollowUser(pubkey)"
               @toggle-selection="toggleUserSelection(pubkey)"
+              @badge-click="handleBadgeClick"
             />
           </div>
         </div>
@@ -787,6 +798,7 @@ watch(following, (newFollowing, oldFollowing) => {
               @click="handleProfileClick(pubkey)"
               @follow="followUser(pubkey)"
               @unfollow="unfollowUser(pubkey)"
+              @badge-click="handleBadgeClick"
             />
           </div>
         </div>
@@ -824,6 +836,13 @@ watch(following, (newFollowing, oldFollowing) => {
     :list="selectedList"
     @close="showListModal = false; selectedList = null"
     @save="selectedList ? updateFollowList : createFollowList"
+  />
+
+  <!-- Badge Detail Modal -->
+  <BadgeDetailModal
+    :show="showBadgeModal"
+    :badge="selectedBadge"
+    @close="showBadgeModal = false; selectedBadge = null"
   />
 </template>
 
