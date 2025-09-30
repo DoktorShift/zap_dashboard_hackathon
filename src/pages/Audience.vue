@@ -36,6 +36,7 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useAudience } from '../composables/useAudience.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { verifyEvent } from 'nostr-tools/pure'
 import ProfileCard from '../components/ProfileCard.vue'
 import ProfileModal from '../components/ProfileModal.vue'
 import FollowListModal from '../components/FollowListModal.vue'
@@ -76,7 +77,8 @@ const {
   isFollowing,
   getMutualFollows,
   getFollowersCount,
-  getFollowingCount
+  getFollowingCount,
+  fetchProfile
 } = useAudience()
 
 // UI State
@@ -97,6 +99,7 @@ const tabs = [
   {
     id: 'overview', label: 'Overview', icon: IconTarget, count: null },
   { id: 'following', label: 'Following', icon: IconUserCheck, count: computed(() => getFollowingCount()) },
+  { id: 'followers', label: 'Followers', icon: IconUsers, count: computed(() => getFollowersCount()) },
   { id: 'lists', label: 'Follow Packs', icon: IconList, count: computed(() => myLists.value.length) },
   { id: 'suggestions', label: 'Suggestions', icon: IconUserPlus, count: computed(() => suggestedUsers.value.length) }
 ]
@@ -456,6 +459,7 @@ onMounted(() => {
   if (isAuthenticated.value) {
     // Start with overview for first-time users
     refreshFollowing()
+    refreshFollowers()
     
     // Generate suggestions after following list is loaded
     setTimeout(() => {
@@ -468,6 +472,7 @@ onMounted(() => {
 watch(isAuthenticated, (authenticated) => {
   if (authenticated) {
     refreshFollowing()
+    refreshFollowers()
     
     // Generate suggestions after following list is loaded
     setTimeout(() => {
