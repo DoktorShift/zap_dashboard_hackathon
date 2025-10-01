@@ -33,6 +33,7 @@ import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
 import NoteSuccessModal from '../components/NoteSuccessModal.vue'
+import ContentRenderer from '../components/ContentRenderer.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -605,7 +606,13 @@ const formatRawEvent = (note) => {
                   
                   <!-- Note Preview -->
                   <div class="mb-3">
-                    <p class="text-gray-800 leading-relaxed line-clamp-3">{{ note.content }}</p>
+                    <div class="text-gray-800 leading-relaxed line-clamp-3">
+                      <ContentRenderer 
+                        :content="note.content" 
+                        :preferred-client="'primal'"
+                        :show-debug-info="false"
+                      />
+                    </div>
                   </div>
                   
                   <!-- Hashtags -->
@@ -808,7 +815,13 @@ const formatRawEvent = (note) => {
                 <!-- Note Content -->
                 <div class="mb-6">
                   <div class="prose prose-lg max-w-none">
-                    <p class="text-gray-800 leading-relaxed whitespace-pre-wrap">{{ enhancedSelectedNote.content }}</p>
+                    <div class="text-gray-800 leading-relaxed">
+                      <ContentRenderer 
+                        :content="enhancedSelectedNote.content" 
+                        :preferred-client="'primal'"
+                        :show-debug-info="false"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -868,7 +881,7 @@ const formatRawEvent = (note) => {
                         :src="zap.sender?.picture || zap.sender?.avatar"
                         :alt="zap.sender?.name || 'Zapper'"
                         class="w-8 h-8 rounded-full object-cover border border-orange-200"
-                        @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                        @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
                       />
                       <div class="flex-1 min-w-0">
                         <div class="font-medium text-gray-900 text-sm">
