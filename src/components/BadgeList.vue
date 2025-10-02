@@ -85,6 +85,13 @@ const badgeContainerClasses = computed(() => {
 const loadUserBadges = async () => {
   if (!props.pubkey) return
   
+  // Check if badges are already cached - if so, load them immediately
+  const cachedBadges = getUserBadges(props.pubkey)
+  if (cachedBadges.length > 0) {
+    badges.value = cachedBadges
+    return // Don't fetch again if we have cached badges
+  }
+  
   try {
     loadingBadges.value = true
     const userBadges = await initUserBadges(props.pubkey)
@@ -114,20 +121,19 @@ const handleViewAll = (event) => {
   })
 }
 
-// Lifecycle
-onMounted(() => {
-  loadUserBadges()
-})
-
-// Watch for pubkey changes
+// Watch for pubkey changes and load badges immediately
+// Using immediate: true to load badges as soon as component is created
 import { watch } from 'vue'
-watch(() => props.pubkey, (newPubkey) => {
+watch(() => props.pubkey, (newPubkey, oldPubkey) => {
   if (newPubkey) {
-    loadUserBadges()
+    // Only load if pubkey changed or this is the first load
+    if (newPubkey !== oldPubkey || oldPubkey === undefined) {
+      loadUserBadges()
+    }
   } else {
     badges.value = []
   }
-})
+}, { immediate: true }) // Load immediately on component creation
 </script>
 
 <template>
