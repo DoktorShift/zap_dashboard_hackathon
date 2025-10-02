@@ -16,6 +16,10 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import * as nip19 from 'nostr-tools/nip19'
 import BadgeList from './BadgeList.vue'
+import { useBadges } from '../composables/useBadges.js'
+
+// Get badge update trigger for reactivity
+const { badgeUpdateTrigger } = useBadges()
 
 const props = defineProps({
   pubkey: {
@@ -209,6 +213,7 @@ const handleBadgeClick = (badge) => {
           
           <!-- NIP-58 Badges -->
           <BadgeList
+            :key="`badges-${pubkey}-${badgeUpdateTrigger}`"
             :pubkey="pubkey"
             size="small"
             :max-display="3"

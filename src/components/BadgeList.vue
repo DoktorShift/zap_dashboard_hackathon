@@ -44,10 +44,13 @@ const {
 } = useBadges()
 
 // Local state
-const badges = ref([])
 const loadingBadges = ref(false)
 
-// Computed properties
+// Computed properties - reactively get badges from the composable
+const badges = computed(() => {
+  return getUserBadges(props.pubkey)
+})
+
 const displayBadges = computed(() => {
   return badges.value.slice(0, props.maxDisplay)
 })
@@ -85,20 +88,18 @@ const badgeContainerClasses = computed(() => {
 const loadUserBadges = async () => {
   if (!props.pubkey) return
   
-  // Check if badges are already cached - if so, load them immediately
+  // Check if badges are already cached - if so, no need to fetch
   const cachedBadges = getUserBadges(props.pubkey)
   if (cachedBadges.length > 0) {
-    badges.value = cachedBadges
     return // Don't fetch again if we have cached badges
   }
   
   try {
     loadingBadges.value = true
-    const userBadges = await initUserBadges(props.pubkey)
-    badges.value = userBadges || []
+    await initUserBadges(props.pubkey)
+    // No need to assign - badges computed property will reactively update
   } catch (error) {
     console.error('Error loading user badges:', error)
-    badges.value = []
   } finally {
     loadingBadges.value = false
   }
@@ -130,9 +131,8 @@ watch(() => props.pubkey, (newPubkey, oldPubkey) => {
     if (newPubkey !== oldPubkey || oldPubkey === undefined) {
       loadUserBadges()
     }
-  } else {
-    badges.value = []
   }
+  // No need to clear badges - computed property handles it automatically
 }, { immediate: true }) // Load immediately on component creation
 </script>
 
