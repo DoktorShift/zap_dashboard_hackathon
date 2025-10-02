@@ -1,4 +1,4 @@
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, triggerRef } from 'vue'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 
 // Global badge cache
@@ -7,6 +7,9 @@ const badgeAwards = ref(new Map()) // Map<pubkey, Array<badgeAward>>
 const profileBadges = ref(new Map()) // Map<pubkey, Array<profileBadge>>
 const isLoading = ref(false)
 const error = ref('')
+
+// Reactivity trigger counter - increment to force computed properties to re-evaluate
+const badgeUpdateTrigger = ref(0)
 
 // Badge event kinds from NIP-58
 const BADGE_DEFINITION_KIND = 30009
@@ -161,6 +164,8 @@ const fetchBadgeDefinitions = async (badgeRefs) => {
           if (badge.d) {
             const badgeRef = `30009:${event.pubkey}:${badge.d}`
             badgeDefinitions.value.set(badgeRef, badge)
+            // Trigger reactivity update
+            badgeUpdateTrigger.value++
           }
         } catch (err) {
           console.error('Error parsing badge definition:', err)
@@ -218,6 +223,8 @@ const fetchBadgeAwards = async (badgeRef) => {
             
             if (!exists) {
               existingAwards.push(award)
+              // Trigger reactivity update
+              badgeUpdateTrigger.value++
             }
           })
         } catch (err) {
@@ -265,6 +272,8 @@ const fetchProfileBadges = async (pubkey) => {
         try {
           const profileBadge = parseProfileBadges(event)
           profileBadges.value.set(pubkey, profileBadge.badges)
+          // Trigger reactivity update
+          badgeUpdateTrigger.value++
 
           // Fetch badge definitions for all referenced badges
           const badgeRefs = profileBadge.badges.map(b => b.badgeDefinition)
@@ -300,13 +309,18 @@ const fetchProfileBadges = async (pubkey) => {
 
 /**
  * Get badges for a specific user
+ * Returns a new array to ensure Vue reactivity
  */
 const getUserBadges = (pubkey) => {
   if (!pubkey) return []
 
+  // Access the trigger to make this function reactive to badge updates
+  badgeUpdateTrigger.value // eslint-disable-line no-unused-expressions
+
   const userProfileBadges = profileBadges.value.get(pubkey) || []
   
-  return userProfileBadges.map(profileBadge => {
+  // Create a new array to ensure Vue reactivity triggers
+  return [...userProfileBadges].map(profileBadge => {
     const definition = badgeDefinitions.value.get(profileBadge.badgeDefinition)
     return {
       ...profileBadge,
@@ -405,6 +419,7 @@ export function useBadges() {
     profileBadges: computed(() => profileBadges.value),
     isLoading: computed(() => isLoading.value),
     error: computed(() => error.value),
+    badgeUpdateTrigger: computed(() => badgeUpdateTrigger.value),
     
     // Computed
     totalBadgeDefinitions,
