@@ -22,6 +22,11 @@ const props = defineProps({
   userProfileData: {
     type: Object,
     default: null
+  },
+  initialTab: {
+    type: String,
+    default: 'publickey',
+    validator: (value) => ['publickey', 'lightning', 'badges'].includes(value)
   }
 })
 
@@ -103,9 +108,13 @@ const handleBadgeClick = (badge) => {
   emit('badge-click', badge)
 }
 
-// Reset state when modal is closed
+// Set initial tab when modal opens
 watch(() => props.show, (newValue) => {
-  if (!newValue) {
+  if (newValue) {
+    // Set to initial tab when opening
+    activeTab.value = props.initialTab
+  } else {
+    // Reset when closing
     activeTab.value = 'publickey'
     copySuccess.value = ''
   }
