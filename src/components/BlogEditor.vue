@@ -587,9 +587,9 @@ const parseMarkdown = (content) => {
     return `__AUTOLINK__${url}__ENDAUTOLINK__`
   })
 
-  // Process nostr mentions BEFORE escaping HTML - convert to display format
-  html = html.replace(/nostr:(npub1[a-z0-9]+)/g, (match, npub) => {
-    return `__MENTION__${npub}__ENDMENTION__`
+  // Process nostr mentions BEFORE escaping HTML - convert to display format (NIP-21)
+  html = html.replace(/nostr:(npub1[a-z0-9]{58,}|nprofile1[a-z0-9]+)/gi, (match, identifier) => {
+    return `__MENTION__${identifier}__ENDMENTION__`
   })
 
   // Process images BEFORE escaping HTML - ![alt](url)
@@ -634,8 +634,10 @@ const parseMarkdown = (content) => {
   })
 
   // Restore processed mentions
-  html = html.replace(/__MENTION__([^_]+)__ENDMENTION__/g, (match, npub) => {
-    return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${npub}', '_blank')">@${npub.substring(0, 12)}...</span>`
+  html = html.replace(/__MENTION__([^_]+)__ENDMENTION__/g, (match, identifier) => {
+    // identifier could be npub1... or nprofile1...
+    const displayText = identifier.substring(0, 12) + '...'
+    return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${identifier}', '_blank')">@${displayText}</span>`
   })
 
   // Restore processed links with hover preview
