@@ -15,6 +15,11 @@ import {
   IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
 import * as nip19 from 'nostr-tools/nip19'
+import BadgeList from './BadgeList.vue'
+import { useBadges } from '../composables/useBadges.js'
+
+// Get badge update trigger for reactivity
+const { badgeUpdateTrigger } = useBadges()
 
 const props = defineProps({
   pubkey: {
@@ -43,7 +48,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['click', 'follow', 'unfollow', 'toggle-selection'])
+const emit = defineEmits(['click', 'follow', 'unfollow', 'toggle-selection', 'badge-click'])
 
 // UI state
 const showDropdown = ref(false)
@@ -146,6 +151,13 @@ const getProfileUrl = (client) => {
     return '#'
   }
 }
+
+// Handle badge click
+const handleBadgeClick = (badge) => {
+  console.log('Badge clicked:', badge)
+  // Could emit an event or show badge details modal
+  emit('badge-click', badge)
+}
 </script>
 
 <template>
@@ -198,6 +210,18 @@ const getProfileUrl = (client) => {
           <span v-if="showMutuals" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
             Mutual
           </span>
+          
+          <!-- NIP-58 Badges -->
+          <BadgeList
+            :key="`badges-${pubkey}-${badgeUpdateTrigger}`"
+            :pubkey="pubkey"
+            size="small"
+            :max-display="3"
+            :show-count="false"
+            :show-view-all="false"
+            layout="horizontal"
+            @badge-click="handleBadgeClick"
+          />
         </div>
       </div>
 
@@ -272,6 +296,7 @@ const getProfileUrl = (client) => {
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

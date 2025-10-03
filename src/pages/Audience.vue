@@ -36,6 +36,7 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useAudience } from '../composables/useAudience.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { verifyEvent } from 'nostr-tools/pure'
 import ProfileCard from '../components/ProfileCard.vue'
 import ProfileModal from '../components/ProfileModal.vue'
 import FollowListModal from '../components/FollowListModal.vue'
@@ -43,6 +44,7 @@ import FollowListCard from '../components/FollowListCard.vue'
 import AudienceOverview from '../components/AudienceOverview.vue'
 import FollowListManager from '../components/FollowListManager.vue'
 import SuggestionsTab from '../components/SuggestionsTab.vue'
+import BadgeDetailModal from '../components/BadgeDetailModal.vue'
 
 // Authentication
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -76,7 +78,8 @@ const {
   isFollowing,
   getMutualFollows,
   getFollowersCount,
-  getFollowingCount
+  getFollowingCount,
+  fetchProfile
 } = useAudience()
 
 // UI State
@@ -91,12 +94,15 @@ const selectedUsers = ref(new Set())
 const filterBy = ref('all') // all, mutuals, new, not-followed-back
 const sortBy = ref('recent') // recent, alphabetical, popular
 const showRelayStatus = ref(false)
+const selectedBadge = ref(null)
+const showBadgeModal = ref(false)
 
 // Tabs configuration
 const tabs = [
   {
     id: 'overview', label: 'Overview', icon: IconTarget, count: null },
   { id: 'following', label: 'Following', icon: IconUserCheck, count: computed(() => getFollowingCount()) },
+  { id: 'followers', label: 'Followers', icon: IconUsers, count: computed(() => getFollowersCount()) },
   { id: 'lists', label: 'Follow Packs', icon: IconList, count: computed(() => myLists.value.length) },
   { id: 'suggestions', label: 'Suggestions', icon: IconUserPlus, count: computed(() => suggestedUsers.value.length) }
 ]
@@ -291,6 +297,13 @@ const handleProfileClick = (pubkey) => {
   showProfileModal.value = true
 }
 
+// Handle badge click
+const handleBadgeClick = (badge) => {
+  console.log('Badge clicked:', badge)
+  selectedBadge.value = badge
+  showBadgeModal.value = true
+}
+
 // Handle list creation
 const handleCreateList = () => {
   selectedList.value = null
@@ -456,6 +469,7 @@ onMounted(() => {
   if (isAuthenticated.value) {
     // Start with overview for first-time users
     refreshFollowing()
+    refreshFollowers()
     
     // Generate suggestions after following list is loaded
     setTimeout(() => {
@@ -468,6 +482,7 @@ onMounted(() => {
 watch(isAuthenticated, (authenticated) => {
   if (authenticated) {
     refreshFollowing()
+    refreshFollowers()
     
     // Generate suggestions after following list is loaded
     setTimeout(() => {
@@ -739,6 +754,7 @@ watch(following, (newFollowing, oldFollowing) => {
               @follow="followUser(pubkey)"
               @unfollow="unfollowUser(pubkey)"
               @toggle-selection="toggleUserSelection(pubkey)"
+              @badge-click="handleBadgeClick"
             />
           </div>
         </div>
@@ -782,6 +798,7 @@ watch(following, (newFollowing, oldFollowing) => {
               @click="handleProfileClick(pubkey)"
               @follow="followUser(pubkey)"
               @unfollow="unfollowUser(pubkey)"
+              @badge-click="handleBadgeClick"
             />
           </div>
         </div>
@@ -819,6 +836,13 @@ watch(following, (newFollowing, oldFollowing) => {
     :list="selectedList"
     @close="showListModal = false; selectedList = null"
     @save="selectedList ? updateFollowList : createFollowList"
+  />
+
+  <!-- Badge Detail Modal -->
+  <BadgeDetailModal
+    :show="showBadgeModal"
+    :badge="selectedBadge"
+    @close="showBadgeModal = false; selectedBadge = null"
   />
 </template>
 

@@ -19,6 +19,9 @@ import {
   IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
 import * as nip19 from 'nostr-tools/nip19'
+import BadgeList from './BadgeList.vue'
+import BadgeDetailModal from './BadgeDetailModal.vue'
+import UserProfileModal from './UserProfileModal.vue'
 
 const props = defineProps({
   show: {
@@ -45,6 +48,9 @@ const emit = defineEmits(['close', 'follow', 'unfollow'])
 const copySuccess = ref('')
 const showFullDescription = ref(false)
 const isDescriptionLong = ref(false)
+const selectedBadge = ref(null)
+const showBadgeModal = ref(false)
+const showUserProfileModal = ref(false)
 
 // Computed properties
 const displayName = computed(() => {
@@ -144,6 +150,17 @@ const handleFollowToggle = () => {
   }
 }
 
+// Handle badge click
+const handleBadgeClick = (badge) => {
+  selectedBadge.value = badge
+  showBadgeModal.value = true
+}
+
+// Handle view all badges
+const handleViewAllBadges = () => {
+  showUserProfileModal.value = true
+}
+
 // Close modal
 const closeModal = () => {
   emit('close')
@@ -234,6 +251,20 @@ onUnmounted(() => {
                   <IconGlobe class="w-4 h-4 mr-1.5" />
                   Website
                 </span>
+              </div>
+
+              <!-- NIP-58 Badges -->
+              <div class="mb-4">
+                <BadgeList
+                  :pubkey="pubkey"
+                  size="medium"
+                  :max-display="6"
+                  :show-count="true"
+                  :show-view-all="true"
+                  layout="horizontal"
+                  @badge-click="handleBadgeClick"
+                  @view-all="handleViewAllBadges"
+                />
               </div>
 
               <!-- Description -->
@@ -426,6 +457,22 @@ onUnmounted(() => {
       </div>
     </transition>
   </Teleport>
+
+  <!-- Badge Detail Modal -->
+  <BadgeDetailModal
+    :show="showBadgeModal"
+    :badge="selectedBadge"
+    @close="showBadgeModal = false; selectedBadge = null"
+  />
+
+  <!-- User Profile Modal (for viewing all badges) -->
+  <UserProfileModal
+    :show="showUserProfileModal"
+    :user-profile-data="{ pubkey, profile }"
+    initial-tab="badges"
+    @close="showUserProfileModal = false"
+    @badge-click="handleBadgeClick"
+  />
 </template>
 
 <style scoped>
