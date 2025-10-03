@@ -1116,8 +1116,8 @@ const syncScroll = (source) => {
             ref="mentionInputRef"
             v-model="props.form.content"
             placeholder="Start writing your story... Type @ to mention someone."
-            min-height="100%"
-            max-height="100%"
+            min-height="400px"
+            max-height="2000px"
             class="mention-editor-fullheight"
             @mention-added="handleMentionAdded"
           />
@@ -1693,13 +1693,12 @@ textarea:focus-visible {
   height: 100%;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
 
 :deep(.mention-editor-fullheight textarea) {
   flex: 1;
-  height: 100% !important;
-  min-height: 100% !important;
-  max-height: 100% !important;
   padding: 1.5rem 2rem;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.7;
@@ -1729,5 +1728,12 @@ textarea:focus-visible {
     opacity: 1;
     transform: translateY(0);
   }
+}
+</style>
+
+<style>
+/* Global styles for mention dropdown (unscoped since it's teleported to body) */
+.mention-suggestions-dropdown {
+  z-index: 99999 !important;
 }
 </style>
