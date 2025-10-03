@@ -1109,26 +1109,26 @@ const syncScroll = (source) => {
     <div class="flex-1 flex overflow-hidden">
       <!-- Editor Panel -->
       <div :class="editorClasses">
-        <div class="h-full flex flex-col bg-white">
+        <div class="h-full bg-white overflow-y-auto p-6 lg:p-8">
           <!-- Editor with Mention Support -->
-          <MentionInput
-            v-if="useMentionInput"
-            ref="mentionInputRef"
-            v-model="props.form.content"
-            placeholder="Start writing your story... Type @ to mention someone."
-            min-height="400px"
-            max-height="2000px"
-            class="mention-editor-fullheight"
-            @mention-added="handleMentionAdded"
-          />
-          
+          <div v-if="useMentionInput" class="min-h-full">
+            <MentionInput
+              ref="mentionInputRef"
+              v-model="props.form.content"
+              placeholder="Start writing your story... Type @ to mention someone."
+              min-height="400px"
+              max-height="2000px"
+              @mention-added="handleMentionAdded"
+            />
+          </div>
+
           <!-- Fallback: Regular Textarea -->
           <textarea
             v-else
             ref="contentTextarea"
             v-model="props.form.content"
             placeholder="Start writing your story..."
-            class="flex-1 w-full p-6 lg:p-8 border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
+            class="w-full min-h-[400px] border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
             style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
             @scroll="syncScroll('editor')"
             @input="autoResizeTextarea"
@@ -1683,32 +1683,20 @@ textarea:focus-visible {
 }
 
 /* Full height editor for long-form content */
-:deep(.mention-editor-fullheight) {
-  height: 100% !important;
-  display: flex;
-  flex-direction: column;
+/* MentionInput styling for blog editor */
+:deep(.mention-input-container) {
+  width: 100%;
 }
 
-:deep(.mention-editor-fullheight .mention-input-container) {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  z-index: 1;
-}
-
-:deep(.mention-editor-fullheight textarea) {
-  flex: 1;
-  padding: 1.5rem 2rem;
+:deep(.mention-input-container textarea) {
+  padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.7;
   font-size: 1.125rem;
-  overflow-y: auto !important;
 }
 
 @media (max-width: 1024px) {
-  :deep(.mention-editor-fullheight textarea) {
-    padding: 1rem;
+  :deep(.mention-input-container textarea) {
     font-size: 1rem;
   }
 }
