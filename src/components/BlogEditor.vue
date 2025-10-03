@@ -38,6 +38,8 @@ import {
 import { useMentions } from '../composables/useMentions.js'
 import MentionInput from './MentionInput.vue'
 import MentionRenderer from './MentionRenderer.vue'
+import * as nip19 from 'nostr-tools/nip19'
+import { fetchProfile } from '../utils/profileFetcher.js'
 
 const props = defineProps({
   form: {
@@ -102,15 +104,72 @@ const mentionCount = computed(() => {
   return parseMentions(props.form.content || '').length
 })
 
+// Cache for mention profiles
+const mentionProfiles = ref(new Map())
+
 // Handle mention added
 const handleMentionAdded = (user) => {
   console.log('Mention added to long-form content:', user)
+  // Cache the profile for preview rendering
+  if (user.pubkey) {
+    mentionProfiles.value.set(user.pubkey, user)
+  }
+}
+
+// Fetch profile for a pubkey
+const fetchMentionProfile = async (pubkey) => {
+  if (mentionProfiles.value.has(pubkey)) {
+    return mentionProfiles.value.get(pubkey)
+  }
+
+  try {
+    const profile = await fetchProfile(pubkey)
+    if (profile) {
+      mentionProfiles.value.set(pubkey, profile)
+      return profile
+    }
+  } catch (error) {
+    console.error('Error fetching mention profile:', error)
+  }
+
+  return null
 }
 
 // Handle mention click in preview
 const handleMentionClick = ({ pubkey, profile }) => {
   console.log('Mention clicked:', pubkey, profile)
 }
+
+// Watch for content changes and pre-fetch mention profiles
+watch(() => props.form.content, async (newContent) => {
+  if (!newContent) return
+
+  // Extract all nostr mentions
+  const mentionMatches = newContent.match(/nostr:(npub1[a-z0-9]{58,}|nprofile1[a-z0-9]+)/gi)
+  if (!mentionMatches) return
+
+  // Fetch profiles for all mentions
+  for (const match of mentionMatches) {
+    try {
+      const identifier = match.replace(/^nostr:/i, '')
+      let pubkey
+
+      if (identifier.startsWith('npub1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data
+      } else if (identifier.startsWith('nprofile1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data.pubkey
+      }
+
+      if (pubkey && !mentionProfiles.value.has(pubkey)) {
+        await fetchMentionProfile(pubkey)
+      }
+    } catch (error) {
+      console.error('Error pre-fetching mention profile:', error)
+    }
+  }
+}, { immediate: true })
 
 // Add tag functionality
 const newTag = ref('')
@@ -587,9 +646,9 @@ const parseMarkdown = (content) => {
     return `__AUTOLINK__${url}__ENDAUTOLINK__`
   })
 
-  // Process nostr mentions BEFORE escaping HTML - convert to display format
-  html = html.replace(/nostr:(npub1[a-z0-9]+)/g, (match, npub) => {
-    return `__MENTION__${npub}__ENDMENTION__`
+  // Process nostr mentions BEFORE escaping HTML - convert to display format (NIP-21)
+  html = html.replace(/nostr:(npub1[a-z0-9]{58,}|nprofile1[a-z0-9]+)/gi, (match, identifier) => {
+    return `__MENTION__${identifier}__ENDMENTION__`
   })
 
   // Process images BEFORE escaping HTML - ![alt](url)
@@ -633,9 +692,34 @@ const parseMarkdown = (content) => {
     html = html.replace(`__MEDIA__${index}__`, element)
   })
 
-  // Restore processed mentions
-  html = html.replace(/__MENTION__([^_]+)__ENDMENTION__/g, (match, npub) => {
-    return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${npub}', '_blank')">@${npub.substring(0, 12)}...</span>`
+  // Restore processed mentions with profile lookup
+  html = html.replace(/__MENTION__([^_]+)__ENDMENTION__/g, (match, identifier) => {
+    try {
+      // identifier could be npub1... or nprofile1...
+      let pubkey
+      if (identifier.startsWith('npub1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data
+      } else if (identifier.startsWith('nprofile1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data.pubkey
+      }
+
+      // Try to get cached profile
+      const profile = pubkey ? mentionProfiles.value.get(pubkey) : null
+      const displayName = profile?.name || profile?.display_name || profile?.displayName || `@${identifier.substring(0, 12)}...`
+
+      // Fetch profile in background if not cached
+      if (pubkey && !profile) {
+        fetchMentionProfile(pubkey)
+      }
+
+      return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${identifier}', '_blank')" title="${identifier}">@${displayName}</span>`
+    } catch (error) {
+      console.error('Error processing mention:', error)
+      const displayText = identifier.substring(0, 12) + '...'
+      return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${identifier}', '_blank')">@${displayText}</span>`
+    }
   })
 
   // Restore processed links with hover preview
@@ -666,16 +750,16 @@ const parseMarkdown = (content) => {
     // Code blocks (triple backticks with language support)
     .replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 rounded-lg p-4 my-6 overflow-x-auto"><code class="text-sm font-mono">$2</code></pre>')
 
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-orange-600 px-2 py-0.5 rounded text-sm font-mono">$1</code>')
+    // Inline code - technical style with copy affordance
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-900 text-green-400 px-2.5 py-1 rounded-md text-sm font-mono border border-gray-700 shadow-sm inline-block select-all hover:bg-gray-800 transition-colors cursor-text">$1</code>')
 
     // Blockquotes (multi-line support)
     .replace(/^> (.+)$/gm, '__QUOTE__$1__ENDQUOTE__')
 
-  // Process blockquotes
+  // Process blockquotes - enhanced design
   html = html.replace(/(__QUOTE__.*?__ENDQUOTE__)+/g, (match) => {
     const content = match.replace(/__QUOTE__|__ENDQUOTE__/g, '').replace(/\n/g, '<br>')
-    return `<blockquote class="border-l-4 border-orange-400 pl-4 py-3 my-6 bg-orange-50 rounded-r-lg italic text-gray-700 leading-relaxed">${content}</blockquote>`
+    return `<blockquote class="relative border-l-4 border-orange-500 pl-6 pr-6 py-5 my-8 bg-gradient-to-r from-orange-50 to-transparent rounded-r-xl shadow-sm before:content-['\'\\201C\''] before:absolute before:left-2 before:top-3 before:text-5xl before:text-orange-300 before:font-serif before:leading-none"><div class="relative text-gray-800 text-lg leading-relaxed font-medium italic">${content}</div></blockquote>`
   })
 
   // Lists - process line by line
@@ -1107,26 +1191,26 @@ const syncScroll = (source) => {
     <div class="flex-1 flex overflow-hidden">
       <!-- Editor Panel -->
       <div :class="editorClasses">
-        <div class="h-full flex flex-col bg-white">
+        <div class="h-full bg-white overflow-y-auto p-6 lg:p-8">
           <!-- Editor with Mention Support -->
-          <MentionInput
-            v-if="useMentionInput"
-            ref="mentionInputRef"
-            v-model="props.form.content"
-            placeholder="Start writing your story... Type @ to mention someone."
-            min-height="100%"
-            max-height="100%"
-            class="mention-editor-fullheight"
-            @mention-added="handleMentionAdded"
-          />
-          
+          <div v-if="useMentionInput" class="min-h-full">
+            <MentionInput
+              ref="mentionInputRef"
+              v-model="props.form.content"
+              placeholder="Start writing your story... Type @ to mention someone."
+              min-height="400px"
+              max-height="2000px"
+              @mention-added="handleMentionAdded"
+            />
+          </div>
+
           <!-- Fallback: Regular Textarea -->
           <textarea
             v-else
             ref="contentTextarea"
             v-model="props.form.content"
             placeholder="Start writing your story..."
-            class="flex-1 w-full p-6 lg:p-8 border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
+            class="w-full min-h-[400px] border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
             style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
             @scroll="syncScroll('editor')"
             @input="autoResizeTextarea"
@@ -1681,33 +1765,20 @@ textarea:focus-visible {
 }
 
 /* Full height editor for long-form content */
-:deep(.mention-editor-fullheight) {
-  height: 100% !important;
-  display: flex;
-  flex-direction: column;
+/* MentionInput styling for blog editor */
+:deep(.mention-input-container) {
+  width: 100%;
 }
 
-:deep(.mention-editor-fullheight .mention-input-container) {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-:deep(.mention-editor-fullheight textarea) {
-  flex: 1;
-  height: 100% !important;
-  min-height: 100% !important;
-  max-height: 100% !important;
-  padding: 1.5rem 2rem;
+:deep(.mention-input-container textarea) {
+  padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.7;
   font-size: 1.125rem;
-  overflow-y: auto !important;
 }
 
 @media (max-width: 1024px) {
-  :deep(.mention-editor-fullheight textarea) {
-    padding: 1rem;
+  :deep(.mention-input-container textarea) {
     font-size: 1rem;
   }
 }
@@ -1727,5 +1798,12 @@ textarea:focus-visible {
     opacity: 1;
     transform: translateY(0);
   }
+}
+</style>
+
+<style>
+/* Global styles for mention dropdown (unscoped since it's teleported to body) */
+.mention-suggestions-dropdown {
+  z-index: 99999 !important;
 }
 </style>
