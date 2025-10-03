@@ -80,6 +80,12 @@ const showEmojiPicker = ref(false)
 const showLinkModal = ref(false)
 const showImageModal = ref(false)
 const showVideoModal = ref(false)
+const linkPreview = ref({
+  show: false,
+  url: '',
+  x: 0,
+  y: 0
+})
 
 // Modal form data
 const linkForm = ref({ url: '', text: '' })
@@ -461,6 +467,25 @@ const handleEmojiSelect = (emoji) => {
   }
 }
 
+// Link preview handlers
+const handleLinkHover = (event) => {
+  const target = event.target
+  if (target.classList.contains('link-with-preview')) {
+    const url = target.getAttribute('data-url')
+    const rect = target.getBoundingClientRect()
+    linkPreview.value = {
+      show: true,
+      url: url,
+      x: rect.left,
+      y: rect.bottom + 8
+    }
+  }
+}
+
+const handleLinkLeave = () => {
+  linkPreview.value.show = false
+}
+
 // Keyboard shortcuts
 const handleKeydown = (event) => {
   if (event.ctrlKey || event.metaKey) {
@@ -528,6 +553,10 @@ const parseMarkdown = (content) => {
 
   let html = content
 
+  // Store media elements to restore after escaping
+  const mediaElements = []
+  let mediaIndex = 0
+
   // Process nostr mentions BEFORE escaping HTML - convert to display format
   html = html.replace(/nostr:(npub1[a-z0-9]+)/g, (match, npub) => {
     return `__MENTION__${npub}__ENDMENTION__`
@@ -535,7 +564,10 @@ const parseMarkdown = (content) => {
 
   // Process images BEFORE escaping HTML - ![alt](url)
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
-    return `<div class="my-6 rounded-lg overflow-hidden shadow-md"><img src="${url}" alt="${alt}" class="w-full h-auto" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\'p-4 bg-gray-100 text-gray-500 text-center\'>Image failed to load</div>'"/></div>`
+    const placeholder = `__MEDIA__${mediaIndex}__`
+    mediaElements[mediaIndex] = `<div class="my-6 rounded-lg overflow-hidden shadow-md"><img src="${url}" alt="${alt}" class="w-full h-auto" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'p-4 bg-gray-100 text-gray-500 text-center\\'>Image failed to load</div>'"/></div>`
+    mediaIndex++
+    return placeholder
   })
 
   // Process video embeds and links BEFORE escaping HTML
@@ -544,10 +576,16 @@ const parseMarkdown = (content) => {
 
     if (embedUrl) {
       // YouTube/Vimeo embed
-      return `<div class="my-6 aspect-video rounded-lg overflow-hidden shadow-md"><iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      const placeholder = `__MEDIA__${mediaIndex}__`
+      mediaElements[mediaIndex] = `<div class="my-6 aspect-video rounded-lg overflow-hidden shadow-md"><iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      mediaIndex++
+      return placeholder
     } else if (isVideoUrl(url)) {
       // Direct video file
-      return `<div class="my-6 rounded-lg overflow-hidden shadow-md"><video controls class="w-full h-auto" preload="metadata"><source src="${url}" type="video/mp4"><p class="p-4 bg-gray-100 text-gray-500 text-center">Your browser doesn't support video playback.</p></video></div>`
+      const placeholder = `__MEDIA__${mediaIndex}__`
+      mediaElements[mediaIndex] = `<div class="my-6 rounded-lg overflow-hidden shadow-md"><video controls class="w-full h-auto" preload="metadata"><source src="${url}" type="video/mp4"><p class="p-4 bg-gray-100 text-gray-500 text-center">Your browser doesn't support video playback.</p></video></div>`
+      mediaIndex++
+      return placeholder
     } else {
       // Regular link (escaped later)
       return `__LINK__${text}__URL__${url}__ENDLINK__`
@@ -560,14 +598,19 @@ const parseMarkdown = (content) => {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
 
+  // Restore media elements
+  mediaElements.forEach((element, index) => {
+    html = html.replace(`__MEDIA__${index}__`, element)
+  })
+
   // Restore processed mentions
   html = html.replace(/__MENTION__([^_]+)__ENDMENTION__/g, (match, npub) => {
     return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${npub}', '_blank')">@${npub.substring(0, 12)}...</span>`
   })
 
-  // Restore processed links
+  // Restore processed links with hover preview
   html = html.replace(/__LINK__([^_]+)__URL__([^_]+)__ENDLINK__/g, (match, text, url) => {
-    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors font-medium">${text}</a>`
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-with-preview text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors font-medium" data-url="${url}">${text}</a>`
   })
 
   // Parse markdown syntax
@@ -685,6 +728,14 @@ const handleClickOutside = (event) => {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeydown)
+
+  // Add link preview listeners
+  nextTick(() => {
+    if (previewContainer.value) {
+      previewContainer.value.addEventListener('mouseover', handleLinkHover)
+      previewContainer.value.addEventListener('mouseout', handleLinkLeave)
+    }
+  })
   
   // Auto-resize on mount
   nextTick(() => {
@@ -695,6 +746,12 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleKeydown)
+
+  // Remove link preview listeners
+  if (previewContainer.value) {
+    previewContainer.value.removeEventListener('mouseover', handleLinkHover)
+    previewContainer.value.removeEventListener('mouseout', handleLinkLeave)
+  }
 })
 
 // Computed classes for responsive layout
@@ -1082,7 +1139,7 @@ const syncScroll = (source) => {
             </div>
 
             <!-- Preview Content -->
-            <article class="prose prose-lg max-w-none">
+            <article class="prose prose-lg max-w-none" ref="previewContainer">
               <div v-if="props.form.content" class="content-preview">
                 <!-- Render markdown content with mentions handled inline -->
                 <div class="markdown-content" v-html="parseMarkdown(props.form.content)"></div>
@@ -1296,6 +1353,23 @@ const syncScroll = (source) => {
         </div>
       </div>
     </div>
+
+    <!-- Link Preview Tooltip -->
+    <Teleport to="body">
+      <div
+        v-if="linkPreview.show"
+        class="link-preview-tooltip fixed z-[10000] bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-xl max-w-md truncate"
+        :style="{
+          left: linkPreview.x + 'px',
+          top: linkPreview.y + 'px'
+        }"
+      >
+        <div class="flex items-center space-x-2">
+          <IconLink class="w-4 h-4 flex-shrink-0" />
+          <span class="truncate">{{ linkPreview.url }}</span>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1600,6 +1674,23 @@ textarea:focus-visible {
   :deep(.mention-editor-fullheight textarea) {
     padding: 1rem;
     font-size: 1rem;
+  }
+}
+
+/* Link preview tooltip */
+.link-preview-tooltip {
+  pointer-events: none;
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>
