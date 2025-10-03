@@ -750,16 +750,16 @@ const parseMarkdown = (content) => {
     // Code blocks (triple backticks with language support)
     .replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 rounded-lg p-4 my-6 overflow-x-auto"><code class="text-sm font-mono">$2</code></pre>')
 
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-orange-600 px-2 py-0.5 rounded text-sm font-mono">$1</code>')
+    // Inline code - technical style with copy affordance
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-900 text-green-400 px-2.5 py-1 rounded-md text-sm font-mono border border-gray-700 shadow-sm inline-block select-all hover:bg-gray-800 transition-colors cursor-text">$1</code>')
 
     // Blockquotes (multi-line support)
     .replace(/^> (.+)$/gm, '__QUOTE__$1__ENDQUOTE__')
 
-  // Process blockquotes
+  // Process blockquotes - enhanced design
   html = html.replace(/(__QUOTE__.*?__ENDQUOTE__)+/g, (match) => {
     const content = match.replace(/__QUOTE__|__ENDQUOTE__/g, '').replace(/\n/g, '<br>')
-    return `<blockquote class="border-l-4 border-orange-400 pl-4 py-3 my-6 bg-orange-50 rounded-r-lg italic text-gray-700 leading-relaxed">${content}</blockquote>`
+    return `<blockquote class="relative border-l-4 border-orange-500 pl-6 pr-6 py-5 my-8 bg-gradient-to-r from-orange-50 to-transparent rounded-r-xl shadow-sm before:content-['\'\\201C\''] before:absolute before:left-2 before:top-3 before:text-5xl before:text-orange-300 before:font-serif before:leading-none"><div class="relative text-gray-800 text-lg leading-relaxed font-medium italic">${content}</div></blockquote>`
   })
 
   // Lists - process line by line
