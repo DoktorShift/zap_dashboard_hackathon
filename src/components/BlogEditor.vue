@@ -587,35 +587,8 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
 })
 
-// Computed classes for responsive layout
-const editorClasses = computed(() => {
-  const base = 'flex-1 min-w-0'
-  
-  if (viewMode.value === 'edit') return `${base} w-full`
-  if (viewMode.value === 'preview') return 'hidden'
-  return `${base} lg:w-1/2` // both mode
-})
-
-const previewClasses = computed(() => {
-  const base = 'flex-1 min-w-0'
-  
-  if (viewMode.value === 'preview') return `${base} w-full`
-  if (viewMode.value === 'edit') return 'hidden'
-  return `${base} lg:w-1/2 hidden lg:block` // both mode
-})
-
-// Sync scroll between editor and preview
-const syncScroll = (source) => {
-  if (viewMode.value !== 'both') return
-  
-  const sourceElement = source === 'editor' ? contentTextarea.value : previewContainer.value
-  const targetElement = source === 'editor' ? previewContainer.value : contentTextarea.value
-  
-  if (sourceElement && targetElement) {
-    const scrollPercentage = sourceElement.scrollTop / (sourceElement.scrollHeight - sourceElement.clientHeight)
-    targetElement.scrollTop = scrollPercentage * (targetElement.scrollHeight - targetElement.clientHeight)
-  }
-}
+// Refs for both mode container
+const bothContainer = ref(null)
 </script>
 
 <template>
@@ -903,14 +876,16 @@ const syncScroll = (source) => {
 
     <!-- Main Editor Area -->
     <div class="flex-1 flex overflow-hidden">
-      <!-- Editor Panel -->
-      <div :class="editorClasses">
-        <div class="h-full flex flex-col bg-white">
-          <!-- Editor with Mention Support -->
-          <div v-if="useMentionInput" class="flex-1 overflow-y-auto">
-            <MentionInput
-              v-model="props.form.content"
-              placeholder="Start writing your story... Type @ to mention someone.
+      <!-- Shared Scroll Container for Both Mode -->
+      <div v-if="viewMode === 'both'" class="hidden lg:flex flex-1 overflow-y-auto" ref="bothContainer">
+        <!-- Editor Panel -->
+        <div class="flex-1 min-w-0 bg-white">
+          <div class="p-6 lg:p-8 min-h-full">
+            <!-- Editor with Mention Support -->
+            <div v-if="useMentionInput" class="min-h-full">
+              <MentionInput
+                v-model="props.form.content"
+                placeholder="Start writing your story... Type @ to mention someone.
 
 # Your Amazing Title
 
@@ -919,7 +894,7 @@ Write your content here using Markdown. The preview will update in real-time.
 **Bold text** and *italic text* are supported.
 
 - Create lists
-- Add links  
+- Add links
 - Include images
 - Mention users with @
 
@@ -930,35 +905,33 @@ Code blocks work too
 ```
 
 Focus on your content - everything else fades away."
-              min-height="400px"
-              max-height="800px"
-              class="w-full p-6 lg:p-8 text-gray-800 leading-relaxed text-base lg:text-lg"
-              style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
-              @mention-added="handleMentionAdded"
-            />
+                min-height="calc(100vh - 350px)"
+                max-height="none"
+                class="w-full text-gray-800 leading-relaxed text-base lg:text-lg"
+                style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
+                @mention-added="handleMentionAdded"
+              />
+            </div>
+
+            <!-- Fallback: Regular Textarea -->
+            <textarea
+              v-else
+              ref="contentTextarea"
+              v-model="props.form.content"
+              placeholder="Start writing your story..."
+              class="w-full border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
+              style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7; min-height: calc(100vh - 350px);"
+              @input="autoResizeTextarea"
+            ></textarea>
           </div>
-          
-          <!-- Fallback: Regular Textarea -->
-          <textarea
-            v-else
-            ref="contentTextarea"
-            v-model="props.form.content"
-            placeholder="Start writing your story..."
-            class="flex-1 w-full p-6 lg:p-8 border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
-            style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
-            @scroll="syncScroll('editor')"
-            @input="autoResizeTextarea"
-          ></textarea>
         </div>
-      </div>
 
-      <!-- Divider -->
-      <div v-if="viewMode === 'both'" class="w-px bg-gray-200 hidden lg:block"></div>
+        <!-- Divider -->
+        <div class="w-px bg-gray-200 flex-shrink-0"></div>
 
-      <!-- Preview Panel -->
-      <div :class="previewClasses">
-        <div class="h-full bg-white overflow-y-auto" ref="previewContainer" @scroll="syncScroll('preview')">
-          <div class="p-6 lg:p-8">
+        <!-- Preview Panel -->
+        <div class="flex-1 min-w-0 bg-white">
+          <div class="p-6 lg:p-8 min-h-full">
             <!-- Preview Header -->
             <div class="mb-8 pb-6 border-b border-gray-200">
               <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
@@ -967,7 +940,7 @@ Focus on your content - everything else fades away."
               <p v-if="props.form.description" class="text-xl text-gray-600 leading-relaxed">
                 {{ props.form.description }}
               </p>
-              
+
               <!-- Tags Preview -->
               <div v-if="props.form.tags.length > 0" class="flex flex-wrap gap-2 mt-4">
                 <span
@@ -980,7 +953,7 @@ Focus on your content - everything else fades away."
                 </span>
               </div>
             </div>
-            
+
             <!-- Preview Content -->
             <div class="prose prose-lg max-w-none">
               <div v-if="props.form.content">
@@ -997,7 +970,7 @@ Focus on your content - everything else fades away."
                 Start writing to see your content preview...
               </div>
             </div>
-            
+
             <!-- Mention Count -->
             <div v-if="mentionCount > 0" class="mt-6 pt-4 border-t border-gray-200">
               <div class="flex items-center space-x-2 text-sm text-gray-600">
@@ -1006,6 +979,108 @@ Focus on your content - everything else fades away."
                 <span class="text-gray-400">•</span>
                 <span class="text-gray-500">Users will be notified</span>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Only Mode -->
+      <div v-else-if="viewMode === 'edit'" class="flex-1 min-w-0 bg-white overflow-y-auto">
+        <div class="p-6 lg:p-8">
+          <!-- Editor with Mention Support -->
+          <div v-if="useMentionInput">
+            <MentionInput
+              v-model="props.form.content"
+              placeholder="Start writing your story... Type @ to mention someone.
+
+# Your Amazing Title
+
+Write your content here using Markdown. The preview will update in real-time.
+
+**Bold text** and *italic text* are supported.
+
+- Create lists
+- Add links
+- Include images
+- Mention users with @
+
+> Use quotes for emphasis
+
+```
+Code blocks work too
+```
+
+Focus on your content - everything else fades away."
+              min-height="calc(100vh - 350px)"
+              max-height="none"
+              class="w-full text-gray-800 leading-relaxed text-base lg:text-lg"
+              style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
+              @mention-added="handleMentionAdded"
+            />
+          </div>
+
+          <!-- Fallback: Regular Textarea -->
+          <textarea
+            v-else
+            ref="contentTextarea"
+            v-model="props.form.content"
+            placeholder="Start writing your story..."
+            class="w-full border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
+            style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7; min-height: calc(100vh - 350px);"
+            @input="autoResizeTextarea"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Preview Only Mode -->
+      <div v-else-if="viewMode === 'preview'" class="flex-1 min-w-0 bg-white overflow-y-auto">
+        <div class="p-6 lg:p-8">
+          <!-- Preview Header -->
+          <div class="mb-8 pb-6 border-b border-gray-200">
+            <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
+              {{ props.form.title || 'Untitled Content' }}
+            </h1>
+            <p v-if="props.form.description" class="text-xl text-gray-600 leading-relaxed">
+              {{ props.form.description }}
+            </p>
+
+            <!-- Tags Preview -->
+            <div v-if="props.form.tags.length > 0" class="flex flex-wrap gap-2 mt-4">
+              <span
+                v-for="tag in props.form.tags"
+                :key="tag"
+                class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
+              >
+                <IconHash class="w-3 h-3" />
+                <span>{{ tag }}</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Preview Content -->
+          <div class="prose prose-lg max-w-none">
+            <div v-if="props.form.content">
+              <!-- Render with mentions support -->
+              <MentionRenderer
+                :content="props.form.content"
+                :show-profile-on-click="true"
+                @mention-click="handleMentionClick"
+              />
+              <!-- Then render markdown (mentions already processed) -->
+              <div v-html="parseMarkdown(props.form.content)"></div>
+            </div>
+            <div v-else class="text-gray-400 italic text-center py-12">
+              Start writing to see your content preview...
+            </div>
+          </div>
+
+          <!-- Mention Count -->
+          <div v-if="mentionCount > 0" class="mt-6 pt-4 border-t border-gray-200">
+            <div class="flex items-center space-x-2 text-sm text-gray-600">
+              <IconAt class="w-4 h-4 text-orange-500" />
+              <span class="font-medium text-orange-600">{{ mentionCount }} mention{{ mentionCount !== 1 ? 's' : '' }}</span>
+              <span class="text-gray-400">•</span>
+              <span class="text-gray-500">Users will be notified</span>
             </div>
           </div>
         </div>
@@ -1224,22 +1299,24 @@ Focus on your content - everything else fades away."
   max-height: 200px;
 }
 
-/* Custom scrollbar for preview */
+/* Custom scrollbar for editor and preview */
 .overflow-y-auto::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
+  background: #f9fafb;
+  border-left: 1px solid #e5e7eb;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: rgba(251, 146, 60, 0.3);
-  border-radius: 3px;
+  background-color: rgba(251, 146, 60, 0.4);
+  border-radius: 4px;
+  border: 2px solid #f9fafb;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(251, 146, 60, 0.5);
+  background-color: rgba(251, 146, 60, 0.6);
 }
 
 /* Focus mode styles */
