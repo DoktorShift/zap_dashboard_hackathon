@@ -220,13 +220,18 @@ const handleClickOutside = (event) => {
 // Lifecycle
 onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
-  
+
   // Pre-fetch contact list for faster suggestions
   await fetchContactList()
-  
+
   if (props.autoFocus && textareaRef.value) {
     textareaRef.value.focus()
   }
+
+  // Initial auto-resize
+  nextTick(() => {
+    autoResize()
+  })
 })
 
 onUnmounted(() => {
@@ -243,7 +248,7 @@ watch(() => props.modelValue, (newValue) => {
     })
   }
 })
-</script>
+
 // Watch for prop changes that might affect sizing
 watch([() => props.minHeight, () => props.maxHeight], () => {
   nextTick(() => {
@@ -251,6 +256,20 @@ watch([() => props.minHeight, () => props.maxHeight], () => {
   })
 })
 
+const getSuggestionsPosition = () => {
+  if (!textareaRef.value) return {}
+
+  const textarea = textareaRef.value
+  const rect = textarea.getBoundingClientRect()
+
+  // Position below textarea
+  return {
+    top: `${rect.bottom + 8}px`,
+    left: `${rect.left}px`,
+    width: `${Math.min(rect.width, 400)}px`
+  }
+}
+</script>
 
 <template>
   <div class="mention-input-container relative">
@@ -358,25 +377,6 @@ watch([() => props.minHeight, () => props.maxHeight], () => {
     </Teleport>
   </div>
 </template>
-
-<script>
-export default {
-  methods: {
-    getSuggestionsPosition() {
-      if (!this.$refs.textareaRef) return {}
-      
-      const textarea = this.$refs.textareaRef
-  
-  // Initial auto-resize
-  nextTick(() => {
-    autoResize()
-  })
-      const rect = textarea.getBoundingClientRect()
-      
-      // Position below textarea
-      return {
-        top: `${rect.bottom + 8}px`,
-</script>
 
 <style scoped>
 .mention-input-container {
