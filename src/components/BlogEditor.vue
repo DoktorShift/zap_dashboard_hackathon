@@ -38,6 +38,8 @@ import {
 import { useMentions } from '../composables/useMentions.js'
 import MentionInput from './MentionInput.vue'
 import MentionRenderer from './MentionRenderer.vue'
+import * as nip19 from 'nostr-tools/nip19'
+import { fetchProfile } from '../utils/profileFetcher.js'
 
 const props = defineProps({
   form: {
@@ -102,15 +104,72 @@ const mentionCount = computed(() => {
   return parseMentions(props.form.content || '').length
 })
 
+// Cache for mention profiles
+const mentionProfiles = ref(new Map())
+
 // Handle mention added
 const handleMentionAdded = (user) => {
   console.log('Mention added to long-form content:', user)
+  // Cache the profile for preview rendering
+  if (user.pubkey) {
+    mentionProfiles.value.set(user.pubkey, user)
+  }
+}
+
+// Fetch profile for a pubkey
+const fetchMentionProfile = async (pubkey) => {
+  if (mentionProfiles.value.has(pubkey)) {
+    return mentionProfiles.value.get(pubkey)
+  }
+
+  try {
+    const profile = await fetchProfile(pubkey)
+    if (profile) {
+      mentionProfiles.value.set(pubkey, profile)
+      return profile
+    }
+  } catch (error) {
+    console.error('Error fetching mention profile:', error)
+  }
+
+  return null
 }
 
 // Handle mention click in preview
 const handleMentionClick = ({ pubkey, profile }) => {
   console.log('Mention clicked:', pubkey, profile)
 }
+
+// Watch for content changes and pre-fetch mention profiles
+watch(() => props.form.content, async (newContent) => {
+  if (!newContent) return
+
+  // Extract all nostr mentions
+  const mentionMatches = newContent.match(/nostr:(npub1[a-z0-9]{58,}|nprofile1[a-z0-9]+)/gi)
+  if (!mentionMatches) return
+
+  // Fetch profiles for all mentions
+  for (const match of mentionMatches) {
+    try {
+      const identifier = match.replace(/^nostr:/i, '')
+      let pubkey
+
+      if (identifier.startsWith('npub1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data
+      } else if (identifier.startsWith('nprofile1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data.pubkey
+      }
+
+      if (pubkey && !mentionProfiles.value.has(pubkey)) {
+        await fetchMentionProfile(pubkey)
+      }
+    } catch (error) {
+      console.error('Error pre-fetching mention profile:', error)
+    }
+  }
+}, { immediate: true })
 
 // Add tag functionality
 const newTag = ref('')
@@ -633,11 +692,34 @@ const parseMarkdown = (content) => {
     html = html.replace(`__MEDIA__${index}__`, element)
   })
 
-  // Restore processed mentions
+  // Restore processed mentions with profile lookup
   html = html.replace(/__MENTION__([^_]+)__ENDMENTION__/g, (match, identifier) => {
-    // identifier could be npub1... or nprofile1...
-    const displayText = identifier.substring(0, 12) + '...'
-    return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${identifier}', '_blank')">@${displayText}</span>`
+    try {
+      // identifier could be npub1... or nprofile1...
+      let pubkey
+      if (identifier.startsWith('npub1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data
+      } else if (identifier.startsWith('nprofile1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data.pubkey
+      }
+
+      // Try to get cached profile
+      const profile = pubkey ? mentionProfiles.value.get(pubkey) : null
+      const displayName = profile?.name || profile?.display_name || profile?.displayName || `@${identifier.substring(0, 12)}...`
+
+      // Fetch profile in background if not cached
+      if (pubkey && !profile) {
+        fetchMentionProfile(pubkey)
+      }
+
+      return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${identifier}', '_blank')" title="${identifier}">@${displayName}</span>`
+    } catch (error) {
+      console.error('Error processing mention:', error)
+      const displayText = identifier.substring(0, 12) + '...'
+      return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${identifier}', '_blank')">@${displayText}</span>`
+    }
   })
 
   // Restore processed links with hover preview
