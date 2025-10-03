@@ -262,11 +262,29 @@ const getSuggestionsPosition = () => {
   const textarea = textareaRef.value
   const rect = textarea.getBoundingClientRect()
 
-  // Position below textarea
+  // Try to position near cursor
+  const cursorPosition = textarea.selectionStart
+  const textBeforeCursor = textarea.value.substring(0, cursorPosition)
+  const lines = textBeforeCursor.split('\n')
+  const currentLineIndex = lines.length - 1
+
+  // Estimate position based on line height
+  const lineHeight = 28 // approximate line height
+  const estimatedTop = rect.top + (currentLineIndex * lineHeight) + lineHeight
+
+  // Check if dropdown would go off bottom of screen
+  const dropdownHeight = 320 // max-h-80 = 320px
+  const spaceBelow = window.innerHeight - estimatedTop
+  const shouldPositionAbove = spaceBelow < dropdownHeight && estimatedTop > dropdownHeight
+
+  const top = shouldPositionAbove
+    ? `${estimatedTop - dropdownHeight - 8}px`
+    : `${estimatedTop + 8}px`
+
   return {
-    top: `${rect.bottom + 8}px`,
-    left: `${rect.left}px`,
-    width: `${Math.min(rect.width, 400)}px`
+    top,
+    left: `${rect.left + 8}px`,
+    width: `${Math.min(rect.width - 16, 400)}px`
   }
 }
 </script>
