@@ -1017,11 +1017,11 @@ const syncScroll = (source) => {
       <div :class="editorClasses">
         <div class="h-full flex flex-col bg-white">
           <!-- Editor with Mention Support -->
-          <div v-if="useMentionInput" class="flex-1 overflow-y-auto">
-            <MentionInput
-              ref="mentionInputRef"
-              v-model="props.form.content"
-              placeholder="Start writing your story... Type @ to mention someone.
+          <MentionInput
+            v-if="useMentionInput"
+            ref="mentionInputRef"
+            v-model="props.form.content"
+            placeholder="Start writing your story... Type @ to mention someone.
 
 # Your Amazing Title
 
@@ -1030,7 +1030,7 @@ Write your content here using Markdown. The preview will update in real-time.
 **Bold text** and *italic text* are supported.
 
 - Create lists
-- Add links  
+- Add links
 - Include images
 - Mention users with @
 
@@ -1041,13 +1041,11 @@ Code blocks work too
 ```
 
 Focus on your content - everything else fades away."
-              min-height="100%"
-              max-height="none"
-              class="w-full p-6 lg:p-8 text-gray-800 leading-relaxed text-base lg:text-lg"
-              style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
-              @mention-added="handleMentionAdded"
-            />
-          </div>
+            min-height="100%"
+            max-height="100%"
+            class="mention-editor-fullheight"
+            @mention-added="handleMentionAdded"
+          />
           
           <!-- Fallback: Regular Textarea -->
           <textarea
@@ -1590,5 +1588,37 @@ textarea:focus-visible {
   transition-property: color, background-color, border-color, transform, box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
+}
+
+/* Full height editor for long-form content */
+:deep(.mention-editor-fullheight) {
+  height: 100% !important;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.mention-editor-fullheight .mention-input-container) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.mention-editor-fullheight textarea) {
+  flex: 1;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  padding: 1.5rem 2rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.7;
+  font-size: 1.125rem;
+  overflow-y: auto !important;
+}
+
+@media (max-width: 1024px) {
+  :deep(.mention-editor-fullheight textarea) {
+    padding: 1rem;
+    font-size: 1rem;
+  }
 }
 </style>
