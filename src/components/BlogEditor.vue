@@ -1021,26 +1021,7 @@ const syncScroll = (source) => {
             v-if="useMentionInput"
             ref="mentionInputRef"
             v-model="props.form.content"
-            placeholder="Start writing your story... Type @ to mention someone.
-
-# Your Amazing Title
-
-Write your content here using Markdown. The preview will update in real-time.
-
-**Bold text** and *italic text* are supported.
-
-- Create lists
-- Add links
-- Include images
-- Mention users with @
-
-> Use quotes for emphasis
-
-```
-Code blocks work too
-```
-
-Focus on your content - everything else fades away."
+            placeholder="Start writing your story... Type @ to mention someone."
             min-height="100%"
             max-height="100%"
             class="mention-editor-fullheight"
