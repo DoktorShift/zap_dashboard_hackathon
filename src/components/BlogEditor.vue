@@ -681,6 +681,9 @@ const parseMarkdown = (content) => {
     }
   })
 
+  // Process blockquotes BEFORE escaping HTML - lyric quote style
+  html = html.replace(/^> (.+)$/gm, '__QUOTE__$1__ENDQUOTE__')
+
   // Now escape HTML for text content
   html = html
     .replace(/&/g, '&amp;')
@@ -732,6 +735,12 @@ const parseMarkdown = (content) => {
     return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors font-medium break-all">${url}</a>`
   })
 
+  // Process blockquotes - enhanced lyric-style design
+  html = html.replace(/(__QUOTE__.*?__ENDQUOTE__)+/g, (match) => {
+    const content = match.replace(/__QUOTE__|__ENDQUOTE__/g, '').trim()
+    return `<blockquote class="relative border-l-4 border-orange-500 pl-8 pr-8 py-6 my-10 bg-gradient-to-r from-orange-50 via-orange-25 to-transparent rounded-r-2xl shadow-md hover:shadow-lg transition-shadow before:content-['\\201C'] before:absolute before:left-2 before:top-2 before:text-6xl before:text-orange-400 before:font-serif before:leading-none before:opacity-60"><div class="relative text-gray-900 text-xl leading-loose font-medium italic tracking-wide">${content}</div></blockquote>`
+  })
+
   // Parse markdown syntax
   html = html
     // Headers (with anchor-friendly IDs)
@@ -752,15 +761,6 @@ const parseMarkdown = (content) => {
 
     // Inline code - technical style with copy affordance
     .replace(/`([^`]+)`/g, '<code class="bg-gray-900 text-green-400 px-2.5 py-1 rounded-md text-sm font-mono border border-gray-700 shadow-sm inline-block select-all hover:bg-gray-800 transition-colors cursor-text">$1</code>')
-
-    // Blockquotes (multi-line support)
-    .replace(/^> (.+)$/gm, '__QUOTE__$1__ENDQUOTE__')
-
-  // Process blockquotes - enhanced design
-  html = html.replace(/(__QUOTE__.*?__ENDQUOTE__)+/g, (match) => {
-    const content = match.replace(/__QUOTE__|__ENDQUOTE__/g, '').replace(/\n/g, '<br>')
-    return `<blockquote class="relative border-l-4 border-orange-500 pl-6 pr-6 py-5 my-8 bg-gradient-to-r from-orange-50 to-transparent rounded-r-xl shadow-sm before:content-['\'\\201C\''] before:absolute before:left-2 before:top-3 before:text-5xl before:text-orange-300 before:font-serif before:leading-none"><div class="relative text-gray-800 text-lg leading-relaxed font-medium italic">${content}</div></blockquote>`
-  })
 
   // Lists - process line by line
   const lines = html.split('\n')
