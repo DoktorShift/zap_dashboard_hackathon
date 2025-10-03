@@ -488,9 +488,10 @@ const handleKeydown = (event) => {
 const parseMarkdown = (content) => {
   if (!content) return ''
 
-  // Store code blocks and inline code to protect them from processing
+  // Store protected content to prevent processing
   const codeBlocks = []
   const inlineCodes = []
+  const mentions = []
 
   let html = content
 
@@ -508,11 +509,14 @@ const parseMarkdown = (content) => {
     return `__INLINE_CODE_${index}__`
   })
 
-  // Now escape HTML (after extracting code)
-  html = html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  // Extract and convert mentions to HTML (before escaping)
+  // Match nostr:npub1... or nostr:nprofile1...
+  html = html.replace(/nostr:(npub1[a-z0-9]{58,}|nprofile1[a-z0-9]+)/gi, (match, identifier) => {
+    const index = mentions.length
+    const mentionHtml = `<span class="inline-flex items-center px-2 py-1 mx-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium hover:bg-orange-200 transition-colors cursor-pointer" onclick="window.open('https://primal.net/p/${identifier}', '_blank')" title="View profile on Primal"><svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>@${identifier.substring(0, 12)}...</span>`
+    mentions.push(mentionHtml)
+    return `__MENTION_${index}__`
+  })
 
   // Process images (before links to avoid conflicts)
   // Format: ![alt text](url)
@@ -599,6 +603,11 @@ const parseMarkdown = (content) => {
   // Restore inline code
   html = html.replace(/__INLINE_CODE_(\d+)__/g, (match, index) => {
     return `<code class="bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded text-sm font-mono">${inlineCodes[index]}</code>`
+  })
+
+  // Restore mentions
+  html = html.replace(/__MENTION_(\d+)__/g, (match, index) => {
+    return mentions[index]
   })
 
   // Process paragraphs (split by double newlines)
@@ -1543,6 +1552,31 @@ textarea {
 :deep(.prose em) {
   font-style: italic;
   color: #4b5563;
+}
+
+/* Mention badges */
+:deep(.prose span[onclick*="primal.net"]) {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  margin: 0 0.25rem;
+  background-color: #fff7ed;
+  color: #ea580c;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+:deep(.prose span[onclick*="primal.net"]:hover) {
+  background-color: #fed7aa;
+}
+
+:deep(.prose span[onclick*="primal.net"] svg) {
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-right: 0.25rem;
 }
 
 /* Aspect ratio container for videos */
