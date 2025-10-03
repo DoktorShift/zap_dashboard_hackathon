@@ -930,8 +930,8 @@ Code blocks work too
 ```
 
 Focus on your content - everything else fades away."
-              min-height="100%"
-              max-height="none"
+              min-height="400px"
+              max-height="800px"
               class="w-full p-6 lg:p-8 text-gray-800 leading-relaxed text-base lg:text-lg"
               style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
               @mention-added="handleMentionAdded"

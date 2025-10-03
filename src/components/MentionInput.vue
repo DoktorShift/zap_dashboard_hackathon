@@ -18,11 +18,11 @@ const props = defineProps({
   },
   minHeight: {
     type: String,
-    default: '120px'
+    default: '200px'
   },
   maxHeight: {
     type: String,
-    default: '400px'
+    default: '600px'
   },
   autoFocus: {
     type: Boolean,
@@ -49,6 +49,23 @@ const selectedIndex = ref(0)
 const searchQuery = ref('')
 const cursorPosition = ref(0)
 
+// Auto-resize functionality
+const autoResize = () => {
+  const textarea = textareaRef.value
+  if (!textarea) return
+  
+  // Reset height to auto to get the correct scrollHeight
+  textarea.style.height = 'auto'
+  
+  // Calculate new height based on content
+  const minHeightPx = parseInt(props.minHeight)
+  const maxHeightPx = parseInt(props.maxHeight)
+  const newHeight = Math.max(minHeightPx, Math.min(textarea.scrollHeight, maxHeightPx))
+  
+  // Set the new height
+  textarea.style.height = newHeight + 'px'
+}
+
 // Computed
 const filteredSuggestions = computed(() => {
   return searchResults.value.slice(0, 8) // Limit to 8 suggestions
@@ -61,6 +78,10 @@ const hasSuggestions = computed(() => {
 // Methods
 const updateValue = (value) => {
   emit('update:modelValue', value)
+  // Auto-resize after value update
+  nextTick(() => {
+    autoResize()
+  })
 }
 
 const handleInput = async (event) => {
@@ -216,9 +237,20 @@ onUnmounted(() => {
 watch(() => props.modelValue, (newValue) => {
   if (textareaRef.value && textareaRef.value.value !== newValue) {
     textareaRef.value.value = newValue
+    // Auto-resize when external value changes
+    nextTick(() => {
+      autoResize()
+    })
   }
 })
 </script>
+// Watch for prop changes that might affect sizing
+watch([() => props.minHeight, () => props.maxHeight], () => {
+  nextTick(() => {
+    autoResize()
+  })
+})
+
 
 <template>
   <div class="mention-input-container relative">
@@ -228,8 +260,8 @@ watch(() => props.modelValue, (newValue) => {
       :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
-      class="w-full border-0 resize-none focus:ring-0 focus:outline-none text-xl placeholder-gray-500 bg-transparent"
-      :style="{ minHeight: minHeight, maxHeight: maxHeight }"
+      class="w-full border-0 resize-none focus:ring-0 focus:outline-none text-xl placeholder-gray-500 bg-transparent overflow-y-auto"
+      :style="{ minHeight: minHeight, maxHeight: maxHeight, height: 'auto' }"
       @input="handleInput"
       @keydown="handleKeyDown"
       @click="handleClick"
@@ -334,18 +366,16 @@ export default {
       if (!this.$refs.textareaRef) return {}
       
       const textarea = this.$refs.textareaRef
+  
+  // Initial auto-resize
+  nextTick(() => {
+    autoResize()
+  })
       const rect = textarea.getBoundingClientRect()
       
       // Position below textarea
       return {
         top: `${rect.bottom + 8}px`,
-        left: `${rect.left}px`,
-        width: `${Math.min(rect.width, 400)}px`,
-        maxWidth: '90vw'
-      }
-    }
-  }
-}
 </script>
 
 <style scoped>
