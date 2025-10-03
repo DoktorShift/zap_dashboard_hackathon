@@ -279,8 +279,14 @@ const getSuggestionsPosition = () => {
       :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
-      class="w-full border-0 resize-none focus:ring-0 focus:outline-none text-xl placeholder-gray-500 bg-transparent overflow-y-auto"
-      :style="{ minHeight: minHeight, maxHeight: maxHeight, height: 'auto' }"
+      class="w-full border-0 resize-none focus:ring-0 focus:outline-none text-gray-800 placeholder-gray-400 bg-transparent overflow-y-auto leading-relaxed text-base lg:text-lg"
+      :style="{
+        minHeight: minHeight,
+        maxHeight: maxHeight,
+        height: 'auto',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+        lineHeight: '1.7'
+      }"
       @input="handleInput"
       @keydown="handleKeyDown"
       @click="handleClick"
