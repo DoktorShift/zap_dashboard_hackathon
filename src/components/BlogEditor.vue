@@ -577,6 +577,16 @@ const parseMarkdown = (content) => {
     return match
   })
 
+  // Process standalone regular URLs (not images/videos, not in markdown syntax) - must be on its own line
+  html = html.replace(/^(https?:\/\/[^\s]+)$/gim, (match, url) => {
+    // Skip if already processed as image or video
+    if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url)) return match
+    if (getVideoEmbedUrl(url)) return match
+
+    // Create clickable link
+    return `__AUTOLINK__${url}__ENDAUTOLINK__`
+  })
+
   // Process nostr mentions BEFORE escaping HTML - convert to display format
   html = html.replace(/nostr:(npub1[a-z0-9]+)/g, (match, npub) => {
     return `__MENTION__${npub}__ENDMENTION__`
@@ -631,6 +641,11 @@ const parseMarkdown = (content) => {
   // Restore processed links with hover preview
   html = html.replace(/__LINK__([^_]+)__URL__([^_]+)__ENDLINK__/g, (match, text, url) => {
     return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-with-preview text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors font-medium" data-url="${url}">${text}</a>`
+  })
+
+  // Restore auto-detected standalone links
+  html = html.replace(/__AUTOLINK__([^_]+)__ENDAUTOLINK__/g, (match, url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors font-medium break-all">${url}</a>`
   })
 
   // Parse markdown syntax
