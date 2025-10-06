@@ -342,17 +342,52 @@ class NostrRelayManager {
     }
   }
 
+  _validateFilters(filters) {
+    if (!Array.isArray(filters)) {
+      console.warn('Filters must be an array, got:', typeof filters)
+      return []
+    }
+    
+    const validFilters = filters.filter(filter => {
+      if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
+        console.warn('Invalid filter (not an object):', filter)
+        return false
+      }
+      
+      const hasValidProperty = Object.keys(filter).length > 0
+      if (!hasValidProperty) {
+        console.warn('Invalid filter (empty object):', filter)
+        return false
+      }
+      
+      return true
+    })
+    
+    return validFilters
+  }
+
   // Subscribe to events from read relays with deduplication
   subscribeToEvents(filters, options = {}) {
     if (!this.isInitialized) {
       throw new Error('Relay manager not initialized')
     }
+    
+    const validFilters = this._validateFilters(filters)
+    if (validFilters.length === 0) {
+      console.warn('No valid filters provided to subscribeToEvents, skipping subscription')
+      return {
+        close: () => {},
+        on: () => {},
+        off: () => {}
+      }
+    }
+    
     const readRelays = this.getReadRelays().filter(r => !this._isRelayBackedOff(r.url))
     if (readRelays.length === 0) {
       throw new Error('No read-enabled relays available (all may be rate-limited or unhealthy)')
     }
     const relayUrls = readRelays.map(relay => relay.url)
-    const hash = this._hashSub(filters, options)
+    const hash = this._hashSub(validFilters, options)
     // Deduplicate: if already active, return the same subscription
     if (this._activeSubscriptions.has(hash)) {
       const {sub, timeout} = this._activeSubscriptions.get(hash)
@@ -377,7 +412,7 @@ class NostrRelayManager {
       if (options.onclose) options.onclose(reason)
     }
     // Subscribe
-    const sub = this.pool.subscribeMany(relayUrls, filters, {
+    const sub = this.pool.subscribeMany(relayUrls, validFilters, {
       ...wrappedOptions,
       maxWait: options.maxWait || 10000
     })
@@ -395,6 +430,18 @@ class NostrRelayManager {
     if (!this.isInitialized) {
       throw new Error('Relay manager not initialized')
     }
+    
+    // Validate filters - must be a single filter object
+    if (!filters || typeof filters !== 'object' || Array.isArray(filters)) {
+      console.warn('Invalid filter for getEvent (must be an object):', filters)
+      return null
+    }
+    
+    if (Object.keys(filters).length === 0) {
+      console.warn('Invalid filter for getEvent (empty object):', filters)
+      return null
+    }
+    
     const cacheKey = JSON.stringify(filters)
     const cached = this._eventCache.get(cacheKey)
     if (cached && Date.now() - cached.timestamp < this._eventCacheTTL) {
