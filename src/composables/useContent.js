@@ -4,6 +4,7 @@ import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrLongForm } from './useNostrLongForm.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { useMentions } from './useMentions.js'
 
 // Content types
 const CONTENT_TYPES = {
@@ -356,7 +357,7 @@ export function useContent() {
       }
 
       // Extract p tags from mentions in content (NIP-10)
-      const { extractPTags } = await import('./useMentions.js').then(m => m.useMentions())
+      const { extractPTags } = useMentions()
       const pTags = extractPTags(content.content || '')
       
       // Create NIP-23 long-form content event (kind:30023)

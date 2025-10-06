@@ -38,6 +38,8 @@ import {
 import { useMentions } from '../composables/useMentions.js'
 import MentionInput from './MentionInput.vue'
 import MentionRenderer from './MentionRenderer.vue'
+import * as nip19 from 'nostr-tools/nip19'
+import { fetchProfile } from '../utils/profileFetcher.js'
 
 const props = defineProps({
   form: {
@@ -72,6 +74,7 @@ const useMentionInput = ref(true) // Toggle for mention support
 
 // Refs for editor functionality
 const contentTextarea = ref(null)
+const mentionInputRef = ref(null)
 const previewContainer = ref(null)
 const editorContainer = ref(null)
 const emojiButton = ref(null)
@@ -79,6 +82,12 @@ const showEmojiPicker = ref(false)
 const showLinkModal = ref(false)
 const showImageModal = ref(false)
 const showVideoModal = ref(false)
+const linkPreview = ref({
+  show: false,
+  url: '',
+  x: 0,
+  y: 0
+})
 
 // Modal form data
 const linkForm = ref({ url: '', text: '' })
@@ -95,15 +104,72 @@ const mentionCount = computed(() => {
   return parseMentions(props.form.content || '').length
 })
 
+// Cache for mention profiles
+const mentionProfiles = ref(new Map())
+
 // Handle mention added
 const handleMentionAdded = (user) => {
   console.log('Mention added to long-form content:', user)
+  // Cache the profile for preview rendering
+  if (user.pubkey) {
+    mentionProfiles.value.set(user.pubkey, user)
+  }
+}
+
+// Fetch profile for a pubkey
+const fetchMentionProfile = async (pubkey) => {
+  if (mentionProfiles.value.has(pubkey)) {
+    return mentionProfiles.value.get(pubkey)
+  }
+
+  try {
+    const profile = await fetchProfile(pubkey)
+    if (profile) {
+      mentionProfiles.value.set(pubkey, profile)
+      return profile
+    }
+  } catch (error) {
+    console.error('Error fetching mention profile:', error)
+  }
+
+  return null
 }
 
 // Handle mention click in preview
 const handleMentionClick = ({ pubkey, profile }) => {
   console.log('Mention clicked:', pubkey, profile)
 }
+
+// Watch for content changes and pre-fetch mention profiles
+watch(() => props.form.content, async (newContent) => {
+  if (!newContent) return
+
+  // Extract all nostr mentions
+  const mentionMatches = newContent.match(/nostr:(npub1[a-z0-9]{58,}|nprofile1[a-z0-9]+)/gi)
+  if (!mentionMatches) return
+
+  // Fetch profiles for all mentions
+  for (const match of mentionMatches) {
+    try {
+      const identifier = match.replace(/^nostr:/i, '')
+      let pubkey
+
+      if (identifier.startsWith('npub1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data
+      } else if (identifier.startsWith('nprofile1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data.pubkey
+      }
+
+      if (pubkey && !mentionProfiles.value.has(pubkey)) {
+        await fetchMentionProfile(pubkey)
+      }
+    } catch (error) {
+      console.error('Error pre-fetching mention profile:', error)
+    }
+  }
+}, { immediate: true })
 
 // Add tag functionality
 const newTag = ref('')
@@ -125,8 +191,9 @@ const setViewMode = (mode) => {
   // Auto-focus editor when switching to edit mode
   if (mode === 'edit' || mode === 'both') {
     nextTick(() => {
-      if (contentTextarea.value) {
-        contentTextarea.value.focus()
+      const textarea = getActiveTextarea()
+      if (textarea) {
+        textarea.focus()
       }
     })
   }
@@ -141,25 +208,34 @@ const toggleFocusMode = () => {
   }
 }
 
+// Get the active textarea (either from MentionInput or regular textarea)
+const getActiveTextarea = () => {
+  if (useMentionInput.value && mentionInputRef.value) {
+    // Access the textarea inside MentionInput via $el
+    return mentionInputRef.value.$el?.querySelector('textarea')
+  }
+  return contentTextarea.value
+}
+
 // Toolbar functionality
 const insertAtCursor = (before, after = '', placeholder = '') => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
   const end = textarea.selectionEnd
   const selectedText = props.form.content.substring(start, end)
-  
+
   let insertText
   if (selectedText) {
     insertText = before + selectedText + after
   } else {
     insertText = before + placeholder + after
   }
-  
+
   const newContent = props.form.content.substring(0, start) + insertText + props.form.content.substring(end)
   props.form.content = newContent
-  
+
   // Set cursor position
   nextTick(() => {
     const newCursorPos = selectedText ? start + insertText.length : start + before.length + placeholder.length
@@ -169,21 +245,21 @@ const insertAtCursor = (before, after = '', placeholder = '') => {
 }
 
 const insertAtNewLine = (text) => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
   const beforeCursor = props.form.content.substring(0, start)
   const afterCursor = props.form.content.substring(start)
-  
+
   // Add newlines if needed
   const needsNewlineBefore = beforeCursor && !beforeCursor.endsWith('\n')
   const needsNewlineAfter = afterCursor && !afterCursor.startsWith('\n')
-  
+
   const insertText = (needsNewlineBefore ? '\n' : '') + text + (needsNewlineAfter ? '\n' : '')
-  
+
   props.form.content = beforeCursor + insertText + afterCursor
-  
+
   nextTick(() => {
     const newCursorPos = start + insertText.length
     textarea.focus()
@@ -199,7 +275,7 @@ const makeInlineCode = () => insertAtCursor('`', '`', 'code')
 
 // Enhanced formatting functions with proper toggle behavior
 const toggleInlineFormat = (marker, placeholder) => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
@@ -248,7 +324,7 @@ const toggleInlineFormat = (marker, placeholder) => {
 }
 
 const toggleBlockFormat = (prefix, placeholder) => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
@@ -319,7 +395,7 @@ const insertHeaderToggle = (level) => {
 
 const insertBulletListToggle = () => toggleBlockFormat('-', 'List item')
 const insertNumberedListToggle = () => {
-  const textarea = contentTextarea.value
+  const textarea = getActiveTextarea()
   if (!textarea) return
 
   const start = textarea.selectionStart
@@ -428,8 +504,8 @@ const insertVideo = () => {
 
 // Emoji picker
 const handleEmojiSelect = (emoji) => {
-  const textarea = contentTextarea.value
-  
+  const textarea = getActiveTextarea()
+
   if (textarea) {
     const cursorPos = textarea.selectionStart
     const textBefore = props.form.content.substring(0, cursorPos)
@@ -448,6 +524,25 @@ const handleEmojiSelect = (emoji) => {
       textarea.setSelectionRange(newCursorPos, newCursorPos)
     })
   }
+}
+
+// Link preview handlers
+const handleLinkHover = (event) => {
+  const target = event.target
+  if (target.classList.contains('link-with-preview')) {
+    const url = target.getAttribute('data-url')
+    const rect = target.getBoundingClientRect()
+    linkPreview.value = {
+      show: true,
+      url: url,
+      x: rect.left,
+      y: rect.bottom + 8
+    }
+  }
+}
+
+const handleLinkLeave = () => {
+  linkPreview.value.show = false
 }
 
 // Keyboard shortcuts
@@ -484,67 +579,244 @@ const handleKeydown = (event) => {
   }
 }
 
+// Helper function to detect video platform
+const getVideoEmbedUrl = (url) => {
+  // YouTube
+  const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)
+  if (youtubeMatch) {
+    return `https://www.youtube.com/embed/${youtubeMatch[1]}`
+  }
+
+  // Vimeo
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/)
+  if (vimeoMatch) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+  }
+
+  return null
+}
+
+// Helper function to check if URL is an image
+const isImageUrl = (url) => {
+  return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url)
+}
+
+// Helper function to check if URL is a video
+const isVideoUrl = (url) => {
+  return /\.(mp4|webm|ogg|mov)$/i.test(url) || url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com')
+}
+
 // Parse markdown content to HTML for preview
 const parseMarkdown = (content) => {
   if (!content) return ''
-  
+
   let html = content
-    // Escape HTML first
+
+  // Store media elements to restore after escaping
+  const mediaElements = []
+  let mediaIndex = 0
+
+  // Process standalone image URLs (not in markdown syntax) - must be on its own line
+  html = html.replace(/^(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg))$/gim, (match, url) => {
+    const placeholder = `__MEDIA__${mediaIndex}__`
+    mediaElements[mediaIndex] = `<div class="my-6 rounded-lg overflow-hidden shadow-md"><img src="${url}" alt="Image" class="w-full h-auto" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'p-4 bg-gray-100 text-gray-500 text-center\\'>Image failed to load</div>'"/></div>`
+    mediaIndex++
+    return placeholder
+  })
+
+  // Process standalone YouTube/Vimeo URLs (not in markdown syntax) - must be on its own line
+  html = html.replace(/^(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|vimeo\.com\/)[\w-]+(?:[^\s]*))$/gim, (match, url) => {
+    const embedUrl = getVideoEmbedUrl(url)
+    if (embedUrl) {
+      const placeholder = `__MEDIA__${mediaIndex}__`
+      mediaElements[mediaIndex] = `<div class="my-6 aspect-video rounded-lg overflow-hidden shadow-md"><iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      mediaIndex++
+      return placeholder
+    }
+    return match
+  })
+
+  // Process standalone regular URLs (not images/videos, not in markdown syntax) - must be on its own line
+  html = html.replace(/^(https?:\/\/[^\s]+)$/gim, (match, url) => {
+    // Skip if already processed as image or video
+    if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url)) return match
+    if (getVideoEmbedUrl(url)) return match
+
+    // Create clickable link
+    return `__AUTOLINK__${url}__ENDAUTOLINK__`
+  })
+
+  // Process nostr mentions BEFORE escaping HTML - convert to display format (NIP-21)
+  html = html.replace(/nostr:(npub1[a-z0-9]{58,}|nprofile1[a-z0-9]+)/gi, (match, identifier) => {
+    return `__MENTION__${identifier}__ENDMENTION__`
+  })
+
+  // Process images BEFORE escaping HTML - ![alt](url)
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+    const placeholder = `__MEDIA__${mediaIndex}__`
+    mediaElements[mediaIndex] = `<div class="my-6 rounded-lg overflow-hidden shadow-md"><img src="${url}" alt="${alt}" class="w-full h-auto" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'p-4 bg-gray-100 text-gray-500 text-center\\'>Image failed to load</div>'"/></div>`
+    mediaIndex++
+    return placeholder
+  })
+
+  // Process video embeds and links BEFORE escaping HTML
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+    const embedUrl = getVideoEmbedUrl(url)
+
+    if (embedUrl) {
+      // YouTube/Vimeo embed
+      const placeholder = `__MEDIA__${mediaIndex}__`
+      mediaElements[mediaIndex] = `<div class="my-6 aspect-video rounded-lg overflow-hidden shadow-md"><iframe src="${embedUrl}" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+      mediaIndex++
+      return placeholder
+    } else if (isVideoUrl(url)) {
+      // Direct video file
+      const placeholder = `__MEDIA__${mediaIndex}__`
+      mediaElements[mediaIndex] = `<div class="my-6 rounded-lg overflow-hidden shadow-md"><video controls class="w-full h-auto" preload="metadata"><source src="${url}" type="video/mp4"><p class="p-4 bg-gray-100 text-gray-500 text-center">Your browser doesn't support video playback.</p></video></div>`
+      mediaIndex++
+      return placeholder
+    } else {
+      // Regular link (escaped later)
+      return `__LINK__${text}__URL__${url}__ENDLINK__`
+    }
+  })
+
+  // Process blockquotes BEFORE escaping HTML - lyric quote style
+  html = html.replace(/^> (.+)$/gm, '__QUOTE__$1__ENDQUOTE__')
+
+  // Now escape HTML for text content
+  html = html
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-  
+
+  // Restore media elements
+  mediaElements.forEach((element, index) => {
+    html = html.replace(`__MEDIA__${index}__`, element)
+  })
+
+  // Restore processed mentions with profile lookup
+  html = html.replace(/__MENTION__([^_]+)__ENDMENTION__/g, (match, identifier) => {
+    try {
+      // identifier could be npub1... or nprofile1...
+      let pubkey
+      if (identifier.startsWith('npub1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data
+      } else if (identifier.startsWith('nprofile1')) {
+        const decoded = nip19.decode(identifier)
+        pubkey = decoded.data.pubkey
+      }
+
+      // Try to get cached profile
+      const profile = pubkey ? mentionProfiles.value.get(pubkey) : null
+      const displayName = profile?.name || profile?.display_name || profile?.displayName || `@${identifier.substring(0, 12)}...`
+
+      // Fetch profile in background if not cached
+      if (pubkey && !profile) {
+        fetchMentionProfile(pubkey)
+      }
+
+      return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${identifier}', '_blank')" title="${identifier}">@${displayName}</span>`
+    } catch (error) {
+      console.error('Error processing mention:', error)
+      const displayText = identifier.substring(0, 12) + '...'
+      return `<span class="inline-flex items-center bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-sm font-medium cursor-pointer hover:bg-orange-200 transition-colors" onclick="window.open('https://primal.net/p/${identifier}', '_blank')">@${displayText}</span>`
+    }
+  })
+
+  // Restore processed links with hover preview
+  html = html.replace(/__LINK__([^_]+)__URL__([^_]+)__ENDLINK__/g, (match, text, url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="link-with-preview text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors font-medium" data-url="${url}">${text}</a>`
+  })
+
+  // Restore auto-detected standalone links
+  html = html.replace(/__AUTOLINK__([^_]+)__ENDAUTOLINK__/g, (match, url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors font-medium break-all">${url}</a>`
+  })
+
+  // Process blockquotes - enhanced lyric-style design
+  html = html.replace(/(__QUOTE__.*?__ENDQUOTE__)+/g, (match) => {
+    const content = match.replace(/__QUOTE__|__ENDQUOTE__/g, '').trim()
+    return `<blockquote class="relative border-l-4 border-orange-500 pl-8 pr-8 py-6 my-10 bg-gradient-to-r from-orange-50 via-orange-25 to-transparent rounded-r-2xl shadow-md hover:shadow-lg transition-shadow before:content-['\\201C'] before:absolute before:left-2 before:top-2 before:text-6xl before:text-orange-400 before:font-serif before:leading-none before:opacity-60"><div class="relative text-gray-900 text-xl leading-loose font-medium italic tracking-wide">${content}</div></blockquote>`
+  })
+
   // Parse markdown syntax
   html = html
-    // Headers
-    .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold text-gray-900 mt-8 mb-4 leading-tight">$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-10 mb-6 leading-tight">$1</h2>')
-    .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-12 mb-8 leading-tight">$1</h1>')
-    
-    // Bold and italic
+    // Headers (with anchor-friendly IDs)
+    .replace(/^### (.*$)/gm, (match, text) => `<h3 class="text-xl font-bold text-gray-900 mt-8 mb-4 leading-tight">${text}</h3>`)
+    .replace(/^## (.*$)/gm, (match, text) => `<h2 class="text-2xl font-bold text-gray-900 mt-10 mb-6 leading-tight">${text}</h2>`)
+    .replace(/^# (.*$)/gm, (match, text) => `<h1 class="text-3xl font-bold text-gray-900 mt-12 mb-8 leading-tight">${text}</h1>`)
+
+    // Strikethrough
+    .replace(/~~(.*?)~~/g, '<span class="line-through text-gray-600">$1</span>')
+
+    // Bold and italic (process *** before ** and *)
     .replace(/\*\*\*(.*?)\*\*\*/g, '<strong class="font-bold"><em class="italic">$1</em></strong>')
     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-gray-900">$1</strong>')
     .replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>')
-    
-    // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-700 underline underline-offset-2 transition-colors">$1</a>')
-    
-    // Code blocks (triple backticks)
-    .replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 border border-gray-200 rounded-lg p-4 my-4 overflow-x-auto"><code class="text-sm font-mono text-gray-800">$1</code></pre>')
-    
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm font-mono">$1</code>')
-    
-    // Unordered lists
-    .replace(/^[\s]*[-*+] (.+)$/gm, '<li class="ml-4 mb-2 text-gray-700">$1</li>')
-    
-    // Ordered lists
-    .replace(/^[\s]*\d+\. (.+)$/gm, '<li class="ml-4 mb-2 text-gray-700">$1</li>')
-    
-    // Blockquotes
-    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-orange-400 pl-4 py-2 my-4 bg-orange-50/50 italic text-gray-700">$1</blockquote>')
-    
-    // Horizontal rules
-    .replace(/^---$/gm, '<hr class="border-t border-gray-300 my-8">')
-    
-    // Line breaks (convert double newlines to paragraphs)
-    .replace(/\n\n/g, '</p><p class="mb-4 text-gray-700 leading-relaxed">')
-    
-    // Single line breaks
-    .replace(/\n/g, '<br>')
-  
-  // Wrap in paragraph tags if not already wrapped
-  if (!html.includes('<p>') && !html.includes('<h1>') && !html.includes('<h2>') && !html.includes('<h3>')) {
-    html = `<p class="mb-4 text-gray-700 leading-relaxed">${html}</p>`
-  } else if (html.includes('</p><p>')) {
-    html = `<p class="mb-4 text-gray-700 leading-relaxed">${html}</p>`
+
+    // Code blocks (triple backticks with language support)
+    .replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre class="bg-gray-900 text-gray-100 rounded-lg p-4 my-6 overflow-x-auto"><code class="text-sm font-mono">$2</code></pre>')
+
+    // Inline code - technical style with copy affordance
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-900 text-green-400 px-2.5 py-1 rounded-md text-sm font-mono border border-gray-700 shadow-sm inline-block select-all hover:bg-gray-800 transition-colors cursor-text">$1</code>')
+
+  // Lists - process line by line
+  const lines = html.split('\n')
+  const processed = []
+  let inUl = false
+  let inOl = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const ulMatch = line.match(/^[\s]*[-*+] (.+)$/)
+    const olMatch = line.match(/^[\s]*(\d+)\. (.+)$/)
+
+    if (ulMatch) {
+      if (!inUl) {
+        processed.push('<ul class="list-disc list-inside mb-6 space-y-2 ml-4">')
+        inUl = true
+      }
+      processed.push(`<li class="text-gray-700 leading-relaxed">${ulMatch[1]}</li>`)
+    } else if (olMatch) {
+      if (!inOl) {
+        processed.push('<ol class="list-decimal list-inside mb-6 space-y-2 ml-4">')
+        inOl = true
+      }
+      processed.push(`<li class="text-gray-700 leading-relaxed">${olMatch[2]}</li>`)
+    } else {
+      if (inUl) {
+        processed.push('</ul>')
+        inUl = false
+      }
+      if (inOl) {
+        processed.push('</ol>')
+        inOl = false
+      }
+      processed.push(line)
+    }
   }
-  
-  // Wrap lists in proper ul/ol tags
-  html = html.replace(/(<li class="ml-4 mb-2 text-gray-700">.*?<\/li>)/gs, (match) => {
-    return `<ul class="list-disc list-inside mb-4 space-y-2">${match}</ul>`
-  })
-  
+
+  if (inUl) processed.push('</ul>')
+  if (inOl) processed.push('</ol>')
+
+  html = processed.join('\n')
+
+  // Horizontal rules
+  html = html.replace(/^---$/gm, '<hr class="border-t-2 border-gray-300 my-8">')
+
+  // Paragraphs - split by double newlines
+  const paragraphs = html.split('\n\n')
+  html = paragraphs.map(p => {
+    // Skip if already wrapped in HTML tag
+    if (p.trim().startsWith('<')) return p
+    // Skip empty paragraphs
+    if (!p.trim()) return ''
+    // Wrap in paragraph
+    return `<p class="mb-6 text-gray-700 leading-relaxed text-lg">${p.replace(/\n/g, '<br>')}</p>`
+  }).join('\n\n')
+
   return html
 }
 
@@ -575,6 +847,14 @@ const handleClickOutside = (event) => {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeydown)
+
+  // Add link preview listeners
+  nextTick(() => {
+    if (previewContainer.value) {
+      previewContainer.value.addEventListener('mouseover', handleLinkHover)
+      previewContainer.value.addEventListener('mouseout', handleLinkLeave)
+    }
+  })
   
   // Auto-resize on mount
   nextTick(() => {
@@ -585,6 +865,12 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleKeydown)
+
+  // Remove link preview listeners
+  if (previewContainer.value) {
+    previewContainer.value.removeEventListener('mouseover', handleLinkHover)
+    previewContainer.value.removeEventListener('mouseout', handleLinkLeave)
+  }
 })
 
 // Computed classes for responsive layout
@@ -905,46 +1191,26 @@ const syncScroll = (source) => {
     <div class="flex-1 flex overflow-hidden">
       <!-- Editor Panel -->
       <div :class="editorClasses">
-        <div class="h-full flex flex-col bg-white">
+        <div class="h-full bg-white overflow-y-auto p-6 lg:p-8">
           <!-- Editor with Mention Support -->
-          <div v-if="useMentionInput" class="flex-1 overflow-y-auto">
+          <div v-if="useMentionInput" class="min-h-full">
             <MentionInput
+              ref="mentionInputRef"
               v-model="props.form.content"
-              placeholder="Start writing your story... Type @ to mention someone.
-
-# Your Amazing Title
-
-Write your content here using Markdown. The preview will update in real-time.
-
-**Bold text** and *italic text* are supported.
-
-- Create lists
-- Add links  
-- Include images
-- Mention users with @
-
-> Use quotes for emphasis
-
-```
-Code blocks work too
-```
-
-Focus on your content - everything else fades away."
-              min-height="100%"
-              max-height="none"
-              class="w-full p-6 lg:p-8 text-gray-800 leading-relaxed text-base lg:text-lg"
-              style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
+              placeholder="Start writing your story... Type @ to mention someone."
+              min-height="400px"
+              max-height="2000px"
               @mention-added="handleMentionAdded"
             />
           </div>
-          
+
           <!-- Fallback: Regular Textarea -->
           <textarea
             v-else
             ref="contentTextarea"
             v-model="props.form.content"
             placeholder="Start writing your story..."
-            class="flex-1 w-full p-6 lg:p-8 border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
+            class="w-full min-h-[400px] border-0 resize-none focus:outline-none text-gray-800 leading-relaxed text-base lg:text-lg bg-transparent"
             style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.7;"
             @scroll="syncScroll('editor')"
             @input="autoResizeTextarea"
@@ -957,54 +1223,75 @@ Focus on your content - everything else fades away."
 
       <!-- Preview Panel -->
       <div :class="previewClasses">
-        <div class="h-full bg-white overflow-y-auto" ref="previewContainer" @scroll="syncScroll('preview')">
-          <div class="p-6 lg:p-8">
+        <div class="h-full bg-gradient-to-b from-white to-gray-50 overflow-y-auto" ref="previewContainer" @scroll="syncScroll('preview')">
+          <div class="p-6 lg:p-10 max-w-4xl mx-auto">
+            <!-- Cover Image Preview -->
+            <div v-if="props.form.coverImage" class="mb-8 -mx-6 lg:-mx-10 rounded-none lg:rounded-xl overflow-hidden shadow-lg">
+              <img
+                :src="props.form.coverImage"
+                alt="Cover image"
+                class="w-full h-64 lg:h-96 object-cover"
+                @error="(e) => e.target.parentElement.style.display = 'none'"
+              />
+            </div>
+
             <!-- Preview Header -->
-            <div class="mb-8 pb-6 border-b border-gray-200">
-              <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
+            <div class="mb-10 pb-8 border-b-2 border-gray-200">
+              <h1 class="text-3xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight tracking-tight">
                 {{ props.form.title || 'Untitled Content' }}
               </h1>
-              <p v-if="props.form.description" class="text-xl text-gray-600 leading-relaxed">
+              <p v-if="props.form.description" class="text-xl lg:text-2xl text-gray-600 leading-relaxed font-light">
                 {{ props.form.description }}
               </p>
-              
+
               <!-- Tags Preview -->
-              <div v-if="props.form.tags.length > 0" class="flex flex-wrap gap-2 mt-4">
+              <div v-if="props.form.tags.length > 0" class="flex flex-wrap gap-2 mt-6">
                 <span
                   v-for="tag in props.form.tags"
                   :key="tag"
-                  class="inline-flex items-center space-x-1 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm"
+                  class="inline-flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-1.5 rounded-full text-sm font-medium transition-transform hover:scale-105"
                 >
                   <IconHash class="w-3 h-3" />
                   <span>{{ tag }}</span>
                 </span>
               </div>
             </div>
-            
+
             <!-- Preview Content -->
-            <div class="prose prose-lg max-w-none">
-              <div v-if="props.form.content">
-                <!-- Render with mentions support -->
-                <MentionRenderer
-                  :content="props.form.content"
-                  :show-profile-on-click="true"
-                  @mention-click="handleMentionClick"
-                />
-                <!-- Then render markdown (mentions already processed) -->
-                <div v-html="parseMarkdown(props.form.content)"></div>
+            <article class="prose prose-lg max-w-none" ref="previewContainer">
+              <div v-if="props.form.content" class="content-preview">
+                <!-- Render markdown content with mentions handled inline -->
+                <div class="markdown-content" v-html="parseMarkdown(props.form.content)"></div>
               </div>
-              <div v-else class="text-gray-400 italic text-center py-12">
-                Start writing to see your content preview...
+              <div v-else class="text-gray-400 text-center py-20">
+                <IconEdit class="w-16 h-16 mx-auto mb-6 opacity-30" />
+                <p class="text-xl font-medium mb-2">Start writing your story</p>
+                <p class="text-base">Your preview will appear here as you type</p>
+                <div class="mt-6 flex items-center justify-center space-x-6 text-sm text-gray-500">
+                  <span class="flex items-center space-x-2">
+                    <IconBold class="w-4 h-4" />
+                    <span>Rich formatting</span>
+                  </span>
+                  <span class="flex items-center space-x-2">
+                    <IconAt class="w-4 h-4" />
+                    <span>Mentions</span>
+                  </span>
+                  <span class="flex items-center space-x-2">
+                    <IconPhoto class="w-4 h-4" />
+                    <span>Images & Videos</span>
+                  </span>
+                </div>
               </div>
-            </div>
-            
+            </article>
+
             <!-- Mention Count -->
-            <div v-if="mentionCount > 0" class="mt-6 pt-4 border-t border-gray-200">
-              <div class="flex items-center space-x-2 text-sm text-gray-600">
-                <IconAt class="w-4 h-4 text-orange-500" />
-                <span class="font-medium text-orange-600">{{ mentionCount }} mention{{ mentionCount !== 1 ? 's' : '' }}</span>
-                <span class="text-gray-400">•</span>
-                <span class="text-gray-500">Users will be notified</span>
+            <div v-if="mentionCount > 0" class="mt-10 pt-6 border-t-2 border-gray-200">
+              <div class="flex items-center space-x-3 text-sm">
+                <div class="flex items-center space-x-2 bg-orange-50 text-orange-700 px-4 py-2 rounded-full">
+                  <IconAt class="w-4 h-4" />
+                  <span class="font-semibold">{{ mentionCount }} mention{{ mentionCount !== 1 ? 's' : '' }}</span>
+                </div>
+                <span class="text-gray-500">Users will be notified when published</span>
               </div>
             </div>
           </div>
@@ -1185,6 +1472,23 @@ Focus on your content - everything else fades away."
         </div>
       </div>
     </div>
+
+    <!-- Link Preview Tooltip -->
+    <Teleport to="body">
+      <div
+        v-if="linkPreview.show"
+        class="link-preview-tooltip fixed z-[10000] bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-xl max-w-md truncate"
+        :style="{
+          left: linkPreview.x + 'px',
+          top: linkPreview.y + 'px'
+        }"
+      >
+        <div class="flex items-center space-x-2">
+          <IconLink class="w-4 h-4 flex-shrink-0" />
+          <span class="truncate">{{ linkPreview.url }}</span>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1270,77 +1574,152 @@ textarea {
   color: #374151;
 }
 
-:deep(.prose h1) {
+/* Content preview enhancements */
+:deep(.content-preview) {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Markdown content styling */
+:deep(.markdown-content h1) {
   font-size: 2.25rem;
   line-height: 1.2;
   margin-top: 0;
+  font-weight: 800;
+  color: #111827;
 }
 
-:deep(.prose h2) {
+:deep(.markdown-content h2) {
   font-size: 1.875rem;
   line-height: 1.3;
+  margin-top: 2.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
 }
 
-:deep(.prose h3) {
+:deep(.markdown-content h3) {
   font-size: 1.5rem;
   line-height: 1.4;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: #374151;
 }
 
-:deep(.prose p) {
+:deep(.markdown-content p) {
   margin-bottom: 1.5rem;
-  line-height: 1.7;
+  line-height: 1.8;
+  font-size: 1.125rem;
+  color: #4b5563;
 }
 
-:deep(.prose a) {
+:deep(.markdown-content a) {
   color: #f97316;
   text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s ease;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
 
-:deep(.prose a:hover) {
+:deep(.markdown-content a:hover) {
   border-bottom-color: #f97316;
+  color: #ea580c;
 }
 
-:deep(.prose code) {
-  background-color: #f3f4f6;
-  padding: 0.125rem 0.375rem;
+:deep(.markdown-content code) {
+  background-color: #fef3c7;
+  color: #92400e;
+  padding: 0.2rem 0.4rem;
   border-radius: 0.375rem;
-  font-size: 0.875rem;
+  font-size: 0.9em;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
 }
 
-:deep(.prose pre) {
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 1rem;
+:deep(.markdown-content pre) {
+  background-color: #1f2937;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
   overflow-x: auto;
+  margin: 2rem 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-:deep(.prose blockquote) {
+:deep(.markdown-content pre code) {
+  background: none;
+  color: #e5e7eb;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+:deep(.markdown-content blockquote) {
   border-left: 4px solid #f97316;
-  padding-left: 1rem;
-  margin: 1.5rem 0;
-  background-color: rgba(249, 115, 22, 0.05);
-  padding: 1rem;
-  border-radius: 0.5rem;
+  margin: 2rem 0;
+  background: linear-gradient(to right, rgba(249, 115, 22, 0.05), transparent);
+  padding: 1.25rem 1.5rem;
+  border-radius: 0 0.5rem 0.5rem 0;
   font-style: italic;
+  color: #6b7280;
+  font-size: 1.0625rem;
 }
 
-:deep(.prose ul) {
-  list-style-type: disc;
+:deep(.markdown-content ul),
+:deep(.markdown-content ol) {
+  margin: 1.5rem 0;
   padding-left: 1.5rem;
-  margin-bottom: 1.5rem;
 }
 
-:deep(.prose ol) {
-  list-style-type: decimal;
-  padding-left: 1.5rem;
-  margin-bottom: 1.5rem;
+:deep(.markdown-content li) {
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+  color: #4b5563;
 }
 
-:deep(.prose li) {
-  margin-bottom: 0.5rem;
+:deep(.markdown-content li::marker) {
+  color: #f97316;
+  font-weight: 600;
+}
+
+/* Image styling */
+:deep(.markdown-content img) {
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+:deep(.markdown-content img:hover) {
+  transform: scale(1.02);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Video/iframe styling */
+:deep(.markdown-content iframe),
+:deep(.markdown-content video) {
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Horizontal rule */
+:deep(.markdown-content hr) {
+  margin: 3rem 0;
+  border: none;
+  border-top: 2px solid #e5e7eb;
+}
+
+/* Strikethrough */
+:deep(.markdown-content .line-through) {
+  text-decoration-thickness: 2px;
 }
 
 /* Emoji picker styling */
@@ -1383,5 +1762,48 @@ textarea:focus-visible {
   transition-property: color, background-color, border-color, transform, box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
+}
+
+/* Full height editor for long-form content */
+/* MentionInput styling for blog editor */
+:deep(.mention-input-container) {
+  width: 100%;
+}
+
+:deep(.mention-input-container textarea) {
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.7;
+  font-size: 1.125rem;
+}
+
+@media (max-width: 1024px) {
+  :deep(.mention-input-container textarea) {
+    font-size: 1rem;
+  }
+}
+
+/* Link preview tooltip */
+.link-preview-tooltip {
+  pointer-events: none;
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+
+<style>
+/* Global styles for mention dropdown (unscoped since it's teleported to body) */
+.mention-suggestions-dropdown {
+  z-index: 99999 !important;
 }
 </style>

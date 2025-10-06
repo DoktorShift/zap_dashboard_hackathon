@@ -18,11 +18,11 @@ const props = defineProps({
   },
   minHeight: {
     type: String,
-    default: '120px'
+    default: '200px'
   },
   maxHeight: {
     type: String,
-    default: '400px'
+    default: '600px'
   },
   autoFocus: {
     type: Boolean,
@@ -49,6 +49,23 @@ const selectedIndex = ref(0)
 const searchQuery = ref('')
 const cursorPosition = ref(0)
 
+// Auto-resize functionality
+const autoResize = () => {
+  const textarea = textareaRef.value
+  if (!textarea) return
+  
+  // Reset height to auto to get the correct scrollHeight
+  textarea.style.height = 'auto'
+  
+  // Calculate new height based on content
+  const minHeightPx = parseInt(props.minHeight)
+  const maxHeightPx = parseInt(props.maxHeight)
+  const newHeight = Math.max(minHeightPx, Math.min(textarea.scrollHeight, maxHeightPx))
+  
+  // Set the new height
+  textarea.style.height = newHeight + 'px'
+}
+
 // Computed
 const filteredSuggestions = computed(() => {
   return searchResults.value.slice(0, 8) // Limit to 8 suggestions
@@ -61,6 +78,10 @@ const hasSuggestions = computed(() => {
 // Methods
 const updateValue = (value) => {
   emit('update:modelValue', value)
+  // Auto-resize after value update
+  nextTick(() => {
+    autoResize()
+  })
 }
 
 const handleInput = async (event) => {
@@ -199,13 +220,18 @@ const handleClickOutside = (event) => {
 // Lifecycle
 onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
-  
+
   // Pre-fetch contact list for faster suggestions
   await fetchContactList()
-  
+
   if (props.autoFocus && textareaRef.value) {
     textareaRef.value.focus()
   }
+
+  // Initial auto-resize
+  nextTick(() => {
+    autoResize()
+  })
 })
 
 onUnmounted(() => {
@@ -216,8 +242,51 @@ onUnmounted(() => {
 watch(() => props.modelValue, (newValue) => {
   if (textareaRef.value && textareaRef.value.value !== newValue) {
     textareaRef.value.value = newValue
+    // Auto-resize when external value changes
+    nextTick(() => {
+      autoResize()
+    })
   }
 })
+
+// Watch for prop changes that might affect sizing
+watch([() => props.minHeight, () => props.maxHeight], () => {
+  nextTick(() => {
+    autoResize()
+  })
+})
+
+const getSuggestionsPosition = () => {
+  if (!textareaRef.value) return {}
+
+  const textarea = textareaRef.value
+  const rect = textarea.getBoundingClientRect()
+
+  // Try to position near cursor
+  const cursorPosition = textarea.selectionStart
+  const textBeforeCursor = textarea.value.substring(0, cursorPosition)
+  const lines = textBeforeCursor.split('\n')
+  const currentLineIndex = lines.length - 1
+
+  // Estimate position based on line height
+  const lineHeight = 28 // approximate line height
+  const estimatedTop = rect.top + (currentLineIndex * lineHeight) + lineHeight
+
+  // Check if dropdown would go off bottom of screen
+  const dropdownHeight = 320 // max-h-80 = 320px
+  const spaceBelow = window.innerHeight - estimatedTop
+  const shouldPositionAbove = spaceBelow < dropdownHeight && estimatedTop > dropdownHeight
+
+  const top = shouldPositionAbove
+    ? `${estimatedTop - dropdownHeight - 8}px`
+    : `${estimatedTop + 8}px`
+
+  return {
+    top,
+    left: `${rect.left + 8}px`,
+    width: `${Math.min(rect.width - 16, 400)}px`
+  }
+}
 </script>
 
 <template>
@@ -228,8 +297,14 @@ watch(() => props.modelValue, (newValue) => {
       :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
-      class="w-full border-0 resize-none focus:ring-0 focus:outline-none text-xl placeholder-gray-500 bg-transparent"
-      :style="{ minHeight: minHeight, maxHeight: maxHeight }"
+      class="w-full border-0 resize-none focus:ring-0 focus:outline-none text-gray-800 placeholder-gray-400 bg-transparent overflow-y-auto leading-relaxed text-base lg:text-lg"
+      :style="{
+        minHeight: minHeight,
+        maxHeight: maxHeight,
+        height: 'auto',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+        lineHeight: '1.7'
+      }"
       @input="handleInput"
       @keydown="handleKeyDown"
       @click="handleClick"
@@ -326,27 +401,6 @@ watch(() => props.modelValue, (newValue) => {
     </Teleport>
   </div>
 </template>
-
-<script>
-export default {
-  methods: {
-    getSuggestionsPosition() {
-      if (!this.$refs.textareaRef) return {}
-      
-      const textarea = this.$refs.textareaRef
-      const rect = textarea.getBoundingClientRect()
-      
-      // Position below textarea
-      return {
-        top: `${rect.bottom + 8}px`,
-        left: `${rect.left}px`,
-        width: `${Math.min(rect.width, 400)}px`,
-        maxWidth: '90vw'
-      }
-    }
-  }
-}
-</script>
 
 <style scoped>
 .mention-input-container {
