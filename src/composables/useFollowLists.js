@@ -932,16 +932,26 @@ export function useFollowLists() {
   // Initialize when authenticated
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
+      // Load cached data first for instant UI display
       loadFromStorage()
+      // Then fetch fresh data from relays
       setTimeout(() => {
         fetchMyLists()
         discoverLists()
       }, 1000)
     } else {
-      // Clear data when logged out
-      myLists.value = []
-      discoveredLists.value = []
-      profileCache.clear()
+      // NOTE: We intentionally DO NOT clear cached data on logout
+      // This allows the data to be restored immediately on re-login
+      // The data will be refreshed from relays after authentication
+      // Only close active subscriptions
+      if (myListsSubscription) {
+        myListsSubscription.close()
+        myListsSubscription = null
+      }
+      if (discoveredListsSubscription) {
+        discoveredListsSubscription.close()
+        discoveredListsSubscription = null
+      }
     }
   }, { immediate: true })
 
