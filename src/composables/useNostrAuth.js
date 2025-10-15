@@ -355,67 +355,102 @@ const startUserEventListener = (pubkey) => {
   }
 }
 
+// Check if nostr-login is available
+const checkNostrLoginAvailable = () => {
+  const checks = {
+    windowNostr: typeof window !== 'undefined' && 'nostr' in window,
+    hasNostrLoginScript: !!document.querySelector('script[src*="nostr-login"]'),
+    canDispatchEvents: typeof document !== 'undefined' && typeof CustomEvent !== 'undefined'
+  }
+
+  console.log('🔍 Nostr-login availability check:', checks)
+  return checks
+}
+
 // Login function
 const login = () => {
   return new Promise((resolve, reject) => {
+    console.log('🚀 Login function called')
     isLoading.value = true
     authError.value = ''
-    
+
     // Check if user is already logged in
     if (isAuthenticated.value && currentUser.value) {
-      console.log('User already logged in:', currentUser.value.npub)
+      console.log('✅ User already logged in:', currentUser.value.npub)
       isLoading.value = false
       resolve(currentUser.value)
       return
     }
-    
+
+    // Check nostr-login availability
+    const availability = checkNostrLoginAvailable()
+    if (!availability.hasNostrLoginScript) {
+      console.error('❌ Nostr-login script not found in DOM')
+      authError.value = 'Nostr-login not properly loaded. Please refresh the page.'
+      isLoading.value = false
+      reject(new Error('Nostr-login script not loaded'))
+      return
+    }
+
+    console.log('📡 Setting up authentication flow...')
+
     // Listen for auth events
     const handleAuth = async (event) => {
       try {
-        console.log('Nostr auth event received:', event.detail)
-        
+        console.log('🎉 Nostr auth event received:', {
+          type: event.type,
+          detail: event.detail,
+          hasWindowNostr: !!window.nostr
+        })
+
         if (window.nostr && window.nostr.getPublicKey) {
+          console.log('🔑 Fetching public key from window.nostr...')
           const pubkey = await window.nostr.getPublicKey()
-          console.log('Got pubkey from nostr extension:', pubkey)
-          
+          console.log('✅ Got pubkey from nostr:', pubkey.substring(0, 16) + '...')
+
           // Check if this user is already stored
           const existingUser = localStorage.getItem(NOSTR_USER_KEY)
           if (existingUser) {
             try {
               const userData = JSON.parse(existingUser)
               if (userData.pubkey === pubkey) {
-                console.log('User already exists, using stored data:', userData.npub)
+                console.log('♻️ User already exists, using stored data:', userData.npub)
                 currentUser.value = userData
-                
+
                 // Start listening for user events
                 startUserEventListener(pubkey)
-                
+
                 // Clean up event listener
                 document.removeEventListener('nlAuth', handleAuth)
-                
+
                 resolve(userData)
                 return
+              } else {
+                console.log('🔄 Different user detected, fetching new profile...')
               }
             } catch (error) {
-              console.warn('Failed to parse existing user data:', error)
+              console.warn('⚠️ Failed to parse existing user data:', error)
             }
           }
-          
+
           // Fetch and store profile for new user
+          console.log('📥 Fetching user profile...')
           const userData = await fetchAndStoreProfile(pubkey)
-          
+          console.log('✅ Profile fetched successfully:', userData.npub)
+
           // Start listening for user events
           startUserEventListener(pubkey)
-          
+
           // Clean up event listener
           document.removeEventListener('nlAuth', handleAuth)
-          
+
           resolve(userData)
         } else {
-          throw new Error('Nostr extension not available')
+          console.error('❌ window.nostr not available or missing getPublicKey')
+          throw new Error('Nostr provider not available. Please connect using the nostr-login modal.')
         }
       } catch (error) {
-        console.error('Auth error:', error)
+        console.error('❌ Auth error:', error)
         authError.value = error.message
         document.removeEventListener('nlAuth', handleAuth)
         reject(error)
@@ -423,19 +458,33 @@ const login = () => {
         isLoading.value = false
       }
     }
-    
+
     // Add event listener
+    console.log('👂 Adding nlAuth event listener...')
     document.addEventListener('nlAuth', handleAuth)
-    
+
     // Dispatch login event
+    console.log('🚀 Dispatching nlLaunch event to trigger nostr-login modal...')
     document.dispatchEvent(new Event('nlLaunch'))
-    
+
+    // Log after a short delay to check if modal appeared
+    setTimeout(() => {
+      if (isLoading.value) {
+        console.log('⏳ Waiting for user to complete authentication in nostr-login modal...')
+        console.log('💡 If modal did not appear, check:')
+        console.log('   1. Browser console for nostr-login errors')
+        console.log('   2. If nostr-login CDN is accessible')
+        console.log('   3. If popup blockers are interfering')
+      }
+    }, 1000)
+
     // Timeout after 60 seconds
     setTimeout(() => {
       if (isLoading.value) {
+        console.error('⏰ Login timeout - no response from nostr-login after 60 seconds')
         document.removeEventListener('nlAuth', handleAuth)
         isLoading.value = false
-        authError.value = 'Login timeout - please try again'
+        authError.value = 'Login timeout. The authentication modal may not have appeared. Please try again or check your browser console for errors.'
         reject(new Error('Login timeout'))
       }
     }, 60000)
