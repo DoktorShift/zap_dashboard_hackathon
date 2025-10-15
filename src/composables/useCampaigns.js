@@ -241,6 +241,35 @@ const extractEventId = (zapEvent) => {
   }
 }
 
+// Storage key for campaigns
+const CAMPAIGNS_STORAGE_KEY = 'user_campaigns'
+
+// Load campaigns from localStorage
+const loadCampaignsFromStorage = () => {
+  try {
+    const stored = localStorage.getItem(CAMPAIGNS_STORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      userCampaigns.value = Array.isArray(parsed) ? parsed : []
+      console.log('Loaded campaigns from storage:', userCampaigns.value.length, 'campaigns')
+      return true
+    }
+  } catch (error) {
+    console.error('Failed to load campaigns from storage:', error)
+  }
+  return false
+}
+
+// Save campaigns to localStorage
+const saveCampaignsToStorage = () => {
+  try {
+    localStorage.setItem(CAMPAIGNS_STORAGE_KEY, JSON.stringify(userCampaigns.value))
+    console.log('Saved campaigns to storage:', userCampaigns.value.length, 'campaigns')
+  } catch (error) {
+    console.error('Failed to save campaigns to storage:', error)
+  }
+}
+
 // Load campaign aggregated zaps from localStorage
 const loadCampaignAggregatedZaps = () => {
   try {
@@ -1276,9 +1305,18 @@ export function useCampaigns() {
     }
   })
 
+  // Load cached campaigns and zaps immediately on composable initialization
+  loadCampaignsFromStorage()
+  loadCampaignAggregatedZaps()
+
   // Watch for authentication changes
   watch(auth.isAuthenticated, async (authenticated) => {
     if (authenticated) {
+      // Load cached data first for instant UI display
+      loadCampaignsFromStorage()
+      loadCampaignAggregatedZaps()
+      
+      // Then fetch fresh data from relays
       // Add delays to prevent concurrent request overload
       setTimeout(() => {
         fetchUserCampaigns()
@@ -1319,6 +1357,9 @@ export function useCampaigns() {
       await startCampaignZapAggregation()
     }
   }, { deep: true })
+  
+  // Watch for changes to campaigns and save to storage
+  watch(userCampaigns, saveCampaignsToStorage, { deep: true })
   
   // Watch for changes to campaign aggregated zaps and save to storage
   watch(campaignAggregatedZaps, saveCampaignAggregatedZaps, { deep: true })

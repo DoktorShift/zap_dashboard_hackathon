@@ -533,16 +533,19 @@ const logout = () => {
     // Dispatch logout event
     document.dispatchEvent(new Event('nlLogout'))
     
-    // Clear state
+    // Clear state (but preserve relays)
     currentUser.value = null
     authError.value = ''
-    userRelays.value = []
+    // NOTE: We intentionally DO NOT clear userRelays.value here
+    // Relays should persist across logout/login sessions
     
-    // Clear all Nostr-related localStorage data
+    // Clear authentication-related localStorage data
+    // NOTE: We intentionally preserve user-created content (campaigns, follow packs, relays)
+    // so they can be restored after re-login
     const nostrKeys = [
       // Authentication data
       NOSTR_USER_KEY, // 'nostrUser'
-      NOSTR_RELAYS_KEY, // 'nostrRelays'
+      // NOSTR_RELAYS_KEY is intentionally NOT cleared - relays persist across sessions
       
       // Connection data
       'nostr_connections',
@@ -560,6 +563,13 @@ const logout = () => {
       'user_content_items'
     ]
     
+    // PRESERVE these keys across logout/login:
+    // - 'user_campaigns' (campaigns persist in Nostr relays)
+    // - 'campaign_aggregated_zaps' (zap data for campaigns)
+    // - 'follow_lists_my' (user's follow packs)
+    // - 'follow_lists_discovered' (discovered follow packs)
+    // - 'follow_lists_profiles' (cached profiles for follow pack members)
+    
     nostrKeys.forEach(key => {
       localStorage.removeItem(key)
     })
@@ -568,7 +578,8 @@ const logout = () => {
     initializeNWC(null)
     nostrRelayManager.cleanup()
     
-    console.log('User logged out successfully - cleared all Nostr data from localStorage')
+    console.log('User logged out successfully')
+    console.log('Preserved data: relays, campaigns, follow packs (will be restored on re-login)')
     
     // Reload the page to reset all components
     window.location.reload()
