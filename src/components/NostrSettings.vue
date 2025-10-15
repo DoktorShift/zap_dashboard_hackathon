@@ -306,7 +306,28 @@ const toggleRelaySection = () => {
             <IconUser v-else class="w-4 h-4" />
             {{ (isLoading || loadingStates.login) ? 'Connecting...' : 'Connect with Nostr' }}
           </button>
-          
+
+          <!-- Waiting for Authentication Modal -->
+          <div v-if="isLoading || loadingStates.login" class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex items-start space-x-3">
+              <IconLoader class="w-5 h-5 text-blue-600 animate-spin flex-shrink-0 mt-0.5" />
+              <div class="flex-1">
+                <p class="text-sm font-medium text-blue-900 mb-2">Waiting for authentication...</p>
+                <p class="text-xs text-blue-700 mb-2">
+                  Please complete the login process in the Nostr authentication modal. Take your time!
+                </p>
+                <ul class="text-xs text-blue-600 space-y-1 list-disc list-inside">
+                  <li>Choose your authentication method</li>
+                  <li>Enter your credentials or connect your wallet</li>
+                  <li>The app will wait up to 5 minutes for you to complete login</li>
+                </ul>
+                <p class="text-xs text-blue-500 mt-3 italic">
+                  💡 Check your browser console (F12) for detailed progress
+                </p>
+              </div>
+            </div>
+          </div>
+
           <!-- Auth Error -->
           <div v-if="authError" class="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
             <div class="flex items-center space-x-2">
