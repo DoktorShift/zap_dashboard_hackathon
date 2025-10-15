@@ -26,7 +26,9 @@
 <!--    <link rel="icon" type="image/svg+xml" href="/nwc-logo.svg" />-->
     <link rel="icon" type="image/png" href="/new_logo3.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-       <script
+
+    <!-- Nostr Login Modal -->
+    <script
       src="https://www.unpkg.com/nostr-login@latest/dist/unpkg.js"
       data-dark-mode="true"
       data-theme="default"
@@ -38,7 +40,34 @@
       data-allow-local="true"
       data-methods="connect,extension,local,readOnly"
       data-bunkers="nsec.app,amber"
+      onload="console.log('✅ Nostr-login script loaded successfully')"
+      onerror="console.error('❌ Failed to load nostr-login from CDN')"
     ></script>
+
+    <!-- Nostr-login initialization check -->
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('🔍 Checking nostr-login initialization...')
+        console.log('window.nostr available:', !!window.nostr)
+        console.log('Nostr-login script element:', !!document.querySelector('script[src*="nostr-login"]'))
+
+        // Listen for all nostr-login events for debugging
+        document.addEventListener('nlAuth', (e) => {
+          console.log('🎯 nlAuth event detected:', e.detail)
+        })
+
+        // Check if nostr-login initialized after a delay
+        setTimeout(() => {
+          const nostrLoginLoaded = document.querySelector('script[src*="nostr-login"]')
+          if (nostrLoginLoaded) {
+            console.log('✅ Nostr-login appears to be loaded')
+          } else {
+            console.error('❌ Nostr-login script not found after page load')
+          }
+        }, 1000)
+      })
+    </script>
+
   <script defer src="https://cloud.umami.is/script.js" data-website-id="bca4671b-8a36-4c4e-ba4f-fd5434054bdc"></script>
   </head>
   <body>

@@ -587,46 +587,72 @@ watch(activeConnection, async (newConnection, oldConnection) => {
 
 // Enhanced initialization
 onMounted(async () => {
-  console.log('App mounted, initializing relay manager...')
-  
+  console.log('🚀 App mounted, initializing ZapTracker...')
+
+  // Check nostr-login availability
+  console.log('🔍 Checking nostr-login availability...')
+  const nostrLoginScript = document.querySelector('script[src*="nostr-login"]')
+  if (nostrLoginScript) {
+    console.log('✅ Nostr-login script found in DOM')
+  } else {
+    console.error('❌ Nostr-login script NOT found in DOM - login will not work!')
+  }
+
+  // Check if window.nostr is available (could be from extension or nostr-login)
+  if (window.nostr) {
+    console.log('✅ window.nostr is available')
+    console.log('   - Has getPublicKey:', typeof window.nostr.getPublicKey === 'function')
+    console.log('   - Has signEvent:', typeof window.nostr.signEvent === 'function')
+  } else {
+    console.log('ℹ️ window.nostr not available yet (normal if no extension installed)')
+  }
+
+  // Check authentication state
+  console.log('🔐 Authentication status:', {
+    isAuthenticated: isAuthenticated.value,
+    hasStoredUser: !!localStorage.getItem('nostrUser'),
+    isWalletConnected: isWalletConnected.value
+  })
+
   try {
     // Initialize the relay manager first
     await nostrRelayManager.initialize()
     console.log('✅ Relay manager initialized successfully')
-    
+
     // Initialize content zap tracking
     if (isWalletConnected.value) {
-      console.log('Initializing content zap tracking...')
+      console.log('💰 Initializing content zap tracking...')
       setTimeout(() => {
         initializeZapTracking()
-      }, 2000) // Small delay to ensure relay manager is fully initialized
+      }, 2000)
     }
   } catch (error) {
     console.error('❌ Failed to initialize relay manager:', error)
   }
-  
+
   // Check URL parameters for page navigation
   const urlParams = new URLSearchParams(window.location.search)
   const pageParam = urlParams.get('page')
-  
+
   if (pageParam && components[pageParam]) {
     currentPage.value = pageParam
   }
-  
+
   // Check if we need to show connection modal (only for non-standalone pages)
   if (!isWalletConnected.value && !isStandalonePage.value) {
-    console.log('No wallet connected, showing connection modal')
+    console.log('💳 No wallet connected, showing connection modal')
     showConnectionModal.value = true
   } else if (isWalletConnected.value) {
-    console.log('Wallet already connected, refreshing data...')
-    // Give a moment for everything to initialize
+    console.log('💳 Wallet already connected, refreshing data...')
     setTimeout(() => {
       refreshZapData(true)
     }, 1000)
   }
-  
+
   // Start periodic health check and data refresh
   startPeriodicHealthCheck()
+
+  console.log('✅ ZapTracker initialization complete')
 })
 
 // Periodic health check and data refresh
@@ -1032,7 +1058,7 @@ const handleWritingModeChange = (writingMode) => {
     <!-- Connection Modal - Teleported to modal-root -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showConnectionModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+        <div v-if="showConnectionModal && currentPage === 'wallet'" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
           <div class="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full transform animate-modal-content max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-lg sm:text-xl font-bold text-gray-800">Connect Your Wallet</h2>
