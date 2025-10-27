@@ -45,12 +45,24 @@ const deletingConnection = ref(null)
 
 const newConnectionName = ref('')
 const newConnectionUrl = ref('')
+const newConnectionColor = ref('orange')
 const editConnectionName = ref('')
 const editConnectionUrl = ref('')
+const editConnectionColor = ref('orange')
 
 const formError = ref('')
 const searchQuery = ref('')
 const showAdvanced = ref(false)
+
+// Customization options - Apple-style colors
+const availableColors = [
+  { name: 'Orange', value: 'orange', color: '#FFB84D', bg: 'bg-orange-100', text: 'text-orange-600' },
+  { name: 'Blue', value: 'blue', color: '#64B5F6', bg: 'bg-blue-100', text: 'text-blue-600' },
+  { name: 'Green', value: 'green', color: '#81C784', bg: 'bg-green-100', text: 'text-green-600' },
+  { name: 'Purple', value: 'purple', color: '#BA68C8', bg: 'bg-purple-100', text: 'text-purple-600' },
+  { name: 'Pink', value: 'pink', color: '#F48FB1', bg: 'bg-pink-100', text: 'text-pink-600' },
+  { name: 'Yellow', value: 'yellow', color: '#FFD54F', bg: 'bg-yellow-100', text: 'text-yellow-600' }
+]
 
 // Filter connections based on search
 const filteredConnections = computed(() => {
@@ -68,6 +80,7 @@ const openAddForm = () => {
   showAddForm.value = true
   newConnectionName.value = ''
   newConnectionUrl.value = ''
+  newConnectionColor.value = 'orange'
   formError.value = ''
 }
 
@@ -75,6 +88,7 @@ const closeAddForm = () => {
   showAddForm.value = false
   newConnectionName.value = ''
   newConnectionUrl.value = ''
+  newConnectionColor.value = 'orange'
   formError.value = ''
 }
 
@@ -82,6 +96,7 @@ const openEditForm = (connection) => {
   editingConnection.value = connection
   editConnectionName.value = connection.name
   editConnectionUrl.value = connection.nwcUrl
+  editConnectionColor.value = connection.color || 'orange'
   showEditForm.value = true
   formError.value = ''
 }
@@ -91,6 +106,7 @@ const closeEditForm = () => {
   editingConnection.value = null
   editConnectionName.value = ''
   editConnectionUrl.value = ''
+  editConnectionColor.value = 'orange'
   formError.value = ''
 }
 
@@ -107,11 +123,12 @@ const closeDeleteConfirm = () => {
 // Simplified actions
 const handleAddConnection = async () => {
   formError.value = ''
-  
+
   try {
     const connection = addConnection(newConnectionName.value, newConnectionUrl.value)
+    connection.color = newConnectionColor.value
     closeAddForm()
-    
+
     if (connections.value.length === 1) {
       await setActiveConnection(connection.id)
     }
@@ -122,9 +139,10 @@ const handleAddConnection = async () => {
 
 const handleEditConnection = () => {
   formError.value = ''
-  
+
   try {
     editConnection(editingConnection.value.id, editConnectionName.value, editConnectionUrl.value)
+    editingConnection.value.color = editConnectionColor.value
     closeEditForm()
   } catch (error) {
     formError.value = error.message
@@ -176,6 +194,11 @@ const formatDate = (dateString) => {
     day: 'numeric'
   })
 }
+
+const getColorClasses = (colorValue) => {
+  const color = availableColors.find(c => c.value === colorValue) || availableColors[0]
+  return { bg: color.bg, text: color.text }
+}
 </script>
 
 <template>
@@ -221,9 +244,9 @@ const formatDate = (dateString) => {
           <div class="flex items-center gap-3 flex-1 min-w-0">
             <div :class="[
               'w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0',
-              connection.isActive ? 'bg-orange-100' : 'bg-gray-100'
+              connection.isActive ? getColorClasses(connection.color || 'orange').bg : 'bg-gray-100'
             ]">
-              <IconBolt :class="['w-5 h-5', connection.isActive ? 'text-orange-600' : 'text-gray-400']" />
+              <IconBolt :class="['w-5 h-5', connection.isActive ? getColorClasses(connection.color || 'orange').text : 'text-gray-400']" />
             </div>
 
             <div class="flex-1 min-w-0">
@@ -410,7 +433,7 @@ const formatDate = (dateString) => {
                   class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
                 />
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Connection String</label>
                 <input
@@ -422,6 +445,27 @@ const formatDate = (dateString) => {
                 <p class="text-xs text-gray-500 mt-1">
                   Get this from your wallet's NWC settings
                 </p>
+              </div>
+
+              <!-- Color Selection -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-3">Color</label>
+                <div class="flex items-center gap-3">
+                  <button
+                    v-for="color in availableColors"
+                    :key="color.value"
+                    @click="newConnectionColor = color.value"
+                    type="button"
+                    :style="{ backgroundColor: color.color }"
+                    :class="[
+                      'w-8 h-8 rounded-full transition-all duration-200',
+                      newConnectionColor === color.value
+                        ? 'ring-2 ring-offset-2 ring-gray-900 scale-110'
+                        : 'hover:scale-105'
+                    ]"
+                    :title="color.name"
+                  ></button>
+                </div>
               </div>
               
               <!-- Error Message -->
@@ -474,7 +518,7 @@ const formatDate = (dateString) => {
                   class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
                 />
               </div>
-              
+
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Connection String</label>
                 <input
@@ -482,6 +526,27 @@ const formatDate = (dateString) => {
                   type="password"
                   class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
                 />
+              </div>
+
+              <!-- Color Selection -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-3">Color</label>
+                <div class="flex items-center gap-3">
+                  <button
+                    v-for="color in availableColors"
+                    :key="color.value"
+                    @click="editConnectionColor = color.value"
+                    type="button"
+                    :style="{ backgroundColor: color.color }"
+                    :class="[
+                      'w-8 h-8 rounded-full transition-all duration-200',
+                      editConnectionColor === color.value
+                        ? 'ring-2 ring-offset-2 ring-gray-900 scale-110'
+                        : 'hover:scale-105'
+                    ]"
+                    :title="color.name"
+                  ></button>
+                </div>
               </div>
               
               <div v-if="formError" class="bg-red-50 border border-red-200 rounded-lg p-3">
