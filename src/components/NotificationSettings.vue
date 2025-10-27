@@ -117,30 +117,6 @@ const handleDesktopToggle = async (enabled) => {
           </div>
         </div>
 
-        <!-- Zaps Sent -->
-        <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-gradient-to-br from-amber-100 to-amber-50 rounded-xl flex items-center justify-center">
-                <IconBolt class="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <h5 class="font-medium text-gray-900">Outgoing Payments</h5>
-                <p class="text-sm text-gray-600">When you send zaps or payments</p>
-              </div>
-            </div>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                v-model="notificationSettings.zapSent"
-                :disabled="!notificationSettings.enabled"
-                class="sr-only peer"
-              />
-              <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-200 peer-checked:after:translate-x-5 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-amber-500 peer-checked:to-amber-600 peer-disabled:opacity-50 shadow-inner"></div>
-            </label>
-          </div>
-        </div>
-
         <!-- Balance Changes -->
         <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
           <div class="flex items-center justify-between">
