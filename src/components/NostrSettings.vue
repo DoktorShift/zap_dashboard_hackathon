@@ -183,6 +183,11 @@ const getUserAvatar = () => {
          'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
 }
 
+// Get user banner
+const getUserBanner = () => {
+  return userProfile.value?.banner || null
+}
+
 // Get short npub for display
 const getShortNpub = () => {
   if (!currentUser.value?.npub) return ''
@@ -248,8 +253,16 @@ const toggleRelaySection = () => {
     <div v-else class="space-y-5">
       <!-- Profile Card -->
       <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        <!-- Compact Header -->
-        <div class="h-24 sm:h-28 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600"></div>
+        <!-- Compact Header with Banner Support -->
+        <div class="h-24 sm:h-28 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 relative overflow-hidden">
+          <img
+            v-if="getUserBanner()"
+            :src="getUserBanner()"
+            alt="Profile banner"
+            class="absolute inset-0 w-full h-full object-cover"
+            @error="$event.target.style.display = 'none'"
+          />
+        </div>
 
         <!-- Profile Content -->
         <div class="px-5 sm:px-6 pb-6">
