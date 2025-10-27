@@ -387,11 +387,14 @@ const formatDate = (dateString) => {
     <!-- Add Connection Modal - Teleported to modal-root -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showAddForm" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-          <div class="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
+        <div v-if="showAddForm" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex items-center justify-between mb-5">
               <h3 class="text-lg font-semibold text-gray-900">Add Connection</h3>
-              <button @click="closeAddForm" class="text-gray-500 hover:text-gray-700">
+              <button
+                @click="closeAddForm"
+                class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <IconX class="w-5 h-5" />
               </button>
             </div>
@@ -426,10 +429,20 @@ const formatDate = (dateString) => {
                 <p class="text-sm text-red-600">{{ formError }}</p>
               </div>
               
-              <!-- Simplified Actions -->
-              <div class="flex flex-col sm:flex-row items-center justify-end space-y-3 sm:space-y-0 sm:space-x-3 mt-6">
-                <button @click="closeAddForm" class="btn-secondary flex-1">Cancel</button>
-                <button @click="handleAddConnection" class="btn-primary flex-1">Add</button>
+              <!-- Actions -->
+              <div class="flex flex-col-reverse sm:flex-row gap-3 mt-6">
+                <button
+                  @click="closeAddForm"
+                  class="w-full sm:flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  @click="handleAddConnection"
+                  class="w-full sm:flex-1 px-4 py-3 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors"
+                >
+                  Add Connection
+                </button>
               </div>
             </div>
           </div>
@@ -440,11 +453,14 @@ const formatDate = (dateString) => {
     <!-- Edit Connection Modal - Teleported to modal-root -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showEditForm" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-          <div class="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
+        <div v-if="showEditForm" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex items-center justify-between mb-5">
               <h3 class="text-lg font-semibold text-gray-900">Edit Connection</h3>
-              <button @click="closeEditForm" class="text-gray-500 hover:text-gray-700">
+              <button
+                @click="closeEditForm"
+                class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
                 <IconX class="w-5 h-5" />
               </button>
             </div>
@@ -472,9 +488,19 @@ const formatDate = (dateString) => {
                 <p class="text-sm text-red-600">{{ formError }}</p>
               </div>
               
-              <div class="flex space-x-3 pt-2">
-                <button @click="closeEditForm" class="btn-secondary flex-1">Cancel</button>
-                <button @click="handleEditConnection" class="btn-primary flex-1">Save</button>
+              <div class="flex flex-col-reverse sm:flex-row gap-3 mt-6">
+                <button
+                  @click="closeEditForm"
+                  class="w-full sm:flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  @click="handleEditConnection"
+                  class="w-full sm:flex-1 px-4 py-3 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors"
+                >
+                  Save Changes
+                </button>
               </div>
             </div>
           </div>
@@ -485,15 +511,15 @@ const formatDate = (dateString) => {
     <!-- Delete Confirmation Modal - Teleported to modal-root -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-          <div class="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div class="flex items-center space-x-3 mb-4">
-              <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+        <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full shadow-2xl">
+            <div class="flex items-start gap-3 mb-5">
+              <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <IconTrash class="w-5 h-5 text-red-600" />
               </div>
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900">Delete Connection</h3>
-                <p class="text-gray-600 text-sm">This cannot be undone.</p>
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Delete Connection</h3>
+                <p class="text-gray-500 text-sm">This action cannot be undone.</p>
               </div>
             </div>
             
@@ -503,10 +529,18 @@ const formatDate = (dateString) => {
               </p>
             </div>
             
-            <div class="flex space-x-3">
-              <button @click="closeDeleteConfirm" class="btn-secondary flex-1">Cancel</button>
-              <button @click="handleDeleteConnection" class="bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors flex-1">
-                Delete
+            <div class="flex flex-col-reverse sm:flex-row gap-3">
+              <button
+                @click="closeDeleteConfirm"
+                class="w-full sm:flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                @click="handleDeleteConnection"
+                class="w-full sm:flex-1 px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                Delete Connection
               </button>
             </div>
           </div>
