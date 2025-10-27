@@ -49,95 +49,9 @@
 
           <!-- Scrollable Content -->
           <div class="overflow-y-auto max-h-[calc(90vh-220px)] sm:max-h-[calc(90vh-180px)] scrollbar-thin">
-            <!-- Live Preview Section (Hidden by Default) -->
-            <div v-if="showPreview" class="p-6 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
-              <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-                  <IconEye class="w-5 h-5 text-orange-500" />
-                  <span>Live Preview</span>
-                </h2>
-                <button
-                  @click="showPreview = false"
-                  class="text-xs text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full transition-colors"
-                >
-                  Hide Preview
-                </button>
-              </div>
-              
-              <!-- Enhanced Preview Card -->
-              <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden transform hover:scale-[1.02] transition-transform duration-200">
-                <!-- Banner -->
-                <div class="h-24 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 relative">
-                  <div v-if="form.banner" class="absolute inset-0">
-                    <img 
-                      :src="form.banner" 
-                      alt="Banner preview" 
-                      class="w-full h-full object-cover opacity-90"
-                      @error="form.banner = ''"
-                    />
-                  </div>
-                  <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                </div>
-                
-                <!-- Profile Info -->
-                <div class="px-6 pb-6 -mt-8 relative">
-                  <div class="flex items-end space-x-3">
-                    <!-- Avatar -->
-                    <div class="w-16 h-16 rounded-xl ring-4 ring-white overflow-hidden bg-white shadow-xl">
-                      <img 
-                        :src="getPreviewAvatar" 
-                        :alt="form.name || 'Profile preview'" 
-                        class="w-full h-full object-cover"
-                        @error="handleImageError"
-                      />
-                    </div>
-                    
-                    <!-- Profile Details -->
-                    <div class="flex-1 min-w-0 pt-3">
-                      <h3 class="text-xl font-bold text-gray-900 truncate">
-                        {{ form.name || 'Your Name' }}
-                      </h3>
-                      <p v-if="form.display_name" class="text-gray-600 text-sm truncate">
-                        {{ form.display_name }}
-                      </p>
-                      <p v-if="form.about" class="text-gray-500 text-sm mt-2 line-clamp-2 leading-relaxed">
-                        {{ form.about }}
-                      </p>
-                      
-                      <!-- Status Badges -->
-                      <div class="flex flex-wrap gap-2 mt-3">
-                        <span v-if="form.lud16" class="inline-flex items-center px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium shadow-sm">
-                          <IconBolt class="w-3 h-3 mr-1" />
-                          Zap Ready
-                        </span>
-                        <span v-if="form.nip05" class="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium shadow-sm">
-                          <IconShield class="w-3 h-3 mr-1" />
-                          Verified
-                        </span>
-                        <span v-if="form.website" class="inline-flex items-center px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium shadow-sm">
-                          <IconGlobe class="w-3 h-3 mr-1" />
-                          Website
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
             <!-- Form Content -->
             <div class="p-5 sm:p-6 space-y-6">
-              <!-- Show Preview Toggle -->
-              <div v-if="!showPreview" class="flex justify-center">
-                <button
-                  @click="showPreview = true"
-                  class="inline-flex items-center space-x-2 text-sm text-gray-600 hover:text-orange-600 bg-gray-50 hover:bg-orange-50 px-4 py-2 rounded-lg transition-colors"
-                >
-                  <IconEye class="w-4 h-4" />
-                  <span>Show Live Preview</span>
-                </button>
-              </div>
-              
+
               <!-- Lightning Address - Priority Section -->
               <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-200">
                 <div class="flex items-start space-x-3 mb-3">
@@ -392,18 +306,17 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { 
+import {
   IconUser,
   IconDeviceFloppy,
-  IconX, 
-  IconCheck, 
+  IconX,
+  IconCheck,
   IconAlertTriangle,
   IconLoader,
   IconBolt,
   IconGlobe,
   IconPhoto,
-  IconShield,
-  IconEye
+  IconShield
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
@@ -442,7 +355,6 @@ const form = ref({
 const isLoading = ref(false)
 const error = ref('')
 const success = ref(false)
-const showPreview = ref(false)
 
 // Field-specific error tracking
 const fieldErrors = ref({
@@ -579,19 +491,6 @@ const isFormValid = computed(() => {
   const hasErrors = Object.values(fieldErrors.value).some(error => error !== '');
   return hasName && !hasErrors;
 });
-
-// Preview avatar with fallback
-const getPreviewAvatar = computed(() => {
-  return form.value.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1';
-});
-
-// Handle image loading errors
-const handleImageError = () => {
-  // Reset to fallback if image fails to load
-  if (form.value.picture) {
-    fieldErrors.value.picture = 'Image URL could not be loaded';
-  }
-};
 
 // Save profile to Nostr network
 const saveProfile = async () => {
