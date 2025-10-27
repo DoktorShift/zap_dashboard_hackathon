@@ -54,28 +54,30 @@ watch(() => props.initialTab, (newTab) => {
     
     <!-- Settings Tabs -->
     <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-      <!-- Tab Navigation -->
-      <div class="border-b border-orange-100/50">
-        <nav class="flex space-x-8 px-6" aria-label="Settings tabs">
+      <!-- Tab Navigation - Swipeable on Mobile -->
+      <div class="border-b border-gray-100">
+        <nav class="flex space-x-1 px-4 sm:px-6 overflow-x-auto scrollbar-hide" aria-label="Settings tabs">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             @click="activeTab = tab.id"
             :class="[
-              'flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200',
+              'flex items-center space-x-2 py-3 px-4 font-medium text-sm whitespace-nowrap transition-all duration-200 relative flex-shrink-0',
               activeTab === tab.id
-                ? 'border-orange-400 text-orange-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'text-orange-600'
+                : 'text-gray-500 hover:text-gray-700'
             ]"
           >
-            <component :is="tab.icon" class="w-4 h-4" />
+            <component :is="tab.icon" class="w-5 h-5" />
             <span>{{ tab.label }}</span>
+            <!-- Active indicator -->
+            <div v-if="activeTab === tab.id" class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-400 to-orange-600"></div>
           </button>
         </nav>
       </div>
       
       <!-- Tab Content -->
-      <div class="p-6">
+      <div class="p-4 sm:p-6">
         <!-- Nostr Settings -->
         <div v-if="activeTab === 'nostr'">
           <NostrSettings @change-page="emit('change-page', $event)" />
@@ -117,3 +119,21 @@ watch(() => props.initialTab, (newTab) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Hide scrollbar for mobile swipe navigation */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth scroll behavior for tabs */
+nav {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+</style>

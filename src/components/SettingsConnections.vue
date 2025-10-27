@@ -179,14 +179,26 @@ const formatDate = (dateString) => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Simplified Header -->
-    <div>
-      <h2 class="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-        <IconBolt class="w-5 h-5 text-orange-600" />
-        <span>Wallet Connections</span>
-      </h2>
-      <p class="text-gray-600 text-sm mt-1">{{ connections.length }} connection{{ connections.length !== 1 ? 's' : '' }}</p>
+  <div class="space-y-4 sm:space-y-6">
+    <!-- Simplified Header with Action -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-lg sm:text-xl font-semibold text-gray-900 flex items-center space-x-2">
+          <IconBolt class="w-5 h-5 text-orange-600" />
+          <span>Wallet Connections</span>
+        </h2>
+        <p class="text-gray-600 text-sm mt-1">{{ connections.length }} connection{{ connections.length !== 1 ? 's' : '' }}</p>
+      </div>
+
+      <!-- Add Button (Mobile & Desktop) -->
+      <button
+        v-if="filteredConnections.length > 0"
+        @click="openAddForm"
+        class="btn-primary text-sm flex-shrink-0"
+      >
+        <IconPlus class="w-4 h-4" />
+        <span class="hidden sm:inline">Add Connection</span>
+      </button>
     </div>
 
     <!-- Simplified Search (only show if more than 3 connections) -->
@@ -201,104 +213,130 @@ const formatDate = (dateString) => {
     </div>
 
     <!-- Simplified Connection List -->
-    <div class="space-y-3">
+    <div class="space-y-2">
       <div
         v-for="connection in filteredConnections"
         :key="connection.id"
-        class="bg-white/90 backdrop-blur-sm border border-orange-100/50 rounded-xl p-4 hover:shadow-md transition-all duration-200"
+        class="bg-white border border-gray-100 rounded-xl p-3 sm:p-4 hover:shadow-sm hover:border-gray-200 transition-all duration-200 group"
       >
         <!-- Main Connection Row -->
-        <div class="flex items-center justify-between">
+        <div class="flex items-start sm:items-center justify-between gap-3">
           <!-- Left: Status + Name -->
-          <div class="flex items-center space-x-3 flex-1 min-w-0">
+          <div class="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
             <!-- Simplified Status Indicator -->
             <div :class="[
-              'w-3 h-3 rounded-full flex-shrink-0',
-              connection.isActive ? 'bg-green-400 animate-pulse' : 'bg-gray-300'
+              'w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full flex-shrink-0 mt-1.5 sm:mt-0',
+              connection.isActive ? 'bg-green-400' : 'bg-gray-300'
             ]"></div>
-            
-            <!-- Connection Name with Default Star -->
-            <div class="flex items-center space-x-2 min-w-0">
-              <h3 class="font-medium text-gray-900 truncate">{{ connection.name }}</h3>
-              
-              <!-- Simplified Default Star -->
-              <button
-                @click="handleSetDefault(connection)"
-                :class="[
-                  'flex-shrink-0 transition-all duration-200',
-                  connection.isDefault 
-                    ? 'text-amber-400 hover:text-amber-500' 
-                    : 'text-gray-300 hover:text-amber-300'
-                ]"
-                :title="connection.isDefault ? 'Default connection (used for auto-connect)' : 'Set as default connection'"
-              >
-                <IconStarFilled v-if="connection.isDefault" class="w-4 h-4 drop-shadow-sm" />
-                <IconStar v-else class="w-4 h-4" />
-              </button>
+
+            <!-- Connection Details -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center space-x-2">
+                <h3 class="font-medium text-gray-900 truncate text-sm sm:text-base">{{ connection.name }}</h3>
+
+                <!-- Simplified Default Star -->
+                <button
+                  @click="handleSetDefault(connection)"
+                  :class="[
+                    'flex-shrink-0 transition-all duration-200 opacity-0 group-hover:opacity-100',
+                    connection.isDefault && 'opacity-100'
+                  ]"
+                  :title="connection.isDefault ? 'Default connection' : 'Set as default'"
+                >
+                  <IconStarFilled v-if="connection.isDefault" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+                  <IconStar v-else class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300 hover:text-amber-300" />
+                </button>
+              </div>
+
+              <!-- Mobile: Show truncated URL -->
+              <code class="text-xs text-gray-400 truncate block sm:hidden mt-0.5 font-mono">
+                {{ truncateUrl(connection.nwcUrl, 25) }}
+              </code>
             </div>
           </div>
           
           <!-- Right: Actions -->
-          <div class="flex items-center space-x-2 flex-shrink-0">
+          <div class="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 flex-shrink-0">
             <!-- Primary Action Button -->
             <button
               v-if="!connection.isActive"
               @click="handleActivateConnection(connection)"
               :disabled="isLoadingConnection"
-              class="btn-secondary text-sm"
+              class="px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 whitespace-nowrap min-h-[44px] sm:min-h-0 w-full sm:w-auto flex items-center justify-center gap-1.5"
             >
               <IconWifi class="w-4 h-4" />
-              Connect
+              <span>Connect</span>
             </button>
-            
+
             <button
               v-else
               @click="clearActiveConnection"
-              class="btn-secondary text-sm text-red-600 hover:text-red-700 hover:bg-red-50"
+              class="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap min-h-[44px] sm:min-h-0 w-full sm:w-auto flex items-center justify-center gap-1.5"
             >
               <IconWifiOff class="w-4 h-4" />
-              Disconnect
+              <span>Disconnect</span>
             </button>
-            
-            <!-- Secondary Actions (Progressive Disclosure) -->
-            <div class="flex items-center space-x-1">
+
+            <!-- Secondary Actions (Hidden on Mobile in Favor of Swipe) -->
+            <div class="hidden sm:flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 @click="openEditForm(connection)"
                 class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Edit connection"
+                title="Edit"
               >
                 <IconEdit class="w-4 h-4" />
               </button>
-              
+
               <button
                 @click="openDeleteConfirm(connection)"
                 class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Delete connection"
+                title="Delete"
               >
                 <IconTrash class="w-4 h-4" />
+              </button>
+            </div>
+
+            <!-- Mobile Action Menu -->
+            <div class="flex sm:hidden items-center space-x-1 w-full mt-2">
+              <button
+                @click="openEditForm(connection)"
+                class="flex-1 p-2 text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center gap-1 min-h-[44px]"
+                title="Edit"
+              >
+                <IconEdit class="w-4 h-4" />
+                <span class="text-xs">Edit</span>
+              </button>
+
+              <button
+                @click="openDeleteConfirm(connection)"
+                class="flex-1 p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors flex items-center justify-center gap-1 min-h-[44px]"
+                title="Delete"
+              >
+                <IconTrash class="w-4 h-4" />
+                <span class="text-xs">Delete</span>
               </button>
             </div>
           </div>
         </div>
         
-        <!-- Expandable Details (Progressive Disclosure) -->
-        <div class="mt-3 pt-3 border-t border-gray-100">
+        <!-- Desktop Details (Hidden on Mobile) -->
+        <div class="hidden sm:block mt-3 pt-3 border-t border-gray-50">
           <div class="flex items-center justify-between text-sm">
             <div class="flex items-center space-x-2 min-w-0">
-              <code class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded truncate max-w-xs">
-                {{ truncateUrl(connection.nwcUrl) }}
+              <code class="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded truncate max-w-xs font-mono">
+                {{ truncateUrl(connection.nwcUrl, 40) }}
               </code>
               <button
                 @click="copyToClipboard(connection.nwcUrl)"
-                class="text-gray-400 hover:text-gray-600 transition-colors"
+                class="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
                 title="Copy URL"
               >
-                <IconCopy class="w-3 h-3" />
+                <IconCopy class="w-3.5 h-3.5" />
               </button>
             </div>
-            
-            <span class="text-xs text-gray-500 flex-shrink-0">
-              {{ formatDate(connection.lastUsed) }}
+
+            <span class="text-xs text-gray-400 flex-shrink-0">
+              Last used: {{ formatDate(connection.lastUsed) }}
             </span>
           </div>
         </div>
