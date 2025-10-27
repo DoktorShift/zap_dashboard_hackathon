@@ -3,6 +3,16 @@ import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import * as nip19 from 'nostr-tools/nip19'
+
+// Define props and emits for Vue 3
+const props = defineProps({
+  initialTab: {
+    type: String,
+    default: undefined
+  }
+})
+
+const emit = defineEmits(['changePage', 'writingModeChange'])
 import {
   IconFileText, 
   IconPlus, 
@@ -47,6 +57,7 @@ const {
   selectedNote,
   editingNote,
   isLoading,
+  isFetchingNotes,
   error,
   publishNote,
   updateNote,
@@ -588,7 +599,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
         <!-- Notes List -->
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
           <!-- Loading State -->
-          <div v-if="isLoading && notes.length === 0" class="p-8 text-center">
+          <div v-if="isFetchingNotes && notes.length === 0" class="p-8 text-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
             <h3 class="text-lg font-semibold text-gray-900 mb-2">Loading your notes...</h3>
             <p class="text-gray-600">Fetching notes from the Nostr network</p>

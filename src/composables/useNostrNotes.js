@@ -6,10 +6,12 @@ import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 
 // Global state for notes
 const notes = ref([])
+const isFetchingNotes = ref(false)
 const isLoading = ref(false)
 const error = ref('')
 let currentSubscription = null // Track current subscription
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
+let fetchTimeout = null // Track fetch timeout
 
 // Note form state
 const noteForm = reactive({
@@ -83,8 +85,21 @@ export function useNostrNotes() {
       return
     }
 
-    isLoading.value = true
+    isFetchingNotes.value = true
     error.value = ''
+
+    // Clear any existing timeout
+    if (fetchTimeout) {
+      clearTimeout(fetchTimeout)
+    }
+
+    // Set a timeout to force-reset loading state after 15 seconds
+    fetchTimeout = setTimeout(() => {
+      if (isFetchingNotes.value) {
+        console.warn('⏰ Fetch timeout: EOSE not received after 15 seconds, resetting loading state')
+        isFetchingNotes.value = false
+      }
+    }, 15000)
 
     try {
       console.log('Fetching notes for user:', currentUser.value.pubkey.substring(0, 8) + '...')
@@ -173,11 +188,19 @@ export function useNostrNotes() {
         },
         oneose: () => {
           console.log('End of stored notes events')
-          isLoading.value = false
+          isFetchingNotes.value = false
+          if (fetchTimeout) {
+            clearTimeout(fetchTimeout)
+            fetchTimeout = null
+          }
         },
         onclose: (reason) => {
           console.log('Notes subscription closed:', reason)
-          isLoading.value = false
+          isFetchingNotes.value = false
+          if (fetchTimeout) {
+            clearTimeout(fetchTimeout)
+            fetchTimeout = null
+          }
         }
       })
 
@@ -187,7 +210,11 @@ export function useNostrNotes() {
     } catch (err) {
       console.error('Failed to fetch notes:', err)
       error.value = 'Failed to fetch notes: ' + err.message
-      isLoading.value = false
+      isFetchingNotes.value = false
+      if (fetchTimeout) {
+        clearTimeout(fetchTimeout)
+        fetchTimeout = null
+      }
     }
   }
 
@@ -615,7 +642,13 @@ export function useNostrNotes() {
       currentSubscription = null
     }
     processedEventIds.clear() // Clear processed event IDs
-    
+
+    // Clear fetch timeout
+    if (fetchTimeout) {
+      clearTimeout(fetchTimeout)
+      fetchTimeout = null
+    }
+
     // Clear cleanup interval
     if (window.notesCleanupInterval) {
       clearInterval(window.notesCleanupInterval)
@@ -704,6 +737,7 @@ export function useNostrNotes() {
     selectedNote,
     editingNote,
     isLoading,
+    isFetchingNotes,
     error,
 
     // Actions
