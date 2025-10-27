@@ -734,15 +734,20 @@ const extractTextFromArray = (noteArray) => {
       </div>
     </div>
 
-    <!-- Create Invoice Modal -->
-    <div v-if="showCreateInvoice" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Create Invoice</h3>
-          <button @click="closeCreateInvoice" class="text-gray-500 hover:text-gray-700">
-            <IconX class="w-5 h-5" />
-          </button>
-        </div>
+    <!-- Create Invoice Modal - Bottom Sheet -->
+    <Teleport to="body">
+      <transition name="modal-transition">
+        <div v-if="showCreateInvoice" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+              <h3 class="text-lg font-semibold text-gray-900">Create Invoice</h3>
+              <button
+                @click="closeCreateInvoice"
+                class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
         
         <div v-if="!createdInvoice" class="space-y-4">
           <div>
@@ -833,18 +838,25 @@ const extractTextFromArray = (noteArray) => {
             </p>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Send Payment Modal -->
-    <div v-if="showSendPayment" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Send Payment</h3>
-          <button @click="closeSendPayment" class="text-gray-500 hover:text-gray-700">
-            <IconX class="w-5 h-5" />
-          </button>
+          </div>
         </div>
+      </transition>
+    </Teleport>
+
+    <!-- Send Payment Modal - Bottom Sheet -->
+    <Teleport to="body">
+      <transition name="modal-transition">
+        <div v-if="showSendPayment" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+              <h3 class="text-lg font-semibold text-gray-900">Send Payment</h3>
+              <button
+                @click="closeSendPayment"
+                class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
         
         <div v-if="paymentStatus === 'success'" class="text-center">
           <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -890,18 +902,25 @@ const extractTextFromArray = (noteArray) => {
             <p class="text-sm text-red-600">{{ error }}</p>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- QR Scanner Modal -->
-    <div v-if="showQrScanner" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Scan QR Code</h3>
-          <button @click="closeQrScanner" class="text-gray-500 hover:text-gray-700">
-            <IconX class="w-5 h-5" />
-          </button>
+          </div>
         </div>
+      </transition>
+    </Teleport>
+
+    <!-- QR Scanner Modal - Bottom Sheet -->
+    <Teleport to="body">
+      <transition name="modal-transition">
+        <div v-if="showQrScanner" class="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+              <h3 class="text-lg font-semibold text-gray-900">Scan QR Code</h3>
+              <button
+                @click="closeQrScanner"
+                class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
         
         <div class="space-y-4">
           <!-- Camera Permission Check -->
@@ -959,8 +978,10 @@ const extractTextFromArray = (noteArray) => {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
@@ -1144,6 +1165,29 @@ const extractTextFromArray = (noteArray) => {
   .wallet-feature-card,
   .wallet-info-card {
     border-width: 2px;
+  }
+}
+
+/* Modal Transitions - Apple Style */
+.modal-transition-enter-active,
+.modal-transition-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-transition-enter-from,
+.modal-transition-leave-to {
+  opacity: 0;
+}
+
+.modal-transition-enter-from .bg-white,
+.modal-transition-leave-to .bg-white {
+  transform: translateY(100%);
+}
+
+@media (min-width: 640px) {
+  .modal-transition-enter-from .bg-white,
+  .modal-transition-leave-to .bg-white {
+    transform: scale(0.95) translateY(-20px);
   }
 }
 </style>
