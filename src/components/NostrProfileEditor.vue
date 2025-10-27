@@ -2,9 +2,9 @@
   <!-- Modal Overlay with Apple-inspired backdrop -->
   <Teleport to="#modal-root">
     <transition name="modal-fade" appear>
-      <div 
+      <div
         v-if="show"
-        class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        class="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-md"
         @click="handleBackdropClick"
         @keydown.escape="handleCancel"
         tabindex="-1"
@@ -13,13 +13,13 @@
         aria-labelledby="profile-editor-title"
       >
         <!-- Modal Container -->
-        <div 
+        <div
           ref="modalRef"
-          class="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300"
+          class="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300"
           @click.stop
         >
           <!-- Header with ZapTracker Branding -->
-          <div class="relative bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 px-6 py-6">
+          <div class="relative bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 px-5 sm:px-6 py-5 sm:py-6">
             <!-- Subtle pattern overlay -->
             <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
             
@@ -39,7 +39,7 @@
               <!-- Close Button -->
               <button
                 @click="handleCancel"
-                class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-110 hover:rotate-90 touch-target"
+                class="w-10 h-10 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-xl flex items-center justify-center transition-colors touch-target"
                 aria-label="Close profile editor"
               >
                 <IconX class="w-5 h-5 text-white" />
@@ -48,7 +48,7 @@
           </div>
 
           <!-- Scrollable Content -->
-          <div class="overflow-y-auto max-h-[calc(90vh-180px)] scrollbar-thin">
+          <div class="overflow-y-auto max-h-[calc(90vh-220px)] sm:max-h-[calc(90vh-180px)] scrollbar-thin">
             <!-- Live Preview Section (Hidden by Default) -->
             <div v-if="showPreview" class="p-6 bg-gradient-to-b from-gray-50 to-white border-b border-gray-100">
               <div class="flex items-center justify-between mb-4">
@@ -126,7 +126,7 @@
             </div>
             
             <!-- Form Content -->
-            <div class="p-6 space-y-6">
+            <div class="p-5 sm:p-6 space-y-6">
               <!-- Show Preview Toggle -->
               <div v-if="!showPreview" class="flex justify-center">
                 <button
@@ -361,21 +361,22 @@
           </div>
 
           <!-- Fixed Footer with Action Buttons -->
-          <div class="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-gray-100 px-6 py-4">
-            <div class="flex flex-col sm:flex-row gap-3 sm:justify-end">
-              <!-- Mobile: Full-width buttons -->
+          <div class="sticky bottom-0 bg-white border-t border-gray-200 px-5 sm:px-6 py-4">
+            <div class="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
+              <!-- Cancel Button -->
               <button
                 @click="handleCancel"
-                class="w-full sm:w-auto px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 font-medium transition-all duration-200 hover:scale-105 rounded-xl touch-target flex items-center justify-center"
+                class="w-full sm:w-auto px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition-colors rounded-xl touch-target flex items-center justify-center"
                 :disabled="isLoading"
               >
                 Cancel
               </button>
-              
+
+              <!-- Update Button -->
               <button
                 @click="saveProfile"
                 :disabled="isLoading || !isFormValid"
-                class="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-semibold transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl touch-target"
+                class="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg touch-target"
               >
                 <IconLoader v-if="isLoading" class="w-5 h-5 animate-spin" />
                 <IconDeviceFloppy v-else class="w-5 h-5" />
@@ -712,14 +713,21 @@ onUnmounted(() => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.modal-fade-enter-from {
-  opacity: 0;
-  transform: scale(0.95) translateY(-20px);
-}
-
+.modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
-  transform: scale(0.95) translateY(20px);
+}
+
+.modal-fade-enter-from > div,
+.modal-fade-leave-to > div {
+  transform: translateY(100%);
+}
+
+@media (min-width: 640px) {
+  .modal-fade-enter-from > div,
+  .modal-fade-leave-to > div {
+    transform: scale(0.95) translateY(-20px);
+  }
 }
 
 /* Slide in animation for status messages */
@@ -776,13 +784,9 @@ textarea:focus {
   outline: none;
 }
 
-/* Button hover effects */
-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
+/* Button states - removed excessive transforms for better mobile UX */
 button:active:not(:disabled) {
-  transform: translateY(0);
+  opacity: 0.9;
 }
 
 /* Loading state */
@@ -811,10 +815,6 @@ button:disabled {
   .slide-in-enter-active,
   .slide-in-leave-active {
     transition: none;
-  }
-  
-  button:hover:not(:disabled) {
-    transform: none;
   }
 }
 </style>
