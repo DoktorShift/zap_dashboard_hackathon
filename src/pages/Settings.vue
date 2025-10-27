@@ -52,32 +52,30 @@ watch(() => props.initialTab, (newTab) => {
 <!--      <p class="text-gray-600">Manage your zap dashboard preferences and integrations</p>-->
 <!--    </div>-->
     
-    <!-- Settings Tabs -->
-    <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-      <!-- Tab Navigation - Swipeable on Mobile -->
-      <div class="border-b border-gray-100">
-        <nav class="flex space-x-1 px-4 sm:px-6 overflow-x-auto scrollbar-hide" aria-label="Settings tabs">
+    <!-- Elegant Settings Container -->
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+      <!-- Modern Tab Navigation -->
+      <div class="border-b border-gray-100 bg-gray-50/50">
+        <nav class="flex space-x-2 px-6 py-4 overflow-x-auto scrollbar-hide" aria-label="Settings tabs">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             @click="activeTab = tab.id"
             :class="[
-              'flex items-center space-x-2 py-3 px-4 font-medium text-sm whitespace-nowrap transition-all duration-200 relative flex-shrink-0',
+              'flex items-center gap-2.5 px-5 py-3 font-semibold text-sm whitespace-nowrap transition-all duration-300 rounded-2xl flex-shrink-0',
               activeTab === tab.id
-                ? 'text-orange-600'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white'
             ]"
           >
             <component :is="tab.icon" class="w-5 h-5" />
             <span>{{ tab.label }}</span>
-            <!-- Active indicator -->
-            <div v-if="activeTab === tab.id" class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-400 to-orange-600"></div>
           </button>
         </nav>
       </div>
-      
+
       <!-- Tab Content -->
-      <div class="p-4 sm:p-6">
+      <div class="p-6 sm:p-8">
         <!-- Nostr Settings -->
         <div v-if="activeTab === 'nostr'">
           <NostrSettings @change-page="emit('change-page', $event)" />
