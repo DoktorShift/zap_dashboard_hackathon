@@ -387,7 +387,7 @@ const formatDate = (dateString) => {
     <!-- Add Connection Modal - Teleported to modal-root -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showAddForm" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+        <div v-if="showAddForm" class="fixed inset-0 bg-black/50 backdrop-blur-md flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
           <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="flex items-center justify-between mb-5">
               <h3 class="text-lg font-semibold text-gray-900">Add Connection</h3>
@@ -453,7 +453,7 @@ const formatDate = (dateString) => {
     <!-- Edit Connection Modal - Teleported to modal-root -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showEditForm" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+        <div v-if="showEditForm" class="fixed inset-0 bg-black/50 backdrop-blur-md flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
           <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="flex items-center justify-between mb-5">
               <h3 class="text-lg font-semibold text-gray-900">Edit Connection</h3>
@@ -511,7 +511,7 @@ const formatDate = (dateString) => {
     <!-- Delete Confirmation Modal - Teleported to modal-root -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+        <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 backdrop-blur-md flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
           <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full shadow-2xl">
             <div class="flex items-start gap-3 mb-5">
               <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -585,6 +585,29 @@ const formatDate = (dateString) => {
   50% {
     transform: scale(1.3);
     opacity: 0;
+  }
+}
+
+/* Modal Transitions */
+.modal-transition-enter-active,
+.modal-transition-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-transition-enter-from,
+.modal-transition-leave-to {
+  opacity: 0;
+}
+
+.modal-transition-enter-from .bg-white,
+.modal-transition-leave-to .bg-white {
+  transform: translateY(100%);
+}
+
+@media (min-width: 640px) {
+  .modal-transition-enter-from .bg-white,
+  .modal-transition-leave-to .bg-white {
+    transform: scale(0.95) translateY(-20px);
   }
 }
 

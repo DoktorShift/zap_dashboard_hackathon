@@ -4,7 +4,7 @@
     <transition name="modal-fade" appear>
       <div
         v-if="show"
-        class="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm"
+        class="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-md"
         @click="handleBackdropClick"
         @keydown.escape="handleCancel"
         tabindex="-1"
@@ -713,14 +713,21 @@ onUnmounted(() => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.modal-fade-enter-from {
-  opacity: 0;
-  transform: scale(0.95) translateY(-20px);
-}
-
+.modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
-  transform: scale(0.95) translateY(20px);
+}
+
+.modal-fade-enter-from > div,
+.modal-fade-leave-to > div {
+  transform: translateY(100%);
+}
+
+@media (min-width: 640px) {
+  .modal-fade-enter-from > div,
+  .modal-fade-leave-to > div {
+    transform: scale(0.95) translateY(-20px);
+  }
 }
 
 /* Slide in animation for status messages */
@@ -808,18 +815,6 @@ button:disabled {
   .slide-in-enter-active,
   .slide-in-leave-active {
     transition: none;
-  }
-}
-
-/* Mobile-specific improvements */
-@media (max-width: 640px) {
-  /* Bottom sheet styling for mobile */
-  .modal-fade-enter-from {
-    transform: translateY(100%);
-  }
-
-  .modal-fade-leave-to {
-    transform: translateY(100%);
   }
 }
 </style>
