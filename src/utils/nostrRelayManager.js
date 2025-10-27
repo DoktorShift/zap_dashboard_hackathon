@@ -437,12 +437,19 @@ class NostrRelayManager {
       relayUrls: relayUrls
     })
 
-    // Subscribe
-    // IMPORTANT: nostr-tools subscribeMany expects filters directly
-    // If we have multiple filters, we pass them as separate calls OR as array
-    // Based on the type signature: subscribeMany(relays: string[], filter: Filter, params)
-    // where Filter can be a single object OR an array of filter objects
-    const sub = this.pool.subscribeMany(relayUrls, validFilters, {
+    // Subscribe using subscribeMap instead of subscribeMany
+    // This is the correct way to send multiple filters to multiple relays
+    // subscribeMap expects: [{ url: string, filter: Filter }]
+    // where Filter is a SINGLE filter object, not an array
+    const requests = []
+    for (const url of relayUrls) {
+      for (const filter of validFilters) {
+        requests.push({ url, filter })
+      }
+    }
+
+    console.log('📡 Creating subscribeMap with', requests.length, 'requests')
+    const sub = this.pool.subscribeMap(requests, {
       ...wrappedOptions,
       maxWait: options.maxWait || 10000
     })
