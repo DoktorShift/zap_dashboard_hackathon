@@ -241,78 +241,108 @@ const formatDate = (dateString) => {
             </div>
           </div>
           
-          <!-- Right -->
-          <div class="flex items-center gap-1 flex-shrink-0">
+          <!-- Right: Actions -->
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <!-- Secondary Actions - Always visible on desktop -->
+            <div class="hidden sm:flex items-center gap-0.5">
+              <button
+                @click="copyToClipboard(connection.nwcUrl)"
+                class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Copy URL"
+              >
+                <IconCopy class="w-4 h-4" />
+              </button>
+
+              <button
+                @click="openEditForm(connection)"
+                class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Edit"
+              >
+                <IconEdit class="w-4 h-4" />
+              </button>
+
+              <button
+                @click="openDeleteConfirm(connection)"
+                class="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete"
+              >
+                <IconTrash class="w-4 h-4" />
+              </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="hidden sm:block w-px h-6 bg-gray-200"></div>
+
+            <!-- Primary Action -->
             <button
               v-if="!connection.isActive"
               @click="handleActivateConnection(connection)"
               :disabled="isLoadingConnection"
-              class="px-3 py-1.5 bg-orange-500 text-white hover:bg-orange-600 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              class="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             >
+              <IconWifi class="w-4 h-4" />
               Connect
             </button>
 
             <button
               v-else
               @click="clearActiveConnection"
-              class="px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg text-xs font-medium transition-colors"
+              class="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg text-sm font-medium transition-colors"
             >
+              <IconWifiOff class="w-4 h-4" />
               Disconnect
             </button>
-
-            <div class="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-              <button
-                @click="copyToClipboard(connection.nwcUrl)"
-                class="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Copy"
-              >
-                <IconCopy class="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                @click="openEditForm(connection)"
-                class="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Edit"
-              >
-                <IconEdit class="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                @click="openDeleteConfirm(connection)"
-                class="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Delete"
-              >
-                <IconTrash class="w-3.5 h-3.5" />
-              </button>
-            </div>
           </div>
         </div>
 
         <!-- Mobile Actions -->
-        <div class="sm:hidden flex items-center gap-1 mt-3 pt-3 border-t border-gray-100">
+        <div class="sm:hidden mt-3 pt-3 border-t border-gray-100 space-y-2">
+          <!-- Primary Action -->
           <button
-            @click="copyToClipboard(connection.nwcUrl)"
-            class="flex-1 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            v-if="!connection.isActive"
+            @click="handleActivateConnection(connection)"
+            :disabled="isLoadingConnection"
+            class="w-full py-2.5 bg-orange-500 text-white hover:bg-orange-600 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            <IconCopy class="w-3.5 h-3.5" />
-            Copy
+            <IconWifi class="w-4 h-4" />
+            Connect Wallet
           </button>
 
           <button
-            @click="openEditForm(connection)"
-            class="flex-1 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            v-else
+            @click="clearActiveConnection"
+            class="w-full py-2.5 bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
           >
-            <IconEdit class="w-3.5 h-3.5" />
-            Edit
+            <IconWifiOff class="w-4 h-4" />
+            Disconnect
           </button>
 
-          <button
-            @click="openDeleteConfirm(connection)"
-            class="flex-1 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
-          >
-            <IconTrash class="w-3.5 h-3.5" />
-            Delete
-          </button>
+          <!-- Secondary Actions -->
+          <div class="flex items-center gap-1.5">
+            <button
+              @click="copyToClipboard(connection.nwcUrl)"
+              class="flex-1 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            >
+              <IconCopy class="w-3.5 h-3.5" />
+              Copy
+            </button>
+
+            <button
+              @click="openEditForm(connection)"
+              class="flex-1 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            >
+              <IconEdit class="w-3.5 h-3.5" />
+              Edit
+            </button>
+
+            <button
+              @click="openDeleteConfirm(connection)"
+              class="flex-1 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            >
+              <IconTrash class="w-3.5 h-3.5" />
+              Delete
+            </button>
+          </div>
         </div>
         
       </div>
