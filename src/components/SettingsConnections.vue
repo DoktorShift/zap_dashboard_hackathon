@@ -179,25 +179,21 @@ const formatDate = (dateString) => {
 </script>
 
 <template>
-  <div class="space-y-4 sm:space-y-6">
-    <!-- Simplified Header with Action -->
-    <div class="flex items-center justify-between">
+  <div class="space-y-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-1">
       <div>
-        <h2 class="text-lg sm:text-xl font-semibold text-gray-900 flex items-center space-x-2">
-          <IconBolt class="w-5 h-5 text-orange-600" />
-          <span>Wallet Connections</span>
-        </h2>
-        <p class="text-gray-600 text-sm mt-1">{{ connections.length }} connection{{ connections.length !== 1 ? 's' : '' }}</p>
+        <h2 class="text-base font-semibold text-gray-900">Wallet Connections</h2>
+        <p class="text-gray-500 text-xs mt-0.5">{{ connections.length }} connection{{ connections.length !== 1 ? 's' : '' }}</p>
       </div>
 
-      <!-- Add Button (Mobile & Desktop) -->
       <button
         v-if="filteredConnections.length > 0"
         @click="openAddForm"
-        class="btn-primary text-sm flex-shrink-0"
+        class="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors flex items-center gap-2"
       >
         <IconPlus class="w-4 h-4" />
-        <span class="hidden sm:inline">Add Connection</span>
+        <span class="hidden sm:inline">Add</span>
       </button>
     </div>
 
@@ -212,68 +208,46 @@ const formatDate = (dateString) => {
       <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
     </div>
 
-    <!-- Wallet Connection Cards -->
-    <div class="space-y-3">
+    <!-- Connection Cards -->
+    <div class="space-y-2.5">
       <div
         v-for="connection in filteredConnections"
         :key="connection.id"
-        class="bg-white border border-gray-100 rounded-3xl p-5 sm:p-6 hover:shadow-lg hover:border-gray-200 transition-all duration-300 group"
+        class="bg-white border border-gray-100 rounded-2xl p-4 hover:shadow-md hover:border-gray-200 transition-all group"
       >
-        <!-- Main Connection Row -->
-        <div class="flex items-center justify-between gap-4 mb-4">
-          <!-- Left: Icon + Name + Status -->
-          <div class="flex items-center gap-4 flex-1 min-w-0">
-            <!-- Wallet Icon -->
+        <!-- Connection Row -->
+        <div class="flex items-center justify-between gap-3">
+          <!-- Left -->
+          <div class="flex items-center gap-3 flex-1 min-w-0">
             <div :class="[
-              'w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm',
-              connection.isActive ? 'bg-gradient-to-br from-orange-100 to-orange-50' : 'bg-gray-100'
+              'w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0',
+              connection.isActive ? 'bg-orange-100' : 'bg-gray-100'
             ]">
-              <IconBolt :class="['w-7 h-7', connection.isActive ? 'text-orange-600' : 'text-gray-400']" />
+              <IconBolt :class="['w-5 h-5', connection.isActive ? 'text-orange-600' : 'text-gray-400']" />
             </div>
 
-            <!-- Connection Info -->
             <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-1">
-                <h3 class="font-semibold text-gray-900 truncate text-base">{{ connection.name }}</h3>
-                <!-- Default Star -->
-                <button
-                  v-if="connection.isDefault"
-                  @click="handleSetDefault(connection)"
-                  class="flex-shrink-0"
-                  title="Default connection"
-                >
-                  <IconStarFilled class="w-4 h-4 text-amber-400" />
-                </button>
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <h3 class="font-medium text-gray-900 truncate text-sm">{{ connection.name }}</h3>
+                <IconStarFilled v-if="connection.isDefault" class="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
               </div>
-
-              <!-- Status Badge -->
-              <div class="flex items-center gap-2">
-                <span :class="[
-                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold',
-                  connection.isActive
-                    ? 'bg-green-50 text-green-700'
-                    : 'bg-gray-100 text-gray-600'
-                ]">
-                  <div :class="[
-                    'w-1.5 h-1.5 rounded-full',
-                    connection.isActive ? 'bg-green-500' : 'bg-gray-400'
-                  ]"></div>
-                  {{ connection.isActive ? 'Connected' : 'Disconnected' }}
-                </span>
-                <span class="text-xs text-gray-400 hidden sm:inline">
-                  {{ formatDate(connection.lastUsed) }}
-                </span>
+              <div class="flex items-center gap-1.5">
+                <div :class="[
+                  'w-1.5 h-1.5 rounded-full',
+                  connection.isActive ? 'bg-green-500' : 'bg-gray-300'
+                ]"></div>
+                <span class="text-xs text-gray-500">{{ connection.isActive ? 'Connected' : 'Disconnected' }}</span>
               </div>
             </div>
           </div>
           
-          <!-- Right: Quick Actions -->
-          <div class="flex items-center gap-2 flex-shrink-0">
+          <!-- Right -->
+          <div class="flex items-center gap-1 flex-shrink-0">
             <button
               v-if="!connection.isActive"
               @click="handleActivateConnection(connection)"
               :disabled="isLoadingConnection"
-              class="px-5 py-2.5 bg-orange-500 text-white hover:bg-orange-600 rounded-xl text-sm font-semibold transition-all duration-200 disabled:opacity-50 hover:shadow-lg hover:shadow-orange-500/30 hover:scale-105"
+              class="px-3 py-1.5 bg-orange-500 text-white hover:bg-orange-600 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
             >
               Connect
             </button>
@@ -281,68 +255,88 @@ const formatDate = (dateString) => {
             <button
               v-else
               @click="clearActiveConnection"
-              class="px-5 py-2.5 bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-105"
+              class="px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg text-xs font-medium transition-colors"
             >
               Disconnect
             </button>
+
+            <div class="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+              <button
+                @click="copyToClipboard(connection.nwcUrl)"
+                class="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Copy"
+              >
+                <IconCopy class="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                @click="openEditForm(connection)"
+                class="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Edit"
+              >
+                <IconEdit class="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                @click="openDeleteConfirm(connection)"
+                class="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete"
+              >
+                <IconTrash class="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Connection URL & Actions -->
-        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
-          <code class="text-xs text-gray-600 font-mono truncate flex-1 mr-4">
-            {{ truncateUrl(connection.nwcUrl, 50) }}
-          </code>
+        <!-- Mobile Actions -->
+        <div class="sm:hidden flex items-center gap-1 mt-3 pt-3 border-t border-gray-100">
+          <button
+            @click="copyToClipboard(connection.nwcUrl)"
+            class="flex-1 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+          >
+            <IconCopy class="w-3.5 h-3.5" />
+            Copy
+          </button>
 
-          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <button
-              @click="copyToClipboard(connection.nwcUrl)"
-              class="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-white rounded-xl transition-all duration-200"
-              title="Copy"
-            >
-              <IconCopy class="w-4 h-4" />
-            </button>
+          <button
+            @click="openEditForm(connection)"
+            class="flex-1 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+          >
+            <IconEdit class="w-3.5 h-3.5" />
+            Edit
+          </button>
 
-            <button
-              @click="openEditForm(connection)"
-              class="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-white rounded-xl transition-all duration-200"
-              title="Edit"
-            >
-              <IconEdit class="w-4 h-4" />
-            </button>
-
-            <button
-              @click="openDeleteConfirm(connection)"
-              class="w-9 h-9 flex items-center justify-center text-gray-600 hover:text-red-600 hover:bg-white rounded-xl transition-all duration-200"
-              title="Delete"
-            >
-              <IconTrash class="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            @click="openDeleteConfirm(connection)"
+            class="flex-1 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+          >
+            <IconTrash class="w-3.5 h-3.5" />
+            Delete
+          </button>
         </div>
         
       </div>
       
-      <!-- Elegant Empty State -->
-      <div v-if="filteredConnections.length === 0" class="max-w-lg mx-auto">
-        <div class="bg-white rounded-3xl p-12 text-center shadow-sm border border-gray-100">
-          <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 bg-gradient-to-br from-orange-100 to-orange-50">
-            <IconBolt class="w-10 h-10 text-orange-600" />
+      <!-- Empty State -->
+      <div v-if="filteredConnections.length === 0" class="max-w-md mx-auto">
+        <div class="bg-white rounded-3xl p-10 text-center shadow-sm border border-gray-100">
+          <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-orange-100">
+            <IconBolt class="w-8 h-8 text-orange-600" />
           </div>
 
-          <h3 class="text-2xl font-semibold text-gray-900 mb-3">
-            {{ searchQuery ? 'No connections found' : 'No wallet connections' }}
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            {{ searchQuery ? 'No matches' : 'No connections' }}
           </h3>
-          <p class="text-gray-500 text-base mb-8">
-            {{ searchQuery ? 'Try adjusting your search terms.' : 'Connect your Lightning wallet to enable zap payments.' }}
+          <p class="text-gray-500 text-sm mb-6">
+            {{ searchQuery ? 'Try different search terms.' : 'Connect your Lightning wallet to enable payments.' }}
           </p>
 
           <button
             v-if="!searchQuery"
             @click="openAddForm"
-            class="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl font-medium text-base hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-300 hover:scale-105"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-orange-500/20 transition-all"
           >
-            <IconPlus class="w-5 h-5" />
+            <IconPlus class="w-4 h-4" />
             Add Connection
           </button>
         </div>

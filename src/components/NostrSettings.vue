@@ -207,329 +207,318 @@ const toggleRelaySection = () => {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-5">
     <!-- Not Authenticated State -->
-    <div v-if="!isAuthenticated" class="max-w-xl mx-auto">
-      <div class="bg-white rounded-3xl p-12 text-center shadow-sm border border-gray-100">
-        <div class="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 bg-gradient-to-br from-orange-100 to-orange-50">
+    <div v-if="!isAuthenticated" class="max-w-md mx-auto">
+      <div class="bg-white rounded-3xl p-10 sm:p-12 text-center shadow-sm border border-gray-100">
+        <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 bg-gradient-to-br from-orange-100 to-orange-50">
           <img
             src="/nostr-logo/nostr10.png"
             alt="Nostr Logo"
-            class="w-14 h-14 object-contain"
+            class="w-12 h-12 object-contain"
           />
         </div>
 
-        <h2 class="text-3xl font-semibold text-gray-900 mb-3">Connect Your Identity</h2>
-        <p class="text-gray-500 text-base mb-8 max-w-md mx-auto leading-relaxed">
-          Sign in with your Nostr identity to unlock social features and manage your profile.
+        <h2 class="text-2xl font-semibold text-gray-900 mb-2">Connect Your Identity</h2>
+        <p class="text-gray-500 text-sm mb-6 leading-relaxed">
+          Sign in with your Nostr identity to unlock social features.
         </p>
 
         <button
           @click="handleLogin"
           :disabled="isLoading"
-          class="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl font-medium text-base hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+          class="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-orange-500/20 transition-all duration-200 disabled:opacity-50"
         >
-          <IconLoader v-if="isLoading" class="w-5 h-5 animate-spin" />
-          <IconUser v-else class="w-5 h-5" />
+          <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+          <IconUser v-else class="w-4 h-4" />
           {{ isLoading ? 'Connecting...' : 'Connect with Nostr' }}
         </button>
 
         <!-- Auth Error -->
-        <div v-if="authError" class="mt-6 bg-red-50 border border-red-100 rounded-2xl p-4">
-          <div class="flex items-center justify-center space-x-2">
-            <IconAlertCircle class="w-5 h-5 text-red-500" />
-            <span class="text-sm text-red-600">{{ authError }}</span>
+        <div v-if="authError" class="mt-4 bg-red-50 border border-red-100 rounded-xl p-3">
+          <div class="flex items-center justify-center gap-2 text-sm text-red-600">
+            <IconAlertCircle class="w-4 h-4 flex-shrink-0" />
+            <span>{{ authError }}</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Authenticated State -->
-    <div v-else class="space-y-6">
-      <!-- Elegant Profile Card -->
+    <div v-else class="space-y-5">
+      <!-- Profile Card -->
       <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        <!-- Profile Header with Gradient Background -->
-        <div class="h-32 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 relative">
-          <div class="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"></div>
-        </div>
+        <!-- Compact Header -->
+        <div class="h-24 sm:h-28 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600"></div>
 
         <!-- Profile Content -->
-        <div class="px-8 pb-8">
-          <!-- Avatar -->
-          <div class="relative -mt-16 mb-6">
-            <div class="w-32 h-32 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-white">
-              <img
-                :src="getUserAvatar()"
-                :alt="userProfile?.name || 'User'"
-                class="w-full h-full object-cover"
-                @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
-              />
+        <div class="px-5 sm:px-6 pb-6">
+          <!-- Avatar & Name -->
+          <div class="flex items-end justify-between -mt-10 sm:-mt-12 mb-4">
+            <div class="relative">
+              <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-white">
+                <img
+                  :src="getUserAvatar()"
+                  :alt="userProfile?.name || 'User'"
+                  class="w-full h-full object-cover"
+                  @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                />
+              </div>
+              <div class="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
             </div>
-            <!-- Online Status -->
-            <div class="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white shadow-lg"></div>
+
+            <!-- Action Buttons - Desktop -->
+            <div class="hidden sm:flex items-center gap-2">
+              <button
+                @click="handleEditProfile"
+                class="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors"
+              >
+                Edit Profile
+              </button>
+              <button
+                @click="handleRefreshProfile"
+                class="w-9 h-9 flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
+                title="Refresh"
+              >
+                <IconRefresh class="w-4 h-4" />
+              </button>
+              <button
+                @click="handleLogout"
+                class="w-9 h-9 flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors"
+                title="Logout"
+              >
+                <IconLogout class="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <!-- Profile Info -->
-          <div class="mb-6">
-            <h2 class="text-2xl font-bold text-gray-900 mb-1">
+          <div class="mb-4">
+            <h2 class="text-xl font-bold text-gray-900">
               {{ userProfile?.name || 'Anonymous' }}
             </h2>
-            <p class="text-gray-500 text-sm font-mono">{{ getShortNpub() }}</p>
+            <p class="text-gray-500 text-xs font-mono mt-0.5">{{ getShortNpub() }}</p>
           </div>
 
           <!-- Status Badges -->
-          <div class="flex flex-wrap gap-2 mb-8">
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-xs font-semibold">
+          <div class="flex flex-wrap gap-2 mb-5">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
               <div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
               Connected
             </span>
-            <span v-if="userProfile?.nip05" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
-              <IconShield class="w-3.5 h-3.5" />
+            <span v-if="userProfile?.nip05" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+              <IconShield class="w-3 h-3" />
               Verified
             </span>
-            <span v-if="userProfile?.lud16" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-full text-xs font-semibold">
-              <IconBolt class="w-3.5 h-3.5" />
+            <span v-if="userProfile?.lud16" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">
+              <IconBolt class="w-3 h-3" />
               Zap Ready
             </span>
           </div>
 
           <!-- Profile Details -->
-          <div class="space-y-4 mb-8">
+          <div class="space-y-2 mb-5">
             <!-- Public Key -->
-            <div class="group flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all duration-200">
+            <div class="group flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
               <div class="flex items-center gap-3 flex-1 min-w-0">
-                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                  <IconKey class="w-5 h-5 text-gray-700" />
-                </div>
+                <IconKey class="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <div class="flex-1 min-w-0">
-                  <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-0.5">Public Key</p>
-                  <code class="text-sm text-gray-900 font-mono truncate block">{{ getShortNpub() }}</code>
+                  <p class="text-xs text-gray-500 mb-0.5">Public Key</p>
+                  <code class="text-xs text-gray-900 font-mono truncate block">{{ getShortNpub() }}</code>
                 </div>
               </div>
               <button
                 @click="copyToClipboard(currentUser.npub)"
-                class="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-white rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100"
-                title="Copy"
+                class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-orange-600 rounded-lg transition-all opacity-0 group-hover:opacity-100"
               >
-                <IconCheck v-if="copySuccess" class="w-5 h-5 text-green-600" />
-                <IconCopy v-else class="w-5 h-5" />
+                <IconCheck v-if="copySuccess" class="w-4 h-4 text-green-600" />
+                <IconCopy v-else class="w-4 h-4" />
               </button>
             </div>
 
             <!-- Lightning Address -->
-            <div v-if="userProfile?.lud16" class="group flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl hover:from-orange-100 hover:to-amber-100 transition-all duration-200">
+            <div v-if="userProfile?.lud16" class="group flex items-center justify-between p-3 bg-orange-50 rounded-xl hover:bg-orange-100 transition-colors">
               <div class="flex items-center gap-3 flex-1 min-w-0">
-                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                  <IconBolt class="w-5 h-5 text-orange-600" />
-                </div>
+                <IconBolt class="w-4 h-4 text-orange-600 flex-shrink-0" />
                 <div class="flex-1 min-w-0">
-                  <p class="text-xs font-medium text-orange-900 uppercase tracking-wide mb-0.5">Lightning</p>
-                  <p class="text-sm text-orange-700 font-medium truncate">{{ userProfile.lud16 }}</p>
+                  <p class="text-xs text-orange-900 mb-0.5">Lightning</p>
+                  <p class="text-xs text-orange-700 font-medium truncate">{{ userProfile.lud16 }}</p>
                 </div>
               </div>
               <button
                 @click="copyToClipboard(userProfile.lud16)"
-                class="w-10 h-10 flex items-center justify-center text-orange-400 hover:text-orange-600 hover:bg-white rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100"
-                title="Copy"
+                class="w-8 h-8 flex items-center justify-center text-orange-400 hover:text-orange-600 rounded-lg transition-all opacity-0 group-hover:opacity-100"
               >
-                <IconCopy class="w-5 h-5" />
+                <IconCopy class="w-4 h-4" />
               </button>
             </div>
 
             <!-- Website -->
-            <div v-if="userProfile?.website" class="group flex items-center justify-between p-4 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-all duration-200">
+            <div v-if="userProfile?.website" class="group flex items-center justify-between p-3 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors">
               <div class="flex items-center gap-3 flex-1 min-w-0">
-                <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
-                  <IconGlobe class="w-5 h-5 text-blue-600" />
-                </div>
+                <IconGlobe class="w-4 h-4 text-blue-600 flex-shrink-0" />
                 <div class="flex-1 min-w-0">
-                  <p class="text-xs font-medium text-blue-900 uppercase tracking-wide mb-0.5">Website</p>
-                  <p class="text-sm text-blue-700 font-medium truncate">{{ userProfile.website }}</p>
+                  <p class="text-xs text-blue-900 mb-0.5">Website</p>
+                  <p class="text-xs text-blue-700 truncate">{{ userProfile.website }}</p>
                 </div>
               </div>
               <a
                 :href="userProfile.website"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="w-10 h-10 flex items-center justify-center text-blue-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100"
-                title="Visit"
+                class="w-8 h-8 flex items-center justify-center text-blue-400 hover:text-blue-600 rounded-lg transition-all opacity-0 group-hover:opacity-100"
               >
-                <IconExternalLink class="w-5 h-5" />
+                <IconExternalLink class="w-4 h-4" />
               </a>
             </div>
           </div>
 
-          <!-- Action Buttons -->
-          <div class="flex flex-col sm:flex-row gap-3">
+          <!-- Mobile Action Buttons -->
+          <div class="flex sm:hidden gap-2">
             <button
               @click="handleEditProfile"
-              class="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-orange-500 text-white rounded-2xl font-semibold hover:bg-orange-600 hover:shadow-lg hover:shadow-orange-500/30 transition-all duration-200 hover:scale-105"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors"
             >
-              <IconEdit class="w-5 h-5" />
-              Edit Profile
+              <IconEdit class="w-4 h-4" />
+              Edit
             </button>
-
             <button
               @click="handleRefreshProfile"
-              class="flex items-center justify-center gap-2 px-6 py-4 bg-gray-100 text-gray-700 rounded-2xl font-semibold hover:bg-gray-200 transition-all duration-200 hover:scale-105"
+              class="w-11 h-11 flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
             >
-              <IconRefresh class="w-5 h-5" />
+              <IconRefresh class="w-4 h-4" />
             </button>
-
             <button
               @click="handleLogout"
-              class="flex items-center justify-center gap-2 px-6 py-4 bg-gray-100 text-gray-700 rounded-2xl font-semibold hover:bg-red-50 hover:text-red-600 transition-all duration-200 hover:scale-105"
+              class="w-11 h-11 flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors"
             >
-              <IconLogout class="w-5 h-5" />
+              <IconLogout class="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Elegant Relay Section -->
+      <!-- Relay Network -->
       <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        <!-- Collapsible Header -->
+        <!-- Header -->
         <button
           @click="toggleRelaySection"
-          class="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-all duration-200"
+          class="w-full p-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
         >
-          <div class="flex items-center gap-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl flex items-center justify-center">
-              <IconPlugConnected class="w-6 h-6 text-blue-600" />
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+              <IconPlugConnected class="w-5 h-5 text-blue-600" />
             </div>
             <div class="text-left">
-              <h3 class="text-xl font-semibold text-gray-900">Relay Network</h3>
-              <p class="text-sm text-gray-500 mt-0.5">
+              <h3 class="text-base font-semibold text-gray-900">Relay Network</h3>
+              <p class="text-xs text-gray-500">
                 {{ connectedRelays.length }}/{{ userRelays.length }} connected
               </p>
             </div>
           </div>
 
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
             <button
               @click.stop="handleRefreshRelays"
-              class="w-10 h-10 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200"
-              title="Refresh"
+              class="w-8 h-8 flex items-center justify-center text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             >
-              <IconRefresh class="w-5 h-5" />
+              <IconRefresh class="w-4 h-4" />
             </button>
-            <component
-              :is="showRelaySection ? IconChevronUp : IconChevronDown"
-              class="w-6 h-6 text-gray-400 transition-transform duration-300"
+            <IconChevronDown
+              :class="['w-5 h-5 text-gray-400 transition-transform', showRelaySection && 'rotate-180']"
             />
           </div>
         </button>
 
         <!-- Relay Content -->
         <transition
-          enter-active-class="transition-all duration-300 ease-out"
-          leave-active-class="transition-all duration-300 ease-in"
+          enter-active-class="transition-all duration-200"
+          leave-active-class="transition-all duration-200"
           enter-from-class="opacity-0 max-h-0"
           enter-to-class="opacity-100 max-h-[2000px]"
           leave-from-class="opacity-100 max-h-[2000px]"
           leave-to-class="opacity-0 max-h-0"
         >
-          <div v-if="showRelaySection" class="px-6 pb-6">
-            <!-- Relay Stats -->
-            <div class="grid grid-cols-4 gap-3 mb-6">
-              <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 text-center">
-                <div class="text-2xl font-bold text-green-600">{{ connectedRelays.length }}</div>
-                <div class="text-xs text-green-700 font-medium mt-1">Connected</div>
+          <div v-if="showRelaySection" class="px-5 pb-5 border-t border-gray-100">
+            <!-- Stats -->
+            <div class="grid grid-cols-4 gap-2 my-4">
+              <div class="bg-green-50 rounded-xl p-2.5 text-center">
+                <div class="text-lg font-bold text-green-600">{{ connectedRelays.length }}</div>
+                <div class="text-xs text-green-700">Online</div>
               </div>
-              <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-4 text-center">
-                <div class="text-2xl font-bold text-blue-600">{{ readRelays.length }}</div>
-                <div class="text-xs text-blue-700 font-medium mt-1">Read</div>
+              <div class="bg-blue-50 rounded-xl p-2.5 text-center">
+                <div class="text-lg font-bold text-blue-600">{{ readRelays.length }}</div>
+                <div class="text-xs text-blue-700">Read</div>
               </div>
-              <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-4 text-center">
-                <div class="text-2xl font-bold text-purple-600">{{ writeRelays.length }}</div>
-                <div class="text-xs text-purple-700 font-medium mt-1">Write</div>
+              <div class="bg-purple-50 rounded-xl p-2.5 text-center">
+                <div class="text-lg font-bold text-purple-600">{{ writeRelays.length }}</div>
+                <div class="text-xs text-purple-700">Write</div>
               </div>
-              <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-2xl p-4 text-center">
-                <div class="text-2xl font-bold text-gray-600">{{ userRelays.length }}</div>
-                <div class="text-xs text-gray-700 font-medium mt-1">Total</div>
+              <div class="bg-gray-50 rounded-xl p-2.5 text-center">
+                <div class="text-lg font-bold text-gray-600">{{ userRelays.length }}</div>
+                <div class="text-xs text-gray-700">Total</div>
               </div>
             </div>
 
-            <!-- Add Relay Form -->
-            <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl p-5 mb-6">
-              <h4 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <IconPlus class="w-4 h-4 text-orange-600" />
-                Add New Relay
-              </h4>
-
-              <div class="flex gap-3">
+            <!-- Add Relay -->
+            <div class="bg-orange-50 rounded-xl p-3 mb-3">
+              <div class="flex gap-2">
                 <input
                   v-model="newRelayUrl"
                   type="text"
                   placeholder="wss://relay.example.com"
-                  class="flex-1 px-4 py-3 border-0 bg-white rounded-xl focus:ring-2 focus:ring-orange-500 text-sm shadow-sm"
+                  class="flex-1 px-3 py-2 text-sm border-0 bg-white rounded-lg focus:ring-2 focus:ring-orange-500"
                   @keyup.enter="handleAddRelay"
                 />
-
                 <button
                   @click="handleAddRelay"
                   :disabled="!newRelayUrl.trim()"
-                  class="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  class="w-10 h-10 flex items-center justify-center bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
                 >
-                  <IconPlus class="w-5 h-5" />
+                  <IconPlus class="w-4 h-4" />
                 </button>
               </div>
-
-              <!-- Form Error -->
-              <div v-if="relayFormError" class="mt-3 bg-red-50 border border-red-100 rounded-xl p-3">
-                <div class="flex items-center gap-2">
-                  <IconAlertCircle class="w-4 h-4 text-red-600" />
-                  <span class="text-sm text-red-600">{{ relayFormError }}</span>
-                </div>
+              <div v-if="relayFormError" class="mt-2 text-xs text-red-600 flex items-center gap-1">
+                <IconAlertCircle class="w-3 h-3" />
+                {{ relayFormError }}
               </div>
             </div>
 
             <!-- Relay List -->
-            <div class="space-y-2">
-              <div v-if="userRelays.length === 0" class="text-center py-12">
-                <IconPlugConnected class="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <h4 class="text-lg font-semibold text-gray-900 mb-2">No relays yet</h4>
-                <p class="text-gray-500 text-sm">Add your first relay to connect to the Nostr network</p>
+            <div class="space-y-1.5">
+              <div v-if="userRelays.length === 0" class="text-center py-8">
+                <IconPlugConnected class="w-12 h-12 mx-auto text-gray-300 mb-2" />
+                <p class="text-sm text-gray-500">No relays configured</p>
               </div>
 
               <div
                 v-for="relay in userRelays"
                 :key="relay.url"
-                class="group flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all duration-200"
+                class="group flex items-center justify-between p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <!-- Relay Info -->
-                <div class="flex items-center gap-3 flex-1 min-w-0">
-                  <!-- Status Dot -->
-                  <div :class="['w-2.5 h-2.5 rounded-full flex-shrink-0', getRelayStatusColor(relay.status)]"></div>
-
-                  <!-- Relay Details -->
+                <div class="flex items-center gap-2.5 flex-1 min-w-0">
+                  <div :class="['w-2 h-2 rounded-full flex-shrink-0', getRelayStatusColor(relay.status)]"></div>
                   <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      <h5 class="text-sm font-semibold text-gray-900">{{ formatRelayUrl(relay.url) }}</h5>
-                      <span v-if="relay.read" class="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold">R</span>
-                      <span v-if="relay.write" class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold">W</span>
+                    <div class="flex items-center gap-1.5">
+                      <h5 class="text-xs font-medium text-gray-900 truncate">{{ formatRelayUrl(relay.url) }}</h5>
+                      <span v-if="relay.read" class="px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold leading-none">R</span>
+                      <span v-if="relay.write" class="px-1 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold leading-none">W</span>
                     </div>
-                    <p class="text-xs text-gray-500 font-mono truncate">{{ relay.url }}</p>
                   </div>
                 </div>
 
-                <!-- Actions -->
-                <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     @click="handleRefreshRelay(relay.url)"
-                    :disabled="refreshingIndividualRelay.has(relay.url)"
-                    class="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-white rounded-xl transition-all duration-200"
-                    title="Refresh"
+                    class="w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-white rounded-lg transition-colors"
                   >
-                    <IconRefresh :class="['w-4 h-4', refreshingIndividualRelay.has(relay.url) ? 'animate-spin' : '']" />
+                    <IconRefresh :class="['w-3.5 h-3.5', refreshingIndividualRelay.has(relay.url) && 'animate-spin']" />
                   </button>
-
                   <button
                     @click="handleRemoveRelay(relay.url)"
-                    class="w-9 h-9 flex items-center justify-center text-gray-600 hover:text-red-600 hover:bg-white rounded-xl transition-all duration-200"
-                    title="Remove"
+                    class="w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-600 hover:bg-white rounded-lg transition-colors"
                   >
-                    <IconTrash class="w-4 h-4" />
+                    <IconTrash class="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -539,15 +528,15 @@ const toggleRelaySection = () => {
       </div>
 
       <!-- Security Notice -->
-      <div class="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-3xl p-6 border border-blue-100">
-        <div class="flex items-start gap-4">
-          <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
-            <IconShield class="w-6 h-6 text-blue-600" />
+      <div class="bg-blue-50 rounded-3xl p-4 border border-blue-100">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+            <IconShield class="w-4 h-4 text-blue-600" />
           </div>
           <div>
-            <h4 class="font-semibold text-gray-900 mb-2">Privacy & Security</h4>
-            <p class="text-sm text-gray-600 leading-relaxed">
-              Your Nostr keys are managed by your browser extension or client. ZapTracker only reads your public profile and relay preferences. Your private keys never leave your device.
+            <h4 class="font-medium text-gray-900 text-sm mb-1">Privacy & Security</h4>
+            <p class="text-xs text-gray-600 leading-relaxed">
+              Your keys are managed by your browser extension. ZapTracker only reads your public profile. Private keys never leave your device.
             </p>
           </div>
         </div>
@@ -564,37 +553,11 @@ const toggleRelaySection = () => {
 </template>
 
 <style scoped>
-/* Smooth animations */
-button {
-  transform-origin: center;
-}
-
-/* Enhanced hover effects */
 button:active:not(:disabled) {
   transform: scale(0.98);
 }
 
-/* Smooth transitions */
 * {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Custom scrollbar for relay list */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
 }
 </style>
