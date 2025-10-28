@@ -31,10 +31,6 @@ import { nostrRelayManager } from './utils/nostrRelayManager.js'
 import { useNostrNotes } from './composables/useNostrNotes.js'
 import Calendar from './pages/Calendar.vue'
 
-// Track processed event IDs to prevent duplicates
-const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
-// Track processed payment hashes for deduplication across NWC and NIP-57
-const processedPaymentHashes = new Set()
 
 // UI state for dismissible banners
 const showLargeDatasetBanner = ref(true)
@@ -146,8 +142,6 @@ const { isAuthenticated } = useNostrAuth()
 const {
   handleConnectionSuccess: notifyConnectionSuccess,
   handleConnectionError: notifyConnectionError,
-  handleZapReceived,
-  handleBalanceChange,
   notifications
 } = useNotifications()
 
@@ -486,14 +480,6 @@ const refreshZapData = async (force = false, retryCount = 0) => {
     // Log performance metrics for large datasets
     if (data.length > 100) {
       console.log(`📊 Performance: Loaded ${data.length} zaps in ${loadTime}ms (${Math.round(data.length / (loadTime / 1000))} zaps/sec)`)
-    }
-    
-    // Check for new zaps and trigger notifications
-    if (zapData.value.length > 0 && data.length > zapData.value.length) {
-      const newZaps = data.slice(0, data.length - zapData.value.length)
-      newZaps.forEach(zap => {
-        handleZapReceived(zap)
-      })
     }
     
     zapData.value = data
@@ -882,7 +868,7 @@ const handleWritingModeChange = (writingMode) => {
       <main :class="['flex-1 overflow-y-auto scrollbar-thin', isWritingMode ? 'p-0' : 'p-3 sm:p-4 lg:p-6']">
         <div class="p-3 sm:p-4 lg:p-6">
           <!-- Connection Status Bar -->
-          <transition name="slide-down">
+        <!--  <transition name="slide-down">
             <div v-if="!isWalletConnected && currentPage === 'wallet'" class="mb-4 lg:mb-6">
               <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 animate-pulse-subtle">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -899,7 +885,7 @@ const handleWritingModeChange = (writingMode) => {
                 </div>
               </div>
             </div>
-          </transition>
+          </transition> -->
           
           <!-- Loading State -->
           <transition name="slide-down">

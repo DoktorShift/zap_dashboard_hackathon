@@ -1,6 +1,22 @@
 import { SimplePool } from 'nostr-tools/pool'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 
+// Debug WebSocket sends to see what's actually being transmitted
+if (typeof window !== 'undefined' && typeof WebSocket !== 'undefined') {
+  const OriginalWebSocket = window.WebSocket
+  window.WebSocket = function(...args) {
+    const ws = new OriginalWebSocket(...args)
+    const originalSend = ws.send
+    ws.send = function(data) {
+      if (typeof data === 'string' && data.includes('"REQ"')) {
+        console.log('🔍 WebSocket sending:', data)
+      }
+      return originalSend.call(this, data)
+    }
+    return ws
+  }
+}
+
 // Relay connection manager following nostr-tools best practices
 class NostrRelayManager {
   constructor() {
@@ -411,11 +427,34 @@ class NostrRelayManager {
       }
       if (options.onclose) options.onclose(reason)
     }
-    // Subscribe
-    const sub = this.pool.subscribeMany(relayUrls, validFilters, {
+
+    // Debug log the filters being sent
+    console.log('📡 Subscribing to relays with filters:', JSON.stringify(validFilters))
+    console.log('📡 Filter type check:', {
+      isArray: Array.isArray(validFilters),
+      length: validFilters?.length,
+      firstFilter: validFilters?.[0],
+      relayUrls: relayUrls
+    })
+
+    // Subscribe using subscribeMap instead of subscribeMany
+    // This is the correct way to send multiple filters to multiple relays
+    // subscribeMap expects: [{ url: string, filter: Filter }]
+    // where Filter is a SINGLE filter object, not an array
+    const requests = []
+    for (const url of relayUrls) {
+      for (const filter of validFilters) {
+        requests.push({ url, filter })
+      }
+    }
+
+    console.log('📡 Creating subscribeMap with', requests.length, 'requests')
+    const sub = this.pool.subscribeMap(requests, {
       ...wrappedOptions,
       maxWait: options.maxWait || 10000
     })
+
+    console.log('📡 Subscription created successfully')
     // Store for deduplication
     const timeout = setTimeout(() => {
       sub.close()

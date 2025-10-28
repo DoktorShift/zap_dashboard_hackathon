@@ -527,11 +527,80 @@ const extractTextFromArray = (noteArray) => {
 
 <template>
   <div class="space-y-6">
-    <!-- Connection Status -->
-    <div v-if="!isWalletConnected" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-      <div class="flex items-center space-x-2">
-        <IconAlertCircle class="w-5 h-5 text-amber-600" />
-        <span class="text-amber-800">Please connect your wallet to access wallet features.</span>
+    <!-- Empty Wallet State -->
+    <div v-if="!isWalletConnected" class="wallet-empty-state">
+      <!-- Hero Section -->
+      <div class="wallet-empty-hero">
+        <div class="wallet-empty-icon-wrapper">
+          <IconWallet class="wallet-empty-icon" />
+          <div class="wallet-empty-icon-pulse"></div>
+        </div>
+
+        <h2 class="wallet-empty-title">Connect Your Lightning Wallet</h2>
+        <p class="wallet-empty-description">
+          Connect your Nostr Wallet Connect (NWC) enabled wallet to manage payments, create invoices, and track transactions.
+        </p>
+
+        <button
+          @click="changePage('settings', 'wallet')"
+          class="wallet-empty-button"
+        >
+          <IconBolt class="w-5 h-5" />
+          <span>Connect Wallet</span>
+        </button>
+      </div>
+
+      <!-- Features Grid -->
+      <div class="wallet-features-grid">
+        <div class="wallet-feature-card">
+          <div class="wallet-feature-icon wallet-feature-icon-receive">
+            <IconArrowDownLeft class="w-5 h-5" />
+          </div>
+          <h3 class="wallet-feature-title">Receive Payments</h3>
+          <p class="wallet-feature-description">
+            Create Lightning invoices and receive sats instantly
+          </p>
+        </div>
+
+        <div class="wallet-feature-card">
+          <div class="wallet-feature-icon wallet-feature-icon-send">
+            <IconArrowUpRight class="w-5 h-5" />
+          </div>
+          <h3 class="wallet-feature-title">Send Payments</h3>
+          <p class="wallet-feature-description">
+            Pay Lightning invoices with a single tap
+          </p>
+        </div>
+
+        <div class="wallet-feature-card">
+          <div class="wallet-feature-icon wallet-feature-icon-history">
+            <IconClock class="w-5 h-5" />
+          </div>
+          <h3 class="wallet-feature-title">Transaction History</h3>
+          <p class="wallet-feature-description">
+            Track all your payments and receipts in one place
+          </p>
+        </div>
+      </div>
+
+      <!-- Info Card -->
+      <div class="wallet-info-card">
+        <div class="wallet-info-header">
+          <IconBolt class="w-5 h-5 text-orange-600" />
+          <h4 class="wallet-info-title">What is NWC?</h4>
+        </div>
+        <p class="wallet-info-text">
+          Nostr Wallet Connect (NWC) is a secure protocol that allows apps to interact with your Lightning wallet without exposing your private keys. Your funds always stay in your control.
+        </p>
+        <a
+          href="https://nwc.wtf"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="wallet-info-link"
+        >
+          <span>Learn more about NWC</span>
+          <IconExternalLink class="w-4 h-4" />
+        </a>
       </div>
     </div>
 
@@ -665,15 +734,20 @@ const extractTextFromArray = (noteArray) => {
       </div>
     </div>
 
-    <!-- Create Invoice Modal -->
-    <div v-if="showCreateInvoice" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Create Invoice</h3>
-          <button @click="closeCreateInvoice" class="text-gray-500 hover:text-gray-700">
-            <IconX class="w-5 h-5" />
-          </button>
-        </div>
+    <!-- Create Invoice Modal - Bottom Sheet -->
+    <Teleport to="body">
+      <transition name="modal-transition">
+        <div v-if="showCreateInvoice" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+              <h3 class="text-lg font-semibold text-gray-900">Create Invoice</h3>
+              <button
+                @click="closeCreateInvoice"
+                class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
         
         <div v-if="!createdInvoice" class="space-y-4">
           <div>
@@ -764,18 +838,25 @@ const extractTextFromArray = (noteArray) => {
             </p>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Send Payment Modal -->
-    <div v-if="showSendPayment" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Send Payment</h3>
-          <button @click="closeSendPayment" class="text-gray-500 hover:text-gray-700">
-            <IconX class="w-5 h-5" />
-          </button>
+          </div>
         </div>
+      </transition>
+    </Teleport>
+
+    <!-- Send Payment Modal - Bottom Sheet -->
+    <Teleport to="body">
+      <transition name="modal-transition">
+        <div v-if="showSendPayment" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+              <h3 class="text-lg font-semibold text-gray-900">Send Payment</h3>
+              <button
+                @click="closeSendPayment"
+                class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
         
         <div v-if="paymentStatus === 'success'" class="text-center">
           <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -821,18 +902,25 @@ const extractTextFromArray = (noteArray) => {
             <p class="text-sm text-red-600">{{ error }}</p>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- QR Scanner Modal -->
-    <div v-if="showQrScanner" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Scan QR Code</h3>
-          <button @click="closeQrScanner" class="text-gray-500 hover:text-gray-700">
-            <IconX class="w-5 h-5" />
-          </button>
+          </div>
         </div>
+      </transition>
+    </Teleport>
+
+    <!-- QR Scanner Modal - Bottom Sheet -->
+    <Teleport to="body">
+      <transition name="modal-transition">
+        <div v-if="showQrScanner" class="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-end sm:items-center justify-center z-[9999] p-0 sm:p-4">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+              <h3 class="text-lg font-semibold text-gray-900">Scan QR Code</h3>
+              <button
+                @click="closeQrScanner"
+                class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
         
         <div class="space-y-4">
           <!-- Camera Permission Check -->
@@ -890,7 +978,216 @@ const extractTextFromArray = (noteArray) => {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* Empty Wallet State */
+.wallet-empty-state {
+  @apply space-y-6;
+}
+
+.wallet-empty-hero {
+  @apply bg-white rounded-2xl p-8 text-center;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.wallet-empty-icon-wrapper {
+  @apply relative inline-flex items-center justify-center mb-6;
+}
+
+.wallet-empty-icon {
+  @apply w-20 h-20 text-orange-600;
+  position: relative;
+  z-index: 2;
+}
+
+.wallet-empty-icon-pulse {
+  @apply absolute inset-0 rounded-full bg-orange-100;
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+.wallet-empty-title {
+  @apply text-2xl font-semibold text-gray-900 mb-3;
+  letter-spacing: -0.01em;
+}
+
+.wallet-empty-description {
+  @apply text-gray-600 mb-6 max-w-md mx-auto;
+  line-height: 1.6;
+}
+
+.wallet-empty-button {
+  @apply inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-medium transition-all duration-200;
+  box-shadow: 0 2px 8px rgba(251, 146, 60, 0.3);
+}
+
+.wallet-empty-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 146, 60, 0.4);
+}
+
+.wallet-empty-button:active {
+  transform: translateY(0);
+}
+
+/* Features Grid */
+.wallet-features-grid {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-4;
+}
+
+.wallet-feature-card {
+  @apply bg-white rounded-2xl p-6 text-center;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wallet-feature-card:hover {
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.wallet-feature-icon {
+  @apply w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4;
+}
+
+.wallet-feature-icon-receive {
+  @apply bg-green-100 text-green-600;
+}
+
+.wallet-feature-icon-send {
+  @apply bg-blue-100 text-blue-600;
+}
+
+.wallet-feature-icon-history {
+  @apply bg-orange-100 text-orange-600;
+}
+
+.wallet-feature-title {
+  @apply text-base font-semibold text-gray-900 mb-2;
+  letter-spacing: -0.01em;
+}
+
+.wallet-feature-description {
+  @apply text-sm text-gray-600;
+  line-height: 1.5;
+}
+
+/* Info Card */
+.wallet-info-card {
+  @apply bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-6;
+  border: 1px solid rgba(251, 146, 60, 0.2);
+}
+
+.wallet-info-header {
+  @apply flex items-center gap-2 mb-3;
+}
+
+.wallet-info-title {
+  @apply text-base font-semibold text-gray-900;
+  letter-spacing: -0.01em;
+}
+
+.wallet-info-text {
+  @apply text-sm text-gray-700 mb-4;
+  line-height: 1.6;
+}
+
+.wallet-info-link {
+  @apply inline-flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors duration-150;
+}
+
+.wallet-info-link:hover {
+  @apply underline;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+  .wallet-empty-hero {
+    @apply p-6;
+  }
+
+  .wallet-empty-title {
+    @apply text-xl;
+  }
+
+  .wallet-empty-description {
+    @apply text-sm;
+  }
+
+  .wallet-empty-icon {
+    @apply w-16 h-16;
+  }
+
+  .wallet-feature-card {
+    @apply p-5;
+  }
+
+  .wallet-feature-icon {
+    @apply w-10 h-10;
+  }
+
+  .wallet-info-card {
+    @apply p-5;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .wallet-empty-icon-pulse,
+  .wallet-empty-button,
+  .wallet-feature-card {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .wallet-empty-hero,
+  .wallet-feature-card,
+  .wallet-info-card {
+    border-width: 2px;
+  }
+}
+
+/* Modal Transitions - Apple Style */
+.modal-transition-enter-active,
+.modal-transition-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-transition-enter-from,
+.modal-transition-leave-to {
+  opacity: 0;
+}
+
+.modal-transition-enter-from .bg-white,
+.modal-transition-leave-to .bg-white {
+  transform: translateY(100%);
+}
+
+@media (min-width: 640px) {
+  .modal-transition-enter-from .bg-white,
+  .modal-transition-leave-to .bg-white {
+    transform: scale(0.95) translateY(-20px);
+  }
+}
+</style>
