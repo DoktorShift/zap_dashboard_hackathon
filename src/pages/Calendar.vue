@@ -387,6 +387,7 @@ const handleEventResize = async (resizeInfo) => {
 
 const handleViewChange = (viewInfo) => {
   calendarView.value = viewInfo.view.type
+  updateCalendarTitle()
 }
 
 // Modal handlers
@@ -497,24 +498,30 @@ const changeView = (view) => {
   const calendarApi = fullCalendarRef.value?.getApi()
   if (calendarApi) {
     calendarApi.changeView(view)
+    updateCalendarTitle()
   }
 }
 
-const currentCalendarTitle = computed(() => {
+// Calendar title state
+const currentCalendarTitle = ref('')
+
+// Update title whenever view changes
+const updateCalendarTitle = () => {
   const calendarApi = fullCalendarRef.value?.getApi()
   if (calendarApi) {
-    return calendarApi.view.title
+    currentCalendarTitle.value = calendarApi.view.title
+  } else {
+    const now = new Date()
+    currentCalendarTitle.value = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   }
-  // Fallback to current month/year
-  const now = new Date()
-  return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-})
+}
 
 // Calendar navigation
 const goToToday = () => {
   const calendarApi = fullCalendarRef.value?.getApi()
   if (calendarApi) {
     calendarApi.today()
+    updateCalendarTitle()
   }
 }
 
@@ -526,6 +533,7 @@ const navigateCalendar = (direction) => {
     } else if (direction === 'next') {
       calendarApi.next()
     }
+    updateCalendarTitle()
   }
 }
 
@@ -592,6 +600,10 @@ onMounted(() => {
     fetchCalendarLists()
     fetchCalendarEvents()
   }
+  // Initialize title after a brief delay to ensure calendar is mounted
+  setTimeout(() => {
+    updateCalendarTitle()
+  }, 100)
 })
 </script>
 
@@ -1175,6 +1187,36 @@ onMounted(() => {
   font-weight: 600;
   font-size: 11px;
   color: inherit;
+}
+
+/* Multi-day Events */
+.fc-google-theme .fc-daygrid-event {
+  margin-bottom: 2px;
+}
+
+.fc-google-theme .fc-daygrid-event-harness {
+  margin-bottom: 2px;
+}
+
+/* For events that span multiple days */
+.fc-google-theme .fc-event-start,
+.fc-google-theme .fc-event-end {
+  border-radius: 4px;
+}
+
+.fc-google-theme .fc-event-start {
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.fc-google-theme .fc-event-end {
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.fc-google-theme .fc-h-event {
+  border-left-width: 3px;
+  border-left-style: solid;
 }
 
 /* Day Grid Event Dots */
