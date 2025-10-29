@@ -560,12 +560,14 @@ watch(isAuthenticated, async (isAuth) => {
           <div
             v-for="campaign in filteredCampaigns"
             :key="campaign.id"
-            @click="viewCampaign(campaign)"
-            class="p-3 sm:p-4 hover:bg-gray-50/80 transition-all duration-200 cursor-pointer group"
+            class="p-3 sm:p-4 hover:bg-gray-50/80 transition-all duration-200 group"
           >
             <div class="flex items-center space-x-3">
               <!-- Compact Campaign Icon/Image -->
-              <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div
+                @click="viewCampaign(campaign)"
+                class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center flex-shrink-0 shadow-sm cursor-pointer"
+              >
                 <img
                   v-if="campaign.image"
                   :src="campaign.image"
@@ -577,7 +579,10 @@ watch(isAuthenticated, async (isAuth) => {
               </div>
 
               <!-- Campaign Info -->
-              <div class="flex-1 min-w-0">
+              <div
+                @click="viewCampaign(campaign)"
+                class="flex-1 min-w-0 cursor-pointer"
+              >
                 <!-- Title and Status Row -->
                 <div class="flex items-center justify-between mb-1">
                   <h3 class="font-semibold text-gray-900 text-sm sm:text-base truncate mr-2 group-hover:text-orange-600 transition-colors">
@@ -599,7 +604,7 @@ watch(isAuthenticated, async (isAuth) => {
                   <div class="flex items-center space-x-2">
                     <span class="font-medium">{{ getCampaignProgress(campaign.id).percentage }}%</span>
                     <div class="w-16 sm:w-20 bg-gray-200 rounded-full h-1.5">
-                      <div 
+                      <div
                         class="bg-gradient-to-r from-orange-400 to-amber-400 h-1.5 rounded-full transition-all duration-300"
                         :style="{ width: `${getCampaignProgress(campaign.id).percentage}%` }"
                       ></div>
@@ -615,9 +620,28 @@ watch(isAuthenticated, async (isAuth) => {
                 </div>
               </div>
 
-              <!-- Action Arrow -->
-              <div class="flex-shrink-0">
-                <IconChevronRight class="w-4 h-4 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all duration-200" />
+              <!-- Action Buttons -->
+              <div class="flex items-center gap-1 flex-shrink-0">
+                <button
+                  @click.stop="openShareModal(campaign)"
+                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Share"
+                >
+                  <IconShare class="w-4 h-4" />
+                </button>
+                <button
+                  @click.stop="openDeleteModal(campaign)"
+                  class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete"
+                >
+                  <IconTrash class="w-4 h-4" />
+                </button>
+                <button
+                  @click="viewCampaign(campaign)"
+                  class="w-8 h-8 flex items-center justify-center"
+                >
+                  <IconChevronRight class="w-4 h-4 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all duration-200" />
+                </button>
               </div>
             </div>
           </div>
