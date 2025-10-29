@@ -117,54 +117,22 @@ const fullCalendarEvents = computed(() => {
       }
     }
 
-    // Get calendar color if event is assigned to a calendar
-    const calendar = event.calendar_id ? getCalendar(event.calendar_id) : null
-    const baseColor = calendar?.color || (event.type === 'time-based' ? 'blue' : 'green')
-
-    // Vibrant post-it color system - bold and eye-catching
-    const getEventColors = (colorName) => {
-      const colorMap = {
-        // Bold Blues - confident, strong
-        'blue': { bg: '#60A5FA', text: '#1E3A8A' },
-        'lightblue': { bg: '#38BDF8', text: '#0C4A6E' },
-        'skyblue': { bg: '#7DD3FC', text: '#075985' },
-
-        // Bold Purples - creative, vibrant
-        'purple': { bg: '#C084FC', text: '#4C1D95' },
-        'lavender': { bg: '#A78BFA', text: '#5B21B6' },
-        'indigo': { bg: '#818CF8', text: '#312E81' },
-
-        // Bold Greens - fresh, energetic
-        'green': { bg: '#4ADE80', text: '#14532D' },
-        'sage': { bg: '#86EFAC', text: '#166534' },
-        'mint': { bg: '#5EEAD4', text: '#134E4A' },
-
-        // Bold Yellows/Golds - warm, attention-grabbing
-        'yellow': { bg: '#FDE047', text: '#713F12' },
-        'amber': { bg: '#FBBF24', text: '#78350F' },
-
-        // Bold Reds/Pinks - urgent, important
-        'red': { bg: '#F87171', text: '#7F1D1D' },
-        'pink': { bg: '#F472B6', text: '#831843' },
-        'rose': { bg: '#FB7185', text: '#881337' },
-
-        // Bold Oranges - energetic, fun
-        'orange': { bg: '#FB923C', text: '#7C2D12' },
-        'coral': { bg: '#FDBA74', text: '#9A3412' },
-
-        // Bold Teals - modern, fresh
-        'teal': { bg: '#2DD4BF', text: '#134E4A' },
-        'cyan': { bg: '#22D3EE', text: '#164E63' },
-
-        // Neutral - professional
-        'gray': { bg: '#94A3B8', text: '#1E293B' },
-        'slate': { bg: '#CBD5E1', text: '#0F172A' }
+    // Type-based colors with brand consistency
+    const typeColors = {
+      'time-based': {
+        bg: 'transparent',
+        border: '#3b82f6',
+        text: '#1e3a8a'
+      },
+      'date-based': {
+        bg: 'transparent',
+        border: '#16a34a',
+        text: '#14532d'
       }
-
-      return colorMap[colorName] || colorMap['blue']
     }
 
-    const colors = getEventColors(baseColor)
+    const colors = typeColors[event.type] || typeColors['time-based']
+    const status = getEventStatus(event)
 
     return {
       id: event.id,
@@ -173,12 +141,12 @@ const fullCalendarEvents = computed(() => {
       end: end,
       allDay: event.type === 'date-based',
       backgroundColor: colors.bg,
-      borderColor: colors.bg,
+      borderColor: colors.border,
       textColor: colors.text,
       classNames: [
         'fc-event-custom',
         `fc-event-${event.type}`,
-        `fc-event-${getEventStatus(event)}`
+        `fc-event-${status}`
       ],
       extendedProps: {
         description: event.description,
@@ -245,7 +213,20 @@ const calendarOptions = computed(() => {
     displayEventTime: true,
     displayEventEnd: false,
     nowIndicator: true,
-    scrollTime: '08:00:00'
+    scrollTime: '08:00:00',
+    eventContent: function(arg) {
+      const { title, extendedProps } = arg.event
+      const typeIcon = extendedProps.originalEvent.type === 'time-based' ? '🕒' : '📅'
+
+      return {
+        html: `
+          <div class="flex items-center space-x-1 text-xs font-medium px-1">
+            <span class="text-sm">${typeIcon}</span>
+            <span class="truncate">${title}</span>
+          </div>
+        `
+      }
+    }
   }
 })
 
@@ -1151,59 +1132,83 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Events - Vibrant Post-it Style */
+/* Enhanced Event Styles - Brand Consistent */
 .fc-google-theme .fc-event {
-  border: none !important;
-  border-radius: 6px;
+  border-radius: 8px !important;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.1),
-    0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
   position: relative;
+  border-width: 1.5px !important;
 }
 
 .fc-google-theme .fc-event:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow:
-    0 8px 16px rgba(0, 0, 0, 0.15),
-    0 3px 6px rgba(0, 0, 0, 0.1);
+  transform: scale(1.02);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   z-index: 20;
+}
+
+/* Time-based events (blue gradient) */
+.fc-google-theme .fc-event-time-based {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe) !important;
+  color: #1e3a8a !important;
+  border-color: #3b82f6 !important;
+}
+
+/* Date-based events (green gradient) */
+.fc-google-theme .fc-event-date-based {
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0) !important;
+  color: #14532d !important;
+  border-color: #16a34a !important;
+}
+
+/* Status modifiers */
+.fc-google-theme .fc-event-upcoming {
+  opacity: 0.95;
+}
+
+.fc-google-theme .fc-event-ongoing {
+  border-width: 2px !important;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+}
+
+.fc-google-theme .fc-event-past {
+  opacity: 0.6;
+  filter: grayscale(0.3);
 }
 
 /* Day Grid Events (Month View) */
 .fc-google-theme .fc-daygrid-event {
   margin: 2px 3px;
   padding: 0;
-  min-height: 28px;
-  border-radius: 6px;
+  min-height: 26px;
+  border-radius: 8px;
 }
 
 .fc-google-theme .fc-daygrid-block-event {
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-left: none !important;
 }
 
 .fc-google-theme .fc-daygrid-block-event .fc-event-main {
   display: flex;
   align-items: center;
-  gap: 4px;
-  line-height: 1.4;
+  gap: 2px;
+  line-height: 1.3;
 }
 
 .fc-google-theme .fc-daygrid-block-event .fc-event-time {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 11px;
   white-space: nowrap;
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
 .fc-google-theme .fc-daygrid-block-event .fc-event-title {
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 1.4;
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1212,7 +1217,7 @@ onMounted(() => {
 
 /* All-day events styling */
 .fc-google-theme .fc-daygrid-event.fc-event-start.fc-event-end {
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .fc-google-theme .fc-daygrid-event.fc-event-start:not(.fc-event-end) {
@@ -1225,9 +1230,6 @@ onMounted(() => {
   border-radius: 0;
   margin-left: 0;
   margin-right: 0;
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.08),
-    0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .fc-google-theme .fc-daygrid-event.fc-event-end:not(.fc-event-start) {
@@ -1242,13 +1244,13 @@ onMounted(() => {
 }
 
 .fc-google-theme .fc-event-title {
-  font-weight: 600;
+  font-weight: 500;
   color: inherit;
   padding: 0;
 }
 
 .fc-google-theme .fc-event-time {
-  font-weight: 600;
+  font-weight: 500;
   color: inherit;
   padding: 0;
 }
@@ -1339,38 +1341,27 @@ onMounted(() => {
 }
 
 .fc-google-theme .fc-timegrid-event {
-  border: none !important;
-  border-radius: 7px;
-  padding: 8px 12px;
-  box-shadow:
-    0 3px 6px rgba(0, 0, 0, 0.12),
-    0 2px 4px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 6px 10px;
 }
 
 .fc-google-theme .fc-timegrid-event .fc-event-main {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .fc-google-theme .fc-timegrid-event .fc-event-time {
-  font-weight: 700;
-  font-size: 12px;
-  opacity: 0.95;
+  font-weight: 600;
+  font-size: 11px;
+  opacity: 0.9;
 }
 
 .fc-google-theme .fc-timegrid-event .fc-event-title {
-  font-weight: 600;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.fc-google-theme .fc-timegrid-event:hover {
-  transform: translateX(-3px) scale(1.03);
-  box-shadow:
-    0 8px 16px rgba(0, 0, 0, 0.18),
-    0 4px 8px rgba(0, 0, 0, 0.12);
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
 .fc-google-theme .fc-timegrid-event-harness {
@@ -1573,6 +1564,35 @@ onMounted(() => {
     font-size: 10px;
     padding: 2px 4px;
   }
+}
+
+/* Brand Button Styling */
+.fc-google-theme .fc-toolbar-title {
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.fc-google-theme .fc-button {
+  background-color: #f97316 !important;
+  border: none !important;
+  color: white !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  padding: 6px 12px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.fc-google-theme .fc-button:hover {
+  background-color: #ea580c !important;
+}
+
+.fc-google-theme .fc-button:disabled {
+  background-color: #fed7aa !important;
+  opacity: 0.5;
+}
+
+.fc-google-theme .fc-button-active {
+  background-color: #ea580c !important;
 }
 
 /* Smooth transitions */
