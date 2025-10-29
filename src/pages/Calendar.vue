@@ -647,114 +647,25 @@ onMounted(() => {
     </div>
 
     <!-- Authenticated Content -->
-    <div v-else class="space-y-4">
-      <!-- Calendar Header -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-4 sm:p-6">
-          <!-- Top Row: Primary Actions -->
-          <div class="flex items-center justify-between py-3 gap-3">
-            <!-- Left: Calendars & Navigation -->
-            <div class="flex items-center gap-2 sm:gap-3">
-              <button
-                @click="toggleMobileCalendars"
-                class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
-              >
-                <IconCalendar class="w-5 h-5" />
-                <span class="hidden sm:inline">Calendars</span>
-                <span v-if="selectedCalendars.size > 0" class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                  {{ selectedCalendars.size }}
-                </span>
-              </button>
+    <div v-else>
+      <!-- Calendar Header Actions -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 mb-4">
+        <div class="flex items-center space-x-3">
+          <button @click="goToToday" class="px-4 py-2 bg-white/90 hover:bg-gray-50 border border-orange-200/50 rounded-lg font-medium transition-colors text-sm">
+            Today
+          </button>
 
-              <!-- Navigation Controls -->
-              <div class="flex items-center gap-1 ml-2">
-                <button
-                  @click="navigateCalendar('prev')"
-                  class="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                  title="Previous"
-                >
-                  <IconChevronLeft class="w-5 h-5 text-gray-700" />
-                </button>
-                <button
-                  @click="navigateCalendar('next')"
-                  class="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                  title="Next"
-                >
-                  <IconChevronRight class="w-5 h-5 text-gray-700" />
-                </button>
-                <button
-                  @click="goToToday"
-                  class="hidden sm:flex px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
-                >
-                  Today
-                </button>
-              </div>
+          <button @click="showFilters = !showFilters" class="px-4 py-2 bg-white/90 hover:bg-gray-50 border border-orange-200/50 rounded-lg font-medium transition-colors flex items-center space-x-2">
+            <IconFilter class="w-4 h-4" />
+            <span class="hidden sm:inline">Filters</span>
+          </button>
 
-              <!-- Current Date Display -->
-              <h2 class="text-lg sm:text-xl font-semibold text-gray-900 ml-2">
-                {{ currentCalendarTitle }}
-              </h2>
-            </div>
-
-            <!-- Right: View & Actions -->
-            <div class="flex items-center gap-2">
-              <button @click="showFilters = !showFilters" class="p-2 rounded-lg hover:bg-gray-100 transition-colors sm:hidden">
-                <IconFilter class="w-5 h-5 text-gray-700" />
-              </button>
-
-              <button @click="openNewEventModal" class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm font-medium">
-                <IconPlus class="w-4 h-4" />
-                <span class="hidden sm:inline">Create</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Bottom Row: View Switcher & Filters (Desktop) -->
-          <div class="hidden sm:flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
-            <div class="flex items-center gap-1">
-              <button
-                v-for="view in ['dayGridMonth', 'timeGridWeek', 'timeGridDay', 'listWeek']"
-                :key="view"
-                @click="changeView(view)"
-                :class="[
-                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                  calendarView === view
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-600 hover:bg-gray-50'
-                ]"
-              >
-                {{ getViewLabel(view) }}
-              </button>
-            </div>
-
-            <button
-              @click="showFilters = !showFilters"
-              :class="[
-                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                showFilters ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'
-              ]"
-            >
-              <IconFilter class="w-4 h-4" />
-              Filters
-            </button>
-          </div>
-
-          <!-- Mobile View Switcher -->
-          <div class="flex sm:hidden items-center gap-1 py-2 overflow-x-auto">
-            <button
-              v-for="view in ['dayGridMonth', 'timeGridWeek', 'listWeek']"
-              :key="view"
-              @click="changeView(view)"
-              :class="[
-                'px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
-                calendarView === view
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-700'
-              ]"
-            >
-              {{ getViewLabel(view) }}
-            </button>
-          </div>
+          <button @click="openNewEventModal" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors flex items-center space-x-2">
+            <IconPlus class="w-4 h-4" />
+            <span class="hidden sm:inline">New Event</span>
+          </button>
         </div>
+      </div>
 
       <!-- Filters -->
       <div v-if="showFilters" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
@@ -801,37 +712,25 @@ onMounted(() => {
       </div>
 
       <!-- FullCalendar Component -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-            <div v-if="isLoading" class="p-4 sm:p-6 space-y-4 animate-pulse">
-              <!-- Calendar header skeleton -->
-              <div class="flex items-center justify-between mb-4">
-                <div class="h-8 bg-gray-200 rounded w-32"></div>
-                <div class="flex gap-2">
-                  <div class="h-8 bg-gray-200 rounded w-24"></div>
-                  <div class="h-8 bg-gray-200 rounded w-24"></div>
-                </div>
-              </div>
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm mt-4 overflow-hidden">
+        <div v-if="isLoading" class="p-6">
+          <div class="flex items-center justify-center space-x-2">
+            <IconLoader class="w-5 h-5 animate-spin text-orange-600" />
+            <span class="text-gray-600">Loading events...</span>
+          </div>
+        </div>
 
-              <!-- Calendar grid skeleton -->
-              <div class="grid grid-cols-7 gap-2">
-                <!-- Week day headers -->
-                <div v-for="i in 7" :key="'header-' + i" class="h-8 bg-gray-100 rounded"></div>
-                <!-- Calendar dates -->
-                <div v-for="i in 35" :key="'date-' + i" class="h-20 bg-gray-50 rounded border border-gray-100"></div>
-              </div>
-            </div>
-
-            <div v-else class="calendar-wrapper">
-              <FullCalendar
-                ref="fullCalendarRef"
-                :options="calendarOptions"
-                class="fc-google-theme"
-              />
-            </div>
+        <div v-else class="p-6">
+          <FullCalendar
+            ref="fullCalendarRef"
+            :options="calendarOptions"
+            class="fc-custom-theme"
+          />
+        </div>
       </div>
 
       <!-- Event Statistics -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6 mt-4">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Event Statistics</h3>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="text-center">
@@ -973,24 +872,24 @@ onMounted(() => {
                 <button
                   v-if="isEditingEvent"
                   @click="handleDeleteEvent"
-                  class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                  class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
                 >
-                  <IconTrash class="w-4 h-4 inline mr-2" />
+                  <IconTrash class="w-4 h-4 mr-2" />
                   Delete
                 </button>
                 <button
                   @click="handleEventFormCancel"
-                  class="w-full sm:w-auto btn-secondary"
+                  class="w-full sm:w-auto px-4 py-3 bg-white border border-orange-200/50 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   @click="handleEventFormSubmit"
                   :disabled="!isFormValid || isLoading"
-                  class="w-full sm:w-auto btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full sm:w-auto px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
-                  <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-2" />
-                  <IconCheck v-else class="w-4 h-4 inline mr-2" />
+                  <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin mr-2" />
+                  <IconCheck v-else class="w-4 h-4 mr-2" />
                   {{ isEditingEvent ? 'Update' : 'Create' }}
                 </button>
               </div>
@@ -999,53 +898,38 @@ onMounted(() => {
         </div>
       </transition>
     </Teleport>
-
-    <!-- Calendar List Modal -->
-    <CalendarListModal
-      :show="showCalendarListModal"
-      :calendar="editingCalendar"
-      @close="closeCalendarListModal"
-    />
-
-    <!-- Mobile Calendar List -->
-    <CalendarListMobile
-      :show="showMobileCalendars"
-      @close="toggleMobileCalendars"
-      @create-calendar="openCreateCalendarModal"
-      @edit-calendar="openEditCalendarModal"
-    />
   </div>
 </template>
 
 <style>
-/* Google Calendar-inspired styling */
+/* ZapTracker Calendar Styling */
 .calendar-wrapper {
   padding: 0;
 }
 
-.fc-google-theme {
+.fc-custom-theme {
   font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   color: #3c4043;
 }
 
 /* Toolbar - hidden since we use custom header */
-.fc-google-theme .fc-toolbar {
+.fc-custom-theme .fc-toolbar {
   display: none;
 }
 
 /* Table and Grid */
-.fc-google-theme .fc-scrollgrid {
+.fc-custom-theme .fc-scrollgrid {
   border: none !important;
   border-radius: 0;
 }
 
-.fc-google-theme .fc-scrollgrid-sync-table {
+.fc-custom-theme .fc-scrollgrid-sync-table {
   border: none;
 }
 
 /* Day Headers */
-.fc-google-theme .fc-col-header-cell {
+.fc-custom-theme .fc-col-header-cell {
   background: #ffffff;
   border: none !important;
   border-bottom: 1px solid #dadce0 !important;
@@ -1057,7 +941,7 @@ onMounted(() => {
   letter-spacing: 0.8px;
 }
 
-.fc-google-theme .fc-col-header-cell-cushion {
+.fc-custom-theme .fc-col-header-cell-cushion {
   padding: 4px;
   color: #70757a;
   text-decoration: none;
@@ -1065,29 +949,29 @@ onMounted(() => {
 }
 
 /* Day Cells */
-.fc-google-theme .fc-daygrid-day {
+.fc-custom-theme .fc-daygrid-day {
   background: #ffffff;
   border-color: #e8eaed !important;
   border-width: 1px !important;
 }
 
-.fc-google-theme .fc-daygrid-day:hover {
+.fc-custom-theme .fc-daygrid-day:hover {
   background: #f8f9fa;
   cursor: pointer;
 }
 
-.fc-google-theme .fc-day-today {
+.fc-custom-theme .fc-day-today {
   background: #fef7e0 !important;
 }
 
-.fc-google-theme .fc-daygrid-day-frame {
+.fc-custom-theme .fc-daygrid-day-frame {
   min-height: 110px;
   padding: 2px;
   display: flex;
   flex-direction: column;
 }
 
-.fc-google-theme .fc-daygrid-day-top {
+.fc-custom-theme .fc-daygrid-day-top {
   display: flex;
   justify-content: flex-start;
   padding: 6px 8px 4px 8px;
@@ -1095,7 +979,7 @@ onMounted(() => {
 }
 
 /* Day Numbers */
-.fc-google-theme .fc-daygrid-day-number {
+.fc-custom-theme .fc-daygrid-day-number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1111,29 +995,29 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-.fc-google-theme .fc-daygrid-day-number:hover {
+.fc-custom-theme .fc-daygrid-day-number:hover {
   background: #e8eaed;
 }
 
-.fc-google-theme .fc-day-today .fc-daygrid-day-number {
+.fc-custom-theme .fc-day-today .fc-daygrid-day-number {
   background: #1a73e8;
   color: #ffffff;
   font-weight: 500;
 }
 
-.fc-google-theme .fc-day-other .fc-daygrid-day-number {
+.fc-custom-theme .fc-day-other .fc-daygrid-day-number {
   color: #9aa0a6;
   opacity: 0.6;
 }
 
-.fc-google-theme .fc-daygrid-day-events {
+.fc-custom-theme .fc-daygrid-day-events {
   padding: 0 6px 4px 6px;
   flex: 1;
   overflow: hidden;
 }
 
 /* Enhanced Event Styles - Brand Consistent */
-.fc-google-theme .fc-event {
+.fc-custom-theme .fc-event {
   border-radius: 8px !important;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1143,69 +1027,69 @@ onMounted(() => {
   border-width: 1.5px !important;
 }
 
-.fc-google-theme .fc-event:hover {
+.fc-custom-theme .fc-event:hover {
   transform: scale(1.02);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   z-index: 20;
 }
 
 /* Time-based events (blue gradient) */
-.fc-google-theme .fc-event-time-based {
+.fc-custom-theme .fc-event-time-based {
   background: linear-gradient(135deg, #dbeafe, #bfdbfe) !important;
   color: #1e3a8a !important;
   border-color: #3b82f6 !important;
 }
 
 /* Date-based events (green gradient) */
-.fc-google-theme .fc-event-date-based {
+.fc-custom-theme .fc-event-date-based {
   background: linear-gradient(135deg, #dcfce7, #bbf7d0) !important;
   color: #14532d !important;
   border-color: #16a34a !important;
 }
 
 /* Status modifiers */
-.fc-google-theme .fc-event-upcoming {
+.fc-custom-theme .fc-event-upcoming {
   opacity: 0.95;
 }
 
-.fc-google-theme .fc-event-ongoing {
+.fc-custom-theme .fc-event-ongoing {
   border-width: 2px !important;
   box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
 }
 
-.fc-google-theme .fc-event-past {
+.fc-custom-theme .fc-event-past {
   opacity: 0.6;
   filter: grayscale(0.3);
 }
 
 /* Day Grid Events (Month View) */
-.fc-google-theme .fc-daygrid-event {
+.fc-custom-theme .fc-daygrid-event {
   margin: 2px 3px;
   padding: 0;
   min-height: 26px;
   border-radius: 8px;
 }
 
-.fc-google-theme .fc-daygrid-block-event {
+.fc-custom-theme .fc-daygrid-block-event {
   padding: 4px 8px;
   border-left: none !important;
 }
 
-.fc-google-theme .fc-daygrid-block-event .fc-event-main {
+.fc-custom-theme .fc-daygrid-block-event .fc-event-main {
   display: flex;
   align-items: center;
   gap: 2px;
   line-height: 1.3;
 }
 
-.fc-google-theme .fc-daygrid-block-event .fc-event-time {
+.fc-custom-theme .fc-daygrid-block-event .fc-event-time {
   font-weight: 500;
   font-size: 11px;
   white-space: nowrap;
   opacity: 0.85;
 }
 
-.fc-google-theme .fc-daygrid-block-event .fc-event-title {
+.fc-custom-theme .fc-daygrid-block-event .fc-event-title {
   font-weight: 500;
   font-size: 12px;
   line-height: 1.3;
@@ -1216,84 +1100,84 @@ onMounted(() => {
 }
 
 /* All-day events styling */
-.fc-google-theme .fc-daygrid-event.fc-event-start.fc-event-end {
+.fc-custom-theme .fc-daygrid-event.fc-event-start.fc-event-end {
   border-radius: 8px;
 }
 
-.fc-google-theme .fc-daygrid-event.fc-event-start:not(.fc-event-end) {
+.fc-custom-theme .fc-daygrid-event.fc-event-start:not(.fc-event-end) {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   margin-right: 0;
 }
 
-.fc-google-theme .fc-daygrid-event:not(.fc-event-start):not(.fc-event-end) {
+.fc-custom-theme .fc-daygrid-event:not(.fc-event-start):not(.fc-event-end) {
   border-radius: 0;
   margin-left: 0;
   margin-right: 0;
 }
 
-.fc-google-theme .fc-daygrid-event.fc-event-end:not(.fc-event-start) {
+.fc-custom-theme .fc-daygrid-event.fc-event-end:not(.fc-event-start) {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   margin-left: 0;
 }
 
-.fc-google-theme .fc-event-main {
+.fc-custom-theme .fc-event-main {
   color: inherit;
   padding: 0;
 }
 
-.fc-google-theme .fc-event-title {
+.fc-custom-theme .fc-event-title {
   font-weight: 500;
   color: inherit;
   padding: 0;
 }
 
-.fc-google-theme .fc-event-time {
+.fc-custom-theme .fc-event-time {
   font-weight: 500;
   color: inherit;
   padding: 0;
 }
 
 /* Multi-day Events */
-.fc-google-theme .fc-daygrid-event {
+.fc-custom-theme .fc-daygrid-event {
   margin-bottom: 2px;
 }
 
-.fc-google-theme .fc-daygrid-event-harness {
+.fc-custom-theme .fc-daygrid-event-harness {
   margin-bottom: 2px;
 }
 
 /* For events that span multiple days */
-.fc-google-theme .fc-event-start,
-.fc-google-theme .fc-event-end {
+.fc-custom-theme .fc-event-start,
+.fc-custom-theme .fc-event-end {
   border-radius: 4px;
 }
 
-.fc-google-theme .fc-event-start {
+.fc-custom-theme .fc-event-start {
   border-top-left-radius: 4px;
   border-bottom-left-radius: 4px;
 }
 
-.fc-google-theme .fc-event-end {
+.fc-custom-theme .fc-event-end {
   border-top-right-radius: 4px;
   border-bottom-right-radius: 4px;
 }
 
-.fc-google-theme .fc-h-event {
+.fc-custom-theme .fc-h-event {
   border-left-width: 3px;
   border-left-style: solid;
 }
 
 /* Day Grid Event Dots */
-.fc-google-theme .fc-daygrid-event-dot {
+.fc-custom-theme .fc-daygrid-event-dot {
   border-width: 4px;
   border-radius: 4px;
   margin-right: 4px;
 }
 
 /* More Link */
-.fc-google-theme .fc-more-link {
+.fc-custom-theme .fc-more-link {
   color: #5f6368;
   font-weight: 500;
   font-size: 11px;
@@ -1304,25 +1188,25 @@ onMounted(() => {
   display: inline-block;
 }
 
-.fc-google-theme .fc-more-link:hover {
+.fc-custom-theme .fc-more-link:hover {
   background: #f1f3f4;
   color: #3c4043;
   text-decoration: none;
 }
 
-.fc-google-theme .fc-daygrid-more-link {
+.fc-custom-theme .fc-daygrid-more-link {
   text-align: left;
   padding: 4px 6px;
   margin-top: 2px;
 }
 
 /* Time Grid (Week/Day View) */
-.fc-google-theme .fc-timegrid-slot {
+.fc-custom-theme .fc-timegrid-slot {
   height: 48px;
   border-color: #e8eaed !important;
 }
 
-.fc-google-theme .fc-timegrid-slot-label {
+.fc-custom-theme .fc-timegrid-slot-label {
   border: none !important;
   padding: 0 12px;
   font-size: 10px;
@@ -1332,59 +1216,59 @@ onMounted(() => {
   font-weight: 400;
 }
 
-.fc-google-theme .fc-timegrid-axis {
+.fc-custom-theme .fc-timegrid-axis {
   border: none !important;
 }
 
-.fc-google-theme .fc-timegrid-col {
+.fc-custom-theme .fc-timegrid-col {
   border-color: #e8eaed !important;
 }
 
-.fc-google-theme .fc-timegrid-event {
+.fc-custom-theme .fc-timegrid-event {
   border-radius: 8px;
   padding: 6px 10px;
 }
 
-.fc-google-theme .fc-timegrid-event .fc-event-main {
+.fc-custom-theme .fc-timegrid-event .fc-event-main {
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.fc-google-theme .fc-timegrid-event .fc-event-time {
+.fc-custom-theme .fc-timegrid-event .fc-event-time {
   font-weight: 600;
   font-size: 11px;
   opacity: 0.9;
 }
 
-.fc-google-theme .fc-timegrid-event .fc-event-title {
+.fc-custom-theme .fc-timegrid-event .fc-event-title {
   font-weight: 500;
   font-size: 12px;
   line-height: 1.3;
 }
 
-.fc-google-theme .fc-timegrid-event-harness {
+.fc-custom-theme .fc-timegrid-event-harness {
   margin-right: 1px;
 }
 
 /* Now Indicator */
-.fc-google-theme .fc-timegrid-now-indicator-line {
+.fc-custom-theme .fc-timegrid-now-indicator-line {
   border-color: #ea4335;
   border-width: 2px;
 }
 
-.fc-google-theme .fc-timegrid-now-indicator-arrow {
+.fc-custom-theme .fc-timegrid-now-indicator-arrow {
   border-color: #ea4335;
   border-width: 6px;
 }
 
 /* List View */
-.fc-google-theme .fc-list {
+.fc-custom-theme .fc-list {
   border: none;
 }
 
-.fc-google-theme .fc-list-day-cushion {
+.fc-custom-theme .fc-list-day-cushion {
   background: #f8f9fa;
   padding: 12px 16px;
   font-weight: 500;
@@ -1392,79 +1276,79 @@ onMounted(() => {
   border-top: 1px solid #dadce0;
 }
 
-.fc-google-theme .fc-list-event {
+.fc-custom-theme .fc-list-event {
   cursor: pointer;
   transition: background 0.2s ease;
 }
 
-.fc-google-theme .fc-list-event:hover {
+.fc-custom-theme .fc-list-event:hover {
   background: #f8f9fa;
 }
 
-.fc-google-theme .fc-list-event-dot {
+.fc-custom-theme .fc-list-event-dot {
   border-width: 6px;
   border-radius: 6px;
 }
 
-.fc-google-theme .fc-list-event-title {
+.fc-custom-theme .fc-list-event-title {
   padding: 12px 16px;
   font-size: 14px;
   color: #3c4043;
 }
 
-.fc-google-theme .fc-list-event-time {
+.fc-custom-theme .fc-list-event-time {
   padding: 12px 16px;
   font-size: 13px;
   color: #70757a;
 }
 
 /* Popover */
-.fc-google-theme .fc-popover {
+.fc-custom-theme .fc-popover {
   border: none;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.fc-google-theme .fc-popover-header {
+.fc-custom-theme .fc-popover-header {
   background: #f8f9fa;
   padding: 12px 16px;
   border-bottom: 1px solid #dadce0;
   font-weight: 500;
 }
 
-.fc-google-theme .fc-popover-close {
+.fc-custom-theme .fc-popover-close {
   font-size: 20px;
   color: #5f6368;
   opacity: 1;
 }
 
 /* List View (Agenda) */
-.fc-google-theme .fc-list-event {
+.fc-custom-theme .fc-list-event {
   border-left: 3px solid !important;
   transition: background 0.1s ease;
 }
 
-.fc-google-theme .fc-list-event:hover {
+.fc-custom-theme .fc-list-event:hover {
   background: #f8f9fa;
 }
 
-.fc-google-theme .fc-list-event-time,
-.fc-google-theme .fc-list-event-title {
+.fc-custom-theme .fc-list-event-time,
+.fc-custom-theme .fc-list-event-title {
   padding: 12px 16px;
 }
 
-.fc-google-theme .fc-list-event-time {
+.fc-custom-theme .fc-list-event-time {
   font-size: 13px;
   font-weight: 400;
   color: #5f6368;
 }
 
-.fc-google-theme .fc-list-event-title {
+.fc-custom-theme .fc-list-event-title {
   font-size: 14px;
   font-weight: 500;
 }
 
-.fc-google-theme .fc-list-day-cushion {
+.fc-custom-theme .fc-list-day-cushion {
   background: #f8f9fa;
   padding: 8px 16px;
   font-weight: 500;
@@ -1474,16 +1358,16 @@ onMounted(() => {
 
 /* Mobile Responsive */
 @media (max-width: 640px) {
-  .fc-google-theme .fc-daygrid-day-frame {
+  .fc-custom-theme .fc-daygrid-day-frame {
     min-height: 80px;
     padding: 2px;
   }
 
-  .fc-google-theme .fc-daygrid-day-top {
+  .fc-custom-theme .fc-daygrid-day-top {
     padding: 4px 6px 2px 6px;
   }
 
-  .fc-google-theme .fc-daygrid-day-number {
+  .fc-custom-theme .fc-daygrid-day-number {
     padding: 0;
     font-size: 12px;
     width: 26px;
@@ -1491,11 +1375,11 @@ onMounted(() => {
     line-height: 1;
   }
 
-  .fc-google-theme .fc-daygrid-day-events {
+  .fc-custom-theme .fc-daygrid-day-events {
     padding: 0 3px 2px 3px;
   }
 
-  .fc-google-theme .fc-daygrid-event {
+  .fc-custom-theme .fc-daygrid-event {
     margin: 2px 2px;
     padding: 0;
     min-height: 26px;
@@ -1505,34 +1389,34 @@ onMounted(() => {
       0 1px 2px rgba(0, 0, 0, 0.06);
   }
 
-  .fc-google-theme .fc-daygrid-block-event {
+  .fc-custom-theme .fc-daygrid-block-event {
     padding: 4px 8px;
   }
 
-  .fc-google-theme .fc-daygrid-block-event .fc-event-time {
+  .fc-custom-theme .fc-daygrid-block-event .fc-event-time {
     display: none;
   }
 
-  .fc-google-theme .fc-daygrid-block-event .fc-event-title {
+  .fc-custom-theme .fc-daygrid-block-event .fc-event-title {
     font-size: 12px;
     font-weight: 600;
   }
 
-  .fc-google-theme .fc-col-header-cell {
+  .fc-custom-theme .fc-col-header-cell {
     padding: 8px 4px;
     font-size: 10px;
   }
 
-  .fc-google-theme .fc-timegrid-slot {
+  .fc-custom-theme .fc-timegrid-slot {
     height: 40px;
   }
 
-  .fc-google-theme .fc-timegrid-slot-label {
+  .fc-custom-theme .fc-timegrid-slot-label {
     font-size: 9px;
     padding: 0 8px;
   }
 
-  .fc-google-theme .fc-timegrid-event {
+  .fc-custom-theme .fc-timegrid-event {
     padding: 6px 10px;
     border-radius: 6px;
     box-shadow:
@@ -1540,12 +1424,12 @@ onMounted(() => {
       0 1px 2px rgba(0, 0, 0, 0.06);
   }
 
-  .fc-google-theme .fc-timegrid-event .fc-event-time {
+  .fc-custom-theme .fc-timegrid-event .fc-event-time {
     font-weight: 700;
     font-size: 11px;
   }
 
-  .fc-google-theme .fc-timegrid-event .fc-event-title {
+  .fc-custom-theme .fc-timegrid-event .fc-event-title {
     font-weight: 600;
     font-size: 12px;
   }
@@ -1554,25 +1438,25 @@ onMounted(() => {
     font-size: 12px;
   }
 
-  .fc-google-theme .fc-list-event-title,
-  .fc-google-theme .fc-list-event-time {
+  .fc-custom-theme .fc-list-event-title,
+  .fc-custom-theme .fc-list-event-time {
     padding: 10px 12px;
     font-size: 12px;
   }
 
-  .fc-google-theme .fc-more-link {
+  .fc-custom-theme .fc-more-link {
     font-size: 10px;
     padding: 2px 4px;
   }
 }
 
 /* Brand Button Styling */
-.fc-google-theme .fc-toolbar-title {
+.fc-custom-theme .fc-toolbar-title {
   color: #1f2937;
   font-weight: 700;
 }
 
-.fc-google-theme .fc-button {
+.fc-custom-theme .fc-button {
   background-color: #f97316 !important;
   border: none !important;
   color: white !important;
@@ -1582,45 +1466,45 @@ onMounted(() => {
   transition: background-color 0.2s ease !important;
 }
 
-.fc-google-theme .fc-button:hover {
+.fc-custom-theme .fc-button:hover {
   background-color: #ea580c !important;
 }
 
-.fc-google-theme .fc-button:disabled {
+.fc-custom-theme .fc-button:disabled {
   background-color: #fed7aa !important;
   opacity: 0.5;
 }
 
-.fc-google-theme .fc-button-active {
+.fc-custom-theme .fc-button-active {
   background-color: #ea580c !important;
 }
 
 /* Smooth transitions */
-.fc-google-theme * {
+.fc-custom-theme * {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Selection Highlight */
-.fc-google-theme .fc-highlight {
+.fc-custom-theme .fc-highlight {
   background: rgba(26, 115, 232, 0.1);
 }
 
 /* Scrollbar styling for calendar */
-.fc-google-theme .fc-scroller::-webkit-scrollbar {
+.fc-custom-theme .fc-scroller::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.fc-google-theme .fc-scroller::-webkit-scrollbar-track {
+.fc-custom-theme .fc-scroller::-webkit-scrollbar-track {
   background: #f1f3f4;
 }
 
-.fc-google-theme .fc-scroller::-webkit-scrollbar-thumb {
+.fc-custom-theme .fc-scroller::-webkit-scrollbar-thumb {
   background: #dadce0;
   border-radius: 4px;
 }
 
-.fc-google-theme .fc-scroller::-webkit-scrollbar-thumb:hover {
+.fc-custom-theme .fc-scroller::-webkit-scrollbar-thumb:hover {
   background: #bdc1c6;
 }
 </style>
