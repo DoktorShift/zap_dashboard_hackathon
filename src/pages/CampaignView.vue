@@ -24,24 +24,24 @@
     <!-- Main Campaign Content -->
     <div v-else-if="campaign" class="relative">
       <!-- Hero Header Section -->
-      <div class="relative">
+      <div class="relative w-full overflow-hidden bg-gradient-to-br from-orange-100 via-amber-50 to-yellow-100">
         <!-- Campaign Image -->
-        <div class="relative w-full overflow-hidden bg-gradient-to-br from-orange-100 via-amber-50 to-yellow-100">
-          <div class="h-48 sm:h-56 lg:h-64 w-full">
-            <img
-              v-if="campaign.image"
-              :src="campaign.image"
-              :alt="campaign.title"
-              class="w-full h-full object-cover object-center"
-              @error="handleImageError"
-            />
-            <img
-              v-else
-              src="/ZapTracker_campaigns.png"
-              alt="ZapTracker Campaign"
-              class="w-full h-full object-cover object-center opacity-70"
-            />
-          </div>
+        <div class="relative w-full" style="max-height: 400px; min-height: 200px;">
+          <img
+            v-if="campaign.image"
+            :src="campaign.image"
+            :alt="campaign.title"
+            class="w-full h-full max-h-[400px] min-h-[200px] object-cover object-center"
+            style="object-fit: cover;"
+            @error="handleImageError"
+          />
+          <img
+            v-else
+            src="/ZapTracker_campaigns.png"
+            alt="ZapTracker Campaign"
+            class="w-full h-full max-h-[400px] min-h-[200px] object-cover object-center opacity-70"
+            style="object-fit: cover;"
+          />
 
           <!-- Gradient Overlay -->
           <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
@@ -241,11 +241,13 @@
             </div>
           </div>
 
-          <!-- Description Section -->
+          <!-- Campaign Story / Detailed Description Section -->
           <div v-if="campaign.descriptionLong" class="bg-white/98 backdrop-blur-md rounded-2xl lg:rounded-3xl p-5 sm:p-6 lg:p-8 border border-gray-100 shadow-xl shadow-orange-500/5">
-            <h3 class="text-lg lg:text-xl font-bold text-gray-900 mb-4">About This Campaign</h3>
-            <div class="prose prose-sm lg:prose-base prose-gray max-w-none">
-              <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ campaign.descriptionLong }}</p>
+            <h3 class="text-lg lg:text-xl font-bold text-gray-900 mb-4 pb-3 border-b border-gray-200">Campaign Story</h3>
+            <div class="prose prose-sm sm:prose-base lg:prose-lg prose-gray max-w-none">
+              <div class="text-gray-700 leading-relaxed whitespace-pre-wrap" style="line-height: 1.75;">
+                {{ campaign.descriptionLong }}
+              </div>
             </div>
           </div>
 
