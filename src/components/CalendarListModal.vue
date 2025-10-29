@@ -83,7 +83,7 @@ const selectColor = (color) => {
     <transition name="modal-transition">
       <div
         v-if="show"
-        class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-end sm:items-center justify-center z-[9999]"
+        class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-end sm:items-center justify-center z-[10000]"
         @click.self="handleClose"
       >
         <!-- Mobile: Bottom Sheet, Desktop: Center Modal -->

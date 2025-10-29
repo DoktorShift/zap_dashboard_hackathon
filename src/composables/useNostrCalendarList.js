@@ -29,6 +29,9 @@ export const CALENDAR_COLORS = [
 const selectedCalendars = ref(new Set())
 const defaultCalendarId = ref(null)
 
+// Track if initialization has already been set up
+let isWatchInitialized = false
+
 export function useNostrCalendarList() {
   const { currentUser, isAuthenticated } = useNostrAuth()
 
@@ -482,43 +485,47 @@ export function useNostrCalendarList() {
     processedCalendarIds.clear()
   }
 
-  // Initialize calendar lists when authenticated
-  watch(isAuthenticated, (authenticated) => {
-    if (authenticated) {
-      loadFromLocalStorage()
+  // Initialize calendar lists when authenticated (only once)
+  if (!isWatchInitialized) {
+    isWatchInitialized = true
 
-      if (calendarLists.value.length === 0) {
+    watch(isAuthenticated, (authenticated) => {
+      if (authenticated) {
+        loadFromLocalStorage()
+
+        if (calendarLists.value.length === 0) {
+          if (currentSubscription) {
+            currentSubscription.close()
+            currentSubscription = null
+          }
+          processedCalendarIds.clear()
+
+          const initializeCalendarLists = () => {
+            if (nostrRelayManager.isInitialized) {
+              fetchCalendarLists()
+            } else {
+              const handleInitialized = () => {
+                fetchCalendarLists()
+                nostrRelayManager.removeEventListener('initialized', handleInitialized)
+              }
+              nostrRelayManager.addEventListener('initialized', handleInitialized)
+            }
+          }
+
+          initializeCalendarLists()
+        }
+      } else {
         if (currentSubscription) {
           currentSubscription.close()
           currentSubscription = null
         }
         processedCalendarIds.clear()
-
-        const initializeCalendarLists = () => {
-          if (nostrRelayManager.isInitialized) {
-            fetchCalendarLists()
-          } else {
-            const handleInitialized = () => {
-              fetchCalendarLists()
-              nostrRelayManager.removeEventListener('initialized', handleInitialized)
-            }
-            nostrRelayManager.addEventListener('initialized', handleInitialized)
-          }
-        }
-
-        initializeCalendarLists()
+        calendarLists.value = []
+        selectedCalendars.value.clear()
+        defaultCalendarId.value = null
       }
-    } else {
-      if (currentSubscription) {
-        currentSubscription.close()
-        currentSubscription = null
-      }
-      processedCalendarIds.clear()
-      calendarLists.value = []
-      selectedCalendars.value.clear()
-      defaultCalendarId.value = null
-    }
-  }, { immediate: true })
+    }, { immediate: true })
+  }
 
   return {
     // State
