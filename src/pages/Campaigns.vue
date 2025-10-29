@@ -580,36 +580,6 @@ watch(isAuthenticated, async (isAuth) => {
                   <IconTarget v-else class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                 </div>
 
-                <!-- Action Buttons - Left Side -->
-                <div class="flex items-center gap-1 flex-shrink-0">
-                  <!-- Desktop: Share + Delete (on hover) -->
-                  <div class="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      @click.stop="openShareModal(campaign)"
-                      class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                      title="Share"
-                    >
-                      <IconShare class="w-4 h-4" />
-                    </button>
-                    <button
-                      @click.stop="openDeleteModal(campaign)"
-                      class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                      title="Delete"
-                    >
-                      <IconTrash class="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <!-- Mobile: Share only (always visible) -->
-                  <button
-                    @click.stop="openShareModal(campaign)"
-                    class="sm:hidden w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                    title="Share"
-                  >
-                    <IconShare class="w-4 h-4" />
-                  </button>
-                </div>
-
                 <!-- Campaign Info -->
                 <div class="flex-1 min-w-0">
                   <!-- Title and Status Row -->
@@ -639,7 +609,38 @@ watch(isAuthenticated, async (isAuth) => {
                         ></div>
                       </div>
                     </div>
-                    <span class="font-medium text-orange-600">{{ formatAmount(campaign.goalAmount) }} sats</span>
+
+                    <!-- Goal Amount + Action Buttons -->
+                    <div class="flex items-center gap-2">
+                      <!-- Desktop: Share + Delete (on hover) -->
+                      <div class="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          @click.stop="openShareModal(campaign)"
+                          class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="Share"
+                        >
+                          <IconShare class="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          @click.stop="openDeleteModal(campaign)"
+                          class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Delete"
+                        >
+                          <IconTrash class="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <!-- Mobile: Share only (always visible) -->
+                      <button
+                        @click.stop="openShareModal(campaign)"
+                        class="sm:hidden w-6 h-6 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="Share"
+                      >
+                        <IconShare class="w-3.5 h-3.5" />
+                      </button>
+
+                      <span class="font-medium text-orange-600">{{ formatAmount(campaign.goalAmount) }} sats</span>
+                    </div>
                   </div>
 
                   <!-- Meta Info Row -->
