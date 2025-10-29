@@ -666,11 +666,9 @@ onMounted(() => {
     </div>
 
     <!-- Authenticated Content -->
-    <div v-else class="flex flex-col min-h-[calc(100vh-180px)] -mx-6 -mb-6">
-      <!-- Main Content Area -->
-      <div class="flex-1 flex flex-col overflow-hidden">
-        <!-- Calendar Header -->
-        <div class="flex-shrink-0 bg-white border-b border-gray-200 px-4 sm:px-6">
+    <div v-else class="space-y-4">
+      <!-- Calendar Header -->
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-4 sm:p-6">
           <!-- Top Row: Primary Actions -->
           <div class="flex items-center justify-between py-3 gap-3">
             <!-- Left: Calendars & Navigation -->
@@ -730,7 +728,7 @@ onMounted(() => {
           </div>
 
           <!-- Bottom Row: View Switcher & Filters (Desktop) -->
-          <div class="hidden sm:flex items-center justify-between py-2 border-t border-gray-100">
+          <div class="hidden sm:flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
             <div class="flex items-center gap-1">
               <button
                 v-for="view in ['dayGridMonth', 'timeGridWeek', 'timeGridDay', 'listWeek']"
@@ -777,13 +775,9 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Scrollable content -->
-        <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6"  v-if="showFilters" >
-
-        <!-- Filters -->
-        <div class="mt-6 pt-6 border-t border-orange-100/50">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <!-- Filters -->
+      <div v-if="showFilters" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <!-- Search -->
             <div class="relative">
               <IconSearch class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -814,20 +808,19 @@ onMounted(() => {
               <option value="upcoming">Upcoming</option>
               <option value="past">Past</option>
             </select>
-            </div>
-          </div>
-          </div>
+        </div>
+      </div>
 
-          <!-- Error Message -->
-          <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="flex items-center space-x-2">
-              <IconAlertCircle class="w-5 h-5 text-red-600" />
-              <p class="text-red-600">{{ error }}</p>
-            </div>
-          </div>
+      <!-- Error Message -->
+      <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div class="flex items-center space-x-2">
+          <IconAlertCircle class="w-5 h-5 text-red-600" />
+          <p class="text-red-600">{{ error }}</p>
+        </div>
+      </div>
 
-          <!-- FullCalendar Component -->
-          <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <!-- FullCalendar Component -->
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
             <div v-if="isLoading" class="p-4 sm:p-6 space-y-4 animate-pulse">
               <!-- Calendar header skeleton -->
               <div class="flex items-center justify-between mb-4">
@@ -854,29 +847,27 @@ onMounted(() => {
                 class="fc-google-theme"
               />
             </div>
-          </div>
+      </div>
 
-          <!-- Event Statistics -->
-          <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Event Statistics</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div class="text-center">
-                <div class="text-2xl font-bold text-orange-600">{{ filteredEvents.length }}</div>
-                <div class="text-sm text-gray-600">Total Events</div>
-              </div>
-              <div class="text-center">
-                <div class="text-2xl font-bold text-blue-600">
-                  {{ filteredEvents.filter(e => e.type === 'time-based').length }}
-                </div>
-                <div class="text-sm text-gray-600">Time-based</div>
-              </div>
-              <div class="text-center">
-                <div class="text-2xl font-bold text-green-600">
-                  {{ filteredEvents.filter(e => e.type === 'date-based').length }}
-                </div>
-                <div class="text-sm text-gray-600">Date-based</div>
-              </div>
+      <!-- Event Statistics -->
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Event Statistics</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-orange-600">{{ filteredEvents.length }}</div>
+            <div class="text-sm text-gray-600">Total Events</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600">
+              {{ filteredEvents.filter(e => e.type === 'time-based').length }}
             </div>
+            <div class="text-sm text-gray-600">Time-based</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-green-600">
+              {{ filteredEvents.filter(e => e.type === 'date-based').length }}
+            </div>
+            <div class="text-sm text-gray-600">Date-based</div>
           </div>
         </div>
       </div>
