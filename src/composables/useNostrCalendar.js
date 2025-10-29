@@ -144,6 +144,12 @@ export function useNostrCalendar() {
     isLoading.value = true
     error.value = ''
 
+    // Set a timeout to stop loading after 10 seconds even if no events
+    const loadingTimeout = setTimeout(() => {
+      console.log('⏱️ Calendar events loading timeout reached')
+      isLoading.value = false
+    }, 10000)
+
     try {
       console.log('Fetching calendar events for user:', currentUser.value.pubkey.substring(0, 8) + '...')
 
@@ -210,10 +216,12 @@ export function useNostrCalendar() {
         },
         oneose: () => {
           console.log('End of stored calendar events')
+          clearTimeout(loadingTimeout)
           isLoading.value = false
         },
         onclose: (reason) => {
           console.log('Calendar events subscription closed:', reason)
+          clearTimeout(loadingTimeout)
           isLoading.value = false
         }
       })
@@ -223,6 +231,7 @@ export function useNostrCalendar() {
     } catch (err) {
       console.error('Failed to fetch calendar events:', err)
       error.value = 'Failed to fetch calendar events: ' + err.message
+      clearTimeout(loadingTimeout)
       isLoading.value = false
     }
   }

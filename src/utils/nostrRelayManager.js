@@ -48,7 +48,7 @@ class NostrRelayManager {
     this._eventCache = new Map() // key: JSON.stringify(filters), value: {event, timestamp}
     this._eventCacheTTL = 60 * 1000 // 1 minute default TTL
     this._activeSubscriptions = new Map() // key: hash(filters+options), value: subscription
-    this._subscriptionTTL = 30 * 1000 // 30 seconds for deduped subs
+    this._subscriptionTTL = 5 * 60 * 1000 // 5 minutes for deduped subs (increased for long-lived subscriptions)
     this._relayBackoff = new Map() // url -> {backoffMs, lastFail}
     this._maxBackoff = 5 * 60 * 1000 // 5 min
   }
