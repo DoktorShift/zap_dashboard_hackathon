@@ -313,26 +313,36 @@
                     </div>
                   </div>
 
-                  <!-- Custom Amount -->
-                  <div>
-                    <div class="space-y-3">
-                      <div class="flex items-center space-x-2.5">
-                        <input
-                          type="checkbox"
-                          :checked="isCustomAmount"
-                          @change="toggleCustomAmount"
-                          class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                  <!-- Custom Amount with Apple-style Slider -->
+                  <div class="space-y-4">
+                    <!-- Toggle Section -->
+                    <div class="flex items-center justify-between">
+                      <label class="text-sm font-semibold text-gray-700">Custom amount</label>
+                      <button
+                        @click="toggleCustomAmount"
+                        :class="[
+                          'relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2',
+                          isCustomAmount ? 'bg-orange-500' : 'bg-gray-300'
+                        ]"
+                      >
+                        <span
+                          :class="[
+                            'inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-300 ease-in-out',
+                            isCustomAmount ? 'translate-x-6' : 'translate-x-1'
+                          ]"
                         />
-                        <label class="text-sm font-semibold text-gray-700">Custom amount</label>
-                      </div>
+                      </button>
+                    </div>
 
-                      <div v-if="isCustomAmount" class="relative">
+                    <!-- Custom Amount Input with Slider Effect -->
+                    <div v-if="isCustomAmount" class="space-y-3">
+                      <div class="relative">
                         <input
                           v-model.number="customAmount"
                           type="number"
                           min="1"
                           placeholder="Enter amount"
-                          class="w-full px-4 py-3.5 pr-16 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-colors text-base font-semibold"
+                          class="w-full px-4 py-3.5 pr-16 border-2 border-orange-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all text-base font-semibold bg-white"
                         />
                         <div class="absolute inset-y-0 right-0 flex items-center pr-4">
                           <span class="text-sm font-semibold text-gray-500">sats</span>
@@ -352,15 +362,40 @@
                     ></textarea>
                   </div>
 
-                  <!-- Continue Button -->
+                  <!-- Continue Button with Elegant Loading -->
                   <button
                     @click="generateInvoice"
                     :disabled="!canProceed || isGeneratingInvoice"
-                    class="w-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white px-6 py-4 rounded-xl font-bold text-base transition-all duration-200 flex items-center justify-center space-x-2.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-2xl transform hover:scale-[1.02] active:scale-[0.98]"
+                    :class="[
+                      'w-full px-6 py-4 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center space-x-2.5 shadow-lg relative overflow-hidden',
+                      isGeneratingInvoice
+                        ? 'bg-gradient-to-r from-orange-400 to-amber-500 cursor-not-allowed'
+                        : !canProceed
+                        ? 'bg-gray-300 cursor-not-allowed opacity-50'
+                        : 'bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 hover:shadow-2xl transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer'
+                    ]"
                   >
-                    <IconLoader v-if="isGeneratingInvoice" class="w-5 h-5 animate-spin" />
-                    <IconBolt v-else class="w-5 h-5" />
-                    <span>{{ isGeneratingInvoice ? 'Creating Invoice...' : `Support with ${effectiveAmount.toLocaleString()} sats` }}</span>
+                    <!-- Loading Animation Overlay -->
+                    <div
+                      v-if="isGeneratingInvoice"
+                      class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"
+                      style="animation: shimmer 1.5s infinite;"
+                    ></div>
+
+                    <!-- Button Content -->
+                    <div class="relative z-10 flex items-center space-x-2.5 text-white">
+                      <div v-if="isGeneratingInvoice" class="flex items-center space-x-2">
+                        <svg class="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Creating Invoice...</span>
+                      </div>
+                      <div v-else class="flex items-center space-x-2.5">
+                        <IconBolt class="w-5 h-5" />
+                        <span>Support with {{ effectiveAmount.toLocaleString() }} sats</span>
+                      </div>
+                    </div>
                   </button>
                 </div>
 
@@ -402,11 +437,34 @@
                       v-if="isWalletConnected"
                       @click="payWithInternalNWC"
                       :disabled="isProcessingPayment"
-                      class="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.99]"
+                      :class="[
+                        'w-full px-4 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center space-x-2 shadow-md relative overflow-hidden',
+                        isProcessingPayment
+                          ? 'bg-gradient-to-r from-green-400 to-emerald-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.99] cursor-pointer'
+                      ]"
                     >
-                      <IconLoader v-if="isProcessingPayment" class="w-5 h-5 animate-spin" />
-                      <IconWallet v-else class="w-5 h-5" />
-                      <span>{{ isProcessingPayment ? 'Processing Payment...' : 'Pay with ZapTracker Wallet' }}</span>
+                      <!-- Loading Animation Overlay -->
+                      <div
+                        v-if="isProcessingPayment"
+                        class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                        style="animation: shimmer 1.5s infinite;"
+                      ></div>
+
+                      <!-- Button Content -->
+                      <div class="relative z-10 flex items-center space-x-2 text-white">
+                        <div v-if="isProcessingPayment" class="flex items-center space-x-2">
+                          <svg class="w-5 h-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Processing Payment...</span>
+                        </div>
+                        <div v-else class="flex items-center space-x-2">
+                          <IconWallet class="w-5 h-5" />
+                          <span>Pay with ZapTracker Wallet</span>
+                        </div>
+                      </div>
                     </button>
                     
                     <!-- Open in External Wallet -->
@@ -1438,6 +1496,20 @@ select {
   transition-property: background-color, border-color, color, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
+}
+
+/* Shimmer loading animation */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
 }
 
 /* Ensure proper touch targets on mobile */
