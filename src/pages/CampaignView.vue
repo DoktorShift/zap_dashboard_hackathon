@@ -27,7 +27,7 @@
       <div class="relative">
         <!-- Campaign Image -->
         <div class="relative w-full overflow-hidden bg-gradient-to-br from-orange-100 via-amber-50 to-yellow-100">
-          <div class="aspect-[16/9] lg:aspect-[21/9] w-full">
+          <div class="h-48 sm:h-56 lg:h-64 w-full">
             <img
               v-if="campaign.image"
               :src="campaign.image"
@@ -43,74 +43,52 @@
             />
           </div>
 
-          <!-- Enhanced Gradient Overlay -->
-          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-        </div>
-
-        <!-- Campaign Info Overlay -->
-        <div class="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 text-white">
-          <div class="max-w-6xl mx-auto">
-            <!-- ZapTracker Branding -->
-            <div class="flex items-center space-x-2 mb-3 lg:mb-4">
-              <div class="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                <img
-                  src="/new_logo3.png"
-                  alt="ZapTracker Logo"
-                  class="w-4 h-4 lg:w-5 lg:h-5 object-contain"
-                />
-              </div>
-              <span class="text-sm lg:text-base font-semibold text-white/95 tracking-wide">ZapTracker</span>
-            </div>
-
-            <h1 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-2 lg:mb-4 leading-tight drop-shadow-lg">{{ campaign.title }}</h1>
-          </div>
+          <!-- Gradient Overlay -->
+          <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
         </div>
       </div>
 
       <!-- Main Content Grid -->
-      <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 p-4 sm:p-6 lg:p-8 -mt-8 lg:-mt-16 relative z-10">
+      <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 p-4 sm:p-6 lg:p-8 -mt-6 lg:-mt-8 relative z-10">
         <!-- Left Column: Campaign Details & Supporters -->
         <div class="lg:col-span-2 space-y-4 lg:space-y-6">
           <!-- Campaign Header Card -->
           <div class="bg-white/98 backdrop-blur-md rounded-2xl lg:rounded-3xl p-5 sm:p-6 lg:p-8 border border-gray-100 shadow-xl shadow-orange-500/5">
-            <!-- Status Badges -->
-            <div class="flex flex-wrap items-center gap-2 mb-4">
-              <span :class="[
-                'px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide',
-                statusColor
-              ]">
-                {{ status.charAt(0).toUpperCase() + status.slice(1) }}
-              </span>
-
-              <div v-if="daysRemaining !== 'No deadline'" class="flex items-center space-x-1.5 bg-orange-50 px-3.5 py-1.5 rounded-full">
-                <IconClock class="w-3.5 h-3.5 text-orange-600" />
-                <span class="text-xs font-semibold text-orange-700 tracking-wide">{{ daysRemaining }}</span>
+            <!-- Campaign Title & Meta -->
+            <div class="mb-5">
+              <div class="flex items-start justify-between gap-4 mb-3">
+                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 leading-tight flex-1">{{ campaign.title }}</h1>
+                <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                  <span :class="[
+                    'px-3.5 py-1.5 rounded-full text-xs font-semibold',
+                    statusColor
+                  ]">
+                    {{ status.charAt(0).toUpperCase() + status.slice(1) }}
+                  </span>
+                  <div v-if="daysRemaining !== 'No deadline'" class="flex items-center space-x-1.5 bg-orange-50 px-3 py-1 rounded-full">
+                    <IconClock class="w-3.5 h-3.5 text-orange-600" />
+                    <span class="text-xs font-semibold text-orange-700">{{ daysRemaining }}</span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <!-- Campaign Title & Description -->
-            <div class="mb-6">
-              <h2 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mb-3">{{ campaign.title }}</h2>
+              <!-- Author Info -->
+              <div v-if="campaignAuthor" class="flex items-center space-x-2.5 mb-4">
+                <img
+                  :src="campaignAuthor.picture"
+                  :alt="campaignAuthor.name"
+                  class="w-8 h-8 rounded-lg object-cover ring-2 ring-gray-100"
+                  @error="$event.target.src = generateAvatar(campaignAuthor.pubkey)"
+                />
+                <div>
+                  <p class="text-xs text-gray-500">Created by</p>
+                  <p class="text-sm font-semibold text-gray-900">{{ campaignAuthor.name }}</p>
+                </div>
+              </div>
+
+              <!-- Summary -->
               <div class="text-sm sm:text-base text-gray-600 leading-relaxed">
-                <p v-if="!showFullDescription && campaign.summary.length > 150">
-                  {{ campaign.summary.substring(0, 150) }}...
-                  <button
-                    @click="showFullDescription = true"
-                    class="text-orange-600 hover:text-orange-700 font-semibold ml-1 transition-colors inline-flex items-center"
-                  >
-                    Read more
-                  </button>
-                </p>
-                <p v-else>
-                  {{ campaign.summary }}
-                  <button
-                    v-if="campaign.summary.length > 150"
-                    @click="showFullDescription = false"
-                    class="text-orange-600 hover:text-orange-700 font-semibold ml-1 transition-colors inline-flex items-center"
-                  >
-                    Show less
-                  </button>
-                </p>
+                <p>{{ campaign.summary }}</p>
               </div>
             </div>
 
@@ -177,7 +155,7 @@
 
             <div v-else class="space-y-5">
               <!-- Supporter Grid -->
-              <div class="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 gap-4 lg:gap-5">
+              <div class="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 lg:gap-4">
                 <div 
                   v-for="(zap, index) in displayedSupporters" 
                   :key="zap.id"
@@ -248,99 +226,42 @@
               </div>
 
               <!-- Total Support Summary -->
-              <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/50 rounded-xl lg:rounded-2xl p-5 lg:p-6 mt-6 shadow-sm">
-                <div class="grid grid-cols-2 gap-6">
+              <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 lg:p-5">
+                <div class="flex items-center justify-between">
                   <div>
                     <div class="text-xs text-green-600 font-medium mb-1">Total Support</div>
-                    <div class="text-xl lg:text-2xl font-bold text-green-800">{{ formatCurrency(totalZapAmount) }}</div>
+                    <div class="text-lg lg:text-xl font-bold text-green-800">{{ formatCurrency(totalZapAmount) }}</div>
                   </div>
                   <div class="text-right">
-                    <div class="text-xs text-green-600 font-medium mb-1">Contributors</div>
-                    <div class="text-xl lg:text-2xl font-bold text-green-800">{{ totalZapCount }}</div>
+                    <div class="text-xs text-green-600 font-medium mb-1">Supporters</div>
+                    <div class="text-lg lg:text-xl font-bold text-green-800">{{ totalZapCount }}</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Campaign Description -->
+          <!-- Description Section -->
           <div v-if="campaign.descriptionLong" class="bg-white/98 backdrop-blur-md rounded-2xl lg:rounded-3xl p-5 sm:p-6 lg:p-8 border border-gray-100 shadow-xl shadow-orange-500/5">
-            <div class="flex items-center space-x-2.5 mb-4 lg:mb-5">
-              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
-                <IconMessageCircle class="w-5 h-5 text-blue-600" />
-              </div>
-              <h3 class="text-lg lg:text-xl font-bold text-gray-900">About This Campaign</h3>
-            </div>
+            <h3 class="text-lg lg:text-xl font-bold text-gray-900 mb-4">About This Campaign</h3>
             <div class="prose prose-sm lg:prose-base prose-gray max-w-none">
               <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ campaign.descriptionLong }}</p>
             </div>
           </div>
 
-          <!-- Campaign Details -->
-          <div class="bg-white/98 backdrop-blur-md rounded-2xl lg:rounded-3xl p-5 sm:p-6 lg:p-8 border border-gray-100 shadow-xl shadow-orange-500/5">
-            <div class="flex items-center space-x-2.5 mb-4 lg:mb-5">
-              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
-                <IconUser class="w-5 h-5 text-purple-600" />
-              </div>
-              <h3 class="text-lg lg:text-xl font-bold text-gray-900">Campaign Details</h3>
-            </div>
-
-            <div class="space-y-4">
-              <!-- Author -->
-              <div v-if="campaignAuthor" class="flex items-center justify-between py-3 border-b border-gray-100">
-                <span class="text-sm font-medium text-gray-500">Created by</span>
-                <div
-                  @click="openUserProfile"
-                  class="flex items-center space-x-2.5 cursor-pointer hover:bg-gray-50 px-3 py-2 rounded-xl transition-all duration-200 group"
+          <!-- Campaign Details (Compact) -->
+          <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div class="flex items-center justify-between text-xs text-gray-500">
+              <span>Campaign ID:</span>
+              <div class="flex items-center space-x-2">
+                <code class="text-xs bg-white px-2 py-1 rounded border border-gray-200 font-mono">{{ campaign.id.substring(0, 8) }}...{{ campaign.id.substring(campaign.id.length - 8) }}</code>
+                <button
+                  @click="copyToClipboard(campaign.id, 'eventId')"
+                  class="text-gray-400 hover:text-orange-600 transition-colors p-1"
                 >
-                  <img
-                    :src="campaignAuthor.picture"
-                    :alt="campaignAuthor.name"
-                    class="w-7 h-7 rounded-lg object-cover ring-2 ring-gray-100 group-hover:ring-orange-200 transition-all"
-                    @error="$event.target.src = generateAvatar(campaignAuthor.pubkey)"
-                  />
-                  <span class="text-sm font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">{{ campaignAuthor.name }}</span>
-                </div>
-              </div>
-
-              <!-- Event ID -->
-              <div class="flex items-center justify-between py-3 border-b border-gray-100">
-                <span class="text-sm font-medium text-gray-500">Event ID</span>
-                <div class="flex items-center space-x-2">
-                  <code class="text-xs bg-gray-100 px-3 py-1.5 rounded-lg font-mono">{{ campaign.id.substring(0, 8) }}...{{ campaign.id.substring(campaign.id.length - 8) }}</code>
-                  <button
-                    @click="copyToClipboard(campaign.id, 'eventId')"
-                    class="text-gray-400 hover:text-orange-600 transition-colors p-1.5 hover:bg-orange-50 rounded-lg"
-                  >
-                    <IconCheck v-if="copySuccess === 'eventId'" class="w-4 h-4 text-green-600" />
-                    <IconCopy v-else class="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              <!-- View in Nostr Client -->
-              <div class="py-3">
-                <span class="text-sm font-medium text-gray-500 block mb-3">View in Nostr</span>
-                <div class="flex items-center gap-2">
-                  <a
-                    :href="`https://primal.net/e/${campaign.id}`"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex-1 text-xs font-semibold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-3 py-2.5 rounded-xl transition-all flex items-center justify-center space-x-1.5 border border-purple-200 hover:border-purple-300"
-                  >
-                    <IconExternalLink class="w-3.5 h-3.5" />
-                    <span>Primal</span>
-                  </a>
-                  <a
-                    :href="`https://yakihonne.com/e/${campaign.id}`"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex-1 text-xs font-semibold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-2.5 rounded-xl transition-all flex items-center justify-center space-x-1.5 border border-indigo-200 hover:border-indigo-300"
-                  >
-                    <IconMessageCircle class="w-3.5 h-3.5" />
-                    <span>Yakihonne</span>
-                  </a>
-                </div>
+                  <IconCheck v-if="copySuccess === 'eventId'" class="w-3.5 h-3.5 text-green-600" />
+                  <IconCopy v-else class="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           </div>
@@ -1506,20 +1427,15 @@ onMounted(async () => {
   background-color: rgba(251, 146, 60, 0.5);
 }
 
-/* Smooth transitions */
-* {
-  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+/* Smooth transitions for common elements */
+button,
+a,
+input,
+textarea,
+select {
+  transition-property: background-color, border-color, color, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-/* Aspect ratio utility for hero image */
-.aspect-\[16\/9\] {
-  aspect-ratio: 16 / 9;
-}
-
-.aspect-\[21\/9\] {
-  aspect-ratio: 21 / 9;
+  transition-duration: 200ms;
 }
 
 /* Ensure proper touch targets on mobile */
