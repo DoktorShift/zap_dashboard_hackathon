@@ -647,25 +647,114 @@ onMounted(() => {
     </div>
 
     <!-- Authenticated Content -->
-    <div v-else>
-      <!-- Calendar Header Actions -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4 mb-4">
-        <div class="flex items-center space-x-3">
-          <button @click="goToToday" class="px-4 py-2 bg-white/90 hover:bg-gray-50 border border-orange-200/50 rounded-lg font-medium transition-colors text-sm">
-            Today
-          </button>
+    <div v-else class="space-y-4">
+      <!-- Calendar Header -->
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-4 sm:p-6">
+          <!-- Top Row: Primary Actions -->
+          <div class="flex items-center justify-between py-3 gap-3">
+            <!-- Left: Calendars & Navigation -->
+            <div class="flex items-center gap-2 sm:gap-3">
+              <button
+                @click="toggleMobileCalendars"
+                class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-orange-50 transition-colors text-sm font-medium text-gray-700"
+              >
+                <IconCalendar class="w-5 h-5 text-orange-600" />
+                <span class="hidden sm:inline">Calendars</span>
+                <span v-if="selectedCalendars.size > 0" class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                  {{ selectedCalendars.size }}
+                </span>
+              </button>
 
-          <button @click="showFilters = !showFilters" class="px-4 py-2 bg-white/90 hover:bg-gray-50 border border-orange-200/50 rounded-lg font-medium transition-colors flex items-center space-x-2">
-            <IconFilter class="w-4 h-4" />
-            <span class="hidden sm:inline">Filters</span>
-          </button>
+              <!-- Navigation Controls -->
+              <div class="flex items-center gap-1 ml-2">
+                <button
+                  @click="navigateCalendar('prev')"
+                  class="p-2 rounded-full hover:bg-orange-50 transition-colors"
+                  title="Previous"
+                >
+                  <IconChevronLeft class="w-5 h-5 text-gray-700" />
+                </button>
+                <button
+                  @click="navigateCalendar('next')"
+                  class="p-2 rounded-full hover:bg-orange-50 transition-colors"
+                  title="Next"
+                >
+                  <IconChevronRight class="w-5 h-5 text-gray-700" />
+                </button>
+                <button
+                  @click="goToToday"
+                  class="hidden sm:flex px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors text-sm font-medium text-gray-700"
+                >
+                  Today
+                </button>
+              </div>
 
-          <button @click="openNewEventModal" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors flex items-center space-x-2">
-            <IconPlus class="w-4 h-4" />
-            <span class="hidden sm:inline">New Event</span>
-          </button>
+              <!-- Current Date Display -->
+              <h2 class="text-lg sm:text-xl font-semibold text-gray-900 ml-2">
+                {{ currentCalendarTitle }}
+              </h2>
+            </div>
+
+            <!-- Right: View & Actions -->
+            <div class="flex items-center gap-2">
+              <button @click="showFilters = !showFilters" class="p-2 rounded-lg hover:bg-orange-50 transition-colors sm:hidden">
+                <IconFilter class="w-5 h-5 text-gray-700" />
+              </button>
+
+              <button @click="openNewEventModal" class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm font-medium shadow-sm">
+                <IconPlus class="w-4 h-4" />
+                <span class="hidden sm:inline">Create</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom Row: View Switcher & Filters (Desktop) -->
+          <div class="hidden sm:flex items-center justify-between pt-3 border-t border-orange-100/50 mt-3">
+            <div class="flex items-center gap-1">
+              <button
+                v-for="view in ['dayGridMonth', 'timeGridWeek', 'timeGridDay', 'listWeek']"
+                :key="view"
+                @click="changeView(view)"
+                :class="[
+                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  calendarView === view
+                    ? 'bg-orange-100 text-orange-700'
+                    : 'text-gray-600 hover:bg-orange-50'
+                ]"
+              >
+                {{ getViewLabel(view) }}
+              </button>
+            </div>
+
+            <button
+              @click="showFilters = !showFilters"
+              :class="[
+                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                showFilters ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-orange-50'
+              ]"
+            >
+              <IconFilter class="w-4 h-4" />
+              Filters
+            </button>
+          </div>
+
+          <!-- Mobile View Switcher -->
+          <div class="flex sm:hidden items-center gap-1 py-2 overflow-x-auto">
+            <button
+              v-for="view in ['dayGridMonth', 'timeGridWeek', 'listWeek']"
+              :key="view"
+              @click="changeView(view)"
+              :class="[
+                'px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
+                calendarView === view
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-orange-50 text-gray-700'
+              ]"
+            >
+              {{ getViewLabel(view) }}
+            </button>
+          </div>
         </div>
-      </div>
 
       <!-- Filters -->
       <div v-if="showFilters" class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
@@ -712,25 +801,37 @@ onMounted(() => {
       </div>
 
       <!-- FullCalendar Component -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm mt-4 overflow-hidden">
-        <div v-if="isLoading" class="p-6">
-          <div class="flex items-center justify-center space-x-2">
-            <IconLoader class="w-5 h-5 animate-spin text-orange-600" />
-            <span class="text-gray-600">Loading events...</span>
-          </div>
-        </div>
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
+            <div v-if="isLoading" class="p-4 sm:p-6 space-y-4 animate-pulse">
+              <!-- Calendar header skeleton -->
+              <div class="flex items-center justify-between mb-4">
+                <div class="h-8 bg-orange-100 rounded w-32"></div>
+                <div class="flex gap-2">
+                  <div class="h-8 bg-orange-100 rounded w-24"></div>
+                  <div class="h-8 bg-orange-100 rounded w-24"></div>
+                </div>
+              </div>
 
-        <div v-else class="p-6">
-          <FullCalendar
-            ref="fullCalendarRef"
-            :options="calendarOptions"
-            class="fc-custom-theme"
-          />
-        </div>
+              <!-- Calendar grid skeleton -->
+              <div class="grid grid-cols-7 gap-2">
+                <!-- Week day headers -->
+                <div v-for="i in 7" :key="'header-' + i" class="h-8 bg-orange-50 rounded"></div>
+                <!-- Calendar dates -->
+                <div v-for="i in 35" :key="'date-' + i" class="h-20 bg-white rounded border border-orange-100/50"></div>
+              </div>
+            </div>
+
+            <div v-else class="calendar-wrapper">
+              <FullCalendar
+                ref="fullCalendarRef"
+                :options="calendarOptions"
+                class="fc-custom-theme"
+              />
+            </div>
       </div>
 
       <!-- Event Statistics -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6 mt-4">
+      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Event Statistics</h3>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="text-center">
@@ -898,6 +999,21 @@ onMounted(() => {
         </div>
       </transition>
     </Teleport>
+
+    <!-- Calendar List Modal -->
+    <CalendarListModal
+      :show="showCalendarListModal"
+      :calendar="editingCalendar"
+      @close="closeCalendarListModal"
+    />
+
+    <!-- Mobile Calendar List -->
+    <CalendarListMobile
+      :show="showMobileCalendars"
+      @close="toggleMobileCalendars"
+      @create-calendar="openCreateCalendarModal"
+      @edit-calendar="openEditCalendarModal"
+    />
   </div>
 </template>
 
