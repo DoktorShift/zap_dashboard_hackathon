@@ -276,17 +276,7 @@ export function useNostrContent() {
     return pubkey.substring(0, 8) + '...' + pubkey.substring(pubkey.length - 8)
   }
 
-  /**
-   * Generate fallback avatar URL
-   * @param {string} pubkey - Public key for generating avatar
-   * @returns {string} Avatar URL
-   */
-  const generateAvatar = (pubkey) => {
-    if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-    
-    // Use a deterministic avatar service based on pubkey
-    return `https://api.dicebear.com/7.x/identicon/svg?seed=${pubkey}&backgroundColor=f3f4f6`
-  }
+  // generateAvatar is imported from avatarGenerator.js
 
   return {
     parseNostrUri,

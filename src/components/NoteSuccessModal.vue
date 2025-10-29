@@ -39,7 +39,7 @@
             <div class="flex items-start space-x-3 bg-gray-50 rounded-xl p-4">
               <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0">
                 <img 
-                  :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                  :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
                   :alt="userProfile?.name || 'You'"
                   class="w-full h-full object-cover"
                 />
@@ -98,6 +98,7 @@
 <script setup>
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import * as nip19 from 'nostr-tools/nip19'
 
 const props = defineProps({

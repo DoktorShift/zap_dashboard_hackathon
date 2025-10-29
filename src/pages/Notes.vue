@@ -42,6 +42,7 @@ import { useContentZaps } from '../composables/useContentZaps.js'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
 import { useMentions } from '../composables/useMentions.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
 import NoteSuccessModal from '../components/NoteSuccessModal.vue'
 import ContentRenderer from '../components/ContentRenderer.vue'
@@ -628,7 +629,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                 <!-- User Avatar -->
                 <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
                   <img 
-                    :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                    :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
                     :alt="userProfile?.name || 'You'"
                     class="w-full h-full object-cover"
                   />
@@ -767,7 +768,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
               <!-- User Avatar -->
               <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
                 <img 
-                  :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                  :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
                   :alt="userProfile?.name || 'You'"
                   class="w-full h-full object-cover"
                 />
@@ -869,7 +870,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                 <div class="flex items-center space-x-3">
                   <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200">
                     <img 
-                      :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                      :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
                       :alt="userProfile?.name || 'You'"
                       class="w-full h-full object-cover"
                     />
@@ -964,7 +965,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                         :src="zap.sender?.picture || zap.sender?.avatar"
                         :alt="zap.sender?.name || 'Zapper'"
                         class="w-8 h-8 rounded-full object-cover border border-orange-200"
-                        @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                        @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                       />
                       <div class="flex-1 min-w-0">
                         <div class="font-medium text-gray-900 text-sm">

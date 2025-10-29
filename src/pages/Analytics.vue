@@ -4,7 +4,7 @@ import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendin
 import { filterZapsByTimeRange } from '../utils/timeFilter.js'
 import * as nip19 from 'nostr-tools/nip19'
 import UserProfileModal from '../components/UserProfileModal.vue'
-import { generateAvatar } from '../composables/useContentZaps.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import EngagementAnalytics from '../components/EngagementAnalytics.vue'
 import { IconExternalLink, IconHeart, IconRepeat, IconBookmark } from '@iconify-prerendered/vue-tabler'
 
