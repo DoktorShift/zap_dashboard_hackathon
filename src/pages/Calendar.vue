@@ -583,10 +583,6 @@ onMounted(() => {
 
             <!-- Action buttons -->
             <div class="flex items-center space-x-3">
-              <button @click="goToToday" class="btn-secondary text-sm">
-                Today
-              </button>
-
               <button @click="showFilters = !showFilters" class="btn-secondary">
                 <IconFilter class="w-4 h-4" />
                 <span class="hidden sm:inline">Filters</span>
