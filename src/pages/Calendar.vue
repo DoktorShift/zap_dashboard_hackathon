@@ -104,12 +104,15 @@ const fullCalendarEvents = computed(() => {
       start = new Date(event.start * 1000)
       end = event.end ? new Date(event.end * 1000) : null
     } else {
-      start = new Date(event.start_date)
-      if (event.end_date) {
-        const endDate = new Date(event.end_date)
+      // Date-based events
+      start = new Date(event.start_date + 'T00:00:00')
+      if (event.end_date && event.end_date !== event.start_date) {
+        // For multi-day events, add 1 day to end_date (FullCalendar exclusive end)
+        const endDate = new Date(event.end_date + 'T00:00:00')
         endDate.setDate(endDate.getDate() + 1)
         end = endDate
       } else {
+        // Single day event - no end needed
         end = null
       }
     }
@@ -206,7 +209,8 @@ const calendarOptions = computed(() => {
     editable: true,
     selectable: true,
     selectMirror: true,
-    dayMaxEvents: 2,
+    dayMaxEvents: true,
+    moreLinkClick: 'popover',
     weekends: true,
     height: 'auto',
     contentHeight: 'auto',
