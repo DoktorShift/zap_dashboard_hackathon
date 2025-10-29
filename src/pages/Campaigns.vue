@@ -282,207 +282,187 @@ watch(isAuthenticated, async (isAuth) => {
       </div>
     </div>
 
-    <!-- Stats Cards (Only show when authenticated and has campaigns) -->
-    <div v-if="isAuthenticated && userCampaigns.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <!-- Mobile: 2x2 Grid, Desktop: 1x4 Grid -->
-      <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg shadow-orange-100/20 p-4 sm:p-5 hover:shadow-xl hover:shadow-orange-100/30 transition-all duration-300 hover:border-orange-200/60 transform hover:-translate-y-1">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs sm:text-sm text-gray-500 mb-1 font-medium">Total</p>
-            <p class="text-xl sm:text-2xl font-bold text-gray-900">{{ campaignStats.total }}</p>
+    <!-- Unified Dashboard Controls -->
+    <div v-if="isAuthenticated && userCampaigns.length > 0" class="mb-8">
+      <!-- Mobile Layout -->
+      <div class="block lg:hidden space-y-4">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-4 gap-2">
+          <div class="bg-white border border-gray-200 rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-gray-900">{{ campaignStats.total }}</div>
+            <div class="text-xs text-gray-500 mt-1">Total</div>
           </div>
-          <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center shadow-sm">
-            <IconTarget class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+          <div class="bg-white border border-gray-200 rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-green-600">{{ campaignStats.active }}</div>
+            <div class="text-xs text-gray-500 mt-1">Active</div>
           </div>
-        </div>
-      </div>
-      
-      <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-green-100/50 shadow-lg shadow-green-100/20 p-4 sm:p-5 hover:shadow-xl hover:shadow-green-100/30 transition-all duration-300 hover:border-green-200/60 transform hover:-translate-y-1">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs sm:text-sm text-gray-500 mb-1 font-medium">Active</p>
-            <p class="text-xl sm:text-2xl font-bold text-green-600">{{ campaignStats.active }}</p>
+          <div class="bg-white border border-gray-200 rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ campaignStats.completed }}</div>
+            <div class="text-xs text-gray-500 mt-1">Done</div>
           </div>
-          <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl flex items-center justify-center shadow-sm">
-            <IconBolt class="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+          <div class="bg-white border border-gray-200 rounded-xl p-3 text-center">
+            <div class="text-xl font-bold text-orange-600">{{ Math.floor(campaignStats.totalRaised / 1000).toLocaleString() }}k</div>
+            <div class="text-xs text-gray-500 mt-1">Sats</div>
           </div>
         </div>
-      </div>
-      
-      <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-blue-100/50 shadow-lg shadow-blue-100/20 p-4 sm:p-5 hover:shadow-xl hover:shadow-blue-100/30 transition-all duration-300 hover:border-blue-200/60 transform hover:-translate-y-1">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs sm:text-sm text-gray-500 mb-1 font-medium">Done</p>
-            <p class="text-xl sm:text-2xl font-bold text-blue-600">{{ campaignStats.completed }}</p>
+
+        <!-- Controls -->
+        <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+          <div class="relative">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search campaigns..."
+              class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+            />
+            <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+            <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-3.5 text-gray-400">
+              <IconX class="w-4 h-4" />
+            </button>
           </div>
-          <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl flex items-center justify-center shadow-sm">
-            <IconCheck class="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+
+          <div class="flex items-center gap-2">
+            <div class="flex bg-gray-50 border border-gray-200 rounded-lg p-0.5 flex-1">
+              <button
+                @click="activeView = 'grid'"
+                :class="['flex-1 py-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1', activeView === 'grid' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-600']"
+              >
+                <IconGrid class="w-3.5 h-3.5" />
+                Grid
+              </button>
+              <button
+                @click="activeView = 'list'"
+                :class="['flex-1 py-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1', activeView === 'list' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-600']"
+              >
+                <IconList class="w-3.5 h-3.5" />
+                List
+              </button>
+            </div>
+
+            <div class="relative flex-1">
+              <select v-model="sortOption" class="w-full appearance-none pl-3 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs transition-all">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="progress">Progress</option>
+                <option value="goal">Goal</option>
+              </select>
+              <IconChevronDown class="absolute right-2.5 top-2.5 w-3 h-3 text-gray-400 pointer-events-none" />
+            </div>
           </div>
+
+          <button
+            @click="openCreateModal"
+            class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+          >
+            <IconPlus class="w-4 h-4" />
+            New Campaign
+          </button>
         </div>
       </div>
-      
-      <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg shadow-orange-100/20 p-4 sm:p-5 hover:shadow-xl hover:shadow-orange-100/30 transition-all duration-300 hover:border-orange-200/60 transform hover:-translate-y-1">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs sm:text-sm text-gray-500 mb-1 font-medium">Raised</p>
-            <p class="text-lg sm:text-2xl font-bold text-orange-600">{{ campaignStats.totalRaised.toLocaleString() }} <span class="text-xs sm:text-sm font-normal text-orange-500">sats</span></p>
+
+      <!-- Desktop Layout -->
+      <div class="hidden lg:block">
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <!-- Stats Bar -->
+          <div class="border-b border-gray-200 px-6 py-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-8">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center">
+                    <IconTarget class="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <div class="text-2xl font-bold text-gray-900">{{ campaignStats.total }}</div>
+                    <div class="text-xs text-gray-500">Total Campaigns</div>
+                  </div>
+                </div>
+
+                <div class="h-10 w-px bg-gray-200"></div>
+
+                <div class="flex items-center gap-6">
+                  <div>
+                    <div class="text-xl font-bold text-green-600">{{ campaignStats.active }}</div>
+                    <div class="text-xs text-gray-500">Active</div>
+                  </div>
+                  <div>
+                    <div class="text-xl font-bold text-blue-600">{{ campaignStats.completed }}</div>
+                    <div class="text-xs text-gray-500">Completed</div>
+                  </div>
+                  <div>
+                    <div class="text-xl font-bold text-orange-600">{{ campaignStats.totalRaised.toLocaleString() }}</div>
+                    <div class="text-xs text-gray-500">Sats Raised</div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                @click="openCreateModal"
+                class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-5 py-2.5 rounded-lg font-semibold transition-all flex items-center gap-2"
+              >
+                <IconPlus class="w-4 h-4" />
+                New Campaign
+              </button>
+            </div>
           </div>
-          <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center shadow-sm">
-            <IconBolt class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+
+          <!-- Controls Bar -->
+          <div class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <div class="relative flex-1 max-w-sm">
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Search campaigns..."
+                  class="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+                />
+                <IconSearch class="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                  <IconX class="w-4 h-4" />
+                </button>
+              </div>
+
+              <div class="flex bg-gray-50 border border-gray-200 rounded-lg p-0.5">
+                <button
+                  @click="activeView = 'grid'"
+                  :class="['px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5', activeView === 'grid' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-600 hover:text-gray-900']"
+                >
+                  <IconGrid class="w-4 h-4" />
+                  Grid
+                </button>
+                <button
+                  @click="activeView = 'list'"
+                  :class="['px-3 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-1.5', activeView === 'list' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-600 hover:text-gray-900']"
+                >
+                  <IconList class="w-4 h-4" />
+                  List
+                </button>
+              </div>
+
+              <div class="relative">
+                <select v-model="sortOption" class="appearance-none pl-3 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm transition-all min-w-[140px]">
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="progress">By Progress</option>
+                  <option value="goal">By Goal</option>
+                </select>
+                <IconChevronDown class="absolute right-2.5 top-3.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Search and Filters -->
-    <div v-if="isAuthenticated" class="mb-8">
-      <!-- Mobile Layout -->
-      <div class="block lg:hidden space-y-3">
-        <!-- Search -->
-        <div class="relative">
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search campaigns..."
-            class="w-full pl-10 pr-10 py-3.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
-          />
-          <IconSearch class="absolute left-3.5 top-4 w-4 h-4 text-gray-400" />
-          <button
-            v-if="searchQuery"
-            @click="searchQuery = ''"
-            class="absolute right-3.5 top-4 text-gray-400 hover:text-gray-600"
-          >
-            <IconX class="w-4 h-4" />
-          </button>
-        </div>
-
-        <!-- View Toggle & Sort -->
-        <div class="flex items-center gap-3">
-          <div class="flex bg-white border border-gray-200 rounded-xl p-1 flex-1">
-            <button
-              @click="activeView = 'grid'"
-              :class="[
-                'flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5',
-                activeView === 'grid'
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              ]"
-            >
-              <IconGrid class="w-4 h-4" />
-              <span>Grid</span>
-            </button>
-            <button
-              @click="activeView = 'list'"
-              :class="[
-                'flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5',
-                activeView === 'list'
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              ]"
-            >
-              <IconList class="w-4 h-4" />
-              <span>List</span>
-            </button>
-          </div>
-
-          <div class="relative flex-1">
-            <select
-              v-model="sortOption"
-              class="w-full appearance-none pl-3.5 pr-9 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 text-sm transition-all"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="progress">By Progress</option>
-              <option value="goal">By Goal</option>
-            </select>
-            <IconChevronDown class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
-        </div>
-
-        <!-- New Campaign Button -->
+    <!-- Simple Controls for Empty State -->
+    <div v-else-if="isAuthenticated" class="mb-8">
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
         <button
           @click="openCreateModal"
-          class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg"
+          class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
         >
           <IconPlus class="w-5 h-5" />
-          <span>New Campaign</span>
+          Create Your First Campaign
         </button>
-      </div>
-
-      <!-- Desktop Layout -->
-      <div class="hidden lg:block">
-        <div class="bg-white rounded-xl border border-gray-200 p-5">
-          <div class="flex items-center gap-4">
-            <!-- Search -->
-            <div class="relative flex-1 max-w-md">
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Search campaigns..."
-                class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
-              />
-              <IconSearch class="absolute left-3.5 top-3.5 w-4 h-4 text-gray-400" />
-              <button
-                v-if="searchQuery"
-                @click="searchQuery = ''"
-                class="absolute right-3.5 top-3.5 text-gray-400 hover:text-gray-600"
-              >
-                <IconX class="w-4 h-4" />
-              </button>
-            </div>
-
-            <!-- View Toggle -->
-            <div class="flex bg-gray-50 border border-gray-200 rounded-xl p-1">
-              <button
-                @click="activeView = 'grid'"
-                :class="[
-                  'px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2',
-                  activeView === 'grid'
-                    ? 'bg-white text-orange-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                ]"
-              >
-                <IconGrid class="w-4 h-4" />
-                <span>Grid</span>
-              </button>
-              <button
-                @click="activeView = 'list'"
-                :class="[
-                  'px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2',
-                  activeView === 'list'
-                    ? 'bg-white text-orange-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                ]"
-              >
-                <IconList class="w-4 h-4" />
-                <span>List</span>
-              </button>
-            </div>
-
-            <!-- Sort -->
-            <div class="relative">
-              <select
-                v-model="sortOption"
-                class="appearance-none pl-3.5 pr-9 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 text-sm transition-all min-w-[160px]"
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="progress">Highest Progress</option>
-                <option value="goal">Highest Goal</option>
-              </select>
-              <IconChevronDown class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-
-            <!-- New Campaign Button -->
-            <button
-              @click="openCreateModal"
-              class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 shadow-lg whitespace-nowrap"
-            >
-              <IconPlus class="w-4 h-4" />
-              <span>New Campaign</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
     <!-- Authentication Required Banner -->
