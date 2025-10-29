@@ -27,7 +27,8 @@ const eventForm = reactive({
   end_time: '',
   location: '',
   participants: [],
-  tags: []
+  tags: [],
+  calendar_id: null // d_tag of the parent calendar list
 })
 
 // UI state
@@ -54,6 +55,16 @@ export function useNostrCalendar() {
     })
   })
 
+  // Filter events by calendar IDs
+  const filterEventsByCalendars = (calendarIds) => {
+    if (!calendarIds || calendarIds.length === 0) {
+      return sortedEvents.value
+    }
+    return sortedEvents.value.filter(event =>
+      !event.calendar_id || calendarIds.includes(event.calendar_id)
+    )
+  }
+
   // Create calendar event data structure
   const createEventData = (calendarEvent) => {
     try {
@@ -64,6 +75,12 @@ export function useNostrCalendar() {
       const description = calendarEvent.content || ''
       const location = calendarEvent.tags.find(tag => tag[0] === 'location')?.[1] || ''
       
+      // Extract calendar reference (a tag pointing to kind 31924)
+      const calendarRef = calendarEvent.tags.find(tag =>
+        tag[0] === 'a' && tag[1].startsWith('31924:')
+      )
+      const calendar_id = calendarRef ? calendarRef[1].split(':')[2] : null
+
       let eventData = {
         id: calendarEvent.id,
         title,
@@ -74,6 +91,7 @@ export function useNostrCalendar() {
         created_at: calendarEvent.created_at,
         participants: [],
         tags: [],
+        calendar_id,
         rawEvent: calendarEvent
       }
 
@@ -233,6 +251,12 @@ export function useNostrCalendar() {
         ['title', eventData.title.trim()],
         ['d', Date.now().toString()] // Identifier for replaceable events
       ]
+
+      // Add calendar reference if provided
+      if (eventData.calendar_id) {
+        const calendarCoordinate = `31924:${currentUser.value.pubkey}:${eventData.calendar_id}`
+        tags.push(['a', calendarCoordinate])
+      }
 
       if (isTimeBased) {
         // Time-based event
@@ -470,7 +494,8 @@ export function useNostrCalendar() {
       end_time: '',
       location: '',
       participants: [],
-      tags: []
+      tags: [],
+      calendar_id: null
     })
     currentView.value = 'create'
   }
@@ -534,13 +559,14 @@ export function useNostrCalendar() {
     updateEvent,
     deleteEvent,
     cleanup,
-    
+    filterEventsByCalendars,
+
     // View management
     setView,
     viewEvent,
     editEvent,
     createNewEvent,
-    
+
     // Constants
     CALENDAR_EVENT_KINDS
   }

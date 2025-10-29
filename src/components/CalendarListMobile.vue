@@ -1,0 +1,241 @@
+<script setup>
+import { ref } from 'vue'
+import {
+  IconPlus,
+  IconX,
+  IconEdit,
+  IconTrash,
+  IconStar,
+  IconStarFilled,
+  IconCalendar,
+  IconChevronUp
+} from '@iconify-prerendered/vue-tabler'
+import { useNostrCalendarList } from '../composables/useNostrCalendarList.js'
+
+const props = defineProps({
+  show: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const emit = defineEmits(['close', 'create-calendar', 'edit-calendar'])
+
+const {
+  calendarLists,
+  isCalendarSelected,
+  toggleCalendarSelection,
+  defaultCalendarId,
+  setDefaultCalendar,
+  deleteCalendarList
+} = useNostrCalendarList()
+
+const handleToggle = (d_tag) => {
+  toggleCalendarSelection(d_tag)
+}
+
+const handleSetDefault = (d_tag) => {
+  setDefaultCalendar(d_tag)
+}
+
+const handleEdit = (calendar) => {
+  emit('edit-calendar', calendar)
+}
+
+const handleDelete = async (calendar) => {
+  if (confirm(`Delete "${calendar.title}"? This will not delete the events in it.`)) {
+    try {
+      await deleteCalendarList(calendar.d_tag)
+    } catch (error) {
+      console.error('Failed to delete calendar:', error)
+    }
+  }
+}
+
+const handleCreateNew = () => {
+  emit('create-calendar')
+}
+
+const handleClose = () => {
+  emit('close')
+}
+</script>
+
+<template>
+  <Teleport to="#modal-root">
+    <transition name="slide-up">
+      <div
+        v-if="show"
+        class="fixed inset-0 z-[9999] sm:hidden"
+        @click.self="handleClose"
+      >
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="handleClose"></div>
+
+        <!-- Bottom Sheet -->
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl max-h-[85vh] flex flex-col">
+          <!-- Drag Handle -->
+          <div class="flex justify-center pt-3 pb-2">
+            <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+          </div>
+
+          <!-- Header -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div class="flex items-center gap-2">
+              <IconCalendar class="w-5 h-5 text-orange-600" />
+              <h3 class="text-lg font-bold text-gray-900">My Calendars</h3>
+              <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full font-medium">
+                {{ calendarLists.length }}
+              </span>
+            </div>
+            <button
+              @click="handleClose"
+              class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <IconX class="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+
+          <!-- Calendar List -->
+          <div class="flex-1 overflow-y-auto px-4 py-3">
+            <div v-if="calendarLists.length === 0" class="py-12 text-center">
+              <IconCalendar class="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p class="text-sm text-gray-500 font-medium">No calendars yet</p>
+              <p class="text-xs text-gray-400 mt-2">Create your first calendar to organize events</p>
+            </div>
+
+            <div v-else class="space-y-2">
+              <div
+                v-for="calendar in calendarLists"
+                :key="calendar.d_tag"
+                class="bg-white border border-gray-200 rounded-2xl p-4 hover:bg-gray-50 transition-colors"
+              >
+                <div class="flex items-start gap-3">
+                  <!-- Checkbox -->
+                  <input
+                    type="checkbox"
+                    :checked="isCalendarSelected(calendar.d_tag)"
+                    @change="handleToggle(calendar.d_tag)"
+                    class="mt-1 w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500 focus:ring-2"
+                  />
+
+                  <!-- Calendar Info -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <!-- Color indicator -->
+                      <div
+                        class="w-4 h-4 rounded-full flex-shrink-0"
+                        :style="{ backgroundColor: calendar.color }"
+                      ></div>
+
+                      <!-- Title and default indicator -->
+                      <h4 class="text-base font-semibold text-gray-900 truncate">
+                        {{ calendar.title }}
+                      </h4>
+
+                      <button
+                        @click="handleSetDefault(calendar.d_tag)"
+                        :class="[
+                          'flex-shrink-0 transition-colors',
+                          defaultCalendarId === calendar.d_tag
+                            ? 'text-yellow-500'
+                            : 'text-gray-300'
+                        ]"
+                      >
+                        <component :is="defaultCalendarId === calendar.d_tag ? IconStarFilled : IconStar" class="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <!-- Description -->
+                    <p v-if="calendar.description" class="text-sm text-gray-600 mb-2 line-clamp-2">
+                      {{ calendar.description }}
+                    </p>
+
+                    <!-- Event count -->
+                    <p class="text-xs text-gray-500">
+                      {{ calendar.event_count || 0 }} events
+                    </p>
+                  </div>
+
+                  <!-- Action Buttons -->
+                  <div class="flex flex-col gap-1">
+                    <button
+                      @click="handleEdit(calendar)"
+                      class="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <IconEdit class="w-4 h-4" />
+                    </button>
+                    <button
+                      @click="handleDelete(calendar)"
+                      class="w-9 h-9 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors"
+                    >
+                      <IconTrash class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="p-4 border-t border-gray-100 bg-white/95 backdrop-blur-sm rounded-b-3xl">
+            <button
+              @click="handleCreateNew"
+              class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-3.5 rounded-xl font-semibold text-base transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+            >
+              <IconPlus class="w-5 h-5" />
+              Create New Calendar
+            </button>
+
+            <p v-if="calendarLists.length > 0" class="text-xs text-gray-500 text-center mt-3">
+              {{ calendarLists.filter(c => isCalendarSelected(c.d_tag)).length }} of {{ calendarLists.length }} calendars visible
+            </p>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </Teleport>
+</template>
+
+<style scoped>
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.slide-up-enter-from .bg-white,
+.slide-up-leave-to .bg-white {
+  transform: translateY(100%);
+}
+
+.slide-up-enter-from .bg-black\/50,
+.slide-up-leave-to .bg-black\/50 {
+  opacity: 0;
+}
+
+/* Custom scrollbar */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 2px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.5);
+}
+
+/* Line clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>

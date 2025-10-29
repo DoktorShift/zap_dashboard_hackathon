@@ -30,7 +30,11 @@ import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNostrCalendar } from '../composables/useNostrCalendar.js'
+import { useNostrCalendarList } from '../composables/useNostrCalendarList.js'
 import { formatDate, formatTime, isToday, isSameDay } from '../utils/dateUtils.js'
+import CalendarListSidebar from '../components/CalendarListSidebar.vue'
+import CalendarListMobile from '../components/CalendarListMobile.vue'
+import CalendarListModal from '../components/CalendarListModal.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -48,8 +52,17 @@ const {
   setView,
   viewEvent,
   editEvent,
-  createNewEvent
+  createNewEvent,
+  filterEventsByCalendars
 } = useNostrCalendar()
+
+const {
+  calendarLists,
+  selectedCalendars,
+  defaultCalendar,
+  fetchCalendarLists,
+  getCalendar
+} = useNostrCalendarList()
 
 // FullCalendar ref
 const fullCalendarRef = ref(null)
@@ -64,6 +77,9 @@ const selectedFilters = ref({
 const showFilters = ref(false)
 const showEventModal = ref(false)
 const isEditingEvent = ref(false)
+const showCalendarListModal = ref(false)
+const editingCalendar = ref(null)
+const showMobileCalendars = ref(false)
 
 // Event form state for modal
 const modalEventForm = ref({
@@ -76,14 +92,15 @@ const modalEventForm = ref({
   end_time: '',
   location: '',
   participants: [],
-  tags: []
+  tags: [],
+  calendar_id: null
 })
 
 // Transform events for FullCalendar
 const fullCalendarEvents = computed(() => {
   return filteredEvents.value.map(event => {
     let start, end
-    
+
     if (event.type === 'time-based') {
       start = new Date(event.start * 1000)
       end = event.end ? new Date(event.end * 1000) : null
@@ -97,17 +114,20 @@ const fullCalendarEvents = computed(() => {
         end = null
       }
     }
-    console.log(`Event ${event.id} - Start: ${start}, End: ${end}`)
-    
+
+    // Get calendar color if event is assigned to a calendar
+    const calendar = event.calendar_id ? getCalendar(event.calendar_id) : null
+    const eventColor = calendar?.color || (event.type === 'time-based' ? '#4D96FF' : '#6BCF7F')
+
     return {
       id: event.id,
       title: event.title,
       start: start,
       end: end,
       allDay: event.type === 'date-based',
-      backgroundColor: event.type === 'time-based' ? '#dbeafe' : '#dcfce7',
-      borderColor: event.type === 'time-based' ? '#3b82f6' : '#16a34a',
-      textColor: event.type === 'time-based' ? '#1e40af' : '#15803d',
+      backgroundColor: eventColor + '40', // Add transparency
+      borderColor: eventColor,
+      textColor: '#1f2937',
       classNames: [
         'fc-event-custom',
         `fc-event-${event.type}`,
@@ -120,6 +140,7 @@ const fullCalendarEvents = computed(() => {
         tags: event.tags,
         type: event.type,
         status: getEventStatus(event),
+        calendar,
         originalEvent: event
       }
     }
@@ -166,43 +187,51 @@ const calendarOptions = computed(() => {
   }
 })
 
-// Filtered events based on search and filters
+// Filtered events based on search, filters, and calendar selection
 const filteredEvents = computed(() => {
   let filtered = [...events.value]
-  
+
+  // Apply calendar filter - only show events from selected calendars
+  if (selectedCalendars.value.size > 0) {
+    filtered = filtered.filter(event => {
+      // Show events without calendar assignment OR events from selected calendars
+      return !event.calendar_id || selectedCalendars.value.has(event.calendar_id)
+    })
+  }
+
   // Apply search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    filtered = filtered.filter(event => 
+    filtered = filtered.filter(event =>
       event.title.toLowerCase().includes(query) ||
       event.description.toLowerCase().includes(query) ||
       event.location?.toLowerCase().includes(query)
     )
   }
-  
+
   // Apply type filter
   if (selectedFilters.value.type !== 'all') {
     filtered = filtered.filter(event => event.type === selectedFilters.value.type)
   }
-  
+
   // Apply status filter
   if (selectedFilters.value.status !== 'all') {
     const now = Date.now() / 1000
     if (selectedFilters.value.status === 'upcoming') {
       filtered = filtered.filter(event => {
-        const eventTime = event.type === 'time-based' ? event.start : 
+        const eventTime = event.type === 'time-based' ? event.start :
                          new Date(event.start_date).getTime() / 1000
         return eventTime > now
       })
     } else if (selectedFilters.value.status === 'past') {
       filtered = filtered.filter(event => {
-        const eventTime = event.type === 'time-based' ? event.end || event.start : 
+        const eventTime = event.type === 'time-based' ? event.end || event.start :
                          new Date(event.end_date || event.start_date).getTime() / 1000
         return eventTime < now
       })
     }
   }
-  
+
   return filtered.sort((a, b) => {
     const timeA = a.type === 'time-based' ? a.start : new Date(a.start_date).getTime() / 1000
     const timeB = b.type === 'time-based' ? b.start : new Date(b.start_date).getTime() / 1000
@@ -224,7 +253,8 @@ const handleDateSelect = (selectInfo) => {
     end_time: selectInfo.allDay ? '' : selectInfo.endStr.split('T')[1]?.substring(0, 5) || '',
     location: '',
     participants: [],
-    tags: []
+    tags: [],
+    calendar_id: defaultCalendar.value?.d_tag || null
   }
   showEventModal.value = true
   
@@ -249,7 +279,8 @@ const handleEventClick = (clickInfo) => {
     type: event.type,
     location: event.location || '',
     participants: [...(event.participants || [])],
-    tags: [...(event.tags || [])]
+    tags: [...(event.tags || [])],
+    calendar_id: event.calendar_id || null
   }
 
   if (event.type === 'time-based') {
@@ -332,7 +363,7 @@ const handleViewChange = (viewInfo) => {
 const openNewEventModal = () => {
   isEditingEvent.value = false
   selectedEvent.value = null
-  
+
   // Set default form values
   modalEventForm.value = {
     title: '',
@@ -344,9 +375,10 @@ const openNewEventModal = () => {
     end_time: '',
     location: '',
     participants: [],
-    tags: []
+    tags: [],
+    calendar_id: defaultCalendar.value?.d_tag || null
   }
-  
+
   showEventModal.value = true
 }
 
@@ -394,8 +426,29 @@ const closeEventModal = () => {
     end_time: '',
     location: '',
     participants: [],
-    tags: []
+    tags: [],
+    calendar_id: defaultCalendar.value?.d_tag || null
   }
+}
+
+// Calendar List Modal Handlers
+const openCreateCalendarModal = () => {
+  editingCalendar.value = null
+  showCalendarListModal.value = true
+}
+
+const openEditCalendarModal = (calendar) => {
+  editingCalendar.value = calendar
+  showCalendarListModal.value = true
+}
+
+const closeCalendarListModal = () => {
+  showCalendarListModal.value = false
+  editingCalendar.value = null
+}
+
+const toggleMobileCalendars = () => {
+  showMobileCalendars.value = !showMobileCalendars.value
 }
 
 // Calendar navigation
@@ -473,6 +526,7 @@ const isFormValid = computed(() => {
 // Initialize
 onMounted(() => {
   if (isAuthenticated.value) {
+    fetchCalendarLists()
     fetchCalendarEvents()
   }
 })
@@ -505,28 +559,56 @@ onMounted(() => {
     </div>
 
     <!-- Authenticated Content -->
-    <div v-else>
-      <!-- Calendar Header -->
+    <div v-else class="flex gap-0 h-[calc(100vh-120px)] -mx-6 -mb-6">
+      <!-- Desktop Sidebar -->
+      <div class="hidden lg:block w-64 flex-shrink-0">
+        <CalendarListSidebar
+          @create-calendar="openCreateCalendarModal"
+          @edit-calendar="openEditCalendarModal"
+        />
+      </div>
 
-       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
+      <!-- Main Content Area -->
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- Calendar Header -->
+        <div class="flex-shrink-0 bg-white/90 backdrop-blur-sm border-b border-gray-200/50 px-6 py-4">
+          <div class="flex items-center justify-between gap-4">
+            <!-- Mobile calendar list button -->
+            <button
+              @click="toggleMobileCalendars"
+              class="lg:hidden btn-secondary"
+            >
+              <IconCalendar class="w-4 h-4" />
+              Calendars
+              <span v-if="calendarLists.length > 0" class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full ml-1">
+                {{ calendarLists.length }}
+              </span>
+            </button>
 
-        <div class="flex items-center space-x-3 mb-4">
-          <button @click="goToToday" class="btn-secondary text-sm">
+            <div class="flex-1"></div>
+
+            <!-- Action buttons -->
+            <div class="flex items-center space-x-3">
+              <button @click="goToToday" class="btn-secondary text-sm">
                 Today
               </button>
 
               <button @click="showFilters = !showFilters" class="btn-secondary">
                 <IconFilter class="w-4 h-4" />
-                Filters
+                <span class="hidden sm:inline">Filters</span>
               </button>
 
               <button @click="openNewEventModal" class="btn-primary">
                 <IconPlus class="w-4 h-4" />
-                New Event
+                <span class="hidden sm:inline">New Event</span>
               </button>
+            </div>
           </div>
         </div>
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6"  v-if="showFilters" >
+
+        <!-- Scrollable content -->
+        <div class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6"  v-if="showFilters" >
 
         <!-- Filters -->
         <div class="mt-6 pt-6 border-t border-orange-100/50">
@@ -561,55 +643,57 @@ onMounted(() => {
               <option value="upcoming">Upcoming</option>
               <option value="past">Past</option>
             </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Error Message -->
-      <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div class="flex items-center space-x-2">
-          <IconAlertCircle class="w-5 h-5 text-red-600" />
-          <p class="text-red-600">{{ error }}</p>
-        </div>
-      </div>
-
-      <!-- FullCalendar Component -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm mt-4 overflow-hidden">
-        <div v-if="isLoading" class="p-6">
-          <div class="flex items-center justify-center space-x-2">
-            <IconLoader class="w-5 h-5 animate-spin text-orange-600" />
-            <span class="text-gray-600">Loading events...</span>
-          </div>
-        </div>
-        
-        <div v-else class="p-6">
-          <FullCalendar 
-            ref="fullCalendarRef"
-            :options="calendarOptions"
-            class="fc-custom-theme"
-          />
-        </div>
-      </div>
-
-      <!-- Event Statistics -->
-      <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6 mt-4">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Event Statistics</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="text-center">
-            <div class="text-2xl font-bold text-orange-600">{{ filteredEvents.length }}</div>
-            <div class="text-sm text-gray-600">Total Events</div>
-          </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold text-blue-600">
-              {{ filteredEvents.filter(e => e.type === 'time-based').length }}
             </div>
-            <div class="text-sm text-gray-600">Time-based</div>
           </div>
-          <div class="text-center">
-            <div class="text-2xl font-bold text-green-600">
-              {{ filteredEvents.filter(e => e.type === 'date-based').length }}
+          </div>
+
+          <!-- Error Message -->
+          <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-center space-x-2">
+              <IconAlertCircle class="w-5 h-5 text-red-600" />
+              <p class="text-red-600">{{ error }}</p>
             </div>
-            <div class="text-sm text-gray-600">Date-based</div>
+          </div>
+
+          <!-- FullCalendar Component -->
+          <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
+            <div v-if="isLoading" class="p-6">
+              <div class="flex items-center justify-center space-x-2">
+                <IconLoader class="w-5 h-5 animate-spin text-orange-600" />
+                <span class="text-gray-600">Loading events...</span>
+              </div>
+            </div>
+
+            <div v-else class="p-6">
+              <FullCalendar
+                ref="fullCalendarRef"
+                :options="calendarOptions"
+                class="fc-custom-theme"
+              />
+            </div>
+          </div>
+
+          <!-- Event Statistics -->
+          <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Event Statistics</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-orange-600">{{ filteredEvents.length }}</div>
+                <div class="text-sm text-gray-600">Total Events</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-blue-600">
+                  {{ filteredEvents.filter(e => e.type === 'time-based').length }}
+                </div>
+                <div class="text-sm text-gray-600">Time-based</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-green-600">
+                  {{ filteredEvents.filter(e => e.type === 'date-based').length }}
+                </div>
+                <div class="text-sm text-gray-600">Date-based</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -639,6 +723,20 @@ onMounted(() => {
                   placeholder="Event title"
                   class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
                 />
+              </div>
+
+              <!-- Calendar Selection -->
+              <div v-if="calendarLists.length > 0">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Calendar</label>
+                <select
+                  v-model="modalEventForm.calendar_id"
+                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+                >
+                  <option :value="null">No Calendar</option>
+                  <option v-for="calendar in calendarLists" :key="calendar.d_tag" :value="calendar.d_tag">
+                    <span :style="{ color: calendar.color }">●</span> {{ calendar.title }}
+                  </option>
+                </select>
               </div>
 
               <!-- Type -->
@@ -746,5 +844,20 @@ onMounted(() => {
         </div>
       </transition>
     </Teleport>
+
+    <!-- Calendar List Modal -->
+    <CalendarListModal
+      :show="showCalendarListModal"
+      :calendar="editingCalendar"
+      @close="closeCalendarListModal"
+    />
+
+    <!-- Mobile Calendar List -->
+    <CalendarListMobile
+      :show="showMobileCalendars"
+      @close="toggleMobileCalendars"
+      @create-calendar="openCreateCalendarModal"
+      @edit-calendar="openEditCalendarModal"
+    />
   </div>
 </template>
