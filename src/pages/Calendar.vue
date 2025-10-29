@@ -154,8 +154,8 @@ const fullCalendarEvents = computed(() => {
         participants: event.participants,
         tags: event.tags,
         type: event.type,
-        status: getEventStatus(event),
-        calendar,
+        status: status,
+        calendar_id: event.calendar_id,
         originalEvent: event
       }
     }
