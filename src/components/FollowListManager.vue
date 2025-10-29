@@ -205,15 +205,6 @@ const handleSearch = (query) => {
   }
 }
 
-// Refresh current tab data
-const refreshData = async () => {
-  if (activeTab.value === 'my-lists') {
-    await fetchMyLists()
-  } else {
-    await discoverLists(searchQuery.value)
-  }
-}
-
 // Initialize on mount
 onMounted(() => {
   if (isAuthenticated.value) {
@@ -237,16 +228,6 @@ onMounted(() => {
       </div>
       
       <div class="flex items-center space-x-3">
-        <button
-          @click="refreshData"
-          :disabled="isLoading"
-          class="btn-secondary"
-        >
-          <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
-          <IconLoader v-else class="w-4 h-4" />
-          Refresh
-        </button>
-        
         <button
           v-if="isMyListsTab"
           @click="handleCreateList"
