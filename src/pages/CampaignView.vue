@@ -1,75 +1,63 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
+  <div class="min-h-screen bg-white">
     <!-- Loading State -->
     <div v-if="isLoading && !campaign" class="flex items-center justify-center min-h-screen">
-      <div class="bg-white/90 backdrop-blur-sm p-8 rounded-xl border border-orange-100/50 shadow-sm text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-        <p class="text-gray-600">Loading campaign...</p>
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-orange-500 mx-auto mb-3"></div>
+        <p class="text-sm text-gray-500">Loading campaign...</p>
       </div>
     </div>
 
     <!-- Error State -->
     <div v-else-if="error" class="flex items-center justify-center min-h-screen p-4">
-      <div class="bg-red-50 border border-red-200 rounded-xl p-6 shadow-sm max-w-md w-full">
+      <div class="bg-red-50 border border-red-200 rounded-2xl p-6 max-w-md w-full">
         <div class="flex items-center space-x-3">
-          <IconAlertCircle class="w-6 h-6 text-red-600" />
+          <IconAlertCircle class="w-5 h-5 text-red-600" />
           <div>
-            <h3 class="text-lg font-semibold text-red-800 mb-1">Campaign Not Found</h3>
-            <p class="text-red-700">{{ error }}</p>
+            <h3 class="text-base font-semibold text-red-900">Campaign Not Found</h3>
+            <p class="text-sm text-red-600 mt-1">{{ error }}</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Main Campaign Content -->
-    <div v-else-if="campaign" class="relative">
-      <!-- Hero Header Section -->
-      <div class="relative w-full overflow-hidden bg-gradient-to-br from-orange-100 via-amber-50 to-yellow-100">
-        <!-- Campaign Image -->
-        <div class="relative w-full" style="max-height: 400px; min-height: 200px;">
+    <div v-else-if="campaign" class="relative min-h-screen">
+      <!-- Hero Image Section -->
+      <div class="relative w-full bg-gray-100">
+        <div class="relative w-full h-[280px] sm:h-[320px] overflow-hidden">
           <img
             v-if="campaign.image"
             :src="campaign.image"
             :alt="campaign.title"
-            class="w-full h-full max-h-[400px] min-h-[200px] object-cover object-center"
-            style="object-fit: cover;"
+            class="w-full h-full object-cover"
             @error="handleImageError"
           />
           <img
             v-else
             src="/ZapTracker_campaigns.png"
             alt="ZapTracker Campaign"
-            class="w-full h-full max-h-[400px] min-h-[200px] object-cover object-center opacity-70"
-            style="object-fit: cover;"
+            class="w-full h-full object-cover opacity-60"
           />
-
-          <!-- Gradient Overlay -->
-          <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
         </div>
       </div>
 
       <!-- Main Content Grid -->
-      <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 p-4 sm:p-6 lg:p-8 -mt-6 lg:-mt-8 relative z-10">
-        <!-- Left Column: Campaign Details & Supporters -->
-        <div class="lg:col-span-2 space-y-4 lg:space-y-6">
+      <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5 p-4 sm:p-6 lg:p-8">
+        <!-- Left Column: Campaign Details -->
+        <div class="lg:col-span-2 space-y-5">
           <!-- Campaign Header Card -->
-          <div class="bg-white/98 backdrop-blur-md rounded-2xl lg:rounded-3xl p-5 sm:p-6 lg:p-8 border border-gray-100 shadow-xl shadow-orange-500/5">
-            <!-- Campaign Title & Meta -->
-            <div class="mb-5">
-              <div class="flex items-start justify-between gap-4 mb-3">
-                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 leading-tight flex-1">{{ campaign.title }}</h1>
-                <div class="flex flex-col items-end gap-2 flex-shrink-0">
-                  <span :class="[
-                    'px-3.5 py-1.5 rounded-full text-xs font-semibold',
-                    statusColor
-                  ]">
-                    {{ status.charAt(0).toUpperCase() + status.slice(1) }}
-                  </span>
-                  <div v-if="daysRemaining !== 'No deadline'" class="flex items-center space-x-1.5 bg-orange-50 px-3 py-1 rounded-full">
-                    <IconClock class="w-3.5 h-3.5 text-orange-600" />
-                    <span class="text-xs font-semibold text-orange-700">{{ daysRemaining }}</span>
-                  </div>
-                </div>
+          <div class="bg-white rounded-2xl border border-gray-200/60">
+            <div class="p-5 sm:p-6">
+              <!-- Title & Status -->
+              <div class="flex items-start justify-between gap-4 mb-4">
+                <h1 class="text-2xl sm:text-3xl font-semibold text-gray-900 leading-tight flex-1">{{ campaign.title }}</h1>
+                <span :class="[
+                  'px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0',
+                  statusColor
+                ]">
+                  {{ status.charAt(0).toUpperCase() + status.slice(1) }}
+                </span>
               </div>
 
               <!-- Author Info -->
@@ -77,193 +65,84 @@
                 <img
                   :src="campaignAuthor.picture"
                   :alt="campaignAuthor.name"
-                  class="w-8 h-8 rounded-lg object-cover ring-2 ring-gray-100"
+                  class="w-10 h-10 rounded-full object-cover"
                   @error="$event.target.src = generateAvatar(campaignAuthor.pubkey)"
                 />
                 <div>
-                  <p class="text-xs text-gray-500">Created by</p>
-                  <p class="text-sm font-semibold text-gray-900">{{ campaignAuthor.name }}</p>
+                  <p class="text-sm font-medium text-gray-900">{{ campaignAuthor.name }}</p>
+                  <p class="text-xs text-gray-500">Campaign creator</p>
                 </div>
               </div>
 
               <!-- Summary -->
-              <div class="text-sm sm:text-base text-gray-600 leading-relaxed">
+              <div class="text-[15px] text-gray-700 leading-relaxed">
                 <p>{{ campaign.summary }}</p>
               </div>
             </div>
 
             <!-- Campaign Progress Section -->
-            <div class="bg-gradient-to-br from-gray-50 to-orange-50/30 rounded-xl lg:rounded-2xl p-5 lg:p-6 border border-gray-200/50">
-              <!-- Progress Header -->
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-base lg:text-lg font-bold text-gray-900">Campaign Progress</h3>
-                <div class="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">{{ progress.percentage }}%</div>
+            <div class="border-t border-gray-200/60 p-5 sm:p-6">
+              <!-- Progress Stats -->
+              <div class="flex items-baseline justify-between mb-3">
+                <div>
+                  <div class="text-2xl sm:text-3xl font-semibold text-gray-900">{{ formatCurrency(progress.current) }} sats</div>
+                  <div class="text-sm text-gray-500 mt-0.5">raised of {{ formatCurrency(campaign.goalAmount) }} goal</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-xl font-semibold text-gray-900">{{ progress.percentage }}%</div>
+                </div>
               </div>
 
               <!-- Progress Bar -->
-              <div class="relative w-full bg-gray-200 rounded-full h-3.5 lg:h-4 mb-5 overflow-hidden">
+              <div class="relative w-full bg-gray-200 rounded-full h-2 mb-4 overflow-hidden">
                 <div
-                  class="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-500 via-orange-400 to-amber-400 rounded-full transition-all duration-1000 ease-out shadow-lg shadow-orange-400/50"
+                  class="absolute inset-y-0 left-0 bg-orange-500 rounded-full transition-all duration-1000 ease-out"
                   :style="{ width: `${Math.min(progress.percentage, 100)}%` }"
-                >
-                  <div class="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent"></div>
-                </div>
+                ></div>
               </div>
 
               <!-- Stats Grid -->
-              <div class="grid grid-cols-3 gap-4 lg:gap-6">
-                <div class="text-center">
-                  <div class="text-lg lg:text-xl font-bold text-gray-900">{{ formatCurrency(progress.current) }}</div>
-                  <div class="text-xs text-gray-500 mt-1">Raised</div>
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <div class="text-sm text-gray-500">Contributors</div>
+                  <div class="text-base font-semibold text-gray-900 mt-0.5">{{ totalZapCount }}</div>
                 </div>
-                <div class="text-center border-x border-gray-200">
-                  <div class="text-lg lg:text-xl font-bold text-gray-900">{{ totalZapCount }}</div>
-                  <div class="text-xs text-gray-500 mt-1">{{ totalZapCount === 1 ? 'Supporter' : 'Supporters' }}</div>
-                </div>
-                <div class="text-center">
-                  <div class="text-lg lg:text-xl font-bold text-gray-900">{{ formatCurrency(progress.goal) }}</div>
-                  <div class="text-xs text-gray-500 mt-1">Goal</div>
+                <div v-if="daysRemaining !== 'No deadline'" class="border-l border-gray-200 pl-3">
+                  <div class="text-sm text-gray-500">Time left</div>
+                  <div class="text-base font-semibold text-gray-900 mt-0.5">{{ daysRemaining }}</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Progress Section -->
+          <!-- Description Section -->
+          <div v-if="campaign.descriptionLong" class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">About</h3>
+            <div class="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">{{ campaign.descriptionLong }}</div>
+          </div>
 
           <!-- Supporters Section -->
-          <div class="bg-white/98 backdrop-blur-md rounded-2xl lg:rounded-3xl p-5 sm:p-6 lg:p-8 border border-gray-100 shadow-xl shadow-orange-500/5">
-            <!-- Supporters Header -->
-            <div class="flex items-center justify-between mb-5 lg:mb-6">
-              <h3 class="text-lg lg:text-xl font-bold text-gray-900 flex items-center space-x-2.5">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
-                  <IconUsers class="w-5 h-5 text-orange-600" />
-                </div>
-                <span>Supporters</span>
-              </h3>
-              <span v-if="totalZapCount > 0" class="text-sm font-semibold text-gray-700 bg-gray-100 px-4 py-1.5 rounded-full">
-                {{ totalZapCount }}
-              </span>
-            </div>
-
-            <div v-if="recentZaps.length === 0" class="text-center py-16 lg:py-20">
-              <div class="w-20 h-20 bg-gradient-to-br from-gray-100 to-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-sm">
-                <IconUsers class="w-10 h-10 text-gray-400" />
-              </div>
-              <h4 class="text-lg lg:text-xl font-bold text-gray-900 mb-2">Be the First Supporter!</h4>
-              <p class="text-sm lg:text-base text-gray-600">Your contribution will help kickstart this campaign</p>
-            </div>
-
-            <div v-else class="space-y-5">
-              <!-- Supporter Grid -->
-              <div class="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 lg:gap-4">
-                <div 
-                  v-for="(zap, index) in displayedSupporters" 
-                  :key="zap.id"
-                  class="group relative text-center transform hover:scale-110 transition-all duration-200"
-                >
-                  <!-- Major Supporter (10k+ sats) -->
-                  <div
-                    v-if="zap.amount >= 10000"
-                    class="relative"
-                  >
-                    <div class="relative w-16 h-16 lg:w-18 lg:h-18 rounded-2xl overflow-hidden border-3 border-yellow-400 shadow-lg mx-auto ring-2 ring-yellow-200">
-                      <img
-                        :src="getSenderAvatar(zap)"
-                        :alt="zap.sender?.name || 'Supporter'"
-                        class="w-full h-full object-cover"
-                        @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
-                      />
-                      <div class="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
-                        <IconBolt class="w-3.5 h-3.5 text-white" />
-                      </div>
-                    </div>
-                    <div class="mt-2.5 text-center">
-                      <div class="font-bold text-yellow-600 text-sm">{{ formatZapAmount(zap.amount) }}</div>
-                      <div class="text-xs text-gray-600 truncate max-w-full font-medium mt-0.5" :title="getSenderName(zap)">
-                        {{ getSenderName(zap) }}
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Regular Supporter -->
-                  <div
-                    v-else
-                    class="relative"
-                  >
-                    <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl overflow-hidden border-2 border-orange-200 shadow-md mx-auto ring-1 ring-gray-100">
-                      <img
-                        :src="getSenderAvatar(zap)"
-                        :alt="zap.sender?.name || 'Supporter'"
-                        class="w-full h-full object-cover"
-                        @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
-                      />
-                    </div>
-                    <div class="mt-2.5 text-center">
-                      <div class="font-semibold text-orange-600 text-sm">{{ formatZapAmount(zap.amount) }}</div>
-                      <div class="text-xs text-gray-600 truncate max-w-full font-medium mt-0.5" :title="getSenderName(zap)">
-                        {{ getSenderName(zap) }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Show More Supporters Indicator -->
-                <div
-                  v-if="totalZapCount > 7"
-                  class="group relative text-center transform hover:scale-105 transition-all duration-200 cursor-pointer"
-                  @click="showAllSupporters = !showAllSupporters"
-                >
-                  <div class="w-14 h-14 lg:w-16 lg:h-16 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-orange-300 transition-all duration-200 mx-auto flex items-center justify-center">
-                    <IconUsers class="w-6 h-6 text-gray-400 group-hover:text-orange-500" />
-                  </div>
-                  <div class="mt-2.5 text-center">
-                    <div class="font-semibold text-gray-500 text-sm group-hover:text-gray-700">+{{ totalZapCount - 7 }}</div>
-                    <div class="text-xs text-gray-500 font-medium group-hover:text-gray-600">
-                      {{ showAllSupporters ? 'Less' : 'More' }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Total Support Summary -->
-              <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 lg:p-5">
-                <div class="flex items-center justify-between">
+          <div v-if="recentZaps.length > 0" class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent supporters</h3>
+            <div class="space-y-2.5">
+              <div
+                v-for="(zap, index) in displayedSupporters.slice(0, 5)"
+                :key="zap.id"
+                class="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0"
+              >
+                <div class="flex items-center space-x-3">
+                  <img
+                    :src="getSenderAvatar(zap)"
+                    :alt="getSenderName(zap)"
+                    class="w-10 h-10 rounded-full object-cover"
+                    @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
+                  />
                   <div>
-                    <div class="text-xs text-green-600 font-medium mb-1">Total Support</div>
-                    <div class="text-lg lg:text-xl font-bold text-green-800">{{ formatCurrency(totalZapAmount) }}</div>
-                  </div>
-                  <div class="text-right">
-                    <div class="text-xs text-green-600 font-medium mb-1">Supporters</div>
-                    <div class="text-lg lg:text-xl font-bold text-green-800">{{ totalZapCount }}</div>
+                    <div class="text-sm font-medium text-gray-900">{{ getSenderName(zap) }}</div>
+                    <div class="text-xs text-gray-500">{{ formatTimeAgo(zap.created_at) }}</div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Campaign Story / Detailed Description Section -->
-          <div v-if="campaign.descriptionLong" class="bg-white/98 backdrop-blur-md rounded-2xl lg:rounded-3xl p-5 sm:p-6 lg:p-8 border border-gray-100 shadow-xl shadow-orange-500/5">
-            <h3 class="text-lg lg:text-xl font-bold text-gray-900 mb-4 pb-3 border-b border-gray-200">Campaign Story</h3>
-            <div class="prose prose-sm sm:prose-base lg:prose-lg prose-gray max-w-none">
-              <div class="text-gray-700 leading-relaxed whitespace-pre-wrap" style="line-height: 1.75;">
-                {{ campaign.descriptionLong }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Campaign Details (Compact) -->
-          <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            <div class="flex items-center justify-between text-xs text-gray-500">
-              <span>Campaign ID:</span>
-              <div class="flex items-center space-x-2">
-                <code class="text-xs bg-white px-2 py-1 rounded border border-gray-200 font-mono">{{ campaign.id.substring(0, 8) }}...{{ campaign.id.substring(campaign.id.length - 8) }}</code>
-                <button
-                  @click="copyToClipboard(campaign.id, 'eventId')"
-                  class="text-gray-400 hover:text-orange-600 transition-colors p-1"
-                >
-                  <IconCheck v-if="copySuccess === 'eventId'" class="w-3.5 h-3.5 text-green-600" />
-                  <IconCopy v-else class="w-3.5 h-3.5" />
-                </button>
+                <div class="text-sm font-semibold text-orange-600">{{ formatZapAmount(zap.amount) }}</div>
               </div>
             </div>
           </div>
@@ -545,14 +424,21 @@
         </div>
       </div>
 
+      <!-- ZapTracker Watermark -->
+      <div class="mt-12 pb-8 text-center">
+        <div class="flex items-center justify-center space-x-2 text-sm text-gray-400">
+          <span>Powered by</span>
+          <span class="font-semibold text-gray-500">ZapTracker</span>
+        </div>
+      </div>
+
       <!-- Mobile Floating Action Button -->
       <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pointer-events-none z-40">
         <button
           @click="openMobilePayment"
-          class="w-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white px-6 py-4 rounded-2xl font-bold text-lg shadow-2xl shadow-orange-500/50 flex items-center justify-center space-x-3 pointer-events-auto transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+          class="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-6 py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center space-x-2 pointer-events-auto transition-all duration-200"
         >
-          <IconBolt class="w-6 h-6" />
-          <span>Support This Campaign</span>
+          <span>Support this campaign</span>
         </button>
       </div>
     </div>
@@ -572,92 +458,94 @@
 
       <!-- Bottom Sheet -->
       <div
-        class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out max-h-[90vh] overflow-hidden flex flex-col"
+        class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-xl transition-transform duration-300 ease-out max-h-[90vh] overflow-hidden flex flex-col"
         :class="mobilePaymentAnimating ? 'translate-y-0' : 'translate-y-full'"
       >
         <!-- Handle Bar -->
-        <div class="flex justify-center pt-3 pb-2">
-          <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+        <div class="flex justify-center pt-3 pb-3">
+          <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
         </div>
 
         <!-- Header -->
-        <div class="relative bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white px-6 py-6">
-          <button
-            @click="closeMobilePayment"
-            class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors"
-          >
-            <IconX class="w-5 h-5" />
-          </button>
-          <div class="flex items-center space-x-3 mb-2">
-            <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <IconBolt class="w-5 h-5" />
-            </div>
-            <h3 class="text-xl font-bold">Support Campaign</h3>
+        <div class="relative px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-semibold text-gray-900">Support this campaign</h3>
+            <button
+              @click="closeMobilePayment"
+              class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <IconX class="w-5 h-5 text-gray-500" />
+            </button>
           </div>
-          <p class="text-orange-50 text-sm">Every sat counts towards the goal</p>
         </div>
 
         <!-- Scrollable Content -->
-        <div class="flex-1 overflow-y-auto px-6 py-6">
+        <div class="flex-1 overflow-y-auto px-6 py-5">
           <!-- Amount Selection (Step 1) -->
           <div v-if="currentStep === 'amount'" class="space-y-5">
             <!-- Quick Amount Selection -->
             <div>
-              <label class="block text-sm font-bold text-gray-900 mb-3">Choose Amount</label>
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-2 gap-2.5">
                 <button
                   v-for="amount in predefinedAmounts"
                   :key="amount.value"
                   @click="selectAmount(amount.value)"
                   :class="[
-                    'p-4 rounded-xl border-2 text-center transition-all duration-200 active:scale-95',
+                    'p-3.5 rounded-xl border text-center transition-all duration-200 active:scale-95',
                     !isCustomAmount && zapAmount === amount.value
-                      ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 shadow-lg ring-2 ring-orange-200'
-                      : 'border-gray-200 bg-white'
+                      ? 'border-orange-500 bg-orange-50 text-orange-900'
+                      : 'border-gray-200 bg-white text-gray-900'
                   ]"
                 >
-                  <div class="font-bold text-gray-900 text-base">{{ amount.label }}</div>
+                  <div class="font-semibold text-base">{{ amount.label }}</div>
                   <div class="text-xs text-gray-500 mt-0.5">{{ amount.description }}</div>
                 </button>
               </div>
             </div>
 
-            <!-- Custom Amount -->
-            <div>
-              <div class="space-y-3">
-                <div class="flex items-center space-x-2.5">
-                  <input
-                    type="checkbox"
-                    :checked="isCustomAmount"
-                    @change="toggleCustomAmount"
-                    class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+            <!-- Custom Amount with Slider -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between py-0.5">
+                <label class="text-sm font-medium text-gray-700">Custom amount</label>
+                <button
+                  @click="toggleCustomAmount"
+                  :class="[
+                    'relative inline-flex h-[30px] w-[50px] items-center rounded-full transition-colors duration-200 ease-out focus:outline-none',
+                    isCustomAmount ? 'bg-orange-500' : 'bg-gray-200'
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'inline-block h-[26px] w-[26px] transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-out',
+                      isCustomAmount ? 'translate-x-[22px]' : 'translate-x-[2px]'
+                    ]"
                   />
-                  <label class="text-sm font-semibold text-gray-700">Custom amount</label>
-                </div>
+                </button>
+              </div>
 
-                <div v-if="isCustomAmount" class="relative">
-                  <input
-                    v-model.number="customAmount"
-                    type="number"
-                    min="1"
-                    placeholder="Enter amount"
-                    class="w-full px-4 py-3.5 pr-16 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-colors text-base font-semibold"
-                  />
-                  <div class="absolute inset-y-0 right-0 flex items-center pr-4">
-                    <span class="text-sm font-semibold text-gray-500">sats</span>
-                  </div>
+              <div v-if="isCustomAmount" class="relative">
+                <input
+                  ref="customAmountInput"
+                  v-model.number="customAmount"
+                  type="number"
+                  min="1"
+                  placeholder="Enter amount"
+                  class="w-full px-4 py-3.5 pr-16 border border-gray-300 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all text-base font-semibold"
+                />
+                <div class="absolute inset-y-0 right-0 flex items-center pr-4">
+                  <span class="text-sm font-semibold text-gray-500">sats</span>
                 </div>
               </div>
             </div>
 
             <!-- Message -->
             <div>
-              <label class="block text-sm font-bold text-gray-900 mb-3">Message (optional)</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Message (optional)</label>
               <textarea
                 v-model="zapComment"
                 rows="3"
-                placeholder="Add an encouraging message..."
-                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-colors resize-none text-sm"
+                placeholder="Add a message..."
+                class="w-full px-3.5 py-3 border border-gray-300 rounded-xl focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none text-sm"
               ></textarea>
             </div>
 
