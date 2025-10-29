@@ -619,30 +619,31 @@ watch(isAuthenticated, async (isAuth) => {
                   </div>
                 </div>
 
-                <!-- Chevron -->
-                <div class="flex-shrink-0 transition-transform group-hover:translate-x-1">
-                  <IconChevronRight class="w-4 h-4 text-gray-400 group-hover:text-orange-500 transition-colors" />
-                </div>
-              </div>
-            </div>
+                <!-- Action Buttons + Chevron -->
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <!-- Action Buttons - visible on hover -->
+                  <div class="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      @click.stop="openShareModal(campaign)"
+                      class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                      title="Share"
+                    >
+                      <IconShare class="w-4 h-4" />
+                    </button>
+                    <button
+                      @click.stop="openDeleteModal(campaign)"
+                      class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                      title="Delete"
+                    >
+                      <IconTrash class="w-4 h-4" />
+                    </button>
+                  </div>
 
-            <!-- Swipe Action Buttons - Slide in from right on hover (Desktop only) -->
-            <div class="absolute right-0 top-0 bottom-0 hidden sm:flex items-center gap-2 pr-4 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto">
-              <div class="flex items-center gap-1 bg-white rounded-xl shadow-lg border border-gray-200 p-1">
-                <button
-                  @click.stop="openShareModal(campaign)"
-                  class="w-8 h-8 flex items-center justify-center text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
-                  title="Share"
-                >
-                  <IconShare class="w-4 h-4" />
-                </button>
-                <button
-                  @click.stop="openDeleteModal(campaign)"
-                  class="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                  title="Delete"
-                >
-                  <IconTrash class="w-4 h-4" />
-                </button>
+                  <!-- Chevron -->
+                  <div class="transition-transform group-hover:translate-x-1">
+                    <IconChevronRight class="w-4 h-4 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
