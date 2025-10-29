@@ -1,6 +1,11 @@
 <template>
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @click="$emit('close')">
-    <div class="bg-white rounded-lg w-full max-w-md shadow-xl" @click.stop>
+  <div class="fixed inset-0 bg-black/50 z-50 md:flex md:items-center md:justify-center md:p-4" @click="handleBackdropClick">
+    <div class="bg-white w-full max-w-md shadow-xl md:rounded-lg fixed bottom-0 left-0 right-0 md:relative rounded-t-2xl max-h-[90vh] overflow-y-auto" @click.stop>
+
+      <!-- Mobile Bottom Sheet Handle -->
+      <div class="md:hidden flex justify-center pt-3 pb-2">
+        <div class="w-12 h-1 bg-gray-300 rounded-full"></div>
+      </div>
 
       <!-- Header -->
       <div class="flex items-center justify-between p-4 border-b">
@@ -287,6 +292,12 @@ const formatAmount = (amount) => {
   if (!amount) return '0'
   const sats = Math.floor(amount / 1000)
   return sats ? sats.toLocaleString() : '0'
+}
+
+const handleBackdropClick = (e) => {
+  if (e.target === e.currentTarget) {
+    emit('close')
+  }
 }
 </script>
 
