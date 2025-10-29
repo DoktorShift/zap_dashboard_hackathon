@@ -27,6 +27,15 @@ const formData = ref({
 
 const isEditMode = computed(() => !!props.calendar)
 
+// Define resetForm before it's used in watch
+const resetForm = () => {
+  formData.value = {
+    title: '',
+    description: '',
+    color: CALENDAR_COLORS[0].value
+  }
+}
+
 // Watch for calendar changes to populate form
 watch(() => props.calendar, (calendar) => {
   if (calendar) {
@@ -39,14 +48,6 @@ watch(() => props.calendar, (calendar) => {
     resetForm()
   }
 }, { immediate: true })
-
-const resetForm = () => {
-  formData.value = {
-    title: '',
-    description: '',
-    color: CALENDAR_COLORS[0].value
-  }
-}
 
 const isFormValid = computed(() => {
   return formData.value.title.trim().length > 0
