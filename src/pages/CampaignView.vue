@@ -122,9 +122,9 @@
           </div>
 
           <!-- Supporters Section -->
-          <div v-if="recentZaps.length > 0" class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
+          <div class="bg-white rounded-2xl border border-gray-200/60 p-5 sm:p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent supporters</h3>
-            <div class="space-y-2.5">
+            <div v-if="recentZaps.length > 0" class="space-y-2.5">
               <div
                 v-for="(zap, index) in displayedSupporters.slice(0, 5)"
                 :key="zap.id"
@@ -144,6 +144,10 @@
                 </div>
                 <div class="text-sm font-semibold text-orange-600">{{ formatZapAmount(zap.amount) }}</div>
               </div>
+            </div>
+            <div v-else class="text-center py-8">
+              <div class="text-sm text-gray-500">No supporters yet</div>
+              <div class="text-xs text-gray-400 mt-1">Be the first to support this campaign</div>
             </div>
           </div>
         </div>
@@ -389,19 +393,6 @@
                       <span>Try Again</span>
                     </button>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Trust Indicators -->
-            <div class="mt-4 bg-blue-50/80 backdrop-blur-sm border border-blue-200 rounded-lg p-3">
-              <div class="flex items-start space-x-3">
-                <IconShield class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 class="font-semibold text-blue-900 text-sm mb-1">Secure Lightning Payments</h4>
-                  <p class="text-blue-800 text-xs leading-relaxed">
-                    Powered by Bitcoin Lightning Network. Your payment is processed instantly and securely.
-                  </p>
                 </div>
               </div>
             </div>
@@ -986,7 +977,7 @@ const isValidAmount = computed(() => {
 })
 
 const canProceed = computed(() => {
-  return isAuthenticated.value && isValidAmount.value && !isGeneratingInvoice.value
+  return isValidAmount.value && !isGeneratingInvoice.value
 })
 
 // Watch for custom amount changes
