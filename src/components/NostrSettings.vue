@@ -28,6 +28,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import NostrProfileEditor from './NostrProfileEditor.vue'
 
 const {
@@ -180,7 +181,7 @@ const formatRelayUrl = (url) => {
 const getUserAvatar = () => {
   return userProfile.value?.picture ||
          userProfile.value?.avatar ||
-         'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
+         generateAvatar(currentUser.value?.pubkey)
 }
 
 // Get user banner
@@ -274,7 +275,7 @@ const toggleRelaySection = () => {
                   :src="getUserAvatar()"
                   :alt="userProfile?.name || 'User'"
                   class="w-full h-full object-cover"
-                  @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                  @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                 />
               </div>
               <div class="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>

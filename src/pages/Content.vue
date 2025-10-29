@@ -27,7 +27,7 @@ import { useContentZaps } from '../composables/useContentZaps.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNostrLongForm } from '../composables/useNostrLongForm.js'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
-import { generateFallbackAvatar } from '../composables/useContentZaps.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import ContentStats from '../components/ContentStats.vue'
 import ContentList from '../components/ContentList.vue'
 import ContentForm from '../components/ContentForm.vue'
@@ -665,7 +665,7 @@ onUnmounted(() => {
                     <!-- Author Avatar -->
                     <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200">
                       <img 
-                        :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                        :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
                         :alt="userProfile?.name || 'Author'"
                         class="w-full h-full object-cover"
                       />
@@ -836,7 +836,7 @@ onUnmounted(() => {
                     :src="zap.sender?.avatar || zap.sender?.picture"
                     :alt="zap.sender?.name || 'User'"
                     class="w-6 h-6 rounded-full object-cover"
-                    @error="$event.target.src = generateFallbackAvatar(zap.zapperPubkey)"
+                    @error="$event.target.src = generateAvatar(zap.zapperPubkey)"
                   />
                   <div class="flex-1 min-w-0">
                     <div class="text-xs font-medium text-gray-900 truncate">

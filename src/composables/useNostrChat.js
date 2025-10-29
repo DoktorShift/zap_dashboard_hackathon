@@ -8,6 +8,7 @@ import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { payInvoice, makeInvoice } from '../utils/nwcClient.js'
 import * as nip19 from 'nostr-tools/nip19'
 import { fetchProfile } from '../utils/profileFetcher.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 // Global state for chat
 const conversations = ref(new Map()) // Map<pubkey, conversation>
@@ -43,7 +44,7 @@ const createConversation = (pubkey, profile = null) => {
     pubkey,
     profile: profile || {
       name: `User ${pubkey.substring(0, 8)}`,
-      picture: generateFallbackAvatar(pubkey),
+      picture: generateAvatar(pubkey),
       nip05: null,
       about: null
     },
@@ -56,35 +57,14 @@ const createConversation = (pubkey, profile = null) => {
   }
 }
 
-// Generate a consistent fallback avatar based on pubkey
-const generateFallbackAvatar = (pubkey) => {
-  // Use a deterministic approach to generate avatar based on pubkey
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  // Create a hash from the pubkey to consistently select an avatar
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
+// generateAvatar imported from avatarGenerator.js
 
 // Fetch user profile using centralized profileFetcher
 const fetchUserProfile = async (pubkey) => {
   const profile = await fetchProfile(pubkey, { ttl: 3600000 })
   // Fallback avatar if missing
   if (profile && !profile.picture) {
-    profile.picture = generateFallbackAvatar(pubkey)
+    profile.picture = generateAvatar(pubkey)
   }
   return profile
 }
