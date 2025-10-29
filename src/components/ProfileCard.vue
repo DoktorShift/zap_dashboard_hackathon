@@ -7,7 +7,6 @@ import {
   IconUserX,
   IconShield,
   IconBolt,
-  IconDots,
   IconCopy,
   IconExternalLink,
   IconList,
@@ -264,14 +263,6 @@ const handleBadgeClick = (badge) => {
             </a>
           </div>
         </div>
-
-        <!-- Overflow Menu -->
-        <button
-          class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          title="More options"
-        >
-          <IconDots class="w-4 h-4" />
-        </button>
       </div>
     </div>
   </div>
