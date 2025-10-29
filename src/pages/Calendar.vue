@@ -116,7 +116,24 @@ const fullCalendarEvents = computed(() => {
 
     // Get calendar color if event is assigned to a calendar
     const calendar = event.calendar_id ? getCalendar(event.calendar_id) : null
-    const eventColor = calendar?.color || (event.type === 'time-based' ? '#4D96FF' : '#6BCF7F')
+    const baseColor = calendar?.color || (event.type === 'time-based' ? '#1a73e8' : '#f4511e')
+
+    // Create more saturated, Google Calendar-like colors
+    const getEventColors = (base) => {
+      const colorMap = {
+        '#1a73e8': { bg: '#d7e7ff', border: '#1a73e8', text: '#041e49' },
+        '#f4511e': { bg: '#ffd6cc', border: '#f4511e', text: '#3c1205' },
+        '#0b8043': { bg: '#c6f1d6', border: '#0b8043', text: '#0b5329' },
+        '#f6bf26': { bg: '#fff4cc', border: '#f6bf26', text: '#594100' },
+        '#e67c73': { bg: '#ffd8d5', border: '#e67c73', text: '#5c1f1c' },
+        '#33b679': { bg: '#d3f1e3', border: '#33b679', text: '#0b472a' },
+        '#8e24aa': { bg: '#efd8f7', border: '#8e24aa', text: '#43094e' },
+        '#039be5': { bg: '#cfe8fc', border: '#039be5', text: '#012840' }
+      }
+      return colorMap[base] || { bg: base + '30', border: base, text: '#1f2937' }
+    }
+
+    const colors = getEventColors(baseColor)
 
     return {
       id: event.id,
@@ -124,9 +141,9 @@ const fullCalendarEvents = computed(() => {
       start: start,
       end: end,
       allDay: event.type === 'date-based',
-      backgroundColor: eventColor + '40', // Add transparency
-      borderColor: eventColor,
-      textColor: '#1f2937',
+      backgroundColor: colors.bg,
+      borderColor: colors.border,
+      textColor: colors.text,
       classNames: [
         'fc-event-custom',
         `fc-event-${event.type}`,
@@ -1034,30 +1051,52 @@ onMounted(() => {
 /* Day Cells */
 .fc-google-theme .fc-daygrid-day {
   background: #ffffff;
-  border-color: #dadce0 !important;
+  border-color: #e8eaed !important;
+  border-width: 1px !important;
 }
 
 .fc-google-theme .fc-daygrid-day:hover {
   background: #f8f9fa;
+  cursor: pointer;
+}
+
+.fc-google-theme .fc-day-today {
+  background: #fef7e0 !important;
 }
 
 .fc-google-theme .fc-daygrid-day-frame {
-  min-height: 100px;
-  padding: 4px;
+  min-height: 110px;
+  padding: 2px;
+  display: flex;
+  flex-direction: column;
+}
+
+.fc-google-theme .fc-daygrid-day-top {
+  display: flex;
+  justify-content: flex-start;
+  padding: 6px 8px 4px 8px;
+  flex-shrink: 0;
 }
 
 /* Day Numbers */
 .fc-google-theme .fc-daygrid-day-number {
-  padding: 8px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 13px;
   font-weight: 400;
   color: #3c4043;
-  text-align: center;
   width: 32px;
   height: 32px;
-  line-height: 32px;
+  line-height: 1;
   border-radius: 50%;
   margin: 0;
+  transition: all 0.2s ease;
+}
+
+.fc-google-theme .fc-daygrid-day-number:hover {
+  background: #e8eaed;
 }
 
 .fc-google-theme .fc-day-today .fc-daygrid-day-number {
@@ -1068,24 +1107,60 @@ onMounted(() => {
 
 .fc-google-theme .fc-day-other .fc-daygrid-day-number {
   color: #9aa0a6;
+  opacity: 0.6;
+}
+
+.fc-google-theme .fc-daygrid-day-events {
+  padding: 0 6px 4px 6px;
+  flex: 1;
+  overflow: hidden;
 }
 
 /* Events */
 .fc-google-theme .fc-event {
   border: none;
+  border-left: 3px solid;
   border-radius: 4px;
-  padding: 2px 6px;
-  margin: 1px 2px;
+  padding: 4px 6px;
+  margin: 2px 0;
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s ease;
+  box-shadow: none;
+  line-height: 1.4;
+  min-height: 24px;
 }
 
 .fc-google-theme .fc-event:hover {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   transform: translateY(-1px);
+  z-index: 10;
+}
+
+.fc-google-theme .fc-daygrid-event {
+  white-space: normal;
+}
+
+.fc-google-theme .fc-daygrid-block-event {
+  padding: 3px 6px;
+}
+
+.fc-google-theme .fc-daygrid-block-event .fc-event-time {
+  display: inline;
+  font-weight: 600;
+  margin-right: 4px;
+  font-size: 11px;
+}
+
+.fc-google-theme .fc-daygrid-block-event .fc-event-title {
+  display: inline;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.fc-google-theme .fc-event-main {
+  color: inherit;
 }
 
 .fc-google-theme .fc-event-title {
@@ -1093,11 +1168,13 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: inherit;
 }
 
 .fc-google-theme .fc-event-time {
-  font-weight: 400;
+  font-weight: 600;
   font-size: 11px;
+  color: inherit;
 }
 
 /* Day Grid Event Dots */
@@ -1109,18 +1186,26 @@ onMounted(() => {
 
 /* More Link */
 .fc-google-theme .fc-more-link {
-  color: #1a73e8;
+  color: #5f6368;
   font-weight: 500;
   font-size: 11px;
   padding: 4px 6px;
-  margin: 2px;
+  margin: 2px 0;
   border-radius: 4px;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
+  display: inline-block;
 }
 
 .fc-google-theme .fc-more-link:hover {
-  background: #e8f0fe;
+  background: #f1f3f4;
+  color: #3c4043;
   text-decoration: none;
+}
+
+.fc-google-theme .fc-daygrid-more-link {
+  text-align: left;
+  padding: 4px 6px;
+  margin-top: 2px;
 }
 
 /* Time Grid (Week/Day View) */
@@ -1234,26 +1319,40 @@ onMounted(() => {
 /* Mobile Responsive */
 @media (max-width: 640px) {
   .fc-google-theme .fc-daygrid-day-frame {
-    min-height: 80px;
+    min-height: 85px;
     padding: 2px;
   }
 
+  .fc-google-theme .fc-daygrid-day-top {
+    padding: 4px 6px 2px 6px;
+  }
+
   .fc-google-theme .fc-daygrid-day-number {
-    padding: 4px;
-    font-size: 11px;
+    padding: 0;
+    font-size: 12px;
     width: 28px;
     height: 28px;
-    line-height: 28px;
+    line-height: 1;
+  }
+
+  .fc-google-theme .fc-daygrid-day-events {
+    padding: 0 4px 2px 4px;
   }
 
   .fc-google-theme .fc-event {
-    padding: 1px 4px;
-    margin: 1px;
+    padding: 3px 4px;
+    margin: 1px 0;
     font-size: 11px;
+    min-height: 22px;
+    border-left-width: 2px;
   }
 
-  .fc-google-theme .fc-event-time {
+  .fc-google-theme .fc-daygrid-block-event .fc-event-time {
     display: none;
+  }
+
+  .fc-google-theme .fc-daygrid-block-event .fc-event-title {
+    font-size: 11px;
   }
 
   .fc-google-theme .fc-col-header-cell {
@@ -1278,6 +1377,11 @@ onMounted(() => {
   .fc-google-theme .fc-list-event-time {
     padding: 8px 12px;
     font-size: 12px;
+  }
+
+  .fc-google-theme .fc-more-link {
+    font-size: 10px;
+    padding: 3px 4px;
   }
 }
 
