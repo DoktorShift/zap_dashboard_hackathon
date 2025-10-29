@@ -155,26 +155,24 @@ const calendarOptions = computed(() => {
       interactionPlugin,
       listPlugin
     ],
-    headerToolbar: {
-      left: 'prev,next today',
-      center: 'title',
-      right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-    },
+    headerToolbar: false,
     initialView: calendarView.value,
     events: fullCalendarEvents.value,
     editable: true,
     selectable: true,
     selectMirror: true,
-    dayMaxEvents: 3,
+    dayMaxEvents: 2,
     weekends: true,
     height: 'auto',
-    aspectRatio: 1.35,
+    contentHeight: 'auto',
+    expandRows: false,
+    handleWindowResize: true,
+    windowResizeDelay: 100,
     select: handleDateSelect,
     eventClick: handleEventClick,
     eventDrop: handleEventDrop,
     eventResize: handleEventResize,
     viewDidMount: handleViewChange,
-    // Styling
     themeSystem: 'standard',
     buttonText: {
       today: 'Today',
@@ -182,7 +180,23 @@ const calendarOptions = computed(() => {
       week: 'Week',
       day: 'Day',
       list: 'List'
-    }
+    },
+    dayHeaderFormat: { weekday: 'short' },
+    eventTimeFormat: {
+      hour: 'numeric',
+      minute: '2-digit',
+      meridiem: 'short'
+    },
+    slotLabelFormat: {
+      hour: 'numeric',
+      minute: '2-digit',
+      meridiem: 'short'
+    },
+    eventDisplay: 'block',
+    displayEventTime: true,
+    displayEventEnd: false,
+    nowIndicator: true,
+    scrollTime: '08:00:00'
   }
 })
 
@@ -450,11 +464,51 @@ const toggleMobileCalendars = () => {
   showMobileCalendars.value = !showMobileCalendars.value
 }
 
+// Helper functions
+const getViewLabel = (view) => {
+  const labels = {
+    'dayGridMonth': 'Month',
+    'timeGridWeek': 'Week',
+    'timeGridDay': 'Day',
+    'listWeek': 'Agenda'
+  }
+  return labels[view] || view
+}
+
+const changeView = (view) => {
+  calendarView.value = view
+  const calendarApi = fullCalendarRef.value?.getApi()
+  if (calendarApi) {
+    calendarApi.changeView(view)
+  }
+}
+
+const currentCalendarTitle = computed(() => {
+  const calendarApi = fullCalendarRef.value?.getApi()
+  if (calendarApi) {
+    return calendarApi.view.title
+  }
+  // Fallback to current month/year
+  const now = new Date()
+  return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+})
+
 // Calendar navigation
 const goToToday = () => {
   const calendarApi = fullCalendarRef.value?.getApi()
   if (calendarApi) {
     calendarApi.today()
+  }
+}
+
+const navigateCalendar = (direction) => {
+  const calendarApi = fullCalendarRef.value?.getApi()
+  if (calendarApi) {
+    if (direction === 'prev') {
+      calendarApi.prev()
+    } else if (direction === 'next') {
+      calendarApi.next()
+    }
   }
 }
 
@@ -469,13 +523,6 @@ const navigateNext = () => {
   const calendarApi = fullCalendarRef.value?.getApi()
   if (calendarApi) {
     calendarApi.next()
-  }
-}
-
-const changeView = (viewType) => {
-  const calendarApi = fullCalendarRef.value?.getApi()
-  if (calendarApi) {
-    calendarApi.changeView(viewType)
   }
 }
 
@@ -562,37 +609,110 @@ onMounted(() => {
       <!-- Main Content Area -->
       <div class="flex-1 flex flex-col overflow-hidden">
         <!-- Calendar Header -->
-        <div class="flex-shrink-0 bg-white/90 backdrop-blur-sm border-b border-gray-200/50 px-6 py-4">
-          <div class="flex items-center justify-between gap-4">
-            <!-- Calendar list button (unified for mobile and desktop) -->
-            <button
-              @click="toggleMobileCalendars"
-              class="btn-secondary relative"
-            >
-              <IconCalendar class="w-4 h-4" />
-              Calendars
-              <span v-if="calendarLists.length > 0" class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full ml-1">
-                {{ calendarLists.length }}
-              </span>
-              <span v-if="selectedCalendars.size > 0" class="text-xs text-orange-600 ml-1">
-                ({{ selectedCalendars.size }} selected)
-              </span>
-            </button>
-
-            <div class="flex-1"></div>
-
-            <!-- Action buttons -->
-            <div class="flex items-center space-x-3">
-              <button @click="showFilters = !showFilters" class="btn-secondary">
-                <IconFilter class="w-4 h-4" />
-                <span class="hidden sm:inline">Filters</span>
+        <div class="flex-shrink-0 bg-white border-b border-gray-200 px-4 sm:px-6">
+          <!-- Top Row: Primary Actions -->
+          <div class="flex items-center justify-between py-3 gap-3">
+            <!-- Left: Calendars & Navigation -->
+            <div class="flex items-center gap-2 sm:gap-3">
+              <button
+                @click="toggleMobileCalendars"
+                class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
+              >
+                <IconCalendar class="w-5 h-5" />
+                <span class="hidden sm:inline">Calendars</span>
+                <span v-if="selectedCalendars.size > 0" class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                  {{ selectedCalendars.size }}
+                </span>
               </button>
 
-              <button @click="openNewEventModal" class="btn-primary">
+              <!-- Navigation Controls -->
+              <div class="flex items-center gap-1 ml-2">
+                <button
+                  @click="navigateCalendar('prev')"
+                  class="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  title="Previous"
+                >
+                  <IconChevronLeft class="w-5 h-5 text-gray-700" />
+                </button>
+                <button
+                  @click="navigateCalendar('next')"
+                  class="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  title="Next"
+                >
+                  <IconChevronRight class="w-5 h-5 text-gray-700" />
+                </button>
+                <button
+                  @click="goToToday"
+                  class="hidden sm:flex px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700"
+                >
+                  Today
+                </button>
+              </div>
+
+              <!-- Current Date Display -->
+              <h2 class="text-lg sm:text-xl font-semibold text-gray-900 ml-2">
+                {{ currentCalendarTitle }}
+              </h2>
+            </div>
+
+            <!-- Right: View & Actions -->
+            <div class="flex items-center gap-2">
+              <button @click="showFilters = !showFilters" class="p-2 rounded-lg hover:bg-gray-100 transition-colors sm:hidden">
+                <IconFilter class="w-5 h-5 text-gray-700" />
+              </button>
+
+              <button @click="openNewEventModal" class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm font-medium">
                 <IconPlus class="w-4 h-4" />
-                <span class="hidden sm:inline">New Event</span>
+                <span class="hidden sm:inline">Create</span>
               </button>
             </div>
+          </div>
+
+          <!-- Bottom Row: View Switcher & Filters (Desktop) -->
+          <div class="hidden sm:flex items-center justify-between py-2 border-t border-gray-100">
+            <div class="flex items-center gap-1">
+              <button
+                v-for="view in ['dayGridMonth', 'timeGridWeek', 'timeGridDay', 'listWeek']"
+                :key="view"
+                @click="changeView(view)"
+                :class="[
+                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  calendarView === view
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'text-gray-600 hover:bg-gray-50'
+                ]"
+              >
+                {{ getViewLabel(view) }}
+              </button>
+            </div>
+
+            <button
+              @click="showFilters = !showFilters"
+              :class="[
+                'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                showFilters ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'
+              ]"
+            >
+              <IconFilter class="w-4 h-4" />
+              Filters
+            </button>
+          </div>
+
+          <!-- Mobile View Switcher -->
+          <div class="flex sm:hidden items-center gap-1 py-2 overflow-x-auto">
+            <button
+              v-for="view in ['dayGridMonth', 'timeGridWeek', 'listWeek']"
+              :key="view"
+              @click="changeView(view)"
+              :class="[
+                'px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap',
+                calendarView === view
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700'
+              ]"
+            >
+              {{ getViewLabel(view) }}
+            </button>
           </div>
         </div>
 
@@ -646,8 +766,8 @@ onMounted(() => {
           </div>
 
           <!-- FullCalendar Component -->
-          <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-            <div v-if="isLoading" class="p-6 space-y-4 animate-pulse">
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div v-if="isLoading" class="p-4 sm:p-6 space-y-4 animate-pulse">
               <!-- Calendar header skeleton -->
               <div class="flex items-center justify-between mb-4">
                 <div class="h-8 bg-gray-200 rounded w-32"></div>
@@ -666,11 +786,11 @@ onMounted(() => {
               </div>
             </div>
 
-            <div v-else class="p-6">
+            <div v-else class="calendar-wrapper">
               <FullCalendar
                 ref="fullCalendarRef"
                 :options="calendarOptions"
-                class="fc-custom-theme"
+                class="fc-google-theme"
               />
             </div>
           </div>
@@ -863,3 +983,330 @@ onMounted(() => {
     />
   </div>
 </template>
+
+<style>
+/* Google Calendar-inspired styling */
+.calendar-wrapper {
+  padding: 0;
+}
+
+.fc-google-theme {
+  font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #3c4043;
+}
+
+/* Toolbar - hidden since we use custom header */
+.fc-google-theme .fc-toolbar {
+  display: none;
+}
+
+/* Table and Grid */
+.fc-google-theme .fc-scrollgrid {
+  border: none !important;
+  border-radius: 0;
+}
+
+.fc-google-theme .fc-scrollgrid-sync-table {
+  border: none;
+}
+
+/* Day Headers */
+.fc-google-theme .fc-col-header-cell {
+  background: #ffffff;
+  border: none !important;
+  border-bottom: 1px solid #dadce0 !important;
+  padding: 12px 8px;
+  font-weight: 500;
+  font-size: 11px;
+  color: #70757a;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.fc-google-theme .fc-col-header-cell-cushion {
+  padding: 4px;
+  color: #70757a;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* Day Cells */
+.fc-google-theme .fc-daygrid-day {
+  background: #ffffff;
+  border-color: #dadce0 !important;
+}
+
+.fc-google-theme .fc-daygrid-day:hover {
+  background: #f8f9fa;
+}
+
+.fc-google-theme .fc-daygrid-day-frame {
+  min-height: 100px;
+  padding: 4px;
+}
+
+/* Day Numbers */
+.fc-google-theme .fc-daygrid-day-number {
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #3c4043;
+  text-align: center;
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  border-radius: 50%;
+  margin: 0;
+}
+
+.fc-google-theme .fc-day-today .fc-daygrid-day-number {
+  background: #1a73e8;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.fc-google-theme .fc-day-other .fc-daygrid-day-number {
+  color: #9aa0a6;
+}
+
+/* Events */
+.fc-google-theme .fc-event {
+  border: none;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: 1px 2px;
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.fc-google-theme .fc-event:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.fc-google-theme .fc-event-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fc-google-theme .fc-event-time {
+  font-weight: 400;
+  font-size: 11px;
+}
+
+/* Day Grid Event Dots */
+.fc-google-theme .fc-daygrid-event-dot {
+  border-width: 4px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+
+/* More Link */
+.fc-google-theme .fc-more-link {
+  color: #1a73e8;
+  font-weight: 500;
+  font-size: 11px;
+  padding: 4px 6px;
+  margin: 2px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.fc-google-theme .fc-more-link:hover {
+  background: #e8f0fe;
+  text-decoration: none;
+}
+
+/* Time Grid (Week/Day View) */
+.fc-google-theme .fc-timegrid-slot {
+  height: 48px;
+  border-color: #dadce0 !important;
+}
+
+.fc-google-theme .fc-timegrid-slot-label {
+  border: none !important;
+  padding: 0 12px;
+  font-size: 11px;
+  color: #70757a;
+  vertical-align: top;
+  padding-top: 4px;
+}
+
+.fc-google-theme .fc-timegrid-axis {
+  border: none !important;
+}
+
+.fc-google-theme .fc-timegrid-col {
+  border-color: #dadce0 !important;
+}
+
+.fc-google-theme .fc-timegrid-event {
+  border: none;
+  border-radius: 4px;
+  padding: 4px 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.fc-google-theme .fc-timegrid-event .fc-event-main {
+  padding: 2px;
+}
+
+.fc-google-theme .fc-timegrid-event-harness {
+  margin-right: 2px;
+}
+
+/* Now Indicator */
+.fc-google-theme .fc-timegrid-now-indicator-line {
+  border-color: #ea4335;
+  border-width: 2px;
+}
+
+.fc-google-theme .fc-timegrid-now-indicator-arrow {
+  border-color: #ea4335;
+  border-width: 6px;
+}
+
+/* List View */
+.fc-google-theme .fc-list {
+  border: none;
+}
+
+.fc-google-theme .fc-list-day-cushion {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  font-weight: 500;
+  color: #3c4043;
+  border-top: 1px solid #dadce0;
+}
+
+.fc-google-theme .fc-list-event {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.fc-google-theme .fc-list-event:hover {
+  background: #f8f9fa;
+}
+
+.fc-google-theme .fc-list-event-dot {
+  border-width: 6px;
+  border-radius: 6px;
+}
+
+.fc-google-theme .fc-list-event-title {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #3c4043;
+}
+
+.fc-google-theme .fc-list-event-time {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #70757a;
+}
+
+/* Popover */
+.fc-google-theme .fc-popover {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.fc-google-theme .fc-popover-header {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-bottom: 1px solid #dadce0;
+  font-weight: 500;
+}
+
+.fc-google-theme .fc-popover-close {
+  font-size: 20px;
+  color: #5f6368;
+  opacity: 1;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .fc-google-theme .fc-daygrid-day-frame {
+    min-height: 80px;
+    padding: 2px;
+  }
+
+  .fc-google-theme .fc-daygrid-day-number {
+    padding: 4px;
+    font-size: 11px;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+  }
+
+  .fc-google-theme .fc-event {
+    padding: 1px 4px;
+    margin: 1px;
+    font-size: 11px;
+  }
+
+  .fc-google-theme .fc-event-time {
+    display: none;
+  }
+
+  .fc-google-theme .fc-col-header-cell {
+    padding: 8px 4px;
+    font-size: 10px;
+  }
+
+  .fc-google-theme .fc-timegrid-slot {
+    height: 40px;
+  }
+
+  .fc-google-theme .fc-timegrid-slot-label {
+    font-size: 10px;
+    padding: 0 8px;
+  }
+
+  .calendar-wrapper {
+    font-size: 12px;
+  }
+
+  .fc-google-theme .fc-list-event-title,
+  .fc-google-theme .fc-list-event-time {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Smooth transitions */
+.fc-google-theme * {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Selection Highlight */
+.fc-google-theme .fc-highlight {
+  background: rgba(26, 115, 232, 0.1);
+}
+
+/* Scrollbar styling for calendar */
+.fc-google-theme .fc-scroller::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.fc-google-theme .fc-scroller::-webkit-scrollbar-track {
+  background: #f1f3f4;
+}
+
+.fc-google-theme .fc-scroller::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 4px;
+}
+
+.fc-google-theme .fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: #bdc1c6;
+}
+</style>
