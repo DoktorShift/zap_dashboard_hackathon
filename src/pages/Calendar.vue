@@ -116,41 +116,49 @@ const fullCalendarEvents = computed(() => {
 
     // Get calendar color if event is assigned to a calendar
     const calendar = event.calendar_id ? getCalendar(event.calendar_id) : null
-    const baseColor = calendar?.color || (event.type === 'time-based' ? '#039be5' : '#0b8043')
+    const baseColor = calendar?.color || (event.type === 'time-based' ? 'blue' : 'green')
 
-    // Google Calendar color system - realistic colors with proper contrast
-    const getEventColors = (base) => {
+    // Modern soft pastel color system - elegant and easy to consume
+    const getEventColors = (colorName) => {
       const colorMap = {
-        // Peacock (Blue) - Default for time events
-        '#039be5': { bg: '#4fc3f7', border: '#039be5', text: '#01579b', lightBg: '#e1f5fe' },
-        // Basil (Green) - Default for all-day events
-        '#0b8043': { bg: '#7cb342', border: '#0b8043', text: '#33691e', lightBg: '#dcedc8' },
-        // Flamingo (Red)
-        '#d50000': { bg: '#e57373', border: '#d50000', text: '#b71c1c', lightBg: '#ffcdd2' },
-        // Tomato (Red-Orange)
-        '#f4511e': { bg: '#ff7043', border: '#f4511e', text: '#bf360c', lightBg: '#ffccbc' },
-        // Tangerine (Orange)
-        '#ef6c00': { bg: '#ffa726', border: '#ef6c00', text: '#e65100', lightBg: '#ffe0b2' },
-        // Banana (Yellow)
-        '#f09300': { bg: '#ffb300', border: '#f09300', text: '#ff6f00', lightBg: '#ffecb3' },
-        // Sage (Green-Gray)
-        '#33b679': { bg: '#66bb6a', border: '#33b679', text: '#2e7d32', lightBg: '#c8e6c9' },
-        // Grape (Purple)
-        '#8e24aa': { bg: '#ab47bc', border: '#8e24aa', text: '#6a1b9a', lightBg: '#e1bee7' },
-        // Lavender (Light Purple)
-        '#7986cb': { bg: '#9fa8da', border: '#7986cb', text: '#3949ab', lightBg: '#c5cae9' },
-        // Blueberry (Dark Blue)
-        '#3f51b5': { bg: '#5c6bc0', border: '#3f51b5', text: '#283593', lightBg: '#c5cae9' },
-        // Graphite (Gray)
-        '#616161': { bg: '#757575', border: '#616161', text: '#212121', lightBg: '#eeeeee' }
+        // Soft Blues - calming, professional
+        'blue': { bg: '#C7E2FF', text: '#1E4A6B' },
+        'lightblue': { bg: '#D4E7FF', text: '#2B5A8F' },
+        'skyblue': { bg: '#E0F2FE', text: '#075985' },
+
+        // Soft Purples - creative, elegant
+        'purple': { bg: '#E9D5FF', text: '#6B21A8' },
+        'lavender': { bg: '#EDE9FE', text: '#5B21B6' },
+        'indigo': { bg: '#E0E7FF', text: '#3730A3' },
+
+        // Soft Greens - fresh, positive
+        'green': { bg: '#D1FAE5', text: '#065F46' },
+        'sage': { bg: '#DCFCE7', text: '#166534' },
+        'mint': { bg: '#CCFBF1', text: '#115E59' },
+
+        // Soft Yellows/Golds - warm, friendly
+        'yellow': { bg: '#FEF3C7', text: '#92400E' },
+        'amber': { bg: '#FDE68A', text: '#78350F' },
+
+        // Soft Reds/Pinks - important, urgent
+        'red': { bg: '#FECACA', text: '#991B1B' },
+        'pink': { bg: '#FCE7F3', text: '#9D174D' },
+        'rose': { bg: '#FFE4E6', text: '#881337' },
+
+        // Soft Oranges - energetic
+        'orange': { bg: '#FFEDD5', text: '#9A3412' },
+        'coral': { bg: '#FED7AA', text: '#C2410C' },
+
+        // Soft Teals - balanced
+        'teal': { bg: '#CCFBF1', text: '#134E4A' },
+        'cyan': { bg: '#CFFAFE', text: '#155E75' },
+
+        // Neutral - versatile
+        'gray': { bg: '#F3F4F6', text: '#374151' },
+        'slate': { bg: '#F1F5F9', text: '#334155' }
       }
 
-      return colorMap[base] || {
-        bg: base,
-        border: base,
-        text: '#1f2937',
-        lightBg: base + '20'
-      }
+      return colorMap[colorName] || colorMap['blue']
     }
 
     const colors = getEventColors(baseColor)
@@ -162,7 +170,7 @@ const fullCalendarEvents = computed(() => {
       end: end,
       allDay: event.type === 'date-based',
       backgroundColor: colors.bg,
-      borderColor: colors.border,
+      borderColor: colors.bg,
       textColor: colors.text,
       classNames: [
         'fc-event-custom',
@@ -1148,81 +1156,88 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* Events - Google Calendar Style */
+/* Events - Modern Elegant Style */
 .fc-google-theme .fc-event {
   border: none !important;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: none;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   overflow: hidden;
-  font-family: 'Roboto', 'Arial', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
 }
 
 .fc-google-theme .fc-event:hover {
-  filter: brightness(0.95);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  filter: brightness(0.98);
   z-index: 10;
 }
 
 /* Day Grid Events (Month View) */
 .fc-google-theme .fc-daygrid-event {
-  margin: 1px 2px;
-  padding: 1px 4px;
-  min-height: 22px;
-  border-radius: 3px;
+  margin: 2px 3px;
+  padding: 0;
+  min-height: 24px;
+  border-radius: 5px;
 }
 
 .fc-google-theme .fc-daygrid-block-event {
-  padding: 2px 5px;
+  padding: 4px 8px;
   border-left: none !important;
 }
 
 .fc-google-theme .fc-daygrid-block-event .fc-event-main {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  line-height: 1.4;
 }
 
 .fc-google-theme .fc-daygrid-block-event .fc-event-time {
   font-weight: 500;
   font-size: 11px;
-  line-height: 1.3;
   white-space: nowrap;
-  opacity: 0.9;
+  opacity: 0.85;
+  letter-spacing: 0.01em;
 }
 
 .fc-google-theme .fc-daygrid-block-event .fc-event-title {
   font-weight: 500;
   font-size: 12px;
-  line-height: 1.3;
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+  letter-spacing: 0.01em;
 }
 
 /* All-day events styling */
 .fc-google-theme .fc-daygrid-event.fc-event-start.fc-event-end {
-  border-radius: 3px;
+  border-radius: 5px;
 }
 
 .fc-google-theme .fc-daygrid-event.fc-event-start:not(.fc-event-end) {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   margin-right: 0;
+  padding-right: 8px;
 }
 
 .fc-google-theme .fc-daygrid-event:not(.fc-event-start):not(.fc-event-end) {
   border-radius: 0;
   margin-left: 0;
   margin-right: 0;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 .fc-google-theme .fc-daygrid-event.fc-event-end:not(.fc-event-start) {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   margin-left: 0;
+  padding-left: 8px;
 }
 
 .fc-google-theme .fc-event-main {
@@ -1329,30 +1344,35 @@ onMounted(() => {
 
 .fc-google-theme .fc-timegrid-event {
   border: none !important;
-  border-radius: 4px;
-  padding: 4px 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  border-left: 3px solid !important;
+  border-radius: 6px;
+  padding: 6px 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .fc-google-theme .fc-timegrid-event .fc-event-main {
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .fc-google-theme .fc-timegrid-event .fc-event-time {
   font-weight: 600;
   font-size: 11px;
-  margin-bottom: 2px;
+  opacity: 0.85;
+  letter-spacing: 0.01em;
 }
 
 .fc-google-theme .fc-timegrid-event .fc-event-title {
   font-weight: 500;
   font-size: 12px;
-  line-height: 1.3;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
 }
 
 .fc-google-theme .fc-timegrid-event:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .fc-google-theme .fc-timegrid-event-harness {
@@ -1487,13 +1507,14 @@ onMounted(() => {
   }
 
   .fc-google-theme .fc-daygrid-event {
-    margin: 1px 1px;
-    padding: 1px 3px;
-    min-height: 20px;
+    margin: 2px 2px;
+    padding: 0;
+    min-height: 22px;
+    border-radius: 4px;
   }
 
   .fc-google-theme .fc-daygrid-block-event {
-    padding: 1px 4px;
+    padding: 3px 6px;
   }
 
   .fc-google-theme .fc-daygrid-block-event .fc-event-time {
@@ -1502,6 +1523,7 @@ onMounted(() => {
 
   .fc-google-theme .fc-daygrid-block-event .fc-event-title {
     font-size: 11px;
+    font-weight: 500;
   }
 
   .fc-google-theme .fc-col-header-cell {
@@ -1519,8 +1541,8 @@ onMounted(() => {
   }
 
   .fc-google-theme .fc-timegrid-event {
-    padding: 3px 6px;
-    border-left-width: 2px !important;
+    padding: 5px 8px;
+    border-radius: 5px;
   }
 
   .calendar-wrapper {
