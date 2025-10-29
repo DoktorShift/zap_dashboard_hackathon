@@ -335,174 +335,152 @@ watch(isAuthenticated, async (isAuth) => {
     </div>
 
     <!-- Search and Filters -->
-    <!-- Mobile-First Controls Section -->
-    <div v-if="isAuthenticated" class="space-y-4 mb-6">
-      <!-- Mobile Layout: Stacked Cards -->
-      <div class="block sm:hidden space-y-3">
-        <!-- Search Card -->
-        <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-lg shadow-gray-200/20 p-4">
-          <div class="relative">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search campaigns..."
-              class="w-full pl-10 pr-10 py-3 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200 shadow-sm"
-            />
-            <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-            <button 
-              v-if="searchQuery" 
-              @click="searchQuery = ''" 
-              class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
+    <div v-if="isAuthenticated" class="mb-8">
+      <!-- Mobile Layout -->
+      <div class="block lg:hidden space-y-3">
+        <!-- Search -->
+        <div class="relative">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search campaigns..."
+            class="w-full pl-10 pr-10 py-3.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+          />
+          <IconSearch class="absolute left-3.5 top-4 w-4 h-4 text-gray-400" />
+          <button
+            v-if="searchQuery"
+            @click="searchQuery = ''"
+            class="absolute right-3.5 top-4 text-gray-400 hover:text-gray-600"
+          >
+            <IconX class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- View Toggle & Sort -->
+        <div class="flex items-center gap-3">
+          <div class="flex bg-white border border-gray-200 rounded-xl p-1 flex-1">
+            <button
+              @click="activeView = 'grid'"
+              :class="[
+                'flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5',
+                activeView === 'grid'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              ]"
             >
-              <IconX class="w-4 h-4" />
+              <IconGrid class="w-4 h-4" />
+              <span>Grid</span>
             </button>
+            <button
+              @click="activeView = 'list'"
+              :class="[
+                'flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5',
+                activeView === 'list'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              ]"
+            >
+              <IconList class="w-4 h-4" />
+              <span>List</span>
+            </button>
+          </div>
+
+          <div class="relative flex-1">
+            <select
+              v-model="sortOption"
+              class="w-full appearance-none pl-3.5 pr-9 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 text-sm transition-all"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="progress">By Progress</option>
+              <option value="goal">By Goal</option>
+            </select>
+            <IconChevronDown class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
         </div>
 
-        <!-- Controls Card -->
-        <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-lg shadow-gray-200/20 p-4">
-          <div class="grid grid-cols-2 gap-3">
-            <!-- View Toggle -->
-            <div class="bg-gray-50/80 backdrop-blur-sm rounded-xl p-1 shadow-sm border border-gray-200/50">
-              <button 
-                @click="activeView = 'grid'" 
-                :class="[
-                  'w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ease-out flex items-center justify-center space-x-1.5',
-                  activeView === 'grid' 
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
-                ]"
+        <!-- New Campaign Button -->
+        <button
+          @click="openCreateModal"
+          class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg"
+        >
+          <IconPlus class="w-5 h-5" />
+          <span>New Campaign</span>
+        </button>
+      </div>
+
+      <!-- Desktop Layout -->
+      <div class="hidden lg:block">
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+          <div class="flex items-center gap-4">
+            <!-- Search -->
+            <div class="relative flex-1 max-w-md">
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search campaigns..."
+                class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+              />
+              <IconSearch class="absolute left-3.5 top-3.5 w-4 h-4 text-gray-400" />
+              <button
+                v-if="searchQuery"
+                @click="searchQuery = ''"
+                class="absolute right-3.5 top-3.5 text-gray-400 hover:text-gray-600"
               >
-                <span class="text-xs opacity-70">⊞</span>
-                <span>Grid</span>
+                <IconX class="w-4 h-4" />
               </button>
             </div>
-            
-            <div class="bg-gray-50/80 backdrop-blur-sm rounded-xl p-1 shadow-sm border border-gray-200/50">
-              <button 
-                @click="activeView = 'list'" 
+
+            <!-- View Toggle -->
+            <div class="flex bg-gray-50 border border-gray-200 rounded-xl p-1">
+              <button
+                @click="activeView = 'grid'"
                 :class="[
-                  'w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ease-out flex items-center justify-center space-x-1.5',
-                  activeView === 'list' 
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
+                  'px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2',
+                  activeView === 'grid'
+                    ? 'bg-white text-orange-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
                 ]"
               >
-                <span class="text-xs opacity-70">☰</span>
+                <IconGrid class="w-4 h-4" />
+                <span>Grid</span>
+              </button>
+              <button
+                @click="activeView = 'list'"
+                :class="[
+                  'px-4 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2',
+                  activeView === 'list'
+                    ? 'bg-white text-orange-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                ]"
+              >
+                <IconList class="w-4 h-4" />
                 <span>List</span>
               </button>
             </div>
-          </div>
-          
-          <!-- Sort and Create Row -->
-          <div class="flex items-center space-x-3 mt-3">
-            <!-- Sort Dropdown -->
-            <div class="relative flex-1">
-              <select 
+
+            <!-- Sort -->
+            <div class="relative">
+              <select
                 v-model="sortOption"
-                class="w-full appearance-none pl-3 pr-8 py-2.5 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm shadow-sm transition-all duration-200"
+                class="appearance-none pl-3.5 pr-9 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-400 focus:border-orange-400 text-sm transition-all min-w-[160px]"
               >
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
-                <option value="progress">Progress</option>
-                <option value="goal">Goal</option>
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="progress">Highest Progress</option>
+                <option value="goal">Highest Goal</option>
               </select>
-              <IconChevronDown class="absolute right-3 top-3 w-3 h-3 text-gray-400 pointer-events-none" />
+              <IconChevronDown class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
-            
-            <!-- Create Button -->
+
+            <!-- New Campaign Button -->
             <button
               @click="openCreateModal"
-              class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 whitespace-nowrap"
+              class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 shadow-lg whitespace-nowrap"
             >
               <IconPlus class="w-4 h-4" />
-              <span>New</span>
+              <span>New Campaign</span>
             </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Desktop Layout: Single Card -->
-      <div class="hidden sm:block">
-        <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/40 overflow-hidden">
-          <!-- ZapTracker Brand Accent Line -->
-          <div class="h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400"></div>
-          
-          <!-- Header Content -->
-          <div class="px-6 py-5">
-            <div class="flex items-center justify-between">
-              <!-- Left: Search -->
-              <div class="relative flex-1 max-w-md">
-                <input
-                  v-model="searchQuery"
-                  type="text"
-                  placeholder="Search campaigns..."
-                  class="w-full pl-10 pr-10 py-3 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200 shadow-sm"
-                />
-                <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-                <button 
-                  v-if="searchQuery" 
-                  @click="searchQuery = ''" 
-                  class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <IconX class="w-4 h-4" />
-                </button>
-              </div>
-              
-              <!-- Right: Controls -->
-              <div class="flex items-center space-x-4">
-                <!-- View Toggle -->
-                <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
-                  <button 
-                    @click="activeView = 'grid'" 
-                    :class="[
-                      'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out flex items-center space-x-1.5',
-                      activeView === 'grid' 
-                        ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
-                    ]"
-                  >
-                    <span class="text-xs opacity-70">⊞</span>
-                    <span>Grid</span>
-                  </button>
-                  <button 
-                    @click="activeView = 'list'" 
-                    :class="[
-                      'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out flex items-center space-x-1.5',
-                      activeView === 'list' 
-                        ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
-                    ]"
-                  >
-                    <span class="text-xs opacity-70">☰</span>
-                    <span>List</span>
-                  </button>
-                </div>
-
-                <!-- Sort Dropdown -->
-                <div class="relative">
-                  <select 
-                    v-model="sortOption"
-                    class="appearance-none pl-3 pr-8 py-2.5 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm shadow-sm transition-all duration-200"
-                  >
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="progress">Highest Progress</option>
-                    <option value="goal">Highest Goal</option>
-                  </select>
-                  <IconChevronDown class="absolute right-3 top-3 w-3 h-3 text-gray-400 pointer-events-none" />
-                </div>
-                
-                <!-- Create Button -->
-                <button
-                  @click="openCreateModal"
-                  class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-2.5 rounded-2xl font-semibold text-sm transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                >
-                  <IconPlus class="w-4 h-4" />
-                  <span>New Campaign</span>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
