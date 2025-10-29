@@ -155,12 +155,12 @@
           <div class="mt-8 pb-8 text-center">
             <a
               href="/"
-              class="inline-flex items-center space-x-3 text-orange-600 hover:text-orange-700 font-semibold text-base bg-white/60 hover:bg-white/80 backdrop-blur-sm px-5 py-3 rounded-xl transition-all duration-200 border border-orange-200/50 hover:border-orange-300 shadow-sm hover:shadow-md"
+              class="inline-flex items-center space-x-2 text-orange-600 hover:text-orange-700 font-medium text-sm transition-colors"
             >
               <img
                 src="/new_logo3.png"
                 alt="ZapTracker"
-                class="w-6 h-6 object-contain"
+                class="w-4 h-4 object-contain"
               />
               <span>Powered by ZapTracker</span>
             </a>
