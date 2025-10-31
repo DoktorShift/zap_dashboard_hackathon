@@ -37,7 +37,10 @@ const searchQuery = ref('')
 
 // Computed properties
 const filteredSuggestions = computed(() => {
-  return suggestions.value.slice(0, 12) // Limit to 12 suggestions for clean UI
+  // CRITICAL: Filter out users we're already following in real-time
+  return suggestions.value
+    .filter(suggestion => !isFollowing(suggestion.pubkey))
+    .slice(0, 12) // Limit to 12 suggestions for clean UI
 })
 
 const hasFollowing = computed(() => following.value.length > 0)
@@ -65,8 +68,9 @@ const generateSuggestions = async () => {
     const mutualConnections = new Map() // pubkey -> { count, connectedThrough }
     const followedPubkeys = new Set([...following.value, currentUser.value.pubkey]) // Include self
 
-    // Fetch contact lists of people we follow (limit to first 10 for performance)
-    const contactPromises = following.value.slice(0, 10).map(async (pubkey) => {
+    // Fetch contact lists of people we follow (limit to 5 to reduce load)
+    const sampleSize = Math.min(5, following.value.length)
+    const contactPromises = following.value.slice(0, sampleSize).map(async (pubkey) => {
       try {
         console.log(`Fetching contact list for: ${pubkey.substring(0, 8)}...`)
         
@@ -104,9 +108,9 @@ const generateSuggestions = async () => {
 
     // Sort by mutual connection count and take top suggestions
     const topSuggestions = Array.from(mutualConnections.entries())
-      .filter(([, data]) => data.count >= 2) // At least 2 mutual connections
+      .filter(([, data]) => data.count >= 1) // At least 1 mutual connection (simplified)
       .sort(([,a], [,b]) => b.count - a.count)
-      .slice(0, 20) // Get top 20 for profile fetching
+      .slice(0, 15) // Get top 15 for profile fetching
       .map(([pubkey, data]) => ({
         pubkey,
         mutualCount: data.count,
@@ -210,15 +214,9 @@ onMounted(() => {
   }
 })
 
-// Watch for changes in following list to regenerate suggestions
-watch(following, (newFollowing) => {
-  if (isAuthenticated.value && newFollowing.length > 0) {
-    // Regenerate suggestions when following list changes
-    setTimeout(() => {
-      generateSuggestions()
-    }, 2000)
-  }
-}, { deep: true })
+// Note: We don't auto-regenerate on follow changes anymore
+// The filteredSuggestions computed will automatically hide followed users
+// Users can manually refresh if they want new suggestions
 </script>
 
 <template>
