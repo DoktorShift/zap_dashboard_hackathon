@@ -986,11 +986,11 @@ onMounted(() => {
           ></div>
 
           <!-- Modal Content - Desktop: centered card, Mobile: bottom sheet -->
-          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-6 pointer-events-none">
-            <div class="pointer-events-auto w-full md:w-auto h-full md:h-auto md:max-h-[90vh] md:max-w-xl bg-white md:shadow-2xl md:overflow-hidden flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-3xl max-h-[90vh]">
+          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-8 pointer-events-none">
+            <div class="pointer-events-auto w-full md:w-auto h-full md:h-auto md:max-h-[88vh] md:max-w-2xl bg-white md:shadow-2xl md:overflow-hidden flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-3xl max-h-[90vh]">
               <!-- Header - Minimal and elegant -->
               <div class="flex-shrink-0 md:sticky md:top-0 md:z-10 bg-white rounded-t-3xl">
-                <div class="px-8 pt-8 pb-6 flex items-start justify-between">
+                <div class="px-6 md:px-10 pt-8 pb-6 flex items-start justify-between">
                   <div class="flex-1">
                     <h2 class="text-2xl font-semibold text-gray-900 tracking-tight">
                       {{ isEditingEvent ? 'Edit Event' : 'New Event' }}
@@ -1008,8 +1008,8 @@ onMounted(() => {
 
               <!-- Scrollable Content -->
               <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
-                <div class="px-8 md:pb-6 pb-6">
-                <div class="space-y-5">
+                <div class="px-6 md:px-10 md:pb-8 pb-6">
+                <div class="space-y-6">
                   <!-- Title -->
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
@@ -1292,7 +1292,7 @@ onMounted(() => {
               </div>
 
               <!-- Fixed Footer with Actions -->
-              <div class="flex-shrink-0 md:sticky md:bottom-0 md:z-10 bg-white border-t border-gray-200 px-4 md:px-8 py-4 md:py-5 safe-bottom">
+              <div class="flex-shrink-0 md:sticky md:bottom-0 md:z-10 bg-white border-t border-gray-200 px-4 md:px-10 py-4 md:py-6 safe-bottom">
                 <div>
                   <!-- Mobile Layout: Stacked Buttons -->
                   <div class="flex md:hidden flex-col gap-2">
@@ -1342,17 +1342,17 @@ onMounted(() => {
                     <div class="flex items-center gap-3 flex-1 justify-end">
                       <button
                         @click="handleEventFormCancel"
-                        class="px-6 py-2.5 rounded-xl bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium transition-all text-sm"
+                        class="px-6 py-2.5 rounded-xl bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium transition-all text-base"
                       >
                         Cancel
                       </button>
                       <button
                         @click="handleEventFormSubmit"
                         :disabled="!isFormValid || isLoading"
-                        class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium transition-all text-sm shadow-lg shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                        class="px-8 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold transition-all text-base shadow-lg shadow-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none hover:shadow-xl hover:shadow-orange-500/40"
                       >
-                        <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-1.5" />
-                        <IconCheck v-else class="w-4 h-4 inline mr-1.5" />
+                        <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-2" />
+                        <IconCheck v-else class="w-4 h-4 inline mr-2" />
                         {{ isEditingEvent ? 'Update Event' : 'Create Event' }}
                       </button>
                     </div>
