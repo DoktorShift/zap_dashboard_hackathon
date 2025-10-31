@@ -774,7 +774,7 @@ export function useFollowLists() {
       // Extract current follows
       let currentFollows = []
       if (currentFollowingEvent) {
-        currentFollows = currentFollows = currentFollowingEvent.tags
+        currentFollows = currentFollowingEvent.tags
           .filter(tag => tag[0] === 'p' && tag[1])
           .map(tag => tag[1])
         console.log('Current follows from Nostr:', currentFollows.length)
