@@ -33,6 +33,7 @@ const suggestions = ref([])
 const isLoading = ref(false)
 const error = ref('')
 const followingInProgress = ref(new Set())
+const searchQuery = ref('')
 
 // Computed properties
 const filteredSuggestions = computed(() => {
@@ -155,20 +156,18 @@ const generateSuggestions = async () => {
 // Handle follow user with proper merging
 const handleFollowUser = async (pubkey) => {
   if (followingInProgress.value.has(pubkey)) return
-  
+
   followingInProgress.value.add(pubkey)
-  
+
   try {
-    const result = await emit('follow-user', pubkey)
-    
-    // Remove from suggestions after successful follow
-    suggestions.value = suggestions.value.filter(s => s.pubkey !== pubkey)
-    
-    // Show success feedback
-    if (result && !result.alreadyFollowing) {
-      console.log('Successfully followed user, total follows:', result.totalFollows)
-    }
-    
+    emit('follow-user', pubkey)
+
+    // Remove from suggestions after follow attempt
+    // The parent component handles the actual follow logic
+    setTimeout(() => {
+      suggestions.value = suggestions.value.filter(s => s.pubkey !== pubkey)
+    }, 500)
+
   } catch (error) {
     console.error('Failed to follow user:', error)
   } finally {
