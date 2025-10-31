@@ -987,9 +987,9 @@ onMounted(() => {
 
           <!-- Modal Content - Desktop: centered card, Mobile: bottom sheet -->
           <div class="absolute inset-0 flex md:items-center md:justify-center md:p-6 pointer-events-none">
-            <div class="pointer-events-auto w-full md:w-auto h-full md:h-auto md:max-h-[85vh] md:max-w-2xl bg-white shadow-2xl flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-2xl max-h-[90vh]">
+            <div class="pointer-events-auto w-full md:w-auto h-full md:h-auto md:max-h-[85vh] md:max-w-2xl bg-white shadow-2xl md:overflow-hidden flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-2xl max-h-[90vh]">
               <!-- Header - Apple style with blur effect -->
-              <div class="flex-shrink-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 rounded-t-3xl md:rounded-t-2xl">
+              <div class="flex-shrink-0 md:sticky md:top-0 md:z-10 bg-white/80 backdrop-blur-xl border-b border-gray-100 rounded-t-3xl md:rounded-t-2xl">
                 <div class="px-6 py-4 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
@@ -1010,7 +1010,7 @@ onMounted(() => {
 
               <!-- Scrollable Content -->
               <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
-                <div class="px-6 py-6 pb-6">
+                <div class="px-6 py-6 md:pb-6 pb-6">
                 <div class="space-y-6 max-w-xl mx-auto">
                   <!-- Title -->
                   <div>
@@ -1294,7 +1294,7 @@ onMounted(() => {
               </div>
 
               <!-- Fixed Footer with Actions -->
-              <div class="flex-shrink-0 bg-white border-t border-gray-100 px-4 md:px-6 py-3 md:py-4 safe-bottom">
+              <div class="flex-shrink-0 md:sticky md:bottom-0 md:z-10 bg-white md:bg-white/80 md:backdrop-blur-xl border-t border-gray-100 px-4 md:px-6 py-3 md:py-4 md:mt-6 safe-bottom">
                 <div class="max-w-xl mx-auto">
                   <!-- Mobile Layout: Stacked Buttons -->
                   <div class="flex md:hidden flex-col gap-2">
