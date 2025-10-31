@@ -223,7 +223,7 @@ const calendarOptions = computed(() => {
       listPlugin
     ],
     headerToolbar: {
-      left: 'prev,next today',
+      left: 'prev,next',
       center: 'title',
       right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
     },
