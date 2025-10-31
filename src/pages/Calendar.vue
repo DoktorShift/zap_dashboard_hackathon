@@ -986,53 +986,53 @@ onMounted(() => {
           ></div>
 
           <!-- Modal Content - Desktop: centered card, Mobile: bottom sheet -->
-          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-8 pointer-events-none">
-            <div class="pointer-events-auto w-full md:w-auto h-full md:h-auto md:max-h-[88vh] md:max-w-2xl bg-white md:shadow-2xl md:overflow-hidden flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-3xl max-h-[90vh]">
+          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-12 pointer-events-none">
+            <div class="pointer-events-auto w-full md:w-[640px] h-full md:h-auto md:max-h-[85vh] bg-white md:shadow-xl md:overflow-hidden flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-2xl max-h-[90vh]">
               <!-- Header - Minimal and elegant -->
-              <div class="flex-shrink-0 md:sticky md:top-0 md:z-10 bg-white rounded-t-3xl">
-                <div class="px-6 md:px-10 pt-8 pb-6 flex items-start justify-between">
+              <div class="flex-shrink-0 md:sticky md:top-0 md:z-10 bg-white/95 backdrop-blur-sm border-b border-gray-100 rounded-t-3xl md:rounded-t-2xl">
+                <div class="px-6 md:px-8 pt-6 md:pt-7 pb-5 md:pb-6 flex items-start justify-between">
                   <div class="flex-1">
-                    <h2 class="text-2xl font-semibold text-gray-900 tracking-tight">
+                    <h2 class="text-xl md:text-2xl font-semibold text-gray-900 tracking-tight leading-tight">
                       {{ isEditingEvent ? 'Edit Event' : 'New Event' }}
                     </h2>
-                    <p class="text-sm text-gray-500 mt-1">{{ isEditingEvent ? 'Update event details' : 'Create a new calendar event' }}</p>
+                    <p class="text-sm text-gray-500 mt-1.5">{{ isEditingEvent ? 'Update event details' : 'Create a new calendar event' }}</p>
                   </div>
                   <button
                     @click="closeEventModal"
-                    class="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition-all duration-200 -mt-1 -mr-1"
+                    class="w-8 h-8 md:w-9 md:h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition-all duration-200 flex-shrink-0 ml-4"
                   >
-                    <IconX class="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                    <IconX class="w-4.5 h-4.5 md:w-5 md:h-5 text-gray-400" />
                   </button>
                 </div>
               </div>
 
               <!-- Scrollable Content -->
               <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
-                <div class="px-6 md:px-10 md:pb-8 pb-6">
-                <div class="space-y-6">
+                <div class="px-6 md:px-8 py-6 md:py-8">
+                <div class="space-y-7">
                   <!-- Title -->
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                    <label class="block text-sm font-medium text-gray-900 mb-2.5">Title</label>
                     <input
                       v-model="modalEventForm.title"
                       type="text"
                       placeholder="Event title"
-                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base placeholder-gray-400 hover:border-gray-300"
+                      class="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base placeholder-gray-400 hover:border-gray-400"
                     />
                   </div>
 
                   <!-- Type - Segmented Control Style -->
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Event Type</label>
-                    <div class="inline-flex bg-gray-100 rounded-xl p-1 w-full">
+                    <label class="block text-sm font-medium text-gray-900 mb-2.5">Event Type</label>
+                    <div class="inline-flex bg-gray-100/80 rounded-lg p-1.5 w-full">
                       <button
                         type="button"
                         @click="modalEventForm.type = 'time-based'"
                         :class="[
-                          'flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all',
+                          'flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200',
                           modalEventForm.type === 'time-based'
                             ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
+                            : 'text-gray-600 hover:text-gray-800'
                         ]"
                       >
                         <IconClock class="w-4 h-4 inline mr-2" />
@@ -1042,10 +1042,10 @@ onMounted(() => {
                         type="button"
                         @click="modalEventForm.type = 'date-based'"
                         :class="[
-                          'flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all',
+                          'flex-1 px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200',
                           modalEventForm.type === 'date-based'
                             ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
+                            : 'text-gray-600 hover:text-gray-800'
                         ]"
                       >
                         <IconCalendar class="w-4 h-4 inline mr-2" />
@@ -1055,44 +1055,44 @@ onMounted(() => {
                   </div>
 
                   <!-- Date and Time - Card Style -->
-                  <div class="bg-gray-50/50 rounded-2xl p-5 border border-gray-100">
-                    <label class="block text-sm font-medium text-gray-700 mb-4">When</label>
+                  <div class="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                    <label class="block text-sm font-medium text-gray-900 mb-4">When</label>
                     <div class="space-y-4">
-                      <div class="grid grid-cols-2 gap-3">
+                      <div class="grid grid-cols-2 gap-4">
                         <div>
-                          <label class="block text-xs font-medium text-gray-600 mb-2">Start Date</label>
+                          <label class="block text-xs font-medium text-gray-700 mb-2">Start Date</label>
                           <input
                             v-model="modalEventForm.start_date"
                             type="date"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm"
                           />
                         </div>
                         <div>
-                          <label class="block text-xs font-medium text-gray-600 mb-2">End Date</label>
+                          <label class="block text-xs font-medium text-gray-700 mb-2">End Date</label>
                           <input
                             v-model="modalEventForm.end_date"
                             type="date"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm"
                           />
                         </div>
                       </div>
 
                       <!-- Time fields for time-based events -->
-                      <div v-if="modalEventForm.type === 'time-based'" class="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200">
+                      <div v-if="modalEventForm.type === 'time-based'" class="grid grid-cols-2 gap-4 pt-3 border-t border-gray-300">
                         <div>
-                          <label class="block text-xs font-medium text-gray-600 mb-2">Start Time</label>
+                          <label class="block text-xs font-medium text-gray-700 mb-2">Start Time</label>
                           <input
                             v-model="modalEventForm.start_time"
                             type="time"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm"
                           />
                         </div>
                         <div>
-                          <label class="block text-xs font-medium text-gray-600 mb-2">End Time</label>
+                          <label class="block text-xs font-medium text-gray-700 mb-2">End Time</label>
                           <input
                             v-model="modalEventForm.end_time"
                             type="time"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm"
                           />
                         </div>
                       </div>
@@ -1101,33 +1101,33 @@ onMounted(() => {
 
                   <!-- Description -->
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <label class="block text-sm font-medium text-gray-900 mb-2.5">Description</label>
                     <textarea
                       v-model="modalEventForm.description"
                       rows="4"
                       placeholder="Add details about your event..."
-                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base placeholder-gray-400 resize-none hover:border-gray-300"
+                      class="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base placeholder-gray-400 resize-none hover:border-gray-400"
                     ></textarea>
                   </div>
 
                   <!-- Location -->
                   <div>
-                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
-                      <IconMapPin class="w-4 h-4 text-gray-400" />
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-900 mb-2.5">
+                      <IconMapPin class="w-4 h-4 text-gray-500" />
                       Location
                     </label>
                     <input
                       v-model="modalEventForm.location"
                       type="text"
                       placeholder="Add location or online link"
-                      class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base placeholder-gray-400 hover:border-gray-300"
+                      class="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-base placeholder-gray-400 hover:border-gray-400"
                     />
-                    <p class="text-xs text-gray-500 mt-2">Physical address or video call link</p>
+                    <p class="text-xs text-gray-500 mt-2.5">Physical address or video call link</p>
                   </div>
 
                   <!-- Geohash - Collapsible -->
                   <details class="group">
-                    <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-600 py-2 hover:text-gray-800 transition-colors">
+                    <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-600 py-2.5 hover:text-gray-800 transition-colors">
                       <span>Advanced Location (Geohash)</span>
                       <IconChevronRight class="w-4 h-4 transition-transform group-open:rotate-90" />
                     </summary>
@@ -1136,16 +1136,16 @@ onMounted(() => {
                         v-model="modalEventForm.geohash"
                         type="text"
                         placeholder="e.g., 9q5"
-                        class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm placeholder-gray-400 hover:border-gray-300"
+                        class="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm placeholder-gray-400 hover:border-gray-400"
                       />
-                      <p class="text-xs text-gray-500 mt-2">Geohash for searchable physical location</p>
+                      <p class="text-xs text-gray-500 mt-2.5">Geohash for searchable physical location</p>
                     </div>
                   </details>
 
                   <!-- Participants -->
                   <div>
-                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                      <IconUsers class="w-4 h-4 text-gray-400" />
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-900 mb-3">
+                      <IconUsers class="w-4 h-4 text-gray-500" />
                       Participants
                     </label>
                     <div class="space-y-3">
@@ -1158,11 +1158,11 @@ onMounted(() => {
                       />
 
                       <!-- Selected Participants List -->
-                      <div v-if="modalEventForm.participants && modalEventForm.participants.length > 0" class="space-y-2">
+                      <div v-if="modalEventForm.participants && modalEventForm.participants.length > 0" class="space-y-2.5">
                         <div
                           v-for="(participant, index) in modalEventForm.participants"
                           :key="index"
-                          class="flex items-center gap-3 bg-gray-50 px-3.5 py-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
+                          class="flex items-center gap-3 bg-gray-50 px-4 py-3.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                         >
                           <!-- Avatar -->
                           <div class="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200 flex-shrink-0">
@@ -1205,24 +1205,24 @@ onMounted(() => {
 
                   <!-- Tags -->
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                    <label class="block text-sm font-medium text-gray-900 mb-3">
                       Hashtags
                     </label>
                     <div class="space-y-3">
-                      <div class="flex gap-2">
+                      <div class="flex gap-2.5">
                         <input
                           v-model="newTag"
                           type="text"
                           placeholder="Add hashtag"
-                          class="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm placeholder-gray-400 hover:border-gray-300"
+                          class="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm placeholder-gray-400 hover:border-gray-400"
                           @keyup.enter="addTag"
                         />
                         <button
                           @click="addTag"
                           type="button"
-                          class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white flex items-center justify-center transition-all duration-200 shadow-sm shadow-orange-500/20"
+                          class="w-11 h-11 rounded-lg bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-all duration-200 shadow-sm active:scale-95"
                         >
-                          <IconPlus class="w-4 h-4" />
+                          <IconPlus class="w-5 h-5" />
                         </button>
                       </div>
                       <div v-if="modalEventForm.tags && modalEventForm.tags.length > 0" class="flex flex-wrap gap-2">
@@ -1246,32 +1246,32 @@ onMounted(() => {
 
                   <!-- References / Links -->
                   <div>
-                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                      <IconExternalLink class="w-4 h-4 text-gray-400" />
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-900 mb-3">
+                      <IconExternalLink class="w-4 h-4 text-gray-500" />
                       Reference Links
                     </label>
                     <div class="space-y-3">
-                      <div class="flex gap-2">
+                      <div class="flex gap-2.5">
                         <input
                           v-model="newReference"
                           type="url"
                           placeholder="https://example.com"
-                          class="flex-1 px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm placeholder-gray-400 hover:border-gray-300"
+                          class="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm placeholder-gray-400 hover:border-gray-400"
                           @keyup.enter="addReference"
                         />
                         <button
                           @click="addReference"
                           type="button"
-                          class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white flex items-center justify-center transition-all duration-200 shadow-sm shadow-orange-500/20"
+                          class="w-11 h-11 rounded-lg bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-all duration-200 shadow-sm active:scale-95"
                         >
-                          <IconPlus class="w-4 h-4" />
+                          <IconPlus class="w-5 h-5" />
                         </button>
                       </div>
-                      <div v-if="modalEventForm.references && modalEventForm.references.length > 0" class="space-y-2">
+                      <div v-if="modalEventForm.references && modalEventForm.references.length > 0" class="space-y-2.5">
                         <div
                           v-for="(ref, index) in modalEventForm.references"
                           :key="index"
-                          class="flex items-center justify-between gap-3 bg-gray-50 px-3.5 py-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
+                          class="flex items-center justify-between gap-3 bg-gray-50 px-4 py-3.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                         >
                           <a :href="ref" target="_blank" class="flex-1 truncate text-orange-600 hover:text-orange-700 text-sm font-medium">
                             {{ ref }}
@@ -1292,7 +1292,7 @@ onMounted(() => {
               </div>
 
               <!-- Fixed Footer with Actions -->
-              <div class="flex-shrink-0 md:sticky md:bottom-0 md:z-10 bg-white border-t border-gray-200 px-4 md:px-10 py-4 md:py-6 safe-bottom">
+              <div class="flex-shrink-0 md:sticky md:bottom-0 md:z-10 bg-white/95 backdrop-blur-sm border-t border-gray-200 px-4 md:px-8 py-4 md:py-5 safe-bottom">
                 <div>
                   <!-- Mobile Layout: Stacked Buttons -->
                   <div class="flex md:hidden flex-col gap-2">
@@ -1329,7 +1329,7 @@ onMounted(() => {
                     <button
                       v-if="isEditingEvent"
                       @click="handleDeleteEvent"
-                      class="px-5 py-2.5 rounded-xl bg-white border border-red-200 hover:bg-red-50 text-red-600 font-medium transition-all text-sm"
+                      class="px-5 py-2.5 rounded-lg text-red-600 font-medium hover:bg-red-50 transition-all text-base"
                     >
                       <IconTrash class="w-4 h-4 inline mr-1.5" />
                       Delete
@@ -1342,17 +1342,16 @@ onMounted(() => {
                     <div class="flex items-center gap-3 flex-1 justify-end">
                       <button
                         @click="handleEventFormCancel"
-                        class="px-6 py-2.5 rounded-xl bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium transition-all text-base"
+                        class="px-5 py-2.5 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition-all text-base"
                       >
                         Cancel
                       </button>
                       <button
                         @click="handleEventFormSubmit"
                         :disabled="!isFormValid || isLoading"
-                        class="px-8 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold transition-all text-base shadow-lg shadow-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none hover:shadow-xl hover:shadow-orange-500/40"
+                        class="px-6 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-all text-base shadow-sm disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
                       >
                         <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-2" />
-                        <IconCheck v-else class="w-4 h-4 inline mr-2" />
                         {{ isEditingEvent ? 'Update Event' : 'Create Event' }}
                       </button>
                     </div>
