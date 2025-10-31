@@ -90,18 +90,7 @@ const handleFollowToggle = () => {
   if (props.isFollowing) {
     emit('unfollow', props.pubkey)
   } else {
-    // Enhanced follow with feedback
     emit('follow', props.pubkey)
-      .then(result => {
-        if (result && result.alreadyFollowing) {
-          console.log('User was already being followed')
-        } else if (result && result.success) {
-          console.log('Successfully followed user, total follows:', result.totalFollows)
-        }
-      })
-      .catch(error => {
-        console.error('Follow failed:', error)
-      })
   }
 }
 
@@ -211,58 +200,24 @@ const handleBadgeClick = (badge) => {
 
       <!-- Actions -->
       <div class="flex items-center space-x-2 flex-shrink-0">
-        <!-- Primary Follow Button -->
+        <!-- Simple Follow/Following Button -->
         <button
           v-if="!isFollowing"
           @click="handleFollowToggle"
-          class="btn-primary text-sm"
+          class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
         >
           <IconUserPlus class="w-4 h-4" />
           <span class="hidden sm:inline">Follow</span>
         </button>
 
-        <!-- Following Dropdown -->
-        <div v-else class="relative">
-          <button
-            @click="showDropdown = !showDropdown"
-            class="btn-secondary text-sm flex items-center space-x-1"
-          >
-            <IconUserCheck class="w-4 h-4" />
-            <span class="hidden sm:inline">Following</span>
-            <IconChevronDown class="w-3 h-3" />
-          </button>
-
-          <!-- Dropdown Menu -->
-          <div v-if="showDropdown" class="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-            <button
-              @click="$emit('unfollow', pubkey); showDropdown = false"
-              class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
-            >
-              <IconUserX class="w-4 h-4" />
-              <span>Unfollow</span>
-            </button>
-            
-            <button
-              @click="copyNpub; showDropdown = false"
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-            >
-              <IconCheck v-if="copySuccess" class="w-4 h-4 text-green-600" />
-              <IconCopy v-else class="w-4 h-4" />
-              <span>{{ copySuccess ? 'Copied!' : 'Copy npub' }}</span>
-            </button>
-            
-            <a
-              :href="getProfileUrl('primal')"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-              @click="showDropdown = false"
-            >
-              <IconExternalLink class="w-4 h-4" />
-              <span>View on Primal</span>
-            </a>
-          </div>
-        </div>
+        <button
+          v-else
+          @click="handleFollowToggle"
+          class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm transition-colors flex items-center gap-2 border border-gray-300"
+        >
+          <IconCheck class="w-4 h-4" />
+          <span class="hidden sm:inline">Following</span>
+        </button>
       </div>
     </div>
   </div>
