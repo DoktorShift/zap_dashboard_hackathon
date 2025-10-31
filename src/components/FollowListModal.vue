@@ -204,7 +204,7 @@ const saveList = async () => {
 <template>
   <Teleport to="#modal-root">
     <transition name="modal-transition">
-      <div v-if="show" class="fixed inset-0 bg-black/40 backdrop-blur-md z-[9999] md:flex md:items-center md:justify-center md:p-4">
+      <div v-if="show" class="modal-overlay fixed inset-0 z-[9999] md:flex md:items-center md:justify-center md:p-4">
         <!-- Desktop: Centered Modal -->
         <div class="hidden md:block bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl transform transition-all duration-300">
           <!-- Header -->
@@ -899,14 +899,32 @@ const saveList = async () => {
   background-color: rgba(251, 146, 60, 0.5);
 }
 
-/* Modal transitions */
-.modal-transition-enter-active,
-.modal-transition-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* Modal overlay with smooth backdrop */
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.modal-transition-enter-from {
-  opacity: 0;
+/* Modal transitions */
+.modal-transition-enter-active {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-transition-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-transition-enter-from .modal-overlay {
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+}
+
+.modal-transition-leave-to .modal-overlay {
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
 }
 
 /* Desktop modal animation */
