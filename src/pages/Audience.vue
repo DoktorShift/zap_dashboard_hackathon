@@ -772,6 +772,7 @@ watch(following, (newFollowing, oldFollowing) => {
     :show="showProfileModal"
     :pubkey="selectedProfile"
     :profile="selectedProfile ? getProfile(selectedProfile) : null"
+    :isFollowing="selectedProfile ? isFollowing(selectedProfile) : false"
     @close="showProfileModal = false; selectedProfile = null"
     @follow="followUser"
     @unfollow="unfollowUser"
