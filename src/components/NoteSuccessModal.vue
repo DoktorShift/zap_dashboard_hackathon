@@ -136,7 +136,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { generateAvatar } from '../utils/avatarGenerator.js'
 import { IconCheck, IconX, IconExternalLink, IconArrowUpRight, IconClock } from '@iconify-prerendered/vue-tabler'
-import * as nip19 from 'nostr-tools/nip19'
+import { neventEncode, naddrEncode } from 'nostr-tools/nip19'
 
 const props = defineProps({
   show: {
@@ -248,7 +248,19 @@ const getNostrClientUrl = (client, noteId) => {
       case 'primal':
         return `https://primal.net/e/${noteId}`
       case 'yakihonne':
-        return `https://yakihonne.com/notes/${nip19.neventEncode({ id: noteId })}`
+        if (props.contentType === 'article') {
+          // For long-form articles (kind 30023), use naddr with d-tag identifier
+          const naddrData = {
+            identifier: noteId, // Using the d-tag (contentId) as identifier
+            pubkey: currentUser.value?.pubkey || '',
+            kind: 30023,
+            relays: []
+          }
+          return `https://yakihonne.com/article/${naddrEncode(naddrData)}`
+        } else {
+          // For notes (kind 1), use nevent
+          return `https://yakihonne.com/note/${neventEncode({ id: noteId })}`
+        }
       default:
         return `https://primal.net/e/${noteId}`
     }
