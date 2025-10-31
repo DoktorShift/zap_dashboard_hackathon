@@ -992,7 +992,7 @@ onMounted(() => {
               <div class="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-gray-100">
                 <div class="px-6 py-4 flex items-center justify-between">
                   <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
                       <IconCalendar class="w-4 h-4 text-white" />
                     </div>
                     <h3 class="text-xl font-semibold text-gray-900 tracking-tight">
@@ -1018,7 +1018,7 @@ onMounted(() => {
                       v-model="modalEventForm.title"
                       type="text"
                       placeholder="Event title"
-                      class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-base placeholder-gray-400"
+                      class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all text-base placeholder-gray-400"
                     />
                   </div>
 
@@ -1065,7 +1065,7 @@ onMounted(() => {
                           <input
                             v-model="modalEventForm.start_date"
                             type="date"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
                           />
                         </div>
                         <div>
@@ -1073,7 +1073,7 @@ onMounted(() => {
                           <input
                             v-model="modalEventForm.end_date"
                             type="date"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
                           />
                         </div>
                       </div>
@@ -1085,7 +1085,7 @@ onMounted(() => {
                           <input
                             v-model="modalEventForm.start_time"
                             type="time"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
                           />
                         </div>
                         <div>
@@ -1093,7 +1093,7 @@ onMounted(() => {
                           <input
                             v-model="modalEventForm.end_time"
                             type="time"
-                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
                           />
                         </div>
                       </div>
@@ -1107,7 +1107,7 @@ onMounted(() => {
                       v-model="modalEventForm.description"
                       rows="4"
                       placeholder="Add details about your event..."
-                      class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-base placeholder-gray-400 resize-none"
+                      class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all text-base placeholder-gray-400 resize-none"
                     ></textarea>
                   </div>
 
@@ -1121,7 +1121,7 @@ onMounted(() => {
                       v-model="modalEventForm.location"
                       type="text"
                       placeholder="Add location or online link"
-                      class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-base placeholder-gray-400"
+                      class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all text-base placeholder-gray-400"
                     />
                     <p class="text-xs text-gray-400 mt-2 ml-1">Physical address or video call link</p>
                   </div>
@@ -1137,7 +1137,7 @@ onMounted(() => {
                         v-model="modalEventForm.geohash"
                         type="text"
                         placeholder="e.g., 9q5"
-                        class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-sm placeholder-gray-400"
+                        class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all text-sm placeholder-gray-400"
                       />
                       <p class="text-xs text-gray-400 mt-2 ml-1">Geohash for searchable physical location</p>
                     </div>
@@ -1166,7 +1166,7 @@ onMounted(() => {
                           class="flex items-center gap-3 bg-gray-50 px-3.5 py-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
                         >
                           <!-- Avatar -->
-                          <div class="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 flex-shrink-0">
+                          <div class="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-orange-100 to-orange-200 flex-shrink-0">
                             <img
                               v-if="participant.picture"
                               :src="participant.picture"
@@ -1187,7 +1187,7 @@ onMounted(() => {
                             <div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                               <span v-if="participant.nip05" class="truncate">{{ participant.nip05 }}</span>
                               <span v-else class="font-mono truncate">{{ participant.pubkey?.substring(0, 16) }}...</span>
-                              <span v-if="participant.role" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{{ participant.role }}</span>
+                              <span v-if="participant.role" class="inline-flex items-center px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">{{ participant.role }}</span>
                             </div>
                           </div>
 
@@ -1215,13 +1215,13 @@ onMounted(() => {
                           v-model="newTag"
                           type="text"
                           placeholder="Add hashtag"
-                          class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-sm placeholder-gray-400"
+                          class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all text-sm placeholder-gray-400"
                           @keyup.enter="addTag"
                         />
                         <button
                           @click="addTag"
                           type="button"
-                          class="w-10 h-10 rounded-xl bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shadow-sm"
+                          class="w-10 h-10 rounded-xl bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-colors shadow-sm"
                         >
                           <IconPlus class="w-4 h-4" />
                         </button>
@@ -1230,13 +1230,13 @@ onMounted(() => {
                         <span
                           v-for="(tag, index) in modalEventForm.tags"
                           :key="index"
-                          class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium border border-blue-100"
+                          class="inline-flex items-center gap-1.5 bg-orange-50 text-orange-700 px-3 py-1.5 rounded-full text-sm font-medium border border-orange-100"
                         >
                           #{{ tag }}
                           <button
                             @click="removeTag(index)"
                             type="button"
-                            class="hover:bg-blue-100 rounded-full p-0.5 transition-colors"
+                            class="hover:bg-orange-100 rounded-full p-0.5 transition-colors"
                           >
                             <IconX class="w-3 h-3" />
                           </button>
@@ -1257,13 +1257,13 @@ onMounted(() => {
                           v-model="newReference"
                           type="url"
                           placeholder="https://example.com"
-                          class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-sm placeholder-gray-400"
+                          class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white transition-all text-sm placeholder-gray-400"
                           @keyup.enter="addReference"
                         />
                         <button
                           @click="addReference"
                           type="button"
-                          class="w-10 h-10 rounded-xl bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shadow-sm"
+                          class="w-10 h-10 rounded-xl bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-colors shadow-sm"
                         >
                           <IconPlus class="w-4 h-4" />
                         </button>
@@ -1274,7 +1274,7 @@ onMounted(() => {
                           :key="index"
                           class="flex items-center justify-between gap-3 bg-gray-50 px-3.5 py-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
                         >
-                          <a :href="ref" target="_blank" class="flex-1 truncate text-blue-600 hover:text-blue-700 text-sm font-medium">
+                          <a :href="ref" target="_blank" class="flex-1 truncate text-orange-600 hover:text-orange-700 text-sm font-medium">
                             {{ ref }}
                           </a>
                           <button
@@ -1319,7 +1319,7 @@ onMounted(() => {
                       <button
                         @click="handleEventFormSubmit"
                         :disabled="!isFormValid || isLoading"
-                        class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold transition-all text-sm shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                        class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white font-semibold transition-all text-sm shadow-lg shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                       >
                         <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-1.5" />
                         <IconCheck v-else class="w-4 h-4 inline mr-1.5" />
