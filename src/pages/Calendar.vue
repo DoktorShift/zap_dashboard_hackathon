@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { 
-  IconCalendar, 
-  IconPlus, 
-  IconChevronLeft, 
+import {
+  IconCalendar,
+  IconPlus,
+  IconChevronLeft,
   IconChevronRight,
   IconClock,
   IconMapPin,
@@ -21,7 +21,10 @@ import {
   IconTrash,
   IconShare,
   IconX,
-  IconCheck
+  IconCheck,
+  IconBell,
+  IconMessage,
+  IconCopy
 } from '@iconify-prerendered/vue-tabler'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -99,6 +102,9 @@ const rsvpForm = ref({
   freebusy: 'busy',
   note: ''
 })
+
+// Pending invitations modal state
+const showPendingInvitationsModal = ref(false)
 
 // Compute invited events (where user is a participant but not the creator)
 const invitedEvents = computed(() => {
@@ -734,6 +740,23 @@ const closeRSVPModal = () => {
   }
 }
 
+const handleViewInvitations = () => {
+  if (pendingInvitations.value.length === 1) {
+    openRSVPModal(pendingInvitations.value[0])
+  } else if (pendingInvitations.value.length > 1) {
+    showPendingInvitationsModal.value = true
+  }
+}
+
+const closePendingInvitationsModal = () => {
+  showPendingInvitationsModal.value = false
+}
+
+const openRSVPFromList = (event) => {
+  showPendingInvitationsModal.value = false
+  openRSVPModal(event)
+}
+
 const handleRSVPSubmit = async () => {
   if (!selectedEvent.value) return
   
@@ -826,7 +849,7 @@ onMounted(() => {
             </div>
           </div>
           <button
-            @click="selectedFilters.type = 'invited'"
+            @click="handleViewInvitations"
             class="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors whitespace-nowrap"
           >
             View Invitations
@@ -1688,6 +1711,111 @@ onMounted(() => {
                   Submit RSVP
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+
+    <!-- Pending Invitations List Modal -->
+    <Teleport to="#modal-root">
+      <transition name="modal-transition">
+        <div v-if="showPendingInvitationsModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
+          <div class="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+              <div>
+                <h3 class="text-xl font-bold text-gray-900">Pending Invitations</h3>
+                <p class="text-sm text-gray-600 mt-1">You have {{ pendingInvitations.length }} pending event invitation{{ pendingInvitations.length !== 1 ? 's' : '' }}</p>
+              </div>
+              <button @click="closePendingInvitationsModal" class="text-gray-500 hover:text-gray-700">
+                <IconX class="w-5 h-5" />
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              <div
+                v-for="(event, index) in pendingInvitations"
+                :key="event.id"
+                class="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+              >
+                <div class="flex items-start justify-between gap-4">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-2">
+                      <h4 class="text-lg font-semibold text-gray-900 truncate">{{ event.title }}</h4>
+                      <span :class="['inline-block px-2 py-0.5 rounded-full text-xs font-medium', getEventTypeBadge(event.type)]">
+                        {{ event.type === 'time-based' ? 'Time-based' : 'Date-based' }}
+                      </span>
+                    </div>
+
+                    <div class="space-y-2 text-sm text-gray-700">
+                      <div class="flex items-center gap-2">
+                        <IconClock class="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <span>
+                          {{ event.type === 'time-based'
+                            ? new Date(event.start * 1000).toLocaleString()
+                            : event.start_date }}
+                        </span>
+                      </div>
+
+                      <div v-if="event.location" class="flex items-center gap-2">
+                        <IconMapPin class="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <span class="truncate">{{ event.location }}</span>
+                      </div>
+
+                      <div v-if="event.description" class="flex items-start gap-2">
+                        <IconMessage class="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
+                        <p class="line-clamp-2">{{ event.description }}</p>
+                      </div>
+
+                      <div class="flex items-center gap-2">
+                        <IconUser class="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <span class="text-gray-600">
+                          Organizer:
+                          <span class="font-medium text-gray-900">
+                            {{ event.pubkey === currentUser?.pubkey ? 'You' : event.pubkey.substring(0, 16) + '...' }}
+                          </span>
+                        </span>
+                      </div>
+
+                      <div v-if="event.participants && event.participants.length > 0" class="flex items-center gap-2">
+                        <IconUsers class="w-4 h-4 text-gray-500 flex-shrink-0" />
+                        <span class="text-gray-600">{{ event.participants.length }} participant{{ event.participants.length !== 1 ? 's' : '' }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-col gap-2">
+                    <button
+                      @click="openRSVPFromList(event)"
+                      class="btn-primary text-sm whitespace-nowrap"
+                    >
+                      <IconCheck class="w-4 h-4 inline mr-1" />
+                      RSVP
+                    </button>
+                    <button
+                      @click="() => { closePendingInvitationsModal(); viewEvent(event); showViewEventModal = true }"
+                      class="btn-secondary text-sm whitespace-nowrap"
+                    >
+                      <IconEye class="w-4 h-4 inline mr-1" />
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="pendingInvitations.length === 0" class="text-center py-8">
+                <IconCheck class="w-12 h-12 text-green-500 mx-auto mb-3" />
+                <p class="text-gray-600">All invitations have been responded to!</p>
+              </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-gray-200">
+              <button
+                @click="closePendingInvitationsModal"
+                class="w-full btn-secondary"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
