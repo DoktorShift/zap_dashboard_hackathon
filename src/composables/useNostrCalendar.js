@@ -55,11 +55,12 @@ export function useNostrCalendar() {
     return events.value.filter(event => event.pubkey === currentUser.value.pubkey)
   })
 
+  // Computed property for ALL events (including invited events), sorted by date
   const sortedEvents = computed(() => {
-    return [...userEvents.value].sort((a, b) => {
+    return [...events.value].sort((a, b) => {
       const timeA = a.type === 'time-based' ? a.start : new Date(a.start_date).getTime() / 1000
       const timeB = b.type === 'time-based' ? b.start : new Date(b.start_date).getTime() / 1000
-      return timeA - timeB
+      return timeB - timeA // Sort by most recent first
     })
   })
 
@@ -162,17 +163,35 @@ export function useNostrCalendar() {
 
       // Fetch profiles for participants
       if (participantTags.length > 0) {
+        console.log(`📋 Event "${title}" has ${participantTags.length} participants`)
+        console.log('📋 Participant pubkey lengths:', participantTags.map(p => ({ 
+          pubkey: p.pubkey, 
+          length: p.pubkey.length,
+          role: p.role 
+        })))
+        
         const profilePromises = participantTags.map(async (participant) => {
           const profile = await fetchUserProfile(participant.pubkey)
-          return {
+          const result = {
             ...participant,
             name: profile?.name,
             picture: profile?.picture,
             nip05: profile?.nip05
           }
+          console.log(`📋 Participant after profile fetch:`, {
+            pubkey: result.pubkey,
+            pubkeyLength: result.pubkey?.length,
+            name: result.name
+          })
+          return result
         })
         
         eventData.participants = await Promise.all(profilePromises)
+        console.log(`✅ Loaded ${eventData.participants.length} participant profiles for "${title}"`)
+        console.log('✅ Final participant pubkeys:', eventData.participants.map(p => ({
+          pubkey: p.pubkey,
+          length: p.pubkey?.length
+        })))
       }
 
       // Extract hashtags (t tags)
@@ -261,6 +280,10 @@ export function useNostrCalendar() {
               const eventData = await createEventData(event)
               if (eventData) {
                 events.value.push(eventData)
+                console.log(`✅ Event "${eventData.title}" added to events array. Total events: ${events.value.length}`)
+                console.log(`✅ Event titles in array:`, events.value.map(e => e.title))
+              } else {
+                console.log('⚠️ createEventData returned null for event:', event.id.substring(0, 16) + '...')
               }
             } else {
               // Update existing event

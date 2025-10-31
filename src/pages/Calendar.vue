@@ -103,10 +103,33 @@ const rsvpForm = ref({
 // Compute invited events (where user is a participant but not the creator)
 const invitedEvents = computed(() => {
   if (!currentUser.value?.pubkey) return []
-  return events.value.filter(event => 
-    event.pubkey !== currentUser.value.pubkey && 
-    event.participants?.some(p => p.pubkey === currentUser.value.pubkey)
-  )
+  
+  console.log('🔍 Checking invited events. Total events:', events.value.length)
+  console.log('🔍 Current user pubkey:', currentUser.value.pubkey.substring(0, 8))
+  console.log('🔍 All event titles:', events.value.map(e => e.title))
+  
+  const invited = events.value.filter(event => {
+    const isNotCreator = event.pubkey !== currentUser.value.pubkey
+    const isParticipant = event.participants?.some(p => p.pubkey === currentUser.value.pubkey)
+    
+    console.log(`🔍 Event "${event.title}":`, {
+      creator: event.pubkey.substring(0, 8),
+      isNotCreator,
+      hasParticipants: !!event.participants,
+      participantCount: event.participants?.length || 0,
+      isParticipant,
+      participantPubkeys: event.participants?.map(p => p.pubkey.substring(0, 8))
+    })
+    
+    if (isNotCreator && isParticipant) {
+      console.log('✅ INVITED EVENT FOUND:', event.title)
+    }
+    
+    return isNotCreator && isParticipant
+  })
+  
+  console.log('📨 Total invited events:', invited.length)
+  return invited
 })
 
 // Compute pending invitations (invited events without RSVP)
@@ -141,7 +164,12 @@ const fullCalendarEvents = computed(() => {
         end = null
       }
     }
-    console.log(`Event ${event.id} - Start: ${start}, End: ${end}`)
+    console.log(`Event ${event.id} - Start: ${start}, End: ${end}`, {
+      title: event.title,
+      creator: event.pubkey?.substring(0, 8),
+      hasParticipants: !!event.participants,
+      participantCount: event.participants?.length || 0
+    })
     
     // Check if this is an invited event
     const isInvited = event.pubkey !== currentUser.value?.pubkey && 
