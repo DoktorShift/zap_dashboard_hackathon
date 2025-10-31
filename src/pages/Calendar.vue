@@ -1727,85 +1727,158 @@ onMounted(() => {
 
     <!-- RSVP Modal -->
     <Teleport to="#modal-root">
-      <transition name="modal-transition">
-        <div v-if="showRSVPModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-          <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-              <h3 class="text-lg font-semibold text-gray-900">
-                RSVP to Event
-              </h3>
-              <button @click="closeRSVPModal" class="text-gray-500 hover:text-gray-700">
-                <IconX class="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div class="space-y-4">
-              <!-- Event Title -->
-              <div v-if="selectedEvent" class="bg-gray-50 p-3 rounded-lg">
-                <p class="text-sm font-medium text-gray-900">{{ selectedEvent.title }}</p>
-                <p class="text-xs text-gray-600 mt-1">
-                  {{ selectedEvent.type === 'time-based' 
-                    ? new Date(selectedEvent.start * 1000).toLocaleString() 
-                    : selectedEvent.start_date }}
-                </p>
+      <transition
+        enter-active-class="transition-all duration-300 ease-out"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-all duration-200 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div v-if="showRSVPModal" @click="closeRSVPModal" class="fixed inset-0 bg-black/40 z-[9999] flex items-end md:items-center justify-center">
+          <transition
+            enter-active-class="transition-all duration-300 ease-out"
+            enter-from-class="translate-y-full md:translate-y-0 md:scale-95 opacity-0"
+            enter-to-class="translate-y-0 md:scale-100 opacity-100"
+            leave-active-class="transition-all duration-200 ease-in"
+            leave-from-class="translate-y-0 md:scale-100 opacity-100"
+            leave-to-class="translate-y-full md:translate-y-0 md:scale-95 opacity-0"
+          >
+            <div
+              @click.stop
+              class="bg-white w-full md:max-w-lg md:mx-4 rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <!-- Handle bar for mobile -->
+              <div class="md:hidden flex justify-center pt-3 pb-1">
+                <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
               </div>
 
-              <!-- Status -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Response</label>
-                <select
-                  v-model="rsvpForm.status"
-                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                >
-                  <option value="accepted">✓ Accepted</option>
-                  <option value="tentative">? Tentative</option>
-                  <option value="declined">✗ Declined</option>
-                </select>
+              <!-- Header -->
+              <div class="px-6 pt-5 pb-4 border-b border-gray-100">
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <h3 class="text-xl font-bold text-gray-900">RSVP</h3>
+                    <p class="text-sm text-gray-500 mt-0.5">Respond to invitation</p>
+                  </div>
+                  <button
+                    @click="closeRSVPModal"
+                    class="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                  >
+                    <IconX class="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
               </div>
 
-              <!-- Free/Busy (only if not declined) -->
-              <div v-if="rsvpForm.status !== 'declined'">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Availability</label>
-                <select
-                  v-model="rsvpForm.freebusy"
-                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                >
-                  <option value="busy">Busy</option>
-                  <option value="free">Free</option>
-                </select>
+              <!-- Content -->
+              <div class="px-6 py-6 max-h-[70vh] md:max-h-[600px] overflow-y-auto">
+                <!-- Event Info Card -->
+                <div v-if="selectedEvent" class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-4 mb-6 border border-amber-100">
+                  <div class="flex items-start gap-3">
+                    <div class="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                      <IconCalendar class="w-6 h-6 text-amber-600" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <h4 class="text-base font-semibold text-gray-900 mb-1 truncate">{{ selectedEvent.title }}</h4>
+                      <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <IconClock class="w-4 h-4 flex-shrink-0" />
+                        <span>
+                          {{ selectedEvent.type === 'time-based'
+                            ? new Date(selectedEvent.start * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+                            : new Date(selectedEvent.start_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Response Options -->
+                <div class="mb-6">
+                  <label class="block text-sm font-semibold text-gray-700 mb-3">Your Response</label>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button
+                      @click="rsvpForm.status = 'accepted'"
+                      :class="[
+                        'flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all',
+                        rsvpForm.status === 'accepted'
+                          ? 'border-amber-400 bg-amber-50 shadow-md'
+                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                      ]"
+                    >
+                      <div :class="[
+                        'w-12 h-12 rounded-full flex items-center justify-center',
+                        rsvpForm.status === 'accepted' ? 'bg-amber-400' : 'bg-gray-100'
+                      ]">
+                        <IconCheck :class="['w-6 h-6', rsvpForm.status === 'accepted' ? 'text-white' : 'text-gray-400']" />
+                      </div>
+                      <span :class="['text-sm font-semibold', rsvpForm.status === 'accepted' ? 'text-amber-700' : 'text-gray-600']">Yes</span>
+                    </button>
+
+                    <button
+                      @click="rsvpForm.status = 'tentative'"
+                      :class="[
+                        'flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all',
+                        rsvpForm.status === 'tentative'
+                          ? 'border-blue-400 bg-blue-50 shadow-md'
+                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                      ]"
+                    >
+                      <div :class="[
+                        'w-12 h-12 rounded-full flex items-center justify-center',
+                        rsvpForm.status === 'tentative' ? 'bg-blue-400' : 'bg-gray-100'
+                      ]">
+                        <IconAlertCircle :class="['w-6 h-6', rsvpForm.status === 'tentative' ? 'text-white' : 'text-gray-400']" />
+                      </div>
+                      <span :class="['text-sm font-semibold', rsvpForm.status === 'tentative' ? 'text-blue-700' : 'text-gray-600']">Maybe</span>
+                    </button>
+
+                    <button
+                      @click="rsvpForm.status = 'declined'"
+                      :class="[
+                        'flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-all',
+                        rsvpForm.status === 'declined'
+                          ? 'border-gray-400 bg-gray-50 shadow-md'
+                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                      ]"
+                    >
+                      <div :class="[
+                        'w-12 h-12 rounded-full flex items-center justify-center',
+                        rsvpForm.status === 'declined' ? 'bg-gray-400' : 'bg-gray-100'
+                      ]">
+                        <IconX :class="['w-6 h-6', rsvpForm.status === 'declined' ? 'text-white' : 'text-gray-400']" />
+                      </div>
+                      <span :class="['text-sm font-semibold', rsvpForm.status === 'declined' ? 'text-gray-700' : 'text-gray-600']">No</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Note -->
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-3">Add a message <span class="text-gray-400 font-normal">(optional)</span></label>
+                  <textarea
+                    v-model="rsvpForm.note"
+                    rows="3"
+                    placeholder="Let them know you're excited to attend..."
+                    class="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 text-base placeholder:text-gray-400 resize-none"
+                  ></textarea>
+                </div>
               </div>
 
-              <!-- Note -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Note (optional)</label>
-                <textarea
-                  v-model="rsvpForm.note"
-                  rows="3"
-                  placeholder="Add a note to your RSVP..."
-                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                ></textarea>
-              </div>
-
-              <!-- Actions -->
-              <div class="flex items-center justify-end space-x-3 mt-6">
-                <button
-                  @click="closeRSVPModal"
-                  class="btn-secondary"
-                >
-                  Cancel
-                </button>
+              <!-- Footer Actions -->
+              <div class="px-6 py-4 border-t border-gray-100 bg-gray-50">
                 <button
                   @click="handleRSVPSubmit"
                   :disabled="isLoading"
-                  class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full py-4 bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-500 hover:to-yellow-500 disabled:from-gray-300 disabled:to-gray-300 text-white rounded-2xl font-semibold text-base transition-all shadow-lg hover:shadow-xl disabled:shadow-none hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:cursor-not-allowed"
                 >
-                  <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-2" />
-                  <IconCheck v-else class="w-4 h-4 inline mr-2" />
-                  Submit RSVP
+                  <IconLoader v-if="isLoading" class="w-5 h-5 animate-spin" />
+                  <template v-else>
+                    <IconBolt class="w-5 h-5" />
+                    <span>Send Response</span>
+                  </template>
                 </button>
               </div>
             </div>
-          </div>
+          </transition>
         </div>
       </transition>
     </Teleport>
