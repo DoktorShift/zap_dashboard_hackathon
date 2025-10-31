@@ -978,292 +978,356 @@ onMounted(() => {
     <!-- Event Modal -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
-        <div v-if="showEventModal" class="fixed inset-0 bg-black/50 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-          <div class="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-              <h3 class="text-lg font-semibold text-gray-900">
-                {{ isEditingEvent ? 'Edit Event' : 'Create Event' }}
-              </h3>
-              <button @click="closeEventModal" class="text-gray-500 hover:text-gray-700">
-                <IconX class="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div class="space-y-4">
-              <!-- Title -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                <input
-                  v-model="modalEventForm.title"
-                  type="text"
-                  placeholder="Event title"
-                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                />
-              </div>
+        <div v-if="showEventModal" class="fixed inset-0 z-[9999]">
+          <!-- Backdrop -->
+          <div
+            @click="closeEventModal"
+            class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+          ></div>
 
-              <!-- Type -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Event Type</label>
-                <select
-                  v-model="modalEventForm.type"
-                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                >
-                  <option value="time-based">Time-based Event</option>
-                  <option value="date-based">Date-based Event</option>
-                </select>
-              </div>
-
-              <!-- Date and Time -->
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                  <input
-                    v-model="modalEventForm.start_date"
-                    type="date"
-                    class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                  <input
-                    v-model="modalEventForm.end_date"
-                    type="date"
-                    class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                  />
+          <!-- Modal Content - Desktop: centered card, Mobile: bottom sheet -->
+          <div class="absolute inset-0 flex md:items-center md:justify-center md:p-6 pointer-events-none">
+            <div class="pointer-events-auto w-full h-full md:h-auto md:max-h-[85vh] md:max-w-2xl md:rounded-2xl bg-white shadow-2xl overflow-hidden flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up">
+              <!-- Header - Apple style with blur effect -->
+              <div class="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-gray-100">
+                <div class="px-6 py-4 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                      <IconCalendar class="w-4 h-4 text-white" />
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 tracking-tight">
+                      {{ isEditingEvent ? 'Edit Event' : 'New Event' }}
+                    </h3>
+                  </div>
+                  <button
+                    @click="closeEventModal"
+                    class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                  >
+                    <IconX class="w-4 h-4 text-gray-600" />
+                  </button>
                 </div>
               </div>
 
-              <!-- Time fields for time-based events -->
-              <div v-if="modalEventForm.type === 'time-based'" class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
-                  <input
-                    v-model="modalEventForm.start_time"
-                    type="time"
-                    class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">End Time</label>
-                  <input
-                    v-model="modalEventForm.end_time"
-                    type="time"
-                    class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                  />
-                </div>
-              </div>
+              <!-- Scrollable Content -->
+              <div class="flex-1 overflow-y-auto px-6 py-6">
+                <div class="space-y-6 max-w-xl mx-auto">
+                  <!-- Title -->
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Title</label>
+                    <input
+                      v-model="modalEventForm.title"
+                      type="text"
+                      placeholder="Event title"
+                      class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-base placeholder-gray-400"
+                    />
+                  </div>
 
-              <!-- Description -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  v-model="modalEventForm.description"
-                  rows="3"
-                  placeholder="Event description"
-                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                ></textarea>
-              </div>
-
-              <!-- Location -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  <IconMapPin class="w-4 h-4 inline mr-1" />
-                  Location / Online Link
-                </label>
-                <input
-                  v-model="modalEventForm.location"
-                  type="text"
-                  placeholder="Address, GPS coordinates, or video call link"
-                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                />
-                <p class="text-xs text-gray-500 mt-1">Enter a physical address or an online meeting link</p>
-              </div>
-
-              <!-- Geohash (optional) -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Geohash (optional)
-                </label>
-                <input
-                  v-model="modalEventForm.geohash"
-                  type="text"
-                  placeholder="e.g., 9q5"
-                  class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
-                />
-                <p class="text-xs text-gray-500 mt-1">Geohash for searchable physical location</p>
-              </div>
-
-              <!-- Participants -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  <IconUsers class="w-4 h-4 inline mr-1" />
-                  Participants / Invites
-                </label>
-                <div class="space-y-2">
-                  <!-- User Search Component -->
-                  <UserSearchInput
-                    placeholder="Search users by name or npub..."
-                    role-label="Role (optional)"
-                    :show-role="true"
-                    @user-selected="addParticipant"
-                  />
-                  
-                  <!-- Selected Participants List -->
-                  <div v-if="modalEventForm.participants && modalEventForm.participants.length > 0" class="space-y-2 mt-3">
-                    <div
-                      v-for="(participant, index) in modalEventForm.participants"
-                      :key="index"
-                      class="flex items-center space-x-3 bg-gray-50 px-3 py-2 rounded-lg"
-                    >
-                      <!-- Avatar -->
-                      <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                        <img
-                          v-if="participant.picture"
-                          :src="participant.picture"
-                          :alt="participant.name"
-                          class="w-full h-full object-cover"
-                          @error="(e) => e.target.style.display = 'none'"
-                        />
-                        <div v-else class="w-full h-full flex items-center justify-center">
-                          <IconUser class="w-5 h-5 text-gray-400" />
-                        </div>
-                      </div>
-                      
-                      <!-- User Info -->
-                      <div class="flex-1 min-w-0">
-                        <p class="font-medium text-sm text-gray-900 truncate">
-                          {{ participant.name || participant.pubkey?.substring(0, 16) + '...' }}
-                        </p>
-                        <div class="flex items-center space-x-2 text-xs text-gray-500">
-                          <span v-if="participant.nip05" class="truncate">{{ participant.nip05 }}</span>
-                          <span v-else class="font-mono truncate">{{ participant.pubkey?.substring(0, 16) }}...</span>
-                          <span v-if="participant.role" class="text-orange-600 font-medium">• {{ participant.role }}</span>
-                        </div>
-                      </div>
-                      
-                      <!-- Remove Button -->
+                  <!-- Type - Segmented Control Style -->
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Event Type</label>
+                    <div class="inline-flex bg-gray-100 rounded-xl p-1 w-full">
                       <button
-                        @click="removeParticipant(index)"
                         type="button"
-                        class="text-red-500 hover:text-red-700 flex-shrink-0"
+                        @click="modalEventForm.type = 'time-based'"
+                        :class="[
+                          'flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all',
+                          modalEventForm.type === 'time-based'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        ]"
                       >
-                        <IconX class="w-4 h-4" />
+                        <IconClock class="w-4 h-4 inline mr-2" />
+                        Time-based
+                      </button>
+                      <button
+                        type="button"
+                        @click="modalEventForm.type = 'date-based'"
+                        :class="[
+                          'flex-1 px-4 py-2.5 text-sm font-medium rounded-lg transition-all',
+                          modalEventForm.type === 'date-based'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-900'
+                        ]"
+                      >
+                        <IconCalendar class="w-4 h-4 inline mr-2" />
+                        Date-based
                       </button>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <!-- Tags -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Hashtags
-                </label>
-                <div class="space-y-2">
-                  <div class="flex gap-2">
+                  <!-- Date and Time - Card Style -->
+                  <div class="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">When</label>
+                    <div class="space-y-4">
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 mb-2">Start Date</label>
+                          <input
+                            v-model="modalEventForm.start_date"
+                            type="date"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 mb-2">End Date</label>
+                          <input
+                            v-model="modalEventForm.end_date"
+                            type="date"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <!-- Time fields for time-based events -->
+                      <div v-if="modalEventForm.type === 'time-based'" class="grid grid-cols-2 gap-3 pt-2 border-t border-gray-200">
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 mb-2">Start Time</label>
+                          <input
+                            v-model="modalEventForm.start_time"
+                            type="time"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs font-medium text-gray-600 mb-2">End Time</label>
+                          <input
+                            v-model="modalEventForm.end_time"
+                            type="time"
+                            class="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Description -->
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Description</label>
+                    <textarea
+                      v-model="modalEventForm.description"
+                      rows="4"
+                      placeholder="Add details about your event..."
+                      class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-base placeholder-gray-400 resize-none"
+                    ></textarea>
+                  </div>
+
+                  <!-- Location -->
+                  <div>
+                    <label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      <IconMapPin class="w-3.5 h-3.5" />
+                      Location
+                    </label>
                     <input
-                      v-model="newTag"
+                      v-model="modalEventForm.location"
                       type="text"
-                      placeholder="Add hashtag (without #)"
-                      class="flex-1 px-3 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm"
-                      @keyup.enter="addTag"
+                      placeholder="Add location or online link"
+                      class="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-base placeholder-gray-400"
                     />
-                    <button
-                      @click="addTag"
-                      type="button"
-                      class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
-                    >
-                      <IconPlus class="w-4 h-4" />
-                    </button>
+                    <p class="text-xs text-gray-400 mt-2 ml-1">Physical address or video call link</p>
                   </div>
-                  <div v-if="modalEventForm.tags && modalEventForm.tags.length > 0" class="flex flex-wrap gap-2">
-                    <span
-                      v-for="(tag, index) in modalEventForm.tags"
-                      :key="index"
-                      class="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm"
-                    >
-                      #{{ tag }}
-                      <button
-                        @click="removeTag(index)"
-                        type="button"
-                        class="hover:text-blue-900"
-                      >
-                        <IconX class="w-3 h-3" />
-                      </button>
-                    </span>
-                  </div>
-                </div>
-              </div>
 
-              <!-- References / Links -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  <IconExternalLink class="w-4 h-4 inline mr-1" />
-                  Reference Links
-                </label>
-                <div class="space-y-2">
-                  <div class="flex gap-2">
-                    <input
-                      v-model="newReference"
-                      type="url"
-                      placeholder="https://example.com/document"
-                      class="flex-1 px-3 py-2 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm"
-                      @keyup.enter="addReference"
-                    />
-                    <button
-                      @click="addReference"
-                      type="button"
-                      class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
-                    >
-                      <IconPlus class="w-4 h-4" />
-                    </button>
+                  <!-- Geohash - Collapsible -->
+                  <details class="group">
+                    <summary class="flex items-center justify-between cursor-pointer text-xs font-semibold text-gray-500 uppercase tracking-wider py-2 hover:text-gray-700 transition-colors">
+                      <span>Advanced Location (Geohash)</span>
+                      <IconChevronRight class="w-4 h-4 transition-transform group-open:rotate-90" />
+                    </summary>
+                    <div class="mt-3">
+                      <input
+                        v-model="modalEventForm.geohash"
+                        type="text"
+                        placeholder="e.g., 9q5"
+                        class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-sm placeholder-gray-400"
+                      />
+                      <p class="text-xs text-gray-400 mt-2 ml-1">Geohash for searchable physical location</p>
+                    </div>
+                  </details>
+
+                  <!-- Participants -->
+                  <div>
+                    <label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                      <IconUsers class="w-3.5 h-3.5" />
+                      Participants
+                    </label>
+                    <div class="space-y-3">
+                      <!-- User Search Component -->
+                      <UserSearchInput
+                        placeholder="Search users by name or npub..."
+                        role-label="Role (optional)"
+                        :show-role="true"
+                        @user-selected="addParticipant"
+                      />
+
+                      <!-- Selected Participants List -->
+                      <div v-if="modalEventForm.participants && modalEventForm.participants.length > 0" class="space-y-2">
+                        <div
+                          v-for="(participant, index) in modalEventForm.participants"
+                          :key="index"
+                          class="flex items-center gap-3 bg-gray-50 px-3.5 py-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
+                        >
+                          <!-- Avatar -->
+                          <div class="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 flex-shrink-0">
+                            <img
+                              v-if="participant.picture"
+                              :src="participant.picture"
+                              :alt="participant.name"
+                              class="w-full h-full object-cover"
+                              @error="(e) => e.target.style.display = 'none'"
+                            />
+                            <div v-else class="w-full h-full flex items-center justify-center">
+                              <IconUser class="w-5 h-5 text-gray-500" />
+                            </div>
+                          </div>
+
+                          <!-- User Info -->
+                          <div class="flex-1 min-w-0">
+                            <p class="font-medium text-sm text-gray-900 truncate">
+                              {{ participant.name || participant.pubkey?.substring(0, 16) + '...' }}
+                            </p>
+                            <div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                              <span v-if="participant.nip05" class="truncate">{{ participant.nip05 }}</span>
+                              <span v-else class="font-mono truncate">{{ participant.pubkey?.substring(0, 16) }}...</span>
+                              <span v-if="participant.role" class="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{{ participant.role }}</span>
+                            </div>
+                          </div>
+
+                          <!-- Remove Button -->
+                          <button
+                            @click="removeParticipant(index)"
+                            type="button"
+                            class="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 transition-colors"
+                          >
+                            <IconX class="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div v-if="modalEventForm.references && modalEventForm.references.length > 0" class="space-y-1">
-                    <div
-                      v-for="(ref, index) in modalEventForm.references"
-                      :key="index"
-                      class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg text-sm"
-                    >
-                      <a :href="ref" target="_blank" class="flex-1 truncate text-blue-600 hover:underline">
-                        {{ ref }}
-                      </a>
-                      <button
-                        @click="removeReference(index)"
-                        type="button"
-                        class="ml-2 text-red-500 hover:text-red-700"
-                      >
-                        <IconX class="w-4 h-4" />
-                      </button>
+
+                  <!-- Tags -->
+                  <div>
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                      Hashtags
+                    </label>
+                    <div class="space-y-3">
+                      <div class="flex gap-2">
+                        <input
+                          v-model="newTag"
+                          type="text"
+                          placeholder="Add hashtag"
+                          class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-sm placeholder-gray-400"
+                          @keyup.enter="addTag"
+                        />
+                        <button
+                          @click="addTag"
+                          type="button"
+                          class="w-10 h-10 rounded-xl bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shadow-sm"
+                        >
+                          <IconPlus class="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div v-if="modalEventForm.tags && modalEventForm.tags.length > 0" class="flex flex-wrap gap-2">
+                        <span
+                          v-for="(tag, index) in modalEventForm.tags"
+                          :key="index"
+                          class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium border border-blue-100"
+                        >
+                          #{{ tag }}
+                          <button
+                            @click="removeTag(index)"
+                            type="button"
+                            class="hover:bg-blue-100 rounded-full p-0.5 transition-colors"
+                          >
+                            <IconX class="w-3 h-3" />
+                          </button>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- References / Links -->
+                  <div>
+                    <label class="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                      <IconExternalLink class="w-3.5 h-3.5" />
+                      Reference Links
+                    </label>
+                    <div class="space-y-3">
+                      <div class="flex gap-2">
+                        <input
+                          v-model="newReference"
+                          type="url"
+                          placeholder="https://example.com"
+                          class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all text-sm placeholder-gray-400"
+                          @keyup.enter="addReference"
+                        />
+                        <button
+                          @click="addReference"
+                          type="button"
+                          class="w-10 h-10 rounded-xl bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors shadow-sm"
+                        >
+                          <IconPlus class="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div v-if="modalEventForm.references && modalEventForm.references.length > 0" class="space-y-2">
+                        <div
+                          v-for="(ref, index) in modalEventForm.references"
+                          :key="index"
+                          class="flex items-center justify-between gap-3 bg-gray-50 px-3.5 py-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors"
+                        >
+                          <a :href="ref" target="_blank" class="flex-1 truncate text-blue-600 hover:text-blue-700 text-sm font-medium">
+                            {{ ref }}
+                          </a>
+                          <button
+                            @click="removeReference(index)"
+                            type="button"
+                            class="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 transition-colors"
+                          >
+                            <IconX class="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <!-- Actions -->
-              <div class="flex flex-col sm:flex-row items-center justify-end space-y-3 sm:space-y-0 sm:space-x-3 mt-6">
-                <button
-                  v-if="isEditingEvent"
-                  @click="handleDeleteEvent"
-                  class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
-                >
-                  <IconTrash class="w-4 h-4 inline mr-2" />
-                  Delete
-                </button>
-                <button
-                  @click="handleEventFormCancel"
-                  class="w-full sm:w-auto btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  @click="handleEventFormSubmit"
-                  :disabled="!isFormValid || isLoading"
-                  class="w-full sm:w-auto btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-2" />
-                  <IconCheck v-else class="w-4 h-4 inline mr-2" />
-                  {{ isEditingEvent ? 'Update' : 'Create' }}
-                </button>
+              <!-- Sticky Footer with Actions -->
+              <div class="sticky bottom-0 z-10 bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 py-4 mt-6">
+                <div class="max-w-xl mx-auto">
+                  <div class="flex items-center justify-between gap-3">
+                    <!-- Delete Button (Edit Mode Only) -->
+                    <button
+                      v-if="isEditingEvent"
+                      @click="handleDeleteEvent"
+                      class="px-5 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold transition-colors text-sm"
+                    >
+                      <IconTrash class="w-4 h-4 inline mr-1.5" />
+                      Delete
+                    </button>
+
+                    <!-- Spacer for alignment -->
+                    <div v-else class="flex-1"></div>
+
+                    <!-- Cancel & Submit -->
+                    <div class="flex items-center gap-3 flex-1 justify-end">
+                      <button
+                        @click="handleEventFormCancel"
+                        class="px-6 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold transition-colors text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        @click="handleEventFormSubmit"
+                        :disabled="!isFormValid || isLoading"
+                        class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold transition-all text-sm shadow-lg shadow-blue-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                      >
+                        <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-1.5" />
+                        <IconCheck v-else class="w-4 h-4 inline mr-1.5" />
+                        {{ isEditingEvent ? 'Update Event' : 'Create Event' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1823,3 +1887,78 @@ onMounted(() => {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+/* Apple-style slide up animation for mobile bottom sheet */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Apple-style scale in animation for desktop modal */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Modal transitions */
+.modal-transition-enter-active,
+.modal-transition-leave-active {
+  transition: opacity 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.modal-transition-enter-from,
+.modal-transition-leave-to {
+  opacity: 0;
+}
+
+/* Smooth scrolling for modal content */
+.overflow-y-auto {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar styling for webkit browsers */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Line clamp utility for description preview */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
