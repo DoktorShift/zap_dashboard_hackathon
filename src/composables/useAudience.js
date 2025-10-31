@@ -292,7 +292,7 @@ export function useAudience() {
 
     if (following.value.includes(pubkey)) {
       console.log('Already following user:', pubkey)
-      return
+      return { success: true, alreadyFollowing: true }
     }
 
     try {
@@ -383,7 +383,7 @@ export function useAudience() {
     const index = following.value.indexOf(pubkey)
     if (index === -1) {
       console.log('Not following user:', pubkey)
-      return
+      return { success: true, notFollowing: true }
     }
 
     try {
