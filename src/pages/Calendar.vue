@@ -987,9 +987,9 @@ onMounted(() => {
 
           <!-- Modal Content - Desktop: centered card, Mobile: bottom sheet -->
           <div class="absolute inset-0 flex md:items-center md:justify-center md:p-6 pointer-events-none">
-            <div class="pointer-events-auto w-full h-full md:h-auto md:max-h-[85vh] md:max-w-2xl md:rounded-2xl bg-white shadow-2xl overflow-hidden flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up">
+            <div class="pointer-events-auto w-full md:w-auto h-full md:h-auto md:max-h-[85vh] md:max-w-2xl bg-white shadow-2xl flex flex-col md:mt-0 mt-auto md:animate-scale-in animate-slide-up rounded-t-3xl md:rounded-2xl max-h-[90vh]">
               <!-- Header - Apple style with blur effect -->
-              <div class="sticky top-0 z-10 bg-white/80 backdrop-blur-xl border-b border-gray-100">
+              <div class="flex-shrink-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 rounded-t-3xl md:rounded-t-2xl">
                 <div class="px-6 py-4 flex items-center justify-between">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
@@ -1009,7 +1009,8 @@ onMounted(() => {
               </div>
 
               <!-- Scrollable Content -->
-              <div class="flex-1 overflow-y-auto px-6 py-6">
+              <div class="flex-1 overflow-y-auto overscroll-contain min-h-0">
+                <div class="px-6 py-6 pb-6">
                 <div class="space-y-6 max-w-xl mx-auto">
                   <!-- Title -->
                   <div>
@@ -1289,12 +1290,43 @@ onMounted(() => {
                     </div>
                   </div>
                 </div>
+                </div>
               </div>
-              
-              <!-- Sticky Footer with Actions -->
-              <div class="sticky bottom-0 z-10 bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 py-4 mt-6">
+
+              <!-- Fixed Footer with Actions -->
+              <div class="flex-shrink-0 bg-white border-t border-gray-100 px-4 md:px-6 py-3 md:py-4 safe-bottom">
                 <div class="max-w-xl mx-auto">
-                  <div class="flex items-center justify-between gap-3">
+                  <!-- Mobile Layout: Stacked Buttons -->
+                  <div class="flex md:hidden flex-col gap-2">
+                    <button
+                      @click="handleEventFormSubmit"
+                      :disabled="!isFormValid || isLoading"
+                      class="w-full py-3 rounded-xl bg-gradient-to-r from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white font-semibold transition-all text-sm shadow-lg shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                    >
+                      <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin inline mr-1.5" />
+                      <IconCheck v-else class="w-4 h-4 inline mr-1.5" />
+                      {{ isEditingEvent ? 'Update Event' : 'Create Event' }}
+                    </button>
+                    <div class="flex gap-2">
+                      <button
+                        @click="handleEventFormCancel"
+                        class="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold transition-colors text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        v-if="isEditingEvent"
+                        @click="handleDeleteEvent"
+                        class="flex-1 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold transition-colors text-sm"
+                      >
+                        <IconTrash class="w-4 h-4 inline mr-1" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Desktop Layout: Horizontal Buttons -->
+                  <div class="hidden md:flex items-center justify-between gap-3">
                     <!-- Delete Button (Edit Mode Only) -->
                     <button
                       v-if="isEditingEvent"
