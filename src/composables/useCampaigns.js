@@ -5,6 +5,7 @@ import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { useNotifications } from './useNotifications.js'
 import { extractAmountFromBolt11 } from '../utils/invoiceUtils.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 // Global state for campaigns
 const userCampaigns = ref([])
@@ -44,28 +45,7 @@ const extractBolt11 = (zapEvent) => {
 const campaignProfileCache = new Map()
 const campaignProfileFetchPromises = new Map()
 
-// Generate a consistent fallback avatar based on pubkey
-const generateFallbackAvatar = (pubkey) => {
-  if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  
-  // Use a deterministic approach to generate avatar based on pubkey
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  // Create a hash from the pubkey to consistently select an avatar
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
+// generateAvatar imported from avatarGenerator.js
 
 // Fetch zapper profile for campaigns
 const fetchCampaignZapperProfile = async (pubkey) => {
@@ -102,7 +82,7 @@ const fetchCampaignZapperProfile = async (pubkey) => {
     // Return a fallback profile
     return {
       name: `user:${pubkey.substring(0, 8)}`,
-      picture: generateFallbackAvatar(pubkey),
+      picture: generateAvatar(pubkey),
       nip05: null,
       about: null
     }
@@ -135,7 +115,7 @@ const _fetchCampaignProfileFromNostr = async (pubkey) => {
             
             const profile = {
               name: profileData.name || profileData.display_name || `user:${pubkey.substring(0, 8)}`,
-              picture: profileData.picture || profileData.avatar || generateFallbackAvatar(pubkey),
+              picture: profileData.picture || profileData.avatar || generateAvatar(pubkey),
               nip05: profileData.nip05 || null,
               about: profileData.about || null
             }
@@ -157,7 +137,7 @@ const _fetchCampaignProfileFromNostr = async (pubkey) => {
             profileSub.close()
             resolve({
               name: `user:${pubkey.substring(0, 8)}`,
-              picture: generateFallbackAvatar(pubkey),
+              picture: generateAvatar(pubkey),
               nip05: null,
               about: null
             })
@@ -615,7 +595,7 @@ export function useCampaigns() {
               sender: {
                 pubkey: zapperPubkey,
                 name: `user:${zapperPubkey.substring(0, 8)}`,
-                picture: generateFallbackAvatar(zapperPubkey),
+                picture: generateAvatar(zapperPubkey),
                 nip05: null,
                 about: null
               },
@@ -649,7 +629,7 @@ export function useCampaigns() {
                   campaignZaps[zapIndex].sender = {
                     pubkey: zapperPubkey,
                     name: profile.name || `user:${zapperPubkey.substring(0, 8)}`,
-                    picture: profile.picture || generateFallbackAvatar(zapperPubkey),
+                    picture: profile.picture || generateAvatar(zapperPubkey),
                     nip05: profile.nip05,
                     about: profile.about
                   }

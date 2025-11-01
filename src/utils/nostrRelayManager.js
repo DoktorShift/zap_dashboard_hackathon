@@ -1,6 +1,22 @@
 import { SimplePool } from 'nostr-tools/pool'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 
+// Debug WebSocket sends to see what's actually being transmitted
+if (typeof window !== 'undefined' && typeof WebSocket !== 'undefined') {
+  const OriginalWebSocket = window.WebSocket
+  window.WebSocket = function(...args) {
+    const ws = new OriginalWebSocket(...args)
+    const originalSend = ws.send
+    ws.send = function(data) {
+      if (typeof data === 'string' && data.includes('"REQ"')) {
+        console.log('🔍 WebSocket sending:', data)
+      }
+      return originalSend.call(this, data)
+    }
+    return ws
+  }
+}
+
 // Relay connection manager following nostr-tools best practices
 class NostrRelayManager {
   constructor() {
@@ -269,42 +285,69 @@ class NostrRelayManager {
     try {
       // Use pool.publish which returns an array of promises
       const publishPromises = this.pool.publish(relayUrls, event)
-      
-      // Wait for all publish attempts with timeout
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Publishing timeout after 30 seconds')), 30000)
+
+      // Wait for at least one successful publish with timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('publish timed out')), 10000)
       )
-      
-      const results = await Promise.race([
-        Promise.allSettled(publishPromises),
-        timeoutPromise
-      ])
 
-      // Count successful publications
-      const successful = results.filter(result => result.status === 'fulfilled')
-      const failed = results.filter(result => result.status === 'rejected')
+      // Use Promise.any to resolve as soon as one relay succeeds
+      // Also track all results for reporting
+      let successCount = 0
+      let failCount = 0
+      const allResults = []
 
-      console.log(`📊 Publishing results: ${successful.length} successful, ${failed.length} failed`)
+      try {
+        // Wait for first success
+        await Promise.race([
+          Promise.any(publishPromises),
+          timeoutPromise
+        ])
 
-      // Log failed attempts for debugging
-      failed.forEach((result, index) => {
-        console.warn(`❌ Failed to publish to ${relayUrls[index]}:`, result.reason?.message)
-      })
+        // Give a little more time for other relays to respond
+        await new Promise(resolve => setTimeout(resolve, 1000))
 
-      if (successful.length === 0) {
-        throw new Error('Failed to publish to any relays')
+        // Check all results
+        const results = await Promise.allSettled(publishPromises)
+        results.forEach((result, index) => {
+          allResults.push(result)
+          if (result.status === 'fulfilled') {
+            successCount++
+          } else {
+            failCount++
+            console.warn(`❌ Failed to publish to ${relayUrls[index]}:`, result.reason?.message || 'publish timed out')
+          }
+        })
+      } catch (error) {
+        // If Promise.any fails, all promises rejected
+        const results = await Promise.allSettled(publishPromises)
+        results.forEach((result, index) => {
+          allResults.push(result)
+          if (result.status === 'fulfilled') {
+            successCount++
+          } else {
+            failCount++
+            console.warn(`❌ Failed to publish to ${relayUrls[index]}:`, result.reason?.message || 'publish timed out')
+          }
+        })
+
+        if (successCount === 0) {
+          throw new Error('Failed to publish to any relays')
+        }
       }
+
+      console.log(`📊 Publishing results: ${successCount} successful, ${failCount} failed`)
 
       this.emitEvent('eventPublished', {
         eventId: event.id,
-        successfulRelays: successful.length,
-        failedRelays: failed.length,
+        successfulRelays: successCount,
+        failedRelays: failCount,
         totalRelays: relayUrls.length
       })
 
       return {
-        successful: successful.length,
-        failed: failed.length,
+        successful: successCount,
+        failed: failCount,
         total: relayUrls.length
       }
 
@@ -411,11 +454,34 @@ class NostrRelayManager {
       }
       if (options.onclose) options.onclose(reason)
     }
-    // Subscribe
-    const sub = this.pool.subscribeMany(relayUrls, validFilters, {
+
+    // Debug log the filters being sent
+    console.log('📡 Subscribing to relays with filters:', JSON.stringify(validFilters))
+    console.log('📡 Filter type check:', {
+      isArray: Array.isArray(validFilters),
+      length: validFilters?.length,
+      firstFilter: validFilters?.[0],
+      relayUrls: relayUrls
+    })
+
+    // Subscribe using subscribeMap instead of subscribeMany
+    // This is the correct way to send multiple filters to multiple relays
+    // subscribeMap expects: [{ url: string, filter: Filter }]
+    // where Filter is a SINGLE filter object, not an array
+    const requests = []
+    for (const url of relayUrls) {
+      for (const filter of validFilters) {
+        requests.push({ url, filter })
+      }
+    }
+
+    console.log('📡 Creating subscribeMap with', requests.length, 'requests')
+    const sub = this.pool.subscribeMap(requests, {
       ...wrappedOptions,
       maxWait: options.maxWait || 10000
     })
+
+    console.log('📡 Subscription created successfully')
     // Store for deduplication
     const timeout = setTimeout(() => {
       sub.close()

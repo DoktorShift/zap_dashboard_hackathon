@@ -22,6 +22,7 @@ import * as nip19 from 'nostr-tools/nip19'
 import BadgeList from './BadgeList.vue'
 import BadgeDetailModal from './BadgeDetailModal.vue'
 import UserProfileModal from './UserProfileModal.vue'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 const props = defineProps({
   show: {
@@ -51,6 +52,9 @@ const isDescriptionLong = ref(false)
 const selectedBadge = ref(null)
 const showBadgeModal = ref(false)
 const showUserProfileModal = ref(false)
+const startY = ref(0)
+const currentY = ref(0)
+const isDragging = ref(false)
 
 // Computed properties
 const displayName = computed(() => {
@@ -60,7 +64,7 @@ const displayName = computed(() => {
 })
 
 const avatar = computed(() => {
-  return props.profile?.picture || generateFallbackAvatar(props.pubkey)
+  return props.profile?.picture || generateAvatar(props.pubkey)
 })
 
 const banner = computed(() => {
@@ -95,21 +99,6 @@ const truncatedDescription = computed(() => {
   return showFullDescription.value ? description : description.substring(0, maxLength) + '...'
 })
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Copy to clipboard with enhanced feedback
 const copyToClipboard = async (text, type) => {
@@ -173,6 +162,26 @@ const handleKeydown = (event) => {
   }
 }
 
+// Touch handlers for bottom sheet
+const handleTouchStart = (e) => {
+  startY.value = e.touches[0].clientY
+  isDragging.value = true
+}
+
+const handleTouchMove = (e) => {
+  if (!isDragging.value) return
+  currentY.value = e.touches[0].clientY - startY.value
+  if (currentY.value < 0) currentY.value = 0
+}
+
+const handleTouchEnd = () => {
+  if (currentY.value > 100) {
+    closeModal()
+  }
+  currentY.value = 0
+  isDragging.value = false
+}
+
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
 })
@@ -185,8 +194,9 @@ onUnmounted(() => {
 <template>
   <Teleport to="#modal-root">
     <transition name="modal-transition">
-      <div v-if="show" class="fixed inset-0 bg-black/60 backdrop-blur-lg flex items-center justify-center z-[9999] p-4">
-        <div class="bg-white rounded-2xl w-full max-w-lg max-h-[95vh] overflow-hidden shadow-2xl transform transition-all duration-300">
+      <div v-if="show" class="fixed inset-0 bg-black/60 backdrop-blur-lg z-[9999] md:flex md:items-center md:justify-center md:p-4">
+        <!-- Desktop: Centered Modal -->
+        <div class="hidden md:block bg-white rounded-2xl w-full max-w-lg max-h-[95vh] overflow-hidden shadow-2xl transform transition-all duration-300">
           <!-- Header with Banner -->
           <div class="relative">
             <!-- Banner Background -->
@@ -218,7 +228,7 @@ onUnmounted(() => {
                   :src="avatar"
                   :alt="displayName"
                   class="w-full h-full object-cover"
-                  @error="$event.target.src = generateFallbackAvatar(pubkey)"
+                  @error="$event.target.src = generateAvatar(pubkey)"
                 />
               </div>
             </div>
@@ -386,40 +396,44 @@ onUnmounted(() => {
 
             <!-- Action Buttons -->
             <div class="space-y-3">
-              <!-- Primary Action: Follow/Unfollow -->
+              <!-- Primary Action: Follow/Following -->
               <button
+                v-if="!isFollowing"
                 @click="handleFollowToggle"
-                :class="[
-                  'w-full px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]',
-                  isFollowing 
-                    ? 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white' 
-                    : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white'
-                ]"
+                class="w-full px-6 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl font-semibold text-lg transition-colors flex items-center justify-center gap-3 shadow-sm"
               >
-                <IconUserX v-if="isFollowing" class="w-5 h-5" />
-                <IconUserPlus v-else class="w-5 h-5" />
-                <span>{{ isFollowing ? 'Unfollow' : 'Follow' }}</span>
+                <IconUserPlus class="w-5 h-5" />
+                <span>Follow</span>
               </button>
-              
+
+              <button
+                v-else
+                @click="handleFollowToggle"
+                class="w-full px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold text-lg transition-colors flex items-center justify-center gap-3 border-2 border-gray-300"
+              >
+                <IconCheck class="w-5 h-5" />
+                <span>Following</span>
+              </button>
+
               <!-- Secondary Actions -->
-              <div class="grid grid-cols-2 gap-3">
+              <div class="flex gap-3">
                 <!-- View on Primal -->
                 <a
                   :href="getProfileUrl('primal')"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="bg-white border-2 border-gray-200 hover:border-orange-300 hover:bg-orange-50 text-gray-700 hover:text-orange-700 px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
+                  class="flex-1 bg-white hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 border border-gray-200"
                 >
-                  <span class="text-orange-600">🌐</span>
+                  <IconExternalLink class="w-4 h-4" />
                   <span>Primal</span>
                 </a>
-                
+
                 <!-- View on Yakihonne -->
                 <a
                   :href="getProfileUrl('yakihonne')"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="bg-white border-2 border-gray-200 hover:border-purple-300 hover:bg-purple-50 text-gray-700 hover:text-purple-700 px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
+                  class="flex-1 bg-white hover:bg-gray-50 text-gray-700 px-4 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 border border-gray-200"
                 >
                   <span class="text-purple-600">🍜</span>
                   <span>Yakihonne</span>
@@ -445,13 +459,280 @@ onUnmounted(() => {
           <!-- ZapTracker Branding Footer -->
           <div class="bg-gradient-to-r from-orange-50 to-amber-50 border-t border-orange-100 px-6 py-3">
             <div class="flex items-center justify-center space-x-2 text-gray-600">
-              <img 
+              <img
                 src="/new_logo3.png"
-                alt="ZapTracker" 
+                alt="ZapTracker"
                 class="w-4 h-4 object-contain"
               />
               <span class="text-xs font-medium">ZapTracker Profile</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Mobile: Bottom Sheet -->
+        <div
+          class="md:hidden fixed inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-2xl transform transition-transform duration-300 max-h-[90vh] flex flex-col"
+          :style="{ transform: `translateY(${currentY}px)` }"
+        >
+          <!-- Drag Handle -->
+          <div
+            class="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing"
+            @touchstart="handleTouchStart"
+            @touchmove="handleTouchMove"
+            @touchend="handleTouchEnd"
+          >
+            <div class="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+          </div>
+
+          <!-- Header with Banner -->
+          <div class="relative flex-shrink-0">
+            <!-- Banner Background -->
+            <div class="h-24 bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 relative overflow-hidden">
+              <img
+                v-if="banner"
+                :src="banner"
+                :alt="displayName + ' banner'"
+                class="w-full h-full object-cover"
+                @error="$event.target.style.display = 'none'"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
+            </div>
+
+            <!-- Close Button -->
+            <button
+              @click="closeModal"
+              class="absolute top-2 right-2 w-8 h-8 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-full flex items-center justify-center transition-all duration-200 text-white"
+              aria-label="Close profile"
+            >
+              <IconX class="w-4 h-4" />
+            </button>
+
+            <!-- Profile Avatar Overlay -->
+            <div class="absolute -bottom-10 left-4">
+              <div class="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-white">
+                <img
+                  :src="avatar"
+                  :alt="displayName"
+                  class="w-full h-full object-cover"
+                  @error="$event.target.src = generateAvatar(pubkey)"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Content Area - Scrollable -->
+          <div class="flex-1 overflow-y-auto pt-12 pb-6 px-4">
+            <!-- Profile Header -->
+            <div class="mb-4">
+              <div class="mb-3">
+                <h2 class="text-xl font-bold text-gray-900 mb-1">{{ displayName }}</h2>
+                <p v-if="profile?.display_name && profile?.display_name !== profile?.name"
+                   class="text-base text-gray-600">
+                  {{ profile.display_name }}
+                </p>
+              </div>
+
+              <!-- Status Badges -->
+              <div class="flex flex-wrap gap-2 mb-3">
+                <span v-if="profile?.nip05" class="inline-flex items-center px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
+                  <IconShield class="w-3 h-3 mr-1" />
+                  Verified
+                </span>
+                <span v-if="profile?.lud16" class="inline-flex items-center px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-medium border border-orange-200">
+                  <IconBolt class="w-3 h-3 mr-1" />
+                  Lightning
+                </span>
+                <span v-if="profile?.website" class="inline-flex items-center px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
+                  <IconGlobe class="w-3 h-3 mr-1" />
+                  Website
+                </span>
+              </div>
+
+              <!-- NIP-58 Badges -->
+              <div class="mb-3">
+                <BadgeList
+                  :pubkey="pubkey"
+                  size="small"
+                  :max-display="3"
+                  :show-count="true"
+                  :show-view-all="true"
+                  layout="horizontal"
+                  @badge-click="handleBadgeClick"
+                  @view-all="handleViewAllBadges"
+                />
+              </div>
+
+              <!-- Description -->
+              <div v-if="profile?.about" class="mb-4">
+                <div class="bg-gray-50 rounded-xl p-3 border border-gray-200">
+                  <p class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
+                    {{ truncatedDescription }}
+                  </p>
+                  <button
+                    v-if="isDescriptionLong"
+                    @click="showFullDescription = !showFullDescription"
+                    class="mt-2 text-orange-600 hover:text-orange-700 text-xs font-medium flex items-center gap-1"
+                  >
+                    <span>{{ showFullDescription ? 'Show less' : 'Show more' }}</span>
+                    <IconChevronDown v-if="!showFullDescription" class="w-3 h-3" />
+                    <IconChevronUp v-else class="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="space-y-2 mb-4">
+              <h3 class="text-base font-semibold text-gray-900 mb-2">Contact</h3>
+
+              <!-- Public Key -->
+              <div class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <IconKey class="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-medium text-gray-900">Public Key</p>
+                      <code class="text-xs text-gray-500 font-mono truncate block">{{ shortNpub }}</code>
+                    </div>
+                  </div>
+                  <button
+                    @click="copyToClipboard(npub, 'npub')"
+                    class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    <IconCheck v-if="copySuccess === 'npub'" class="w-4 h-4 text-green-600" />
+                    <IconCopy v-else class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Lightning Address -->
+              <div v-if="profile?.lud16" class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <IconBolt class="w-4 h-4 text-orange-600" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-medium text-gray-900">Lightning</p>
+                      <code class="text-xs text-orange-600 font-mono truncate block">{{ profile.lud16 }}</code>
+                    </div>
+                  </div>
+                  <button
+                    @click="copyToClipboard(profile.lud16, 'lud16')"
+                    class="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    <IconCheck v-if="copySuccess === 'lud16'" class="w-4 h-4 text-green-600" />
+                    <IconCopy v-else class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- NIP-05 -->
+              <div v-if="profile?.nip05" class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <IconShield class="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-medium text-gray-900">NIP-05</p>
+                      <code class="text-xs text-blue-600 font-mono truncate block">{{ profile.nip05 }}</code>
+                    </div>
+                  </div>
+                  <button
+                    @click="copyToClipboard(profile.nip05, 'nip05')"
+                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    <IconCheck v-if="copySuccess === 'nip05'" class="w-4 h-4 text-green-600" />
+                    <IconCopy v-else class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Website -->
+              <div v-if="profile?.website" class="bg-white rounded-lg border border-gray-200 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <IconGlobe class="w-4 h-4 text-green-600" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-medium text-gray-900">Website</p>
+                      <code class="text-xs text-green-600 truncate block">{{ profile.website }}</code>
+                    </div>
+                  </div>
+                  <a
+                    :href="profile.website"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors flex-shrink-0"
+                  >
+                    <IconExternalLink class="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-2 mb-4">
+              <!-- Primary Action -->
+              <button
+                v-if="!isFollowing"
+                @click="handleFollowToggle"
+                class="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm"
+              >
+                <IconUserPlus class="w-5 h-5" />
+                <span>Follow</span>
+              </button>
+
+              <button
+                v-else
+                @click="handleFollowToggle"
+                class="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 border-2 border-gray-300"
+              >
+                <IconCheck class="w-5 h-5" />
+                <span>Following</span>
+              </button>
+
+              <!-- Secondary Actions -->
+              <div class="flex gap-2">
+                <a
+                  :href="getProfileUrl('primal')"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex-1 bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-gray-200 text-sm"
+                >
+                  <IconExternalLink class="w-4 h-4" />
+                  <span>Primal</span>
+                </a>
+
+                <a
+                  :href="getProfileUrl('yakihonne')"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex-1 bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border border-gray-200 text-sm"
+                >
+                  <IconExternalLink class="w-4 h-4" />
+                  <span>Yakihonne</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Copy Success Feedback -->
+            <transition name="slide-up">
+              <div v-if="copySuccess" class="bg-green-50 border border-green-200 rounded-lg p-2">
+                <div class="flex items-center gap-2">
+                  <IconCheck class="w-4 h-4 text-green-600" />
+                  <span class="text-xs text-green-800 font-medium">
+                    {{ copySuccess === 'npub' ? 'Public key copied!' :
+                       copySuccess === 'lud16' ? 'Lightning address copied!' :
+                       copySuccess === 'nip05' ? 'NIP-05 copied!' : 'Copied!' }}
+                  </span>
+                </div>
+              </div>
+            </transition>
           </div>
         </div>
       </div>
@@ -484,12 +765,33 @@ onUnmounted(() => {
 
 .modal-transition-enter-from {
   opacity: 0;
-  transform: scale(0.95) translateY(-20px);
+}
+
+/* Desktop modal animation */
+@media (min-width: 768px) {
+  .modal-transition-enter-from {
+    transform: scale(0.95) translateY(-20px);
+  }
+
+  .modal-transition-leave-to {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+}
+
+/* Mobile bottom sheet animation */
+@media (max-width: 767px) {
+  .modal-transition-enter-from .md\:hidden {
+    transform: translateY(100%);
+  }
+
+  .modal-transition-leave-to .md\:hidden {
+    transform: translateY(100%);
+  }
 }
 
 .modal-transition-leave-to {
   opacity: 0;
-  transform: scale(0.95) translateY(20px);
 }
 
 /* Slide up animation for copy feedback */

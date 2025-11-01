@@ -5,6 +5,7 @@ import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import * as nip19 from 'nostr-tools/nip19'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../utils/profileFetcher.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 // Global state
 const following = ref([]) // Array of pubkeys
@@ -31,26 +32,6 @@ const FOLLOWING_STORAGE_KEY = 'audience_following'
 const FOLLOWERS_STORAGE_KEY = 'audience_followers'
 const PROFILES_STORAGE_KEY = 'audience_profiles'
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  if (!pubkey) return 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Load data from localStorage
 const loadFromStorage = () => {
@@ -311,43 +292,55 @@ export function useAudience() {
 
     if (following.value.includes(pubkey)) {
       console.log('Already following user:', pubkey)
-      return
+      return { success: true, alreadyFollowing: true }
     }
 
+    // Store the current state before making changes (for potential rollback)
+    const previousFollowing = [...following.value]
+    const previousCount = previousFollowing.length
+
     try {
-      // Get current following list from Nostr first to ensure we have the latest data
-      console.log('Fetching current following list before adding new follow...')
-      const currentFollowingEvent = await nostrRelayManager.getEvent({ kinds: [3], authors: [currentUser.value.pubkey], limit: 1 })
+      console.log('🔄 Following new user. Current following count:', previousCount)
 
-      // Extract current follows from the latest event
-      let currentFollows = []
-      if (currentFollowingEvent) {
-        currentFollows = currentFollowingEvent.tags.filter(tag => tag[0] === 'p' && tag[1]).map(tag => tag[1])
-        console.log('Current follows from Nostr:', currentFollows.length)
-      }
+      // CRITICAL FIX: Trust local state instead of refetching from Nostr
+      // The local state is already up-to-date from refreshFollowing()
+      // Refetching from Nostr can give us an outdated partial list from slow relays
 
-      // Check if already following (double-check against latest data)
-      if (currentFollows.includes(pubkey)) {
-        console.log('Already following user (confirmed from Nostr):', pubkey)
-        // Update local state to match Nostr state
-        following.value = currentFollows
-        return { success: true, alreadyFollowing: true }
-      }
+      // Add new follow to existing local follows (avoiding duplicates)
+      const mergedFollows = [...new Set([...previousFollowing, pubkey])]
 
-      // Merge: Add new follow to existing follows (avoiding duplicates)
-      const mergedFollows = [...new Set([...currentFollows, pubkey])]
-      console.log('Merging follows:', {
-        existing: currentFollows.length,
+      console.log('📊 Follow operation:', {
+        previousCount: previousCount,
         adding: 1,
-        merged: mergedFollows.length
+        newCount: mergedFollows.length,
+        expectedIncrease: 1,
+        actualIncrease: mergedFollows.length - previousCount
       })
+
+      // Safety check: Verify we're not accidentally reducing the follow list
+      if (mergedFollows.length < previousCount) {
+        throw new Error(`Safety check failed: Follow operation would reduce list from ${previousCount} to ${mergedFollows.length}`)
+      }
+
+      // Safety check: Verify we're actually adding the user
+      if (mergedFollows.length !== previousCount + 1) {
+        console.warn('⚠️ Unexpected list size change:', {
+          expected: previousCount + 1,
+          actual: mergedFollows.length
+        })
+      }
 
       // Update local state immediately (optimistic update)
       following.value = mergedFollows
 
       // Create new contact list event with merged follows
       const contactTags = mergedFollows.map(pk => ['p', pk])
-      const eventTemplate = { kind: 3, created_at: Math.floor(Date.now()/1000), tags: contactTags, content: '' }
+      const eventTemplate = {
+        kind: 3,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: contactTags,
+        content: ''
+      }
 
       const signedEvent = await window.nostr.signEvent(eventTemplate)
       if (!verifyEvent(signedEvent)) {
@@ -359,36 +352,30 @@ export function useAudience() {
         throw new Error('Failed to publish to any relays')
       }
 
-      console.log('Successfully followed user:', pubkey, 'Total follows:', mergedFollows.length)
-      
+      console.log('✅ Successfully followed user:', pubkey)
+      console.log('📊 New total follows:', mergedFollows.length, `(was ${previousCount})`)
+
       // Fetch their profile if we don't have it
       if (!profiles.has(pubkey)) {
         fetchProfileSynced(pubkey)
       }
 
-      return { 
-        success: true, 
+      // Save to storage to persist the change
+      saveToStorage()
+
+      return {
+        success: true,
         newFollows: 1,
         totalFollows: mergedFollows.length,
         alreadyFollowing: false
       }
 
     } catch (err) {
-      // Revert optimistic update on error - restore to original state
-      try {
-        // Try to restore from the last known good state
-        const currentFollowingEvent = await nostrRelayManager.getEvent({ kinds: [3], authors: [currentUser.value.pubkey], limit: 1 })
-        
-        if (currentFollowingEvent) {
-          const originalFollows = currentFollowingEvent.tags.filter(tag => tag[0] === 'p' && tag[1]).map(tag => tag[1])
-          following.value = originalFollows
-          console.log('Reverted to original following list:', originalFollows.length)
-        }
-      } catch (revertError) {
-        console.warn('Failed to revert following list:', revertError)
-      }
-      
-      console.error('Failed to follow user:', err)
+      // Revert optimistic update on error
+      console.error('❌ Failed to follow user:', err)
+      console.log('🔄 Reverting to previous following list:', previousCount)
+      following.value = previousFollowing
+
       throw err
     }
   }
@@ -402,7 +389,7 @@ export function useAudience() {
     const index = following.value.indexOf(pubkey)
     if (index === -1) {
       console.log('Not following user:', pubkey)
-      return
+      return { success: true, notFollowing: true }
     }
 
     try {
@@ -504,7 +491,7 @@ export function useAudience() {
     following, followers, profiles, isLoading, error, syncStatus,
     followUser, unfollowUser, searchProfiles, searchLists, refreshFollowing, refreshFollowers,
     getProfile, isFollowing, getMutualFollows, getFollowersCount, getFollowingCount,
-    fetchProfile: fetchProfileSynced, generateFallbackAvatar,
+    fetchProfile: fetchProfileSynced, generateAvatar,
     ...followLists
   }
 }

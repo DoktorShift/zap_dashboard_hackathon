@@ -214,6 +214,17 @@ const formatAmount = (amount) => {
   return sats ? sats.toLocaleString() : '0'
 }
 
+// Format raised amount with smart units
+const formatRaisedAmount = (sats) => {
+  if (sats >= 1000000) {
+    return `${(sats / 1000000).toFixed(1)}M`
+  } else if (sats >= 1000) {
+    return `${(sats / 1000).toFixed(1)}K`
+  } else {
+    return sats.toLocaleString()
+  }
+}
+
 // Calculate days remaining
 const getDaysRemaining = (closedAt) => {
   if (!closedAt) return 'No deadline'
@@ -282,229 +293,177 @@ watch(isAuthenticated, async (isAuth) => {
       </div>
     </div>
 
-    <!-- Stats Cards (Only show when authenticated and has campaigns) -->
-    <div v-if="isAuthenticated && userCampaigns.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <!-- Mobile: 2x2 Grid, Desktop: 1x4 Grid -->
-      <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg shadow-orange-100/20 p-4 sm:p-5 hover:shadow-xl hover:shadow-orange-100/30 transition-all duration-300 hover:border-orange-200/60 transform hover:-translate-y-1">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs sm:text-sm text-gray-500 mb-1 font-medium">Total</p>
-            <p class="text-xl sm:text-2xl font-bold text-gray-900">{{ campaignStats.total }}</p>
+    <!-- Unified Dashboard Controls -->
+    <div v-if="isAuthenticated && userCampaigns.length > 0" class="mb-8">
+      <!-- Mobile Layout -->
+      <div class="block lg:hidden space-y-4">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-4 gap-2">
+          <div class="bg-white border border-gray-200 rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-gray-900">{{ campaignStats.total }}</div>
+            <div class="text-xs text-gray-500 mt-1">Total</div>
           </div>
-          <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center shadow-sm">
-            <IconTarget class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+          <div class="bg-white border border-gray-200 rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-green-600">{{ campaignStats.active }}</div>
+            <div class="text-xs text-gray-500 mt-1">Active</div>
           </div>
-        </div>
-      </div>
-      
-      <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-green-100/50 shadow-lg shadow-green-100/20 p-4 sm:p-5 hover:shadow-xl hover:shadow-green-100/30 transition-all duration-300 hover:border-green-200/60 transform hover:-translate-y-1">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs sm:text-sm text-gray-500 mb-1 font-medium">Active</p>
-            <p class="text-xl sm:text-2xl font-bold text-green-600">{{ campaignStats.active }}</p>
+          <div class="bg-white border border-gray-200 rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ campaignStats.completed }}</div>
+            <div class="text-xs text-gray-500 mt-1">Done</div>
           </div>
-          <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl flex items-center justify-center shadow-sm">
-            <IconBolt class="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-          </div>
-        </div>
-      </div>
-      
-      <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-blue-100/50 shadow-lg shadow-blue-100/20 p-4 sm:p-5 hover:shadow-xl hover:shadow-blue-100/30 transition-all duration-300 hover:border-blue-200/60 transform hover:-translate-y-1">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs sm:text-sm text-gray-500 mb-1 font-medium">Done</p>
-            <p class="text-xl sm:text-2xl font-bold text-blue-600">{{ campaignStats.completed }}</p>
-          </div>
-          <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-2xl flex items-center justify-center shadow-sm">
-            <IconCheck class="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-          </div>
-        </div>
-      </div>
-      
-      <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-orange-100/50 shadow-lg shadow-orange-100/20 p-4 sm:p-5 hover:shadow-xl hover:shadow-orange-100/30 transition-all duration-300 hover:border-orange-200/60 transform hover:-translate-y-1">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-xs sm:text-sm text-gray-500 mb-1 font-medium">Raised</p>
-            <p class="text-lg sm:text-2xl font-bold text-orange-600">{{ campaignStats.totalRaised.toLocaleString() }} <span class="text-xs sm:text-sm font-normal text-orange-500">sats</span></p>
-          </div>
-          <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center shadow-sm">
-            <IconBolt class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Search and Filters -->
-    <!-- Mobile-First Controls Section -->
-    <div v-if="isAuthenticated" class="space-y-4 mb-6">
-      <!-- Mobile Layout: Stacked Cards -->
-      <div class="block sm:hidden space-y-3">
-        <!-- Search Card -->
-        <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-lg shadow-gray-200/20 p-4">
-          <div class="relative">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search campaigns..."
-              class="w-full pl-10 pr-10 py-3 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200 shadow-sm"
-            />
-            <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-            <button 
-              v-if="searchQuery" 
-              @click="searchQuery = ''" 
-              class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <IconX class="w-4 h-4" />
-            </button>
+          <div class="bg-white border border-gray-200 rounded-xl p-3 text-center">
+            <div class="text-xl font-bold text-orange-600">{{ formatRaisedAmount(campaignStats.totalRaised) }}</div>
+            <div class="text-xs text-gray-500 mt-1">Sats</div>
           </div>
         </div>
 
-        <!-- Controls Card -->
-        <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/50 shadow-lg shadow-gray-200/20 p-4">
-          <div class="grid grid-cols-2 gap-3">
-            <!-- View Toggle -->
-            <div class="bg-gray-50/80 backdrop-blur-sm rounded-xl p-1 shadow-sm border border-gray-200/50">
-              <button 
-                @click="activeView = 'grid'" 
-                :class="[
-                  'w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ease-out flex items-center justify-center space-x-1.5',
-                  activeView === 'grid' 
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
-                ]"
-              >
-                <span class="text-xs opacity-70">⊞</span>
-                <span>Grid</span>
-              </button>
-            </div>
-            
-            <div class="bg-gray-50/80 backdrop-blur-sm rounded-xl p-1 shadow-sm border border-gray-200/50">
-              <button 
-                @click="activeView = 'list'" 
-                :class="[
-                  'w-full py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ease-out flex items-center justify-center space-x-1.5',
-                  activeView === 'list' 
-                    ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
-                ]"
-              >
-                <span class="text-xs opacity-70">☰</span>
-                <span>List</span>
-              </button>
-            </div>
-          </div>
-          
-          <!-- Sort and Create Row -->
-          <div class="flex items-center space-x-3 mt-3">
-            <!-- Sort Dropdown -->
+        <!-- Controls -->
+        <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+          <div class="flex items-center gap-2">
             <div class="relative flex-1">
-              <select 
-                v-model="sortOption"
-                class="w-full appearance-none pl-3 pr-8 py-2.5 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm shadow-sm transition-all duration-200"
-              >
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search campaigns..."
+                class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all"
+              />
+              <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+              <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-3.5 text-gray-400">
+                <IconX class="w-4 h-4" />
+              </button>
+            </div>
+
+            <div class="relative flex-shrink-0">
+              <select v-model="sortOption" class="appearance-none pl-3 pr-8 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm transition-all text-gray-600 min-w-[100px]">
                 <option value="newest">Newest</option>
                 <option value="oldest">Oldest</option>
                 <option value="progress">Progress</option>
                 <option value="goal">Goal</option>
               </select>
-              <IconChevronDown class="absolute right-3 top-3 w-3 h-3 text-gray-400 pointer-events-none" />
+              <IconChevronDown class="absolute right-2.5 top-3.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
             </div>
-            
-            <!-- Create Button -->
-            <button
-              @click="openCreateModal"
-              class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 whitespace-nowrap"
-            >
-              <IconPlus class="w-4 h-4" />
-              <span>New</span>
-            </button>
           </div>
+
+          <button
+            @click="openCreateModal"
+            class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+          >
+            <IconPlus class="w-4 h-4" />
+            New Campaign
+          </button>
         </div>
       </div>
 
-      <!-- Desktop Layout: Single Card -->
-      <div class="hidden sm:block">
-        <div class="bg-white/95 backdrop-blur-xl rounded-2xl border border-gray-200/60 shadow-xl shadow-gray-200/40 overflow-hidden">
-          <!-- ZapTracker Brand Accent Line -->
-          <div class="h-1 bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400"></div>
-          
-          <!-- Header Content -->
-          <div class="px-6 py-5">
+      <!-- Desktop Layout -->
+      <div class="hidden lg:block">
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <!-- Stats Bar -->
+          <div class="border-b border-gray-200 px-6 py-4">
             <div class="flex items-center justify-between">
-              <!-- Left: Search -->
+              <div class="flex items-center gap-8">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center">
+                    <IconTarget class="w-5 h-5 text-gray-600" />
+                  </div>
+                  <div>
+                    <div class="text-2xl font-bold text-gray-900">{{ campaignStats.total }}</div>
+                    <div class="text-xs text-gray-500">Total Campaigns</div>
+                  </div>
+                </div>
+
+                <div class="h-10 w-px bg-gray-200"></div>
+
+                <div class="flex items-center gap-6">
+                  <div>
+                    <div class="text-xl font-bold text-green-600">{{ campaignStats.active }}</div>
+                    <div class="text-xs text-gray-500">Active</div>
+                  </div>
+                  <div>
+                    <div class="text-xl font-bold text-blue-600">{{ campaignStats.completed }}</div>
+                    <div class="text-xs text-gray-500">Completed</div>
+                  </div>
+                  <div>
+                    <div class="text-xl font-bold text-orange-600">{{ formatRaisedAmount(campaignStats.totalRaised) }}</div>
+                    <div class="text-xs text-gray-500">Sats Raised</div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                @click="openCreateModal"
+                class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-5 py-2.5 rounded-lg font-semibold transition-all flex items-center gap-2"
+              >
+                <IconPlus class="w-4 h-4" />
+                New Campaign
+              </button>
+            </div>
+          </div>
+
+          <!-- Controls Bar -->
+          <div class="px-6 py-4">
+            <div class="flex items-center justify-between">
               <div class="relative flex-1 max-w-md">
                 <input
                   v-model="searchQuery"
                   type="text"
                   placeholder="Search campaigns..."
-                  class="w-full pl-10 pr-10 py-3 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base transition-all duration-200 shadow-sm"
+                  class="w-full pl-9 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all text-sm"
                 />
-                <IconSearch class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
-                <button 
-                  v-if="searchQuery" 
-                  @click="searchQuery = ''" 
-                  class="absolute right-3 top-3.5 w-4 h-4 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <IconX class="w-4 h-4" />
+                <IconSearch class="absolute left-3 top-3 w-3.5 h-3.5 text-gray-400" />
+                <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                  <IconX class="w-3.5 h-3.5" />
                 </button>
               </div>
-              
-              <!-- Right: Controls -->
-              <div class="flex items-center space-x-4">
-                <!-- View Toggle -->
-                <div class="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-2xl p-1 shadow-sm border border-gray-200/50">
-                  <button 
-                    @click="activeView = 'grid'" 
-                    :class="[
-                      'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out flex items-center space-x-1.5',
-                      activeView === 'grid' 
-                        ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
-                    ]"
-                  >
-                    <span class="text-xs opacity-70">⊞</span>
-                    <span>Grid</span>
-                  </button>
-                  <button 
-                    @click="activeView = 'list'" 
-                    :class="[
-                      'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out flex items-center space-x-1.5',
-                      activeView === 'list' 
-                        ? 'bg-white text-orange-600 shadow-md shadow-orange-100/50 transform scale-105 border border-orange-200/30' 
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/60 hover:shadow-sm'
-                    ]"
-                  >
-                    <span class="text-xs opacity-70">☰</span>
-                    <span>List</span>
-                  </button>
-                </div>
 
-                <!-- Sort Dropdown -->
+              <div class="flex items-center gap-2">
                 <div class="relative">
-                  <select 
-                    v-model="sortOption"
-                    class="appearance-none pl-3 pr-8 py-2.5 bg-gray-50/80 backdrop-blur-sm border border-gray-200/50 rounded-2xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-sm shadow-sm transition-all duration-200"
-                  >
+                  <select v-model="sortOption" class="appearance-none pl-3 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm transition-all text-gray-600 min-w-[130px]">
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>
-                    <option value="progress">Highest Progress</option>
-                    <option value="goal">Highest Goal</option>
+                    <option value="progress">By Progress</option>
+                    <option value="goal">By Goal</option>
                   </select>
-                  <IconChevronDown class="absolute right-3 top-3 w-3 h-3 text-gray-400 pointer-events-none" />
+                  <IconChevronDown class="absolute right-2.5 top-3.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                 </div>
-                
-                <!-- Create Button -->
-                <button
-                  @click="openCreateModal"
-                  class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-2.5 rounded-2xl font-semibold text-sm transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-                >
-                  <IconPlus class="w-4 h-4" />
-                  <span>New Campaign</span>
-                </button>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+    </div>
+
+    <!-- Campaigns Header with View Controls -->
+    <div v-if="isAuthenticated && filteredCampaigns.length > 0" class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-gray-900">Your Campaigns</h2>
+      <div class="flex bg-white border border-gray-200 rounded-lg p-0.5">
+        <button
+          @click="activeView = 'grid'"
+          :class="['px-3 py-1.5 rounded text-sm font-medium transition-all flex items-center gap-1.5', activeView === 'grid' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700']"
+        >
+          <IconGrid class="w-4 h-4" />
+          Grid
+        </button>
+        <button
+          @click="activeView = 'list'"
+          :class="['px-3 py-1.5 rounded text-sm font-medium transition-all flex items-center gap-1.5', activeView === 'list' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700']"
+        >
+          <IconList class="w-4 h-4" />
+          List
+        </button>
+      </div>
+    </div>
+
+    <!-- Simple Controls for Empty State -->
+    <div v-else-if="isAuthenticated" class="mb-8">
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <button
+          @click="openCreateModal"
+          class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+        >
+          <IconPlus class="w-5 h-5" />
+          Create Your First Campaign
+        </button>
       </div>
     </div>
     <!-- Authentication Required Banner -->
@@ -601,64 +560,100 @@ watch(isAuthenticated, async (isAuth) => {
           <div
             v-for="campaign in filteredCampaigns"
             :key="campaign.id"
-            @click="viewCampaign(campaign)"
-            class="p-3 sm:p-4 hover:bg-gray-50/80 transition-all duration-200 cursor-pointer group"
+            class="relative group"
           >
-            <div class="flex items-center space-x-3">
-              <!-- Compact Campaign Icon/Image -->
-              <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center flex-shrink-0 shadow-sm">
-                <img
-                  v-if="campaign.image"
-                  :src="campaign.image"
-                  :alt="campaign.title"
-                  class="w-full h-full object-cover"
-                  @error="$event.target.style.display = 'none'"
-                />
-                <IconTarget v-else class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
-              </div>
-
-              <!-- Campaign Info -->
-              <div class="flex-1 min-w-0">
-                <!-- Title and Status Row -->
-                <div class="flex items-center justify-between mb-1">
-                  <h3 class="font-semibold text-gray-900 text-sm sm:text-base truncate mr-2 group-hover:text-orange-600 transition-colors">
-                    {{ campaign.title }}
-                  </h3>
-                  <span :class="[
-                    'px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0',
-                    isCampaignExpired(campaign) ? 'bg-red-100 text-red-700' :
-                    isCampaignCompleted(campaign.id) ? 'bg-green-100 text-green-700' :
-                    'bg-orange-100 text-orange-700'
-                  ]">
-                    {{ isCampaignExpired(campaign) ? 'Expired' :
-                       isCampaignCompleted(campaign.id) ? 'Done' : 'Active' }}
-                  </span>
+            <!-- Main Row - Clickable -->
+            <div
+              @click="viewCampaign(campaign)"
+              class="p-3 sm:p-4 hover:bg-gray-50/80 transition-all duration-200 cursor-pointer"
+            >
+              <div class="flex items-center space-x-3">
+                <!-- Compact Campaign Icon/Image -->
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <img
+                    v-if="campaign.image"
+                    :src="campaign.image"
+                    :alt="campaign.title"
+                    class="w-full h-full object-cover"
+                    @error="$event.target.style.display = 'none'"
+                  />
+                  <IconTarget v-else class="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                 </div>
 
-                <!-- Progress and Goal Row -->
-                <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
-                  <div class="flex items-center space-x-2">
-                    <span class="font-medium">{{ getCampaignProgress(campaign.id).percentage }}%</span>
-                    <div class="w-16 sm:w-20 bg-gray-200 rounded-full h-1.5">
-                      <div 
-                        class="bg-gradient-to-r from-orange-400 to-amber-400 h-1.5 rounded-full transition-all duration-300"
-                        :style="{ width: `${getCampaignProgress(campaign.id).percentage}%` }"
-                      ></div>
+                <!-- Campaign Info -->
+                <div class="flex-1 min-w-0">
+                  <!-- Title and Status Row -->
+                  <div class="flex items-center justify-between mb-1">
+                    <h3 class="font-semibold text-gray-900 text-sm sm:text-base truncate mr-2 group-hover:text-orange-600 transition-colors">
+                      {{ campaign.title }}
+                    </h3>
+                    <span :class="[
+                      'px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0',
+                      isCampaignExpired(campaign) ? 'bg-red-100 text-red-700' :
+                      isCampaignCompleted(campaign.id) ? 'bg-green-100 text-green-700' :
+                      'bg-orange-100 text-orange-700'
+                    ]">
+                      {{ isCampaignExpired(campaign) ? 'Expired' :
+                         isCampaignCompleted(campaign.id) ? 'Done' : 'Active' }}
+                    </span>
+                  </div>
+
+                  <!-- Progress and Goal Row -->
+                  <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
+                    <div class="flex items-center space-x-2">
+                      <span class="font-medium">{{ getCampaignProgress(campaign.id).percentage }}%</span>
+                      <div class="w-16 sm:w-20 bg-gray-200 rounded-full h-1.5">
+                        <div
+                          class="bg-gradient-to-r from-orange-400 to-amber-400 h-1.5 rounded-full transition-all duration-300"
+                          :style="{ width: `${getCampaignProgress(campaign.id).percentage}%` }"
+                        ></div>
+                      </div>
+                    </div>
+
+                    <!-- Goal Amount + Action Buttons -->
+                    <div class="flex items-center gap-2">
+                      <!-- Desktop: Share + Delete (on hover) -->
+                      <div class="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          @click.stop="openShareModal(campaign)"
+                          class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="Share"
+                        >
+                          <IconShare class="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          @click.stop="openDeleteModal(campaign)"
+                          class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Delete"
+                        >
+                          <IconTrash class="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <!-- Mobile: Share only (always visible) -->
+                      <button
+                        @click.stop="openShareModal(campaign)"
+                        class="sm:hidden w-6 h-6 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        title="Share"
+                      >
+                        <IconShare class="w-3.5 h-3.5" />
+                      </button>
+
+                      <span class="font-medium text-orange-600">{{ formatAmount(campaign.goalAmount) }} sats</span>
                     </div>
                   </div>
-                  <span class="font-medium text-orange-600">{{ formatAmount(campaign.goalAmount) }} sats</span>
+
+                  <!-- Meta Info Row -->
+                  <div class="flex items-center justify-between text-xs text-gray-400">
+                    <span>{{ getCampaignProgress(campaign.id).current.toLocaleString() }} raised</span>
+                    <span>{{ getDaysRemaining(campaign.closedAt) }}</span>
+                  </div>
                 </div>
 
-                <!-- Meta Info Row -->
-                <div class="flex items-center justify-between text-xs text-gray-400">
-                  <span>{{ getCampaignProgress(campaign.id).current.toLocaleString() }} raised</span>
-                  <span>{{ getDaysRemaining(campaign.closedAt) }}</span>
+                <!-- Chevron -->
+                <div class="flex-shrink-0 transition-transform group-hover:translate-x-1">
+                  <IconChevronRight class="w-4 h-4 text-gray-400 group-hover:text-orange-500 transition-colors" />
                 </div>
-              </div>
-
-              <!-- Action Arrow -->
-              <div class="flex-shrink-0">
-                <IconChevronRight class="w-4 h-4 text-gray-400 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all duration-200" />
               </div>
             </div>
           </div>

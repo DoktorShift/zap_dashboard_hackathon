@@ -3,7 +3,8 @@ import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from '
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/Sidebar.vue'
 import { IconTarget } from '@iconify-prerendered/vue-tabler'
-import { useContentZaps, generateFallbackAvatar } from './composables/useContentZaps.js'
+import { useContentZaps } from './composables/useContentZaps.js'
+import { generateAvatar } from './utils/avatarGenerator.js'
 import TopBar from './components/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
 import { useNostrLongForm } from './composables/useNostrLongForm.js'
@@ -31,10 +32,6 @@ import { nostrRelayManager } from './utils/nostrRelayManager.js'
 import { useNostrNotes } from './composables/useNostrNotes.js'
 import Calendar from './pages/Calendar.vue'
 
-// Track processed event IDs to prevent duplicates
-const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
-// Track processed payment hashes for deduplication across NWC and NIP-57
-const processedPaymentHashes = new Set()
 
 // UI state for dismissible banners
 const showLargeDatasetBanner = ref(true)
@@ -78,7 +75,7 @@ const fetchAuthorProfile = async (pubkey, forceRefresh = false) => {
       const profileData = {
         pubkey,
         name: profile?.name || profile?.display_name || `user:${pubkey.substring(0, 8)}`,
-        picture: profile?.picture || generateFallbackAvatar(pubkey),
+        picture: profile?.picture || generateAvatar(pubkey),
         nip05: profile?.nip05 || null,
         about: profile?.about || null
       }
@@ -92,7 +89,7 @@ const fetchAuthorProfile = async (pubkey, forceRefresh = false) => {
       const fallbackProfile = {
         pubkey,
         name: `user:${pubkey.substring(0, 8)}`,
-        picture: generateFallbackAvatar(pubkey),
+        picture: generateAvatar(pubkey),
         nip05: null,
         about: null
       }
@@ -146,8 +143,6 @@ const { isAuthenticated } = useNostrAuth()
 const {
   handleConnectionSuccess: notifyConnectionSuccess,
   handleConnectionError: notifyConnectionError,
-  handleZapReceived,
-  handleBalanceChange,
   notifications
 } = useNotifications()
 
@@ -217,7 +212,7 @@ const combinedZapData = computed(() => {
             name: zap.sender?.name || `User ${zap.zapperPubkey.substring(0, 8)}`,
             pubkey: zap.zapperPubkey,
             nip05: zap.sender?.nip05 || null,
-            avatar: zap.sender?.picture || generateFallbackAvatar(zap.zapperPubkey),
+            avatar: zap.sender?.picture || generateAvatar(zap.zapperPubkey),
             // Add profile fetching capability
             fetchProfile: () => fetchAuthorProfile(zap.zapperPubkey)
           },
@@ -486,14 +481,6 @@ const refreshZapData = async (force = false, retryCount = 0) => {
     // Log performance metrics for large datasets
     if (data.length > 100) {
       console.log(`📊 Performance: Loaded ${data.length} zaps in ${loadTime}ms (${Math.round(data.length / (loadTime / 1000))} zaps/sec)`)
-    }
-    
-    // Check for new zaps and trigger notifications
-    if (zapData.value.length > 0 && data.length > zapData.value.length) {
-      const newZaps = data.slice(0, data.length - zapData.value.length)
-      newZaps.forEach(zap => {
-        handleZapReceived(zap)
-      })
     }
     
     zapData.value = data
@@ -882,7 +869,7 @@ const handleWritingModeChange = (writingMode) => {
       <main :class="['flex-1 overflow-y-auto scrollbar-thin', isWritingMode ? 'p-0' : 'p-3 sm:p-4 lg:p-6']">
         <div class="p-3 sm:p-4 lg:p-6">
           <!-- Connection Status Bar -->
-          <transition name="slide-down">
+        <!--  <transition name="slide-down">
             <div v-if="!isWalletConnected && currentPage === 'wallet'" class="mb-4 lg:mb-6">
               <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4 animate-pulse-subtle">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -899,7 +886,7 @@ const handleWritingModeChange = (writingMode) => {
                 </div>
               </div>
             </div>
-          </transition>
+          </transition> -->
           
           <!-- Loading State -->
           <transition name="slide-down">

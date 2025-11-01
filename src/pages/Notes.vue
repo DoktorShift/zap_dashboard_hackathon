@@ -3,6 +3,16 @@ import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import * as nip19 from 'nostr-tools/nip19'
+
+// Define props and emits for Vue 3
+const props = defineProps({
+  initialTab: {
+    type: String,
+    default: undefined
+  }
+})
+
+const emit = defineEmits(['changePage', 'writingModeChange'])
 import {
   IconFileText, 
   IconPlus, 
@@ -32,6 +42,7 @@ import { useContentZaps } from '../composables/useContentZaps.js'
 import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
 import { useMentions } from '../composables/useMentions.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import EngagementMetrics from '../components/EngagementMetrics.vue'
 import NoteSuccessModal from '../components/NoteSuccessModal.vue'
 import ContentRenderer from '../components/ContentRenderer.vue'
@@ -47,6 +58,7 @@ const {
   selectedNote,
   editingNote,
   isLoading,
+  isFetchingNotes,
   error,
   publishNote,
   updateNote,
@@ -588,7 +600,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
         <!-- Notes List -->
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
           <!-- Loading State -->
-          <div v-if="isLoading && notes.length === 0" class="p-8 text-center">
+          <div v-if="isFetchingNotes && notes.length === 0" class="p-8 text-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
             <h3 class="text-lg font-semibold text-gray-900 mb-2">Loading your notes...</h3>
             <p class="text-gray-600">Fetching notes from the Nostr network</p>
@@ -617,7 +629,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                 <!-- User Avatar -->
                 <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
                   <img 
-                    :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                    :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
                     :alt="userProfile?.name || 'You'"
                     class="w-full h-full object-cover"
                   />
@@ -756,7 +768,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
               <!-- User Avatar -->
               <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
                 <img 
-                  :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                  :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
                   :alt="userProfile?.name || 'You'"
                   class="w-full h-full object-cover"
                 />
@@ -858,7 +870,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                 <div class="flex items-center space-x-3">
                   <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200">
                     <img 
-                      :src="userProfile?.picture || 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'" 
+                      :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
                       :alt="userProfile?.name || 'You'"
                       class="w-full h-full object-cover"
                     />
@@ -953,7 +965,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                         :src="zap.sender?.picture || zap.sender?.avatar"
                         :alt="zap.sender?.name || 'Zapper'"
                         class="w-8 h-8 rounded-full object-cover border border-orange-200"
-                        @error="$event.target.src = 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'"
+                        @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                       />
                       <div class="flex-1 min-w-0">
                         <div class="font-medium text-gray-900 text-sm">

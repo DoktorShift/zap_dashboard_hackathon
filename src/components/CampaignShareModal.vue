@@ -1,187 +1,124 @@
 <template>
-  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+  <div class="fixed inset-0 bg-black/50 z-50 md:flex md:items-center md:justify-center md:p-4" @click="handleBackdropClick">
+    <div class="bg-white w-full max-w-md shadow-xl md:rounded-lg fixed bottom-0 left-0 right-0 md:relative rounded-t-2xl max-h-[90vh] overflow-y-auto" @click.stop>
+
+      <!-- Mobile Bottom Sheet Handle -->
+      <div class="md:hidden flex justify-center pt-3 pb-2">
+        <div class="w-12 h-1 bg-gray-300 rounded-full"></div>
+      </div>
+
       <!-- Header -->
-      <div class="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100 p-6">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-orange-400 to-amber-400 rounded-xl flex items-center justify-center shadow-sm">
-              <IconShare class="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h3 class="text-xl font-bold text-gray-900">Share Campaign</h3>
-              <p class="text-sm text-gray-600">Spread the word and get support</p>
-            </div>
-          </div>
-          <button
-            @click="$emit('close')"
-            class="w-8 h-8 bg-white/60 hover:bg-white/80 rounded-full flex items-center justify-center transition-all duration-200 text-gray-600 hover:text-gray-800"
-          >
-            <IconX class="w-4 h-4" />
-          </button>
-        </div>
+      <div class="flex items-center justify-between p-4 border-b">
+        <h3 class="text-lg font-semibold text-gray-900">Share Campaign</h3>
+        <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600">
+          <IconX class="w-5 h-5" />
+        </button>
       </div>
 
       <!-- Success State -->
-      <div v-if="shareSuccess" class="p-8 text-center">
-        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <IconCheck class="w-8 h-8 text-green-600" />
+      <div v-if="shareSuccess" class="p-6 text-center">
+        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+          <IconCheck class="w-6 h-6 text-green-600" />
         </div>
-        <h4 class="text-xl font-bold text-gray-900 mb-2">Posted Successfully! 🎉</h4>
-        <p class="text-gray-600 mb-4">Your campaign is now shared on Nostr</p>
-        <div class="bg-orange-50 border border-orange-200 rounded-lg p-3">
-          <p class="text-sm text-orange-800">
-            <IconBolt class="w-4 h-4 inline mr-1" />
-            Zaps to your post will count towards your goal
-          </p>
-        </div>
+        <h4 class="text-lg font-semibold text-gray-900 mb-2">Posted Successfully!</h4>
+        <p class="text-sm text-gray-600">Your campaign is now shared on Nostr</p>
       </div>
 
       <!-- Main Content -->
-      <div v-else class="p-6 space-y-6">
+      <div v-else class="p-6 space-y-4">
+
         <!-- Campaign Preview -->
-        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-          <div class="flex items-start space-x-3">
-            <div v-if="campaign.image" class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-              <img 
-                :src="campaign.image" 
-                :alt="campaign.title"
-                class="w-full h-full object-cover"
-                @error="$event.target.style.display = 'none'"
-              />
+        <div class="bg-gray-50 rounded-lg p-3 border">
+          <div class="flex items-start gap-3">
+            <div v-if="campaign.image" class="w-12 h-12 rounded overflow-hidden flex-shrink-0">
+              <img :src="campaign.image" :alt="campaign.title" class="w-full h-full object-cover" />
             </div>
-            <div v-else class="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-400 rounded-lg flex items-center justify-center flex-shrink-0">
-              <IconTarget class="w-6 h-6 text-white" />
+            <div v-else class="w-12 h-12 bg-orange-100 rounded flex items-center justify-center flex-shrink-0">
+              <IconTarget class="w-6 h-6 text-orange-600" />
             </div>
-            
             <div class="flex-1 min-w-0">
-              <h4 class="font-semibold text-gray-900 mb-1 line-clamp-1">{{ campaign.title }}</h4>
-              <p class="text-sm text-gray-600 mb-2 line-clamp-2">{{ campaign.summary }}</p>
-              <div class="flex items-center justify-between">
+              <h4 class="font-medium text-gray-900 text-sm truncate">{{ campaign.title }}</h4>
+              <p class="text-xs text-gray-600 line-clamp-2">{{ campaign.summary }}</p>
+              <div class="flex items-center justify-between mt-2">
                 <span class="text-xs text-gray-500">Goal</span>
-                <span class="font-bold text-orange-600 text-sm">{{ formatAmount(campaign.goalAmount) }} sats</span>
+                <span class="text-xs font-semibold text-orange-600">{{ formatAmount(campaign.goalAmount) }} sats</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Primary Action - Share on Nostr -->
-        <div class="space-y-3">
-          <button
-            @click="shareOnNostr"
-            :disabled="!isAuthenticated || isSharing"
-            class="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-4 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <IconLoader v-if="isSharing" class="w-5 h-5 animate-spin" />
-            <IconBolt v-else class="w-5 h-5" />
-            <span class="text-lg">{{ isSharing ? 'Posting...' : 'Share on Nostr' }}</span>
-          </button>
-          
-          <!-- Authentication Notice -->
-          <div v-if="!isAuthenticated" class="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <div class="flex items-center space-x-2">
-              <IconAlertCircle class="w-4 h-4 text-amber-600" />
-              <p class="text-sm text-amber-800">Connect your Nostr identity to share</p>
-            </div>
-          </div>
+        <!-- Share on Nostr -->
+        <button
+          @click="shareOnNostr"
+          :disabled="!isAuthenticated || isSharing"
+          class="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+        >
+          <IconLoader v-if="isSharing" class="w-5 h-5 animate-spin" />
+          <IconBolt v-else class="w-5 h-5" />
+          <span>{{ isSharing ? 'Posting...' : 'Share on Nostr' }}</span>
+        </button>
+
+        <!-- Auth Warning -->
+        <div v-if="!isAuthenticated" class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-2">
+          <IconAlertCircle class="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <p class="text-sm text-amber-800">Connect your Nostr identity to share</p>
         </div>
 
         <!-- Copy Link -->
-        <div class="space-y-3">
+        <div class="space-y-2">
           <button
             @click="copyAndShare"
-            class="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.99]"
+            class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
           >
-            <IconCheck v-if="copySuccess" class="w-5 h-5 text-white" />
-            <IconShare v-else class="w-5 h-5" />
-            <span>{{ copySuccess ? 'Copied!' : 'Copy & Share Link' }}</span>
+            <IconCheck v-if="copySuccess" class="w-5 h-5 text-green-600" />
+            <IconCopy v-else class="w-5 h-5" />
+            <span>{{ copySuccess ? 'Copied!' : 'Copy Link' }}</span>
           </button>
-          
-          <!-- URL Preview -->
-          <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-            <div class="flex items-center space-x-2">
-              <input
-                :value="shareUrl"
-                readonly
-                class="flex-1 px-2 py-1 bg-transparent text-xs text-gray-600 font-mono border-none focus:outline-none"
-              />
-              <button
-                @click="copyToClipboard(shareUrl)"
-                class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <IconCopy class="w-4 h-4" />
-              </button>
-            </div>
+
+          <div class="bg-gray-50 border rounded-lg p-2 flex items-center gap-2">
+            <input :value="shareUrl" readonly class="flex-1 bg-transparent text-xs text-gray-600 border-none outline-none" />
+            <button @click="copyToClipboard(shareUrl)" class="text-gray-400 hover:text-gray-600">
+              <IconCopy class="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        <!-- Custom Message (Collapsible) -->
-        <div class="border-t border-gray-100 pt-4">
-          <button
-            @click="showCustomMessage = !showCustomMessage"
-            class="flex items-center justify-between w-full p-2 text-left hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            <div class="flex items-center space-x-2">
+        <!-- Custom Message -->
+        <details class="border rounded-lg">
+          <summary class="p-3 cursor-pointer hover:bg-gray-50 flex items-center justify-between">
+            <div class="flex items-center gap-2">
               <IconEdit class="w-4 h-4 text-gray-500" />
-              <span class="text-sm font-medium text-gray-700">Custom Message</span>
+              <span class="text-sm font-medium text-gray-700">Customize Message</span>
+              <span v-if="mentionCount > 0" class="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
+                {{ mentionCount }}
+              </span>
             </div>
-            <IconChevronDown :class="[
-              'w-4 h-4 text-gray-500 transition-transform duration-200',
-              showCustomMessage ? 'rotate-180' : ''
-            ]" />
-          </button>
-          
-          <transition name="slide-down">
-            <div v-if="showCustomMessage" class="mt-3 space-y-3">
-              <MentionInput
-                v-model="customMessage"
-                :placeholder="defaultMessagePlaceholder + ' Type @ to mention someone.'"
-                min-height="80px"
-                max-height="200px"
-                @mention-added="handleMentionAdded"
-              />
-              <p class="text-xs text-gray-500">Leave empty to use the default message. Mentions supported!</p>
-              <div v-if="mentionCount > 0" class="flex items-center space-x-2 text-xs text-orange-600">
-                <IconAt class="w-3 h-3" />
-                <span>{{ mentionCount }} mention{{ mentionCount !== 1 ? 's' : '' }}</span>
-              </div>
-            </div>
-          </transition>
-        </div>
+          </summary>
+          <div class="p-3 pt-0 space-y-2">
+            <MentionInput
+              v-model="customMessage"
+              placeholder="Add your personal message... Type @ to mention"
+              min-height="80px"
+              max-height="160px"
+              @mention-added="handleMentionAdded"
+            />
+            <p class="text-xs text-gray-500">Leave empty for default message</p>
+          </div>
+        </details>
 
-        <!-- Zap Info -->
-        <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4">
-          <div class="flex items-start space-x-3">
-            <div class="w-6 h-6 bg-gradient-to-br from-orange-400 to-amber-400 rounded-lg flex items-center justify-center flex-shrink-0">
-              <IconBolt class="w-3 h-3 text-white" />
-            </div>
-            <div>
-              <h4 class="font-medium text-orange-900 text-sm mb-1">Zap Tracking</h4>
-              <p class="text-orange-800 text-xs leading-relaxed">
-                Zaps sent to your shared post will automatically count towards your campaign goal.
-              </p>
-            </div>
+        <!-- Info -->
+        <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 flex gap-2">
+          <IconBolt class="w-4 h-4 text-orange-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p class="text-xs font-medium text-gray-900">Automatic Zap Tracking</p>
+            <p class="text-xs text-gray-600">Zaps to your shared post count towards your goal</p>
           </div>
         </div>
 
-        <!-- Error Message -->
-        <div v-if="shareError" class="bg-red-50 border border-red-200 rounded-lg p-3">
-          <div class="flex items-center space-x-2">
-            <IconAlertCircle class="w-4 h-4 text-red-600" />
-            <span class="text-sm text-red-600">{{ shareError }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Footer Branding -->
-      <div class="bg-gray-50 border-t border-gray-100 px-6 py-3">
-        <div class="flex items-center justify-center space-x-2 text-gray-500">
-          <img 
-            src="/new_logo3.png"
-            alt="ZapTracker" 
-            class="w-4 h-4 object-contain"
-          />
-          <span class="text-xs font-medium">Powered by ZapTracker</span>
+        <!-- Error -->
+        <div v-if="shareError" class="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2">
+          <IconAlertCircle class="w-4 h-4 text-red-600 flex-shrink-0" />
+          <span class="text-sm text-red-700">{{ shareError }}</span>
         </div>
       </div>
     </div>
@@ -190,23 +127,21 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { 
-  IconShare, 
-  IconX, 
-  IconCopy, 
-  IconCheck, 
+import {
+  IconShare,
+  IconX,
+  IconCopy,
+  IconCheck,
   IconBolt,
   IconLoader,
   IconAlertCircle,
-  IconChevronDown,
   IconEdit,
   IconTarget,
-  IconAt
 } from '@iconify-prerendered/vue-tabler'
 import { useCampaigns } from '../composables/useCampaigns.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useMentions } from '../composables/useMentions.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { verifyEvent } from 'nostr-tools/pure'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import MentionInput from './MentionInput.vue'
 
@@ -227,72 +162,54 @@ const { shareCampaignOnNostr } = useCampaigns()
 const { currentUser } = useNostrAuth()
 const { extractPTags, parseMentions } = useMentions()
 
-// State
 const shareUrl = ref('')
 const customMessage = ref('')
 const copySuccess = ref(false)
 const isSharing = ref(false)
 const shareSuccess = ref(false)
 const shareError = ref('')
-const showCustomMessage = ref(false)
 
-// Default tags
 const defaultTags = ['ZapTracker', 'Bitcoin', 'Lightning', 'Nostr']
 
-// Generate share URL
 const generateShareUrl = () => {
   return `${window.location.origin}?page=campaign-view&eventId=${props.campaign.id}`
 }
 
-// Initialize share URL
 shareUrl.value = generateShareUrl()
 
-// Default message placeholder
-const defaultMessagePlaceholder = computed(() => {
-  return `Support my campaign: ${props.campaign.title}\n\n${shareUrl.value}\n\n#ZapTracker #Lightning #Nostr`
-})
-
-// Mention count
 const mentionCount = computed(() => {
   return parseMentions(customMessage.value || '').length
 })
 
-// Handle mention added
 const handleMentionAdded = (user) => {
   console.log('Mention added to campaign share:', user)
 }
 
-// Copy to clipboard and trigger native share if available
 const copyAndShare = async () => {
   try {
-    // First copy to clipboard
     await navigator.clipboard.writeText(shareUrl.value)
     copySuccess.value = true
-    
-    // Reset copy success after 2 seconds
+
     setTimeout(() => {
       copySuccess.value = false
     }, 2000)
-    
-    // Try native share API (mobile)
-    if (navigator.share && /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+
+    if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
       try {
         await navigator.share({
           title: `Support: ${props.campaign.title}`,
           text: `Help me reach my goal! ${props.campaign.summary}`,
           url: shareUrl.value
         })
-      } catch (shareError) {
-        // User cancelled share or share not supported, but clipboard copy succeeded
-        console.log('Native share cancelled or not supported')
+      } catch (e) {
+        console.log('Share cancelled')
       }
     }
   } catch (error) {
-    console.error('Failed to copy to clipboard:', error)
+    console.error('Failed to copy:', error)
   }
 }
 
-// Copy to clipboard
 const copyToClipboard = async (text) => {
   try {
     await navigator.clipboard.writeText(text)
@@ -301,11 +218,10 @@ const copyToClipboard = async (text) => {
       copySuccess.value = false
     }, 2000)
   } catch (error) {
-    console.error('Failed to copy to clipboard:', error)
+    console.error('Failed to copy:', error)
   }
 }
 
-// Share on Nostr
 const shareOnNostr = async () => {
   if (!props.isAuthenticated) {
     shareError.value = 'Please connect your Nostr identity to share'
@@ -317,81 +233,53 @@ const shareOnNostr = async () => {
 
   try {
     console.log('🔗 Sharing campaign on Nostr with goal tag...')
-    
-    // Combine default tags with custom tags
+
     const hashtagString = defaultTags.map(tag => `#${tag}`).join(' ')
-    
-    // Create content with custom message or default
-    const content = customMessage.value.trim() || 
+
+    const content = customMessage.value.trim() ||
       `Support my campaign: ${props.campaign.title}\n\n${shareUrl.value}\n\n${hashtagString}`
-    
-    console.log('Share content:', content)
-    
-    // Extract p tags from mentions in content (NIP-10)
+
     const mentionPTags = extractPTags(content)
-    
-    // Create event template with proper goal tag
+
     const eventTemplate = {
-      kind: 1, // Text note
+      kind: 1,
       created_at: Math.floor(Date.now() / 1000),
       tags: [
-        // CRITICAL: Reference the campaign as a zapgoal with the "goal" tag (NIP-75)
         ['goal', props.campaign.id],
-        
-        // Also reference the campaign with an "e" tag for better client compatibility
         ['e', props.campaign.id],
-        
-        // Reference the campaign creator
         ['p', props.campaign.pubkey],
-        
-        // Add p tags for mentions (NIP-10)
         ...mentionPTags,
-        
-        // Add hashtags as t tags
         ...defaultTags.map(tag => ['t', tag])
       ],
       content
     }
-    
-    console.log('Event template with goal tag:', eventTemplate)
-    
-    // Sign the event
+
     let signedEvent
     if (window.nostr?.signEvent) {
       signedEvent = await window.nostr.signEvent(eventTemplate)
     } else {
       throw new Error('Nostr extension not available for signing')
     }
-    
-    console.log('Signed event with goal tag:', signedEvent)
-    
-    // Verify the signed event
+
     const isValid = verifyEvent(signedEvent)
     if (!isValid) {
       throw new Error('Event signature verification failed')
     }
-    
-    // Publish to relays
+
     const result = await nostrRelayManager.publishEvent(signedEvent)
-    
+
     if (result.successful === 0) {
       throw new Error('Failed to publish to any relays')
     }
-    
-    console.log('✅ Campaign shared successfully with goal tag:', {
-      eventId: signedEvent.id,
-      successfulRelays: result.successful,
-      failedRelays: result.failed,
-      goalTag: signedEvent.tags.find(tag => tag[0] === 'goal')
-    })
-    
+
+    console.log('✅ Campaign shared successfully')
+
     shareSuccess.value = true
-    
-    // Close modal after 3 seconds
+
     setTimeout(() => {
       emit('close')
     }, 3000)
-    
+
   } catch (error) {
     console.error('Failed to share campaign:', error)
     shareError.value = error.message || 'Failed to share campaign'
@@ -400,23 +288,20 @@ const shareOnNostr = async () => {
   }
 }
 
-// Format amount in sats
 const formatAmount = (amount) => {
   if (!amount) return '0'
   const sats = Math.floor(amount / 1000)
   return sats ? sats.toLocaleString() : '0'
 }
+
+const handleBackdropClick = (e) => {
+  if (e.target === e.currentTarget) {
+    emit('close')
+  }
+}
 </script>
 
 <style scoped>
-/* Line clamp utilities */
-.line-clamp-1 {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -424,50 +309,11 @@ const formatAmount = (amount) => {
   overflow: hidden;
 }
 
-/* Slide down animation for custom message */
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: all 0.3s ease-out;
-  overflow: hidden;
+details summary::-webkit-details-marker {
+  display: none;
 }
 
-.slide-down-enter-from {
-  opacity: 0;
-  transform: translateY(-8px);
-  max-height: 0;
-}
-
-.slide-down-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-  max-height: 0;
-}
-
-.slide-down-enter-to,
-.slide-down-leave-from {
-  opacity: 1;
-  transform: translateY(0);
-  max-height: 200px;
-}
-
-/* Ensure proper touch targets on mobile */
-@media (max-width: 640px) {
-  button, input, textarea {
-    min-height: 44px;
-    font-size: 16px; /* Prevent zoom on iOS */
-  }
-}
-
-/* Smooth micro-interactions */
-button:not(:disabled) {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Focus states for accessibility */
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
+details[open] summary {
+  border-bottom: 1px solid #e5e7eb;
 }
 </style>

@@ -21,6 +21,7 @@ import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useAudience } from '../composables/useAudience.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 
 const emit = defineEmits(['follow-user', 'profile-click'])
 
@@ -32,10 +33,14 @@ const suggestions = ref([])
 const isLoading = ref(false)
 const error = ref('')
 const followingInProgress = ref(new Set())
+const searchQuery = ref('')
 
 // Computed properties
 const filteredSuggestions = computed(() => {
-  return suggestions.value.slice(0, 12) // Limit to 12 suggestions for clean UI
+  // CRITICAL: Filter out users we're already following in real-time
+  return suggestions.value
+    .filter(suggestion => !isFollowing(suggestion.pubkey))
+    .slice(0, 12) // Limit to 12 suggestions for clean UI
 })
 
 const hasFollowing = computed(() => following.value.length > 0)
@@ -63,8 +68,9 @@ const generateSuggestions = async () => {
     const mutualConnections = new Map() // pubkey -> { count, connectedThrough }
     const followedPubkeys = new Set([...following.value, currentUser.value.pubkey]) // Include self
 
-    // Fetch contact lists of people we follow (limit to first 10 for performance)
-    const contactPromises = following.value.slice(0, 10).map(async (pubkey) => {
+    // Fetch contact lists of people we follow (limit to 5 to reduce load)
+    const sampleSize = Math.min(5, following.value.length)
+    const contactPromises = following.value.slice(0, sampleSize).map(async (pubkey) => {
       try {
         console.log(`Fetching contact list for: ${pubkey.substring(0, 8)}...`)
         
@@ -102,9 +108,9 @@ const generateSuggestions = async () => {
 
     // Sort by mutual connection count and take top suggestions
     const topSuggestions = Array.from(mutualConnections.entries())
-      .filter(([, data]) => data.count >= 2) // At least 2 mutual connections
+      .filter(([, data]) => data.count >= 1) // At least 1 mutual connection (simplified)
       .sort(([,a], [,b]) => b.count - a.count)
-      .slice(0, 20) // Get top 20 for profile fetching
+      .slice(0, 15) // Get top 15 for profile fetching
       .map(([pubkey, data]) => ({
         pubkey,
         mutualCount: data.count,
@@ -154,20 +160,18 @@ const generateSuggestions = async () => {
 // Handle follow user with proper merging
 const handleFollowUser = async (pubkey) => {
   if (followingInProgress.value.has(pubkey)) return
-  
+
   followingInProgress.value.add(pubkey)
-  
+
   try {
-    const result = await emit('follow-user', pubkey)
-    
-    // Remove from suggestions after successful follow
-    suggestions.value = suggestions.value.filter(s => s.pubkey !== pubkey)
-    
-    // Show success feedback
-    if (result && !result.alreadyFollowing) {
-      console.log('Successfully followed user, total follows:', result.totalFollows)
-    }
-    
+    emit('follow-user', pubkey)
+
+    // Remove from suggestions after follow attempt
+    // The parent component handles the actual follow logic
+    setTimeout(() => {
+      suggestions.value = suggestions.value.filter(s => s.pubkey !== pubkey)
+    }, 500)
+
   } catch (error) {
     console.error('Failed to follow user:', error)
   } finally {
@@ -180,24 +184,6 @@ const handleProfileClick = (pubkey) => {
   emit('profile-click', pubkey)
 }
 
-// Generate fallback avatar
-const generateFallbackAvatar = (pubkey) => {
-  const avatars = [
-    'https://images.pexels.com/photos/1040881/pexels-photo-1040881.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1181690/pexels-photo-1181690.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1',
-    'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=1'
-  ]
-  
-  const hash = pubkey.split('').reduce((a, b) => {
-    a = ((a << 5) - a) + b.charCodeAt(0)
-    return a & a
-  }, 0)
-  
-  return avatars[Math.abs(hash) % avatars.length]
-}
 
 // Get mutual connection names for display
 const getMutualConnectionNames = (suggestion) => {
@@ -228,15 +214,9 @@ onMounted(() => {
   }
 })
 
-// Watch for changes in following list to regenerate suggestions
-watch(following, (newFollowing) => {
-  if (isAuthenticated.value && newFollowing.length > 0) {
-    // Regenerate suggestions when following list changes
-    setTimeout(() => {
-      generateSuggestions()
-    }, 2000)
-  }
-}, { deep: true })
+// Note: We don't auto-regenerate on follow changes anymore
+// The filteredSuggestions computed will automatically hide followed users
+// Users can manually refresh if they want new suggestions
 </script>
 
 <template>
@@ -362,10 +342,10 @@ watch(following, (newFollowing) => {
             >
               <div class="w-14 h-14 rounded-xl overflow-hidden border-2 border-orange-200 group-hover:border-orange-300 transition-colors">
                 <img
-                  :src="suggestion.profile?.picture || generateFallbackAvatar(suggestion.pubkey)"
+                  :src="suggestion.profile?.picture || generateAvatar(suggestion.pubkey)"
                   :alt="suggestion.profile?.name || 'User'"
                   class="w-full h-full object-cover"
-                  @error="$event.target.src = generateFallbackAvatar(suggestion.pubkey)"
+                  @error="$event.target.src = generateAvatar(suggestion.pubkey)"
                 />
               </div>
               <!-- Mutual connection indicator -->
