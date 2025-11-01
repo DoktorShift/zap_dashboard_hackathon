@@ -33,7 +33,7 @@ const {
 const showDropdown = ref(false)
 const dropdownRef = ref(null)
 const filterType = ref('all')
-const displayCount = ref(20)
+const displayCount = ref(50)
 const scrollContainer = ref(null)
 
 // Close dropdown when clicking outside
@@ -54,7 +54,7 @@ onUnmounted(() => {
 const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value
   if (showDropdown.value) {
-    displayCount.value = 20
+    displayCount.value = 50
   }
 }
 
@@ -63,7 +63,7 @@ const handleScroll = (e) => {
   const { scrollTop, scrollHeight, clientHeight } = e.target
   if (scrollHeight - scrollTop <= clientHeight + 100) {
     if (displayCount.value < filteredNotifications.value.length) {
-      displayCount.value += 20
+      displayCount.value += 50
     }
   }
 }
@@ -280,7 +280,7 @@ const unreadFilteredCount = computed(() => {
               <button
                 v-for="filter in filterOptions"
                 :key="filter.value"
-                @click="filterType = filter.value; displayCount = 20"
+                @click="filterType = filter.value; displayCount = 50"
                 :class="[
                   'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200',
                   filterType === filter.value
@@ -306,6 +306,21 @@ const unreadFilteredCount = computed(() => {
                 <IconCheck class="w-3.5 h-3.5" />
                 All caught up!
               </span>
+            </div>
+
+            <!-- Storage Info Banner -->
+            <div v-if="notifications.length >= 200" class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs">
+              <div class="flex items-start gap-2">
+                <IconAlertCircle class="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div class="flex-1">
+                  <p class="text-blue-900 font-medium">
+                    Showing {{ notifications.length }} notifications
+                  </p>
+                  <p class="text-blue-700 mt-0.5">
+                    Older notifications are automatically archived. Calendar events are always kept.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -409,10 +424,18 @@ const unreadFilteredCount = computed(() => {
             </div>
 
             <!-- Load More Indicator -->
-            <div v-if="displayCount < filteredNotifications.length" class="p-4 text-center">
-              <div class="inline-flex items-center gap-2 text-sm text-gray-500">
+            <div v-if="displayCount < filteredNotifications.length" class="p-4 text-center bg-gradient-to-t from-gray-50 to-transparent">
+              <div class="inline-flex items-center gap-2 text-sm font-medium text-gray-600">
                 <IconChevronDown class="w-4 h-4 animate-bounce" />
-                <span>Scroll for more...</span>
+                <span>Showing {{ displayCount }} of {{ filteredNotifications.length }}</span>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">Scroll for more</p>
+            </div>
+
+            <!-- All Loaded Indicator -->
+            <div v-else-if="filteredNotifications.length > 20" class="p-3 text-center bg-gray-50 border-t border-gray-200">
+              <div class="text-xs text-gray-600 font-medium">
+                All {{ filteredNotifications.length }} notifications loaded
               </div>
             </div>
           </div>
