@@ -712,8 +712,18 @@ const getRSVPStatusIcon = (status) => {
 }
 
 const openRSVPModal = (event) => {
+  console.log('📝 Opening RSVP modal for event:', event?.title, event?.id)
+  
+  if (!event) {
+    console.error('❌ Cannot open RSVP modal: event is null or undefined')
+    return
+  }
+  
   selectedEvent.value = event
   const existingRSVP = getUserRSVP(event.id)
+  
+  console.log('📝 Existing RSVP:', existingRSVP)
+  
   if (existingRSVP) {
     rsvpForm.value = {
       status: existingRSVP.status,
@@ -727,7 +737,9 @@ const openRSVPModal = (event) => {
       note: ''
     }
   }
+  
   showRSVPModal.value = true
+  console.log('✅ RSVP modal opened. showRSVPModal:', showRSVPModal.value)
 }
 
 const closeRSVPModal = () => {
@@ -741,9 +753,19 @@ const closeRSVPModal = () => {
 }
 
 const handleViewInvitations = () => {
+  console.log('🔔 View Invitations clicked. Pending count:', pendingInvitations.value.length)
+  console.log('🔔 Pending invitations:', pendingInvitations.value)
+  
+  if (pendingInvitations.value.length === 0) {
+    console.warn('⚠️ No pending invitations to show')
+    return
+  }
+  
   if (pendingInvitations.value.length === 1) {
+    console.log('✅ Opening RSVP modal for single invitation')
     openRSVPModal(pendingInvitations.value[0])
-  } else if (pendingInvitations.value.length > 1) {
+  } else {
+    console.log('✅ Opening pending invitations modal for multiple invitations')
     showPendingInvitationsModal.value = true
   }
 }
