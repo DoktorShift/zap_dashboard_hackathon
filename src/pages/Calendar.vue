@@ -34,6 +34,7 @@ import listPlugin from '@fullcalendar/list'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useNostrCalendar } from '../composables/useNostrCalendar.js'
 import { formatDate, formatTime, isToday, isSameDay } from '../utils/dateUtils.js'
+import { generateAvatar } from '../utils/avatarGenerator.js'
 import UserSearchInput from '../components/UserSearchInput.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -808,6 +809,17 @@ const isFormValid = computed(() => {
          (modalEventForm.value.type === 'date-based' || modalEventForm.value.start_time)
 })
 
+// Helper function to get profile picture with fallback
+const getProfilePicture = (user) => {
+  if (user?.picture) {
+    return user.picture
+  }
+  if (user?.pubkey) {
+    return generateAvatar(user.pubkey)
+  }
+  return null
+}
+
 // Watch for events changes to refetch RSVPs
 watch(() => events.value.length, (newLength, oldLength) => {
   if (newLength > 0 && newLength !== oldLength) {
@@ -1479,15 +1491,11 @@ onMounted(() => {
                         <!-- Avatar -->
                         <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                           <img
-                            v-if="rsvp.picture"
-                            :src="rsvp.picture"
-                            :alt="rsvp.name"
+                            :src="getProfilePicture(rsvp)"
+                            :alt="rsvp.name || 'User'"
                             class="w-full h-full object-cover"
-                            @error="(e) => e.target.style.display = 'none'"
+                            @error="(e) => { e.target.src = generateAvatar(rsvp.pubkey) }"
                           />
-                          <div v-else class="w-full h-full flex items-center justify-center">
-                            <IconUser class="w-5 h-5 text-gray-400" />
-                          </div>
                         </div>
                         
                         <!-- User Info -->
@@ -1534,15 +1542,11 @@ onMounted(() => {
                         <!-- Avatar -->
                         <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                           <img
-                            v-if="participant.picture"
-                            :src="participant.picture"
-                            :alt="participant.name"
+                            :src="getProfilePicture(participant)"
+                            :alt="participant.name || 'User'"
                             class="w-full h-full object-cover"
-                            @error="(e) => e.target.style.display = 'none'"
+                            @error="(e) => { e.target.src = generateAvatar(participant.pubkey) }"
                           />
-                          <div v-else class="w-full h-full flex items-center justify-center">
-                            <IconUser class="w-5 h-5 text-gray-400" />
-                          </div>
                         </div>
                         
                         <!-- User Info -->
@@ -1636,15 +1640,11 @@ onMounted(() => {
                           <!-- Avatar -->
                           <div class="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                             <img
-                              v-if="rsvp.picture"
-                              :src="rsvp.picture"
-                              :alt="rsvp.name"
+                              :src="getProfilePicture(rsvp)"
+                              :alt="rsvp.name || 'User'"
                               class="w-full h-full object-cover"
-                              @error="(e) => e.target.style.display = 'none'"
+                              @error="(e) => { e.target.src = generateAvatar(rsvp.pubkey) }"
                             />
-                            <div v-else class="w-full h-full flex items-center justify-center">
-                              <IconUser class="w-5 h-5 text-gray-400" />
-                            </div>
                           </div>
                           
                           <div class="flex-1 min-w-0">
@@ -2111,6 +2111,7 @@ onMounted(() => {
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
