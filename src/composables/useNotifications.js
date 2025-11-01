@@ -75,7 +75,18 @@ const loadNotifications = () => {
 // Save notifications to localStorage
 const saveNotifications = () => {
   try {
-    const notificationsToSave = notifications.value.slice(0, 50)
+    // Always keep calendar notifications, limit others
+    const calendarNotifs = notifications.value.filter(n =>
+      n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
+      n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
+    )
+    const otherNotifs = notifications.value.filter(n =>
+      n.type !== NOTIFICATION_TYPES.CALENDAR_INVITE &&
+      n.type !== NOTIFICATION_TYPES.CALENDAR_EVENT_START
+    )
+
+    // Keep all calendar notifications + up to 200 other notifications
+    const notificationsToSave = [...calendarNotifs, ...otherNotifs.slice(0, 200)]
     localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notificationsToSave))
   } catch (error) {
     console.error('Failed to save notifications:', error)
@@ -118,9 +129,19 @@ const addNotification = (notification, isNewNotification = true) => {
 
   notifications.value.unshift(notification)
 
-  // Limit to 50 notifications
-  if (notifications.value.length > 50) {
-    notifications.value = notifications.value.slice(0, 50)
+  // Limit notifications, but always keep calendar events
+  if (notifications.value.length > 250) {
+    const calendarNotifs = notifications.value.filter(n =>
+      n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
+      n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
+    )
+    const otherNotifs = notifications.value.filter(n =>
+      n.type !== NOTIFICATION_TYPES.CALENDAR_INVITE &&
+      n.type !== NOTIFICATION_TYPES.CALENDAR_EVENT_START
+    )
+
+    // Keep all calendar notifications + most recent 200 others
+    notifications.value = [...calendarNotifs, ...otherNotifs.slice(0, 200)]
   }
 
   // Only show desktop notification and play sound for truly new notifications
