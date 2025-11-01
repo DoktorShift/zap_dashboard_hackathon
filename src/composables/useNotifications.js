@@ -13,7 +13,9 @@ const notificationSettings = ref({
   nwcTransactions: true,
   nostrZaps: true,
   balanceChange: false,
-  connectionStatus: false
+  connectionStatus: false,
+  calendarInvites: true,
+  calendarEventStarts: true
 })
 
 // Notification types
@@ -26,7 +28,9 @@ const NOTIFICATION_TYPES = {
   CONNECTION_ERROR: 'connection_error',
   WALLET_ERROR: 'wallet_error',
   PAYMENT_SUCCESS: 'payment_success',
-  PAYMENT_ERROR: 'payment_error'
+  PAYMENT_ERROR: 'payment_error',
+  CALENDAR_INVITE: 'calendar_invite',
+  CALENDAR_EVENT_START: 'calendar_event_start'
 }
 
 // Storage keys
@@ -35,6 +39,7 @@ const LAST_TRANSACTION_KEY = 'last_transaction_timestamp'
 const LAST_BALANCE_KEY = 'last_balance'
 const PROCESSED_TRANSACTIONS_KEY = 'processed_transactions'
 const NOTIFICATIONS_KEY = 'notifications_list'
+const NOTIFIED_EVENTS_KEY = 'notified_calendar_events'
 
 // Generate unique notification ID
 const generateNotificationId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
@@ -70,7 +75,18 @@ const loadNotifications = () => {
 // Save notifications to localStorage
 const saveNotifications = () => {
   try {
-    const notificationsToSave = notifications.value.slice(0, 50)
+    // Always keep calendar notifications, limit others
+    const calendarNotifs = notifications.value.filter(n =>
+      n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
+      n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
+    )
+    const otherNotifs = notifications.value.filter(n =>
+      n.type !== NOTIFICATION_TYPES.CALENDAR_INVITE &&
+      n.type !== NOTIFICATION_TYPES.CALENDAR_EVENT_START
+    )
+
+    // Keep all calendar notifications + up to 200 other notifications
+    const notificationsToSave = [...calendarNotifs, ...otherNotifs.slice(0, 200)]
     localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notificationsToSave))
   } catch (error) {
     console.error('Failed to save notifications:', error)
@@ -113,9 +129,19 @@ const addNotification = (notification, isNewNotification = true) => {
 
   notifications.value.unshift(notification)
 
-  // Limit to 50 notifications
-  if (notifications.value.length > 50) {
-    notifications.value = notifications.value.slice(0, 50)
+  // Limit notifications, but always keep calendar events
+  if (notifications.value.length > 250) {
+    const calendarNotifs = notifications.value.filter(n =>
+      n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
+      n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
+    )
+    const otherNotifs = notifications.value.filter(n =>
+      n.type !== NOTIFICATION_TYPES.CALENDAR_INVITE &&
+      n.type !== NOTIFICATION_TYPES.CALENDAR_EVENT_START
+    )
+
+    // Keep all calendar notifications + most recent 200 others
+    notifications.value = [...calendarNotifs, ...otherNotifs.slice(0, 200)]
   }
 
   // Only show desktop notification and play sound for truly new notifications
@@ -367,6 +393,45 @@ const handlePaymentError = (error) => {
   addNotification(notification)
 }
 
+// Handle calendar event invitation
+const handleCalendarInvite = (eventData) => {
+  if (!notificationSettings.value.calendarInvites) return
+
+  const notification = createNotification(
+    NOTIFICATION_TYPES.CALENDAR_INVITE,
+    '📅 Event Invitation',
+    `You've been invited to "${eventData.title}"`,
+    {
+      eventId: eventData.id,
+      eventTitle: eventData.title,
+      eventStart: eventData.start || eventData.start_date,
+      eventType: eventData.type,
+      organizer: eventData.organizer
+    }
+  )
+
+  addNotification(notification)
+}
+
+// Handle calendar event starting soon
+const handleCalendarEventStart = (eventData) => {
+  if (!notificationSettings.value.calendarEventStarts) return
+
+  const notification = createNotification(
+    NOTIFICATION_TYPES.CALENDAR_EVENT_START,
+    '📅 Event Starting',
+    `"${eventData.title}" is starting now`,
+    {
+      eventId: eventData.id,
+      eventTitle: eventData.title,
+      eventStart: eventData.start || eventData.start_date,
+      eventType: eventData.type
+    }
+  )
+
+  addNotification(notification)
+}
+
 // NWC Transaction monitoring
 let transactionPolling = null
 let lastTransactionTimestamp = null
@@ -495,6 +560,88 @@ const stopTransactionMonitoring = () => {
   processedTransactions.clear()
 }
 
+// Calendar Event Monitoring
+let eventMonitoring = null
+let notifiedEvents = new Set()
+
+const loadNotifiedEvents = () => {
+  try {
+    const stored = localStorage.getItem(NOTIFIED_EVENTS_KEY)
+    if (stored) {
+      notifiedEvents = new Set(JSON.parse(stored))
+      console.log('📌 Loaded', notifiedEvents.size, 'notified event IDs')
+    }
+  } catch (error) {
+    console.warn('Failed to load notified events:', error)
+  }
+}
+
+const saveNotifiedEvents = () => {
+  try {
+    const recentEvents = Array.from(notifiedEvents).slice(-500)
+    notifiedEvents = new Set(recentEvents)
+    localStorage.setItem(NOTIFIED_EVENTS_KEY, JSON.stringify(Array.from(notifiedEvents)))
+  } catch (error) {
+    console.warn('Failed to save notified events:', error)
+  }
+}
+
+const startEventMonitoring = (getEventsCallback) => {
+  if (eventMonitoring) {
+    console.log('⚠️ Event monitoring already active')
+    return
+  }
+
+  console.log('🔍 Starting calendar event monitoring...')
+  loadNotifiedEvents()
+
+  eventMonitoring = setInterval(() => {
+    try {
+      const events = getEventsCallback()
+      if (!events || events.length === 0) return
+
+      const now = Date.now()
+      const fiveMinutes = 5 * 60 * 1000
+
+      events.forEach(event => {
+        const eventKey = `${event.id}_start`
+
+        if (notifiedEvents.has(eventKey)) return
+
+        let eventStartTime
+        if (event.type === 'time-based' && event.start) {
+          eventStartTime = event.start * 1000
+        } else if (event.type === 'date-based' && event.start_date) {
+          eventStartTime = new Date(event.start_date).getTime()
+        } else {
+          return
+        }
+
+        const timeUntilEvent = eventStartTime - now
+
+        if (timeUntilEvent <= fiveMinutes && timeUntilEvent > -60000) {
+          console.log('📅 Event starting soon:', event.title)
+          handleCalendarEventStart(event)
+          notifiedEvents.add(eventKey)
+          saveNotifiedEvents()
+        }
+      })
+    } catch (error) {
+      console.warn('Event monitoring error:', error.message)
+    }
+  }, 30000)
+
+  console.log('✅ Calendar event monitoring started')
+}
+
+const stopEventMonitoring = () => {
+  if (eventMonitoring) {
+    clearInterval(eventMonitoring)
+    eventMonitoring = null
+    console.log('🛑 Calendar event monitoring stopped')
+  }
+}
+
 // Initialize notification system
 const initializeNotifications = async () => {
   console.log('🔔 Initializing notifications system...')
@@ -531,6 +678,7 @@ export function useNotifications() {
   // Cleanup on unmount
   onUnmounted(() => {
     stopTransactionMonitoring()
+    stopEventMonitoring()
   })
 
   return {
@@ -558,10 +706,14 @@ export function useNotifications() {
     handleConnectionError,
     handlePaymentSuccess,
     handlePaymentError,
+    handleCalendarInvite,
+    handleCalendarEventStart,
 
     // Monitoring
     startTransactionMonitoring,
     stopTransactionMonitoring,
+    startEventMonitoring,
+    stopEventMonitoring,
 
     // Constants
     NOTIFICATION_TYPES

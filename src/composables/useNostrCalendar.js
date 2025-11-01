@@ -1,7 +1,8 @@
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useNostrAuth } from './useNostrAuth.js'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { useNotifications } from './useNotifications.js'
 
 // NIP-52 Calendar Event Kinds
 const CALENDAR_EVENT_KINDS = {
@@ -46,6 +47,7 @@ const editingEvent = ref(null)
 
 export function useNostrCalendar() {
   const { currentUser, isAuthenticated, writeRelays, readRelays } = useNostrAuth()
+  const { handleCalendarInvite, startEventMonitoring, stopEventMonitoring } = useNotifications()
 
   // Computed properties
   const userEvents = computed(() => {
@@ -282,6 +284,22 @@ export function useNostrCalendar() {
                 events.value.push(eventData)
                 console.log(`✅ Event "${eventData.title}" added to events array. Total events: ${events.value.length}`)
                 console.log(`✅ Event titles in array:`, events.value.map(e => e.title))
+
+                // Check if current user is invited (not the organizer)
+                if (currentUser.value && eventData.pubkey !== currentUser.value.pubkey) {
+                  const isInvited = eventData.participants?.some(p => p.pubkey === currentUser.value.pubkey)
+                  if (isInvited) {
+                    console.log('📅 User is invited to event, triggering notification')
+                    handleCalendarInvite({
+                      id: eventData.id,
+                      title: eventData.title,
+                      start: eventData.start,
+                      start_date: eventData.start_date,
+                      type: eventData.type,
+                      organizer: eventData.pubkey
+                    })
+                  }
+                }
               } else {
                 console.log('⚠️ createEventData returned null for event:', event.id.substring(0, 16) + '...')
               }
@@ -1004,6 +1022,31 @@ export function useNostrCalendar() {
       events.value = []
     }
   }, { immediate: true })
+
+  // Start event monitoring when authenticated
+  onMounted(() => {
+    if (isAuthenticated.value) {
+      console.log('📅 Starting calendar event monitoring')
+      startEventMonitoring(() => events.value)
+    }
+  })
+
+  // Stop event monitoring on unmount
+  onUnmounted(() => {
+    console.log('📅 Stopping calendar event monitoring')
+    stopEventMonitoring()
+  })
+
+  // Watch authentication status to start/stop monitoring
+  watch(isAuthenticated, (authenticated) => {
+    if (authenticated) {
+      console.log('📅 User authenticated, starting event monitoring')
+      startEventMonitoring(() => events.value)
+    } else {
+      console.log('📅 User logged out, stopping event monitoring')
+      stopEventMonitoring()
+    }
+  })
 
   return {
     // State
