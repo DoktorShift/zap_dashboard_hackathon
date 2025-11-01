@@ -1,6 +1,7 @@
 import { ref, reactive, computed, watch, onUnmounted } from 'vue'
 import { nostrRelayManager } from '../utils/nostrRelayManager.js'
 import { useNostrAuth } from './useNostrAuth.js'
+import { useNotifications } from './useNotifications.js'
 import { getPaymentHashFromInvoice } from '../utils/invoiceUtils.js'
 import * as nip19 from 'nostr-tools/nip19'
 import { generateAvatar } from '../utils/avatarGenerator.js'
@@ -310,11 +311,10 @@ const extractAmountFromBolt11 = (bolt11) => {
 export function useContentZaps() {
   const { isAuthenticated, currentUser } = useNostrAuth()
 
-  // Import notification handler dynamically to avoid circular dependency
+  // Initialize notification handler
   let notificationHandler = null
-  const getNotificationHandler = async () => {
+  const getNotificationHandler = () => {
     if (!notificationHandler) {
-      const { useNotifications } = await import('./useNotifications.js')
       const { handleZapReceivedNostr } = useNotifications()
       notificationHandler = handleZapReceivedNostr
     }
@@ -396,11 +396,14 @@ export function useContentZaps() {
               console.log(`✅ Added zap: ${zapData.amount} sats from ${zapData.zapperPubkey.substring(0, 8)}... for event ${eventId}`)
 
               // Trigger notification for new zap receipt
-              getNotificationHandler().then(handler => {
+              try {
+                const handler = getNotificationHandler()
                 if (handler) {
                   handler(zapData)
                 }
-              }).catch(err => console.warn('Failed to trigger notification:', err))
+              } catch (err) {
+                console.warn('Failed to trigger notification:', err)
+              }
             }
           }
         },

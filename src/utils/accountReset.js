@@ -3,6 +3,7 @@
 
 import { initializeNWC } from './nwcClient.js'
 import { nostrRelayManager } from './nostrRelayManager.js'
+import { npubEncode } from 'nostr-tools/nip19'
 
 // Default reliable relays for fresh initialization
 const DEFAULT_RELAYS = [
@@ -143,7 +144,7 @@ export const initializeNostrAccount = async (pubkey, customRelays = null) => {
     console.log('🔑 Initializing new Nostr account...')
     
     // Create minimal user data
-    const npub = await import('nostr-tools/nip19').then(nip19 => nip19.npubEncode(pubkey))
+    const npub = npubEncode(pubkey)
     
     const userData = {
       pubkey,
