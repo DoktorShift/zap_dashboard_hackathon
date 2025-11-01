@@ -10,7 +10,12 @@ import {
   IconWallet,
   IconAlertCircle,
   IconCircleCheck,
-  IconSparkles
+  IconSparkles,
+  IconFilter,
+  IconCalendar,
+  IconClock,
+  IconChevronDown,
+  IconSettings
 } from '@iconify-prerendered/vue-tabler'
 import { useNotifications } from '../composables/useNotifications.js'
 import { generateAvatar } from '../utils/avatarGenerator.js'
@@ -18,7 +23,6 @@ import { generateAvatar } from '../utils/avatarGenerator.js'
 const {
   notifications,
   unreadCount,
-  recentNotifications,
   markAsRead,
   markAllAsRead,
   clearAllNotifications,
@@ -28,6 +32,9 @@ const {
 
 const showDropdown = ref(false)
 const dropdownRef = ref(null)
+const filterType = ref('all')
+const displayCount = ref(20)
+const scrollContainer = ref(null)
 
 // Close dropdown when clicking outside
 const handleClickOutside = (event) => {
@@ -46,7 +53,79 @@ onUnmounted(() => {
 
 const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value
+  if (showDropdown.value) {
+    displayCount.value = 20
+  }
 }
+
+// Infinite scroll handler
+const handleScroll = (e) => {
+  const { scrollTop, scrollHeight, clientHeight } = e.target
+  if (scrollHeight - scrollTop <= clientHeight + 100) {
+    if (displayCount.value < filteredNotifications.value.length) {
+      displayCount.value += 20
+    }
+  }
+}
+
+// Filter notifications
+const filteredNotifications = computed(() => {
+  if (filterType.value === 'all') return notifications.value
+  if (filterType.value === 'unread') return notifications.value.filter(n => !n.read)
+  if (filterType.value === 'zaps') {
+    return notifications.value.filter(n =>
+      n.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NWC ||
+      n.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR ||
+      n.type === NOTIFICATION_TYPES.ZAP_SENT
+    )
+  }
+  if (filterType.value === 'calendar') {
+    return notifications.value.filter(n =>
+      n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
+      n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
+    )
+  }
+  return notifications.value
+})
+
+// Displayed notifications (with infinite scroll limit)
+const displayedNotifications = computed(() => {
+  return filteredNotifications.value.slice(0, displayCount.value)
+})
+
+// Group notifications by date
+const groupedNotifications = computed(() => {
+  const groups = {
+    today: [],
+    yesterday: [],
+    thisWeek: [],
+    older: []
+  }
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const thisWeek = new Date(today)
+  thisWeek.setDate(thisWeek.getDate() - 7)
+
+  displayedNotifications.value.forEach(notification => {
+    const notifDate = new Date(notification.timestamp)
+    const notifDay = new Date(notifDate.getFullYear(), notifDate.getMonth(), notifDate.getDate())
+
+    if (notifDay.getTime() === today.getTime()) {
+      groups.today.push(notification)
+    } else if (notifDay.getTime() === yesterday.getTime()) {
+      groups.yesterday.push(notification)
+    } else if (notifDay >= thisWeek) {
+      groups.thisWeek.push(notification)
+    } else {
+      groups.older.push(notification)
+    }
+  })
+
+  return groups
+})
 
 const handleNotificationClick = (notification) => {
   markAsRead(notification.id)
@@ -69,6 +148,10 @@ const getNotificationIcon = (type) => {
     case NOTIFICATION_TYPES.PAYMENT_ERROR:
     case NOTIFICATION_TYPES.WALLET_ERROR:
       return IconAlertCircle
+    case NOTIFICATION_TYPES.CALENDAR_INVITE:
+      return IconCalendar
+    case NOTIFICATION_TYPES.CALENDAR_EVENT_START:
+      return IconClock
     default:
       return IconBell
   }
@@ -91,21 +174,12 @@ const getNotificationColor = (type) => {
     case NOTIFICATION_TYPES.PAYMENT_ERROR:
     case NOTIFICATION_TYPES.WALLET_ERROR:
       return 'text-red-600 bg-red-50'
+    case NOTIFICATION_TYPES.CALENDAR_INVITE:
+      return 'text-amber-600 bg-amber-50'
+    case NOTIFICATION_TYPES.CALENDAR_EVENT_START:
+      return 'text-red-600 bg-red-50'
     default:
       return 'text-gray-600 bg-gray-50'
-  }
-}
-
-const getBadgeColor = (type) => {
-  switch (type) {
-    case NOTIFICATION_TYPES.ZAP_RECEIVED_NWC:
-      return 'bg-blue-100 text-blue-700'
-    case NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR:
-      return 'bg-orange-100 text-orange-700'
-    case NOTIFICATION_TYPES.ZAP_SENT:
-      return 'bg-amber-100 text-amber-700'
-    default:
-      return 'bg-gray-100 text-gray-700'
   }
 }
 
@@ -114,23 +188,35 @@ const formatTime = (timestamp) => {
   const now = new Date()
   const diff = now - date
 
-  if (diff < 60000) return 'now'
+  if (diff < 60000) return 'Just now'
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
   if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`
-  return date.toLocaleDateString()
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+const formatFullTime = (timestamp) => {
+  const date = new Date(timestamp)
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  })
 }
 
 const hasUnread = computed(() => unreadCount.value > 0)
 
-const getSourceLabel = (notification) => {
-  if (notification.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NWC) {
-    return 'Wallet Transaction'
-  } else if (notification.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR) {
-    return 'Content Zap'
-  }
-  return null
-}
+const filterOptions = [
+  { value: 'all', label: 'All', icon: IconBell },
+  { value: 'unread', label: 'Unread', icon: IconBellRinging },
+  { value: 'zaps', label: 'Zaps', icon: IconBolt },
+  { value: 'calendar', label: 'Calendar', icon: IconCalendar }
+]
+
+const unreadFilteredCount = computed(() => {
+  return filteredNotifications.value.filter(n => !n.read).length
+})
 </script>
 
 <template>
@@ -138,15 +224,15 @@ const getSourceLabel = (notification) => {
     <!-- Notification Bell Button -->
     <button
       @click="toggleDropdown"
-      class="relative text-gray-500 hover:text-orange-600 p-2 rounded-lg transition-all duration-200 ease-out hover:bg-orange-50/50 touch-target group flex items-center justify-center"
+      class="relative text-gray-500 hover:text-amber-600 p-2 rounded-xl transition-all duration-200 hover:bg-amber-50 group flex items-center justify-center"
     >
-      <IconBellRinging v-if="hasUnread" class="w-5 h-5 text-orange-600 animate-[bounce_1s_ease-in-out_3]" />
-      <IconBell v-else class="w-5 h-5 group-hover:scale-110 transition-transform duration-200 ease-out" />
+      <IconBellRinging v-if="hasUnread" class="w-5 h-5 text-amber-600 animate-[wiggle_0.5s_ease-in-out_3]" />
+      <IconBell v-else class="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
 
       <!-- Unread Count Badge -->
       <span
         v-if="unreadCount > 0"
-        class="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-orange-500 to-orange-600 rounded-full text-white text-[10px] font-semibold flex items-center justify-center shadow-lg shadow-orange-500/30"
+        class="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-gradient-to-r from-red-500 to-red-600 rounded-full text-white text-[11px] font-bold flex items-center justify-center shadow-lg shadow-red-500/40 ring-2 ring-white"
       >
         {{ unreadCount > 99 ? '99+' : unreadCount }}
       </span>
@@ -156,154 +242,307 @@ const getSourceLabel = (notification) => {
     <transition name="dropdown">
       <div
         v-if="showDropdown"
-        class="absolute right-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-gray-100 z-50 max-h-[32rem] overflow-hidden"
+        class="absolute right-0 top-full mt-2 w-[420px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden"
+        style="max-height: calc(100vh - 120px);"
       >
         <!-- Header -->
-        <div class="p-4 border-b border-gray-100 bg-gradient-to-br from-orange-50/50 to-white">
-          <div class="flex items-center justify-between mb-1">
-            <h3 class="text-base font-semibold text-gray-900 flex items-center gap-2">
-              <IconBell class="w-5 h-5 text-orange-600" />
-              <span>Notifications</span>
-            </h3>
-            <div class="flex items-center gap-2">
-              <button
-                v-if="unreadCount > 0"
-                @click="markAllAsRead"
-                class="text-xs text-orange-600 hover:text-orange-700 font-medium px-2 py-1 rounded-lg hover:bg-orange-50 transition-all duration-200 flex items-center gap-1"
-                title="Mark all as read"
-              >
-                <IconCheck class="w-3.5 h-3.5" />
-                <span class="hidden sm:inline">All</span>
-              </button>
-              <button
-                v-if="notifications.length > 0"
-                @click="clearAllNotifications"
-                class="text-xs text-gray-500 hover:text-red-600 font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition-all duration-200"
-                title="Clear all"
-              >
-                <IconTrash class="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-          <p class="text-xs text-gray-600">
-            {{ unreadCount > 0 ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}` : 'You\'re all caught up!' }}
-          </p>
-        </div>
-
-        <!-- Notifications List -->
-        <div class="max-h-96 overflow-y-auto">
-          <div v-if="notifications.length === 0" class="p-8 text-center">
-            <IconBell class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-            <h4 class="text-base font-medium text-gray-900 mb-1">No notifications</h4>
-            <p class="text-gray-500 text-sm">You're all caught up!</p>
-          </div>
-
-          <div v-else class="divide-y divide-gray-100">
-            <div
-              v-for="notification in recentNotifications"
-              :key="notification.id"
-              @click="handleNotificationClick(notification)"
-              :class="[
-                'p-4 hover:bg-gradient-to-r cursor-pointer transition-all duration-200 relative group',
-                !notification.read
-                  ? 'bg-orange-50/30 hover:from-orange-50/40 hover:to-orange-50/20'
-                  : 'hover:from-gray-50/40 hover:to-gray-50/20'
-              ]"
-            >
-              <!-- Unread Indicator -->
-              <div
-                v-if="!notification.read"
-                class="absolute left-2 top-1/2 transform -translate-y-1/2 w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"
-              ></div>
-
-              <div class="flex items-start gap-3" :class="{ 'ml-3': !notification.read }">
-                <!-- Icon -->
-                <div :class="[
-                  'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 group-hover:scale-110',
-                  getNotificationColor(notification.type)
-                ]">
-                  <component :is="getNotificationIcon(notification.type)" class="w-5 h-5" />
-                </div>
-
-                <!-- Content -->
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-start justify-between gap-2 mb-1">
-                    <h4 class="text-sm font-semibold text-gray-900 truncate">
-                      {{ notification.title }}
-                    </h4>
-                    <span class="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
-                      {{ formatTime(notification.timestamp) }}
-                    </span>
-                  </div>
-
-                  <p class="text-sm text-gray-600 line-clamp-2 mb-2">
-                    {{ notification.message }}
-                  </p>
-
-                  <!-- Source Label for Zap Notifications -->
-                  <div v-if="getSourceLabel(notification)" class="flex items-center gap-2 mb-2">
-                    <span :class="[
-                      'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium',
-                      notification.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NWC
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-orange-100 text-orange-700'
-                    ]">
-                      {{ getSourceLabel(notification) }}
-                    </span>
-                  </div>
-
-                  <!-- Amount Badge -->
-                  <div v-if="notification.data?.amount" class="flex items-center gap-2">
-                    <span :class="[
-                      'inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold',
-                      getBadgeColor(notification.type)
-                    ]">
-                      <IconBolt class="w-3.5 h-3.5 mr-1" />
-                      {{ notification.data.amount.toLocaleString() }} sats
-                    </span>
-                  </div>
-
-                  <!-- Sender Info for Nostr Zaps -->
-                  <div v-if="notification.data?.sender && notification.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR" class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
-                    <img
-                      :src="notification.data.sender.picture || notification.data.sender.avatar || generateAvatar(notification.data.sender.pubkey)"
-                      :alt="notification.data.sender.name"
-                      class="w-5 h-5 rounded-full"
-                      @error="$event.target.src = generateAvatar(notification.data.sender.pubkey)"
-                    />
-                    <span class="text-xs text-gray-600">
-                      from <span class="font-medium text-gray-900">{{ notification.data.sender.name }}</span>
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Remove Button -->
+        <div class="sticky top-0 bg-white border-b border-gray-200 z-10">
+          <div class="p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <IconBell class="w-5 h-5 text-amber-600" />
+                <span>Notifications</span>
+              </h3>
+              <div class="flex items-center gap-1">
                 <button
-                  @click.stop="removeNotification(notification.id)"
-                  class="text-gray-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  v-if="unreadCount > 0"
+                  @click="markAllAsRead"
+                  class="text-xs text-amber-600 hover:text-amber-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-all duration-200 flex items-center gap-1.5"
+                  title="Mark all as read"
                 >
-                  <IconX class="w-4 h-4" />
+                  <IconCheck class="w-4 h-4" />
+                  <span>Mark all</span>
+                </button>
+                <button
+                  v-if="notifications.length > 0"
+                  @click="clearAllNotifications"
+                  class="text-xs text-gray-500 hover:text-red-600 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all duration-200 flex items-center gap-1.5"
+                  title="Clear all"
+                >
+                  <IconTrash class="w-4 h-4" />
+                  <span>Clear</span>
                 </button>
               </div>
             </div>
+
+            <!-- Filter Tabs -->
+            <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+              <button
+                v-for="filter in filterOptions"
+                :key="filter.value"
+                @click="filterType = filter.value; displayCount = 20"
+                :class="[
+                  'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200',
+                  filterType === filter.value
+                    ? 'bg-white text-amber-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                ]"
+              >
+                <component :is="filter.icon" class="w-4 h-4" />
+                <span>{{ filter.label }}</span>
+              </button>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="mt-3 flex items-center justify-between text-xs">
+              <span class="text-gray-600">
+                <span class="font-semibold text-gray-900">{{ filteredNotifications.length }}</span>
+                {{ filterType === 'all' ? 'total' : filterType }}
+              </span>
+              <span v-if="unreadFilteredCount > 0" class="text-amber-600 font-semibold">
+                {{ unreadFilteredCount }} unread
+              </span>
+              <span v-else class="text-green-600 font-semibold flex items-center gap-1">
+                <IconCheck class="w-3.5 h-3.5" />
+                All caught up!
+              </span>
+            </div>
           </div>
         </div>
 
-        <!-- Footer -->
-        <div v-if="notifications.length > 10" class="p-3 border-t border-gray-100 text-center bg-gradient-to-br from-white to-gray-50/50">
-          <span class="text-xs text-gray-500 font-medium">
-            Showing {{ recentNotifications.length }} of {{ notifications.length }} notifications
-          </span>
+        <!-- Notifications List -->
+        <div
+          ref="scrollContainer"
+          @scroll="handleScroll"
+          class="overflow-y-auto"
+          style="max-height: calc(100vh - 300px);"
+        >
+          <div v-if="filteredNotifications.length === 0" class="p-12 text-center">
+            <div class="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+              <IconBell class="w-10 h-10 text-gray-300" />
+            </div>
+            <h4 class="text-base font-semibold text-gray-900 mb-2">No notifications</h4>
+            <p class="text-gray-500 text-sm">
+              {{ filterType === 'all' ? "You're all caught up!" : `No ${filterType} notifications` }}
+            </p>
+          </div>
+
+          <div v-else>
+            <!-- Today -->
+            <div v-if="groupedNotifications.today.length > 0">
+              <div class="sticky top-0 bg-gray-50 px-4 py-2 border-b border-gray-200 z-5">
+                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Today</h4>
+              </div>
+              <div
+                v-for="notification in groupedNotifications.today"
+                :key="notification.id"
+                @click="handleNotificationClick(notification)"
+                :class="[
+                  'p-4 border-b border-gray-100 hover:bg-gradient-to-r cursor-pointer transition-all duration-200 relative group',
+                  !notification.read
+                    ? 'bg-amber-50/40 hover:from-amber-50/60 hover:to-amber-50/30'
+                    : 'hover:from-gray-50/60 hover:to-gray-50/30'
+                ]"
+              >
+                <NotificationItem :notification="notification" @remove="removeNotification" />
+              </div>
+            </div>
+
+            <!-- Yesterday -->
+            <div v-if="groupedNotifications.yesterday.length > 0">
+              <div class="sticky top-0 bg-gray-50 px-4 py-2 border-b border-gray-200 z-5">
+                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Yesterday</h4>
+              </div>
+              <div
+                v-for="notification in groupedNotifications.yesterday"
+                :key="notification.id"
+                @click="handleNotificationClick(notification)"
+                :class="[
+                  'p-4 border-b border-gray-100 hover:bg-gradient-to-r cursor-pointer transition-all duration-200 relative group',
+                  !notification.read
+                    ? 'bg-amber-50/40 hover:from-amber-50/60 hover:to-amber-50/30'
+                    : 'hover:from-gray-50/60 hover:to-gray-50/30'
+                ]"
+              >
+                <NotificationItem :notification="notification" @remove="removeNotification" />
+              </div>
+            </div>
+
+            <!-- This Week -->
+            <div v-if="groupedNotifications.thisWeek.length > 0">
+              <div class="sticky top-0 bg-gray-50 px-4 py-2 border-b border-gray-200 z-5">
+                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">This Week</h4>
+              </div>
+              <div
+                v-for="notification in groupedNotifications.thisWeek"
+                :key="notification.id"
+                @click="handleNotificationClick(notification)"
+                :class="[
+                  'p-4 border-b border-gray-100 hover:bg-gradient-to-r cursor-pointer transition-all duration-200 relative group',
+                  !notification.read
+                    ? 'bg-amber-50/40 hover:from-amber-50/60 hover:to-amber-50/30'
+                    : 'hover:from-gray-50/60 hover:to-gray-50/30'
+                ]"
+              >
+                <NotificationItem :notification="notification" @remove="removeNotification" />
+              </div>
+            </div>
+
+            <!-- Older -->
+            <div v-if="groupedNotifications.older.length > 0">
+              <div class="sticky top-0 bg-gray-50 px-4 py-2 border-b border-gray-200 z-5">
+                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Older</h4>
+              </div>
+              <div
+                v-for="notification in groupedNotifications.older"
+                :key="notification.id"
+                @click="handleNotificationClick(notification)"
+                :class="[
+                  'p-4 border-b border-gray-100 hover:bg-gradient-to-r cursor-pointer transition-all duration-200 relative group',
+                  !notification.read
+                    ? 'bg-amber-50/40 hover:from-amber-50/60 hover:to-amber-50/30'
+                    : 'hover:from-gray-50/60 hover:to-gray-50/30'
+                ]"
+              >
+                <NotificationItem :notification="notification" @remove="removeNotification" />
+              </div>
+            </div>
+
+            <!-- Load More Indicator -->
+            <div v-if="displayCount < filteredNotifications.length" class="p-4 text-center">
+              <div class="inline-flex items-center gap-2 text-sm text-gray-500">
+                <IconChevronDown class="w-4 h-4 animate-bounce" />
+                <span>Scroll for more...</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </transition>
   </div>
 </template>
 
+<script>
+// Notification Item Component (inline for simplicity)
+import { defineComponent, h } from 'vue'
+
+const NotificationItem = defineComponent({
+  props: ['notification'],
+  emits: ['remove'],
+  setup(props, { emit }) {
+    const { NOTIFICATION_TYPES } = useNotifications()
+
+    const getNotificationIcon = (type) => {
+      switch (type) {
+        case NOTIFICATION_TYPES.ZAP_RECEIVED_NWC: return IconWallet
+        case NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR: return IconSparkles
+        case NOTIFICATION_TYPES.ZAP_SENT: return IconBolt
+        case NOTIFICATION_TYPES.BALANCE_CHANGE: return IconWallet
+        case NOTIFICATION_TYPES.CONNECTION_SUCCESS:
+        case NOTIFICATION_TYPES.PAYMENT_SUCCESS: return IconCircleCheck
+        case NOTIFICATION_TYPES.CONNECTION_ERROR:
+        case NOTIFICATION_TYPES.PAYMENT_ERROR:
+        case NOTIFICATION_TYPES.WALLET_ERROR: return IconAlertCircle
+        case NOTIFICATION_TYPES.CALENDAR_INVITE: return IconCalendar
+        case NOTIFICATION_TYPES.CALENDAR_EVENT_START: return IconClock
+        default: return IconBell
+      }
+    }
+
+    const getNotificationColor = (type) => {
+      switch (type) {
+        case NOTIFICATION_TYPES.ZAP_RECEIVED_NWC: return 'text-blue-600 bg-blue-50'
+        case NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR: return 'text-orange-600 bg-orange-50'
+        case NOTIFICATION_TYPES.ZAP_SENT: return 'text-amber-600 bg-amber-50'
+        case NOTIFICATION_TYPES.BALANCE_CHANGE: return 'text-blue-600 bg-blue-50'
+        case NOTIFICATION_TYPES.CONNECTION_SUCCESS:
+        case NOTIFICATION_TYPES.PAYMENT_SUCCESS: return 'text-green-600 bg-green-50'
+        case NOTIFICATION_TYPES.CONNECTION_ERROR:
+        case NOTIFICATION_TYPES.PAYMENT_ERROR:
+        case NOTIFICATION_TYPES.WALLET_ERROR: return 'text-red-600 bg-red-50'
+        case NOTIFICATION_TYPES.CALENDAR_INVITE: return 'text-amber-600 bg-amber-50'
+        case NOTIFICATION_TYPES.CALENDAR_EVENT_START: return 'text-red-600 bg-red-50'
+        default: return 'text-gray-600 bg-gray-50'
+      }
+    }
+
+    const formatTime = (timestamp) => {
+      const date = new Date(timestamp)
+      const now = new Date()
+      const diff = now - date
+      if (diff < 60000) return 'Just now'
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`
+      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    }
+
+    return () => h('div', { class: 'flex items-start gap-3' }, [
+      // Unread indicator
+      !props.notification.read && h('div', {
+        class: 'absolute left-2 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-amber-200'
+      }),
+
+      // Icon
+      h('div', {
+        class: `w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 group-hover:scale-105 ${getNotificationColor(props.notification.type)} ${!props.notification.read ? 'ml-3' : ''}`
+      }, [
+        h(getNotificationIcon(props.notification.type), { class: 'w-5 h-5' })
+      ]),
+
+      // Content
+      h('div', { class: 'flex-1 min-w-0' }, [
+        h('div', { class: 'flex items-start justify-between gap-2 mb-1' }, [
+          h('h4', { class: 'text-sm font-semibold text-gray-900 leading-tight' }, props.notification.title),
+          h('span', { class: 'text-xs text-gray-500 whitespace-nowrap flex-shrink-0 font-medium' }, formatTime(props.notification.timestamp))
+        ]),
+        h('p', { class: 'text-sm text-gray-600 leading-snug mb-2' }, props.notification.message),
+
+        // Amount badge
+        props.notification.data?.amount && h('div', { class: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-700' }, [
+          h(IconBolt, { class: 'w-3.5 h-3.5' }),
+          h('span', `${props.notification.data.amount.toLocaleString()} sats`)
+        ]),
+
+        // Sender info for Nostr zaps
+        props.notification.data?.sender && props.notification.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR && h('div', { class: 'flex items-center gap-2 mt-2 pt-2 border-t border-gray-100' }, [
+          h('img', {
+            src: props.notification.data.sender.picture || props.notification.data.sender.avatar || generateAvatar(props.notification.data.sender.pubkey),
+            alt: props.notification.data.sender.name,
+            class: 'w-6 h-6 rounded-full ring-2 ring-white',
+            onerror: (e) => e.target.src = generateAvatar(props.notification.data.sender.pubkey)
+          }),
+          h('span', { class: 'text-xs text-gray-600' }, [
+            'from ',
+            h('span', { class: 'font-semibold text-gray-900' }, props.notification.data.sender.name)
+          ])
+        ])
+      ]),
+
+      // Remove button
+      h('button', {
+        onClick: (e) => {
+          e.stopPropagation()
+          emit('remove', props.notification.id)
+        },
+        class: 'text-gray-400 hover:text-red-600 transition-colors p-1.5 rounded-lg hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0'
+      }, [
+        h(IconX, { class: 'w-4 h-4' })
+      ])
+    ])
+  }
+})
+
+export default {
+  components: {
+    NotificationItem
+  }
+}
+</script>
+
 <style scoped>
 /* Dropdown transition */
 .dropdown-enter-active {
-  animation: dropdown-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: dropdown-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .dropdown-leave-active {
@@ -313,7 +552,7 @@ const getSourceLabel = (notification) => {
 @keyframes dropdown-in {
   from {
     opacity: 0;
-    transform: translateY(-12px) scale(0.95);
+    transform: translateY(-16px) scale(0.94);
   }
   to {
     opacity: 1;
@@ -328,33 +567,36 @@ const getSourceLabel = (notification) => {
   }
   to {
     opacity: 0;
-    transform: translateY(-8px) scale(0.98);
+    transform: translateY(-12px) scale(0.96);
   }
 }
 
-/* Line clamp utility */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
 }
 
 /* Custom scrollbar */
 .overflow-y-auto::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
+  background: #f3f4f6;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.3);
-  border-radius: 3px;
+  background: #d1d5db;
+  border-radius: 4px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: rgba(156, 163, 175, 0.5);
+  background: #9ca3af;
+}
+
+/* Smooth scrolling */
+.overflow-y-auto {
+  scroll-behavior: smooth;
 }
 </style>
