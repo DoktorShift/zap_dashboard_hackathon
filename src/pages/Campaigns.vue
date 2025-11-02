@@ -51,7 +51,9 @@ const {
   editCampaign,
   deleteCampaign,
   publishCampaign,
-  getCampaignProgress
+  getCampaignProgress,
+  isCampaignExpired,
+  isCampaignCompleted
 } = useCampaigns()
 const { handleConnectionSuccess } = useNotifications()
 
@@ -112,31 +114,6 @@ const campaignStats = computed(() => {
   
   return { total, active, completed, expired, totalRaised }
 })
-
-// Check if campaign is expired
-const isCampaignExpired = (campaign) => {
-  if (!campaign.closedAt) return false
-  
-  const now = Math.floor(Date.now() / 1000)
-  
-  // Only log if the campaign is close to expiration (within 24 hours)
-  const diff = campaign.closedAt - now
-  if (Math.abs(diff) < 24 * 60 * 60) {
-    console.log(`Campaign "${campaign.title}" expiration check:`)
-    console.log(`- Now: ${new Date(now * 1000).toLocaleString()}`)
-    console.log(`- Closes: ${new Date(campaign.closedAt * 1000).toLocaleString()}`)
-    console.log(`- Diff: ${diff} seconds (${Math.floor(diff / 3600)} hours)`)
-    console.log(`- Status: ${campaign.closedAt < now ? 'EXPIRED' : 'ACTIVE'}`)
-  }
-  
-  return campaign.closedAt < now
-}
-
-// Check if campaign is completed
-const isCampaignCompleted = (campaignId) => {
-  const progress = getCampaignProgress(campaignId)
-  return progress.percentage >= 100
-}
 
 // Handle Nostr login
 const handleNostrLogin = async () => {
@@ -548,7 +525,7 @@ watch(isAuthenticated, async (isAuth) => {
           :key="campaign.id"
           :campaign="campaign"
           @view="viewCampaign"
-          @edit="editCampaignHandler"
+          @edit="handleEditCampaign"
           @delete="openDeleteModal"
           @share="openShareModal"
         />

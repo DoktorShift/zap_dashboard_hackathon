@@ -295,7 +295,6 @@ const addZapToCampaignAggregatedZaps = (campaignId, zapData) => {
   
   // Add new zap
   existingZaps.push(zapData)
-  console.log('🔍 Starting enhanced campaign zap aggregation listener...')
   campaignAggregatedZaps.set(campaignId, existingZaps)
   
   console.log(`📊 Campaign now has ${existingZaps.length} total zaps (${existingZaps.reduce((sum, z) => sum + z.amount, 0)} sats total)`)
@@ -1173,16 +1172,6 @@ export function useCampaigns() {
     if (!campaign.closedAt) return false
     
     const now = Math.floor(Date.now() / 1000)
-    const diff = campaign.closedAt - now
-    const diffDays = Math.floor(diff / (24 * 60 * 60))
-    const diffHours = Math.floor((diff % (24 * 60 * 60)) / 3600)
-    
-    console.log(`Campaign expiration check for "${campaign.title}":`)
-    console.log(`- Current time: ${new Date(now * 1000).toLocaleString()}`)
-    console.log(`- End time: ${new Date(campaign.closedAt * 1000).toLocaleString()}`)
-    console.log(`- Time remaining: ${diffDays} days, ${diffHours} hours (${diff} seconds)`)
-    console.log(`- Status: ${campaign.closedAt < now ? 'EXPIRED' : 'ACTIVE'}`)
-    
     return campaign.closedAt < now
   }
 
@@ -1367,7 +1356,6 @@ export function useCampaigns() {
     fetchUserCampaigns,
     fetchCampaignById,
     publishCampaign,
-    editCampaign,
     editCampaign,
     deleteCampaign,
     shareCampaignOnNostr,
