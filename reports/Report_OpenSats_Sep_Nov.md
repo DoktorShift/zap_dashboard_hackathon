@@ -95,6 +95,24 @@ Below is the overview of pull requests we have completed with support from the O
 
 --------------------------------------------------------------------------------
 
+## Funding Allocation Overview
+
+**How the grant was used:**
+
+- **Testing & QA:** 200 USD  
+- **Development (Frontend & Backend):** 700 USD  
+- **Infrastructure:** 100 USD  
+- **Marketing & Community Engagement:** 150 USD  
+  - Includes Twitter Premium and Lightning Bounties
+
+## Pending Expenses
+
+- **UI Design:** Improving the interface for better usability and a more intuitive UX  
+- **Community Marketing:** Planning to hire a community member to support outreach or sponsor some BTC Podcast with one time Payment to make shoutouts and explain people the usecase of ZapTracker 
+- **Zap-Based Promotion:** Additional micro-promotions through zaps are being prepared
+
+---
+
 Notes
 
 - Although we have successfully completed all targets outlined in the initial funding request, one intended feature — a scheduled planner — cannot be implemented without introducing a database, which is outside the current project scope.
