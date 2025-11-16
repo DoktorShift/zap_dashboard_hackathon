@@ -1,4 +1,15 @@
-# ZapTracker OpenSats Report – Pull Requests
+# ZapTracker — OpenSats Report
+
+In addition to our list of pull requests, we have actively shared updates and progress on Geyser.fund. All public posts documenting a part of our work and can be found here:
+
+https://geyser.fund/project/zaptracker/posts
+
+---
+
+Below is the overview of pull requests we have completed with support from the OpenSats grant since September. OpenSats support is ongoing since December.
+
+**GitHub — Pull Requests**
+
 
 --------------------------------------------------------------------------------
 
@@ -84,9 +95,15 @@
 
 --------------------------------------------------------------------------------
 
-💛 _Supported by [OpenSats](https://opensats.org)_
+Notes
 
+- Although we have successfully completed all targets outlined in the initial funding request, one intended feature — a scheduled planner — cannot be implemented without introducing a database, which is outside the current project scope.
 
-Note:
-- While we have all Targets achived from the initinal funding Request we lack in possibility of creating a scheduled planner without implementing a database which is not intended.
-- Our work will go on. We are Planning to get hands on again in late December. Till then only popping up bugs will be fixed.
+- The project will continue. We plan to resume active development in late December, incorporating fresh input and ideas from the community.
+
+- Until then, we will focus solely on fixing any bugs that arise.
+
+Next Funding Request
+
+- We are likely to submit an additional funding request to OpenSats.
+Status: Pending.
