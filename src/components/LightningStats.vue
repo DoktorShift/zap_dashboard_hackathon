@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { IconBolt, IconTrendingUp, IconTrendingDown } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconTrendingUp, IconTrendingDown, IconWorld, IconServer, IconActivity } from '@iconify-prerendered/vue-tabler'
 import { getISPRanking, getNodeRankings, getLightningStatistics, formatSats } from '../utils/lightningStatsService.js'
 
 const isLoading = ref(true)
@@ -32,64 +32,69 @@ const networkCapacity = computed(() => {
   const btc = (sats / 100000000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   const usdPrice = 98000
   const usd = ((sats / 100000000) * usdPrice).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-  return { btc, usd }
+  return { btc, usd, sats }
 })
 
 const clearnetCapacity = computed(() => {
-  if (!ispData.value?.clearnetCapacity) return { btc: 'N/A' }
+  if (!ispData.value?.clearnetCapacity) return { btc: 'N/A', percentage: 0 }
   const sats = ispData.value.clearnetCapacity
-  const btc = (sats / 100000000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return { btc }
+  const btc = (sats / 100000000).toFixed(2)
+  const percentage = ((sats / stats.value.latest.total_capacity) * 100).toFixed(1)
+  return { btc, percentage }
 })
 
 const torCapacity = computed(() => {
-  if (!ispData.value?.torCapacity) return { btc: 'N/A' }
+  if (!ispData.value?.torCapacity) return { btc: 'N/A', percentage: 0 }
   const sats = ispData.value.torCapacity
-  const btc = (sats / 100000000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return { btc }
+  const btc = (sats / 100000000).toFixed(2)
+  const percentage = ((sats / stats.value.latest.total_capacity) * 100).toFixed(1)
+  return { btc, percentage }
 })
 
 const unknownCapacity = computed(() => {
-  if (!ispData.value?.unknownCapacity) return { btc: 'N/A' }
+  if (!ispData.value?.unknownCapacity) return { btc: 'N/A', percentage: 0 }
   const sats = ispData.value.unknownCapacity
-  const btc = (sats / 100000000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return { btc }
+  const btc = (sats / 100000000).toFixed(2)
+  const percentage = ((sats / stats.value.latest.total_capacity) * 100).toFixed(1)
+  return { btc, percentage }
 })
 
 const avgCapacity = computed(() => {
-  if (!stats.value?.latest) return { sats: 'N/A', change: 0 }
+  if (!stats.value?.latest) return { sats: 'N/A', btc: 'N/A' }
   const avg = Math.round(stats.value.latest.total_capacity / stats.value.latest.channel_count)
-  return { sats: avg.toLocaleString('en-US'), change: 0.4 }
-})
-
-const avgFee = computed(() => {
-  return { ppm: '823', change: 0.7 }
-})
-
-const avgBaseFee = computed(() => {
-  return { mSats: '950', change: -0.1 }
+  const btc = (avg / 100000000).toFixed(4)
+  return { sats: avg.toLocaleString('en-US'), btc }
 })
 
 const topISPs = computed(() => {
   if (!ispData.value?.ispRanking) return []
   return ispData.value.ispRanking.slice(0, 5).map(([asn, name, capacity, channels, nodes], index) => ({
+    rank: index + 1,
     asn,
-    name,
+    name: name.length > 25 ? name.substring(0, 25) + '...' : name,
     capacity,
     channels,
     nodes,
-    percentage: ((capacity / ispData.value.clearnetCapacity) * 100).toFixed(2)
+    percentage: ((capacity / ispData.value.clearnetCapacity) * 100).toFixed(1)
   }))
 })
 
 const topNodesByCapacity = computed(() => {
   if (!nodeRankings.value?.topByCapacity) return []
-  return nodeRankings.value.topByCapacity.slice(0, 5)
+  return nodeRankings.value.topByCapacity.slice(0, 5).map((node, index) => ({
+    ...node,
+    rank: index + 1,
+    alias: node.alias.length > 20 ? node.alias.substring(0, 20) + '...' : node.alias
+  }))
 })
 
 const topNodesByChannels = computed(() => {
   if (!nodeRankings.value?.topByChannels) return []
-  return nodeRankings.value.topByChannels.slice(0, 5)
+  return nodeRankings.value.topByChannels.slice(0, 5).map((node, index) => ({
+    ...node,
+    rank: index + 1,
+    alias: node.alias.length > 20 ? node.alias.substring(0, 20) + '...' : node.alias
+  }))
 })
 </script>
 
@@ -97,185 +102,217 @@ const topNodesByChannels = computed(() => {
   <div class="space-y-6">
     <!-- Loading State -->
     <div v-if="isLoading" class="flex flex-col items-center justify-center py-20">
-      <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-500 mb-4"></div>
-      <p class="text-gray-400">Loading Lightning Network data...</p>
+      <div class="relative w-16 h-16 mb-4">
+        <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full opacity-20 animate-pulse"></div>
+        <div class="absolute inset-2 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full flex items-center justify-center">
+          <IconBolt class="w-8 h-8 text-white animate-pulse" />
+        </div>
+      </div>
+      <p class="text-gray-600 font-medium">Loading Lightning Network data...</p>
     </div>
 
     <template v-else>
-      <!-- Main Stats Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Network Statistics Card -->
-        <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 text-white border border-gray-700">
-          <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6">Network Statistics</h2>
-
-          <div class="grid grid-cols-3 gap-4">
-            <!-- Capacity -->
-            <div class="space-y-1">
-              <p class="text-xs text-blue-400 font-medium">Capacity</p>
-              <p class="text-2xl font-bold">{{ networkCapacity.btc }}</p>
-              <p class="text-xs text-gray-400">BTC</p>
-              <p class="text-lg font-semibold text-green-400 mt-1">{{ networkCapacity.usd }} $</p>
+      <!-- Hero Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Total Capacity -->
+        <div class="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-lg">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <IconBolt class="w-6 h-6" />
             </div>
-
-            <!-- Nodes -->
-            <div class="space-y-1">
-              <p class="text-xs text-blue-400 font-medium">Nodes</p>
-              <p class="text-2xl font-bold">{{ stats?.latest?.node_count?.toLocaleString() || 'N/A' }}</p>
-              <p class="text-xs text-green-400 flex items-center space-x-1">
-                <IconTrendingUp class="w-3 h-3" />
-                <span>+0.4%</span>
-              </p>
-            </div>
-
-            <!-- Channels -->
-            <div class="space-y-1">
-              <p class="text-xs text-blue-400 font-medium">Channels</p>
-              <p class="text-2xl font-bold">{{ stats?.latest?.channel_count?.toLocaleString() || 'N/A' }}</p>
-              <p class="text-xs text-green-400 flex items-center space-x-1">
-                <IconTrendingUp class="w-3 h-3" />
-                <span>+0.4%</span>
-              </p>
+            <div class="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium flex items-center space-x-1">
+              <IconTrendingUp class="w-3 h-3" />
+              <span>+0.4%</span>
             </div>
           </div>
+          <p class="text-white/80 text-sm font-medium mb-1">Network Capacity</p>
+          <p class="text-3xl font-bold mb-1">{{ networkCapacity.btc }} BTC</p>
+          <p class="text-white/90 text-lg font-semibold">${{ networkCapacity.usd }}</p>
         </div>
 
-        <!-- Channel Statistics Card -->
-        <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 text-white border border-gray-700">
-          <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6">Channel Statistics</h2>
-
-          <div class="grid grid-cols-3 gap-4">
-            <!-- Avg Capacity -->
-            <div class="space-y-1">
-              <p class="text-xs text-blue-400 font-medium">Avg Capacity</p>
-              <p class="text-2xl font-bold">{{ avgCapacity.sats }}</p>
-              <p class="text-xs text-gray-400">sats</p>
-              <p class="text-xs text-green-400 flex items-center space-x-1 mt-1">
-                <IconTrendingUp class="w-3 h-3" />
-                <span>+{{ avgCapacity.change }}%</span>
-              </p>
+        <!-- Total Nodes -->
+        <div class="bg-white rounded-2xl p-6 border-2 border-orange-100 shadow-sm hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center">
+              <IconServer class="w-6 h-6 text-orange-600" />
             </div>
-
-            <!-- Avg Fee -->
-            <div class="space-y-1">
-              <p class="text-xs text-blue-400 font-medium">Avg Fee Rate</p>
-              <p class="text-2xl font-bold">{{ avgFee.ppm }}</p>
-              <p class="text-xs text-gray-400">ppm</p>
-              <p class="text-xs text-green-400 flex items-center space-x-1 mt-1">
-                <IconTrendingUp class="w-3 h-3" />
-                <span>+{{ avgFee.change }}%</span>
-              </p>
+            <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
+              <IconTrendingUp class="w-3 h-3" />
+              <span>+0.4%</span>
             </div>
+          </div>
+          <p class="text-gray-600 text-sm font-medium mb-1">Active Nodes</p>
+          <p class="text-3xl font-bold text-gray-900">{{ stats?.latest?.node_count?.toLocaleString() || 'N/A' }}</p>
+          <p class="text-gray-500 text-sm mt-1">Running worldwide</p>
+        </div>
 
-            <!-- Avg Base Fee -->
-            <div class="space-y-1">
-              <p class="text-xs text-blue-400 font-medium">Avg Base Fee</p>
-              <p class="text-2xl font-bold">{{ avgBaseFee.mSats }}</p>
-              <p class="text-xs text-gray-400">mSats</p>
-              <p class="text-xs text-red-400 flex items-center space-x-1 mt-1">
-                <IconTrendingDown class="w-3 h-3" />
-                <span>{{ avgBaseFee.change }}%</span>
-              </p>
+        <!-- Total Channels -->
+        <div class="bg-white rounded-2xl p-6 border-2 border-orange-100 shadow-sm hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between mb-4">
+            <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center">
+              <IconActivity class="w-6 h-6 text-orange-600" />
             </div>
+            <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
+              <IconTrendingUp class="w-3 h-3" />
+              <span>+0.4%</span>
+            </div>
+          </div>
+          <p class="text-gray-600 text-sm font-medium mb-1">Payment Channels</p>
+          <p class="text-3xl font-bold text-gray-900">{{ stats?.latest?.channel_count?.toLocaleString() || 'N/A' }}</p>
+          <p class="text-gray-500 text-sm mt-1">Open connections</p>
+        </div>
+      </div>
+
+      <!-- Capacity Distribution -->
+      <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-lg font-bold text-gray-900">Network Distribution</h3>
+            <p class="text-sm text-gray-600">Capacity by network type</p>
+          </div>
+          <IconWorld class="w-8 h-8 text-orange-500" />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium text-blue-900">Clearnet</span>
+              <span class="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-1 rounded-full">{{ clearnetCapacity.percentage }}%</span>
+            </div>
+            <p class="text-2xl font-bold text-blue-900">{{ clearnetCapacity.btc }}</p>
+            <p class="text-xs text-blue-700 mt-1">BTC</p>
+          </div>
+
+          <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium text-purple-900">Tor</span>
+              <span class="text-xs font-semibold text-purple-700 bg-purple-100 px-2 py-1 rounded-full">{{ torCapacity.percentage }}%</span>
+            </div>
+            <p class="text-2xl font-bold text-purple-900">{{ torCapacity.btc }}</p>
+            <p class="text-xs text-purple-700 mt-1">BTC</p>
+          </div>
+
+          <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-4 border border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium text-gray-900">Unknown</span>
+              <span class="text-xs font-semibold text-gray-700 bg-gray-200 px-2 py-1 rounded-full">{{ unknownCapacity.percentage }}%</span>
+            </div>
+            <p class="text-2xl font-bold text-gray-900">{{ unknownCapacity.btc }}</p>
+            <p class="text-xs text-gray-700 mt-1">BTC</p>
           </div>
         </div>
       </div>
 
-      <!-- Capacity Breakdown -->
-      <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 text-white border border-gray-700">
-        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6">Capacity by Network Type</h2>
-
+      <!-- Channel Metrics -->
+      <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+        <h3 class="text-lg font-bold text-gray-900 mb-6">Channel Metrics</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="space-y-2">
-            <p class="text-xs text-blue-400 font-medium">Clearnet Capacity</p>
-            <p class="text-2xl font-bold">{{ clearnetCapacity.btc }}</p>
-            <p class="text-xs text-gray-400">BTC</p>
+          <div>
+            <p class="text-sm text-gray-600 mb-2">Average Capacity</p>
+            <p class="text-2xl font-bold text-orange-600">{{ avgCapacity.sats }}</p>
+            <p class="text-sm text-gray-500 mt-1">sats ({{ avgCapacity.btc }} BTC)</p>
           </div>
-
-          <div class="space-y-2">
-            <p class="text-xs text-blue-400 font-medium">Tor Capacity</p>
-            <p class="text-2xl font-bold">{{ torCapacity.btc }}</p>
-            <p class="text-xs text-gray-400">BTC</p>
+          <div>
+            <p class="text-sm text-gray-600 mb-2">Average Fee Rate</p>
+            <p class="text-2xl font-bold text-orange-600">823</p>
+            <p class="text-sm text-gray-500 mt-1">ppm <span class="text-green-600">+0.7%</span></p>
           </div>
+          <div>
+            <p class="text-sm text-gray-600 mb-2">Average Base Fee</p>
+            <p class="text-2xl font-bold text-orange-600">950</p>
+            <p class="text-sm text-gray-500 mt-1">mSats <span class="text-red-600">-0.1%</span></p>
+          </div>
+        </div>
+      </div>
 
-          <div class="space-y-2">
-            <p class="text-xs text-blue-400 font-medium">Unknown Capacity</p>
-            <p class="text-2xl font-bold">{{ unknownCapacity.btc }}</p>
-            <p class="text-xs text-gray-400">BTC</p>
+      <!-- Top ISPs -->
+      <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-lg font-bold text-gray-900">Top Internet Service Providers</h3>
+            <p class="text-sm text-gray-600">Largest infrastructure hosting</p>
           </div>
         </div>
 
-        <!-- ISP Distribution Pie Chart Placeholder -->
-        <div v-if="topISPs.length > 0" class="mt-8">
-          <div class="flex items-center justify-between mb-4">
-            <p class="text-sm font-medium text-gray-300">Top ISPs ({{ (topISPs.reduce((sum, isp) => sum + parseFloat(isp.percentage), 0)).toFixed(1) }}%)</p>
-            <a href="#" class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors">View more »</a>
-          </div>
-
-          <div class="space-y-2">
-            <div v-for="isp in topISPs" :key="isp.asn" class="flex items-center justify-between text-sm">
-              <span class="text-gray-400">{{ isp.name }}</span>
-              <span class="text-white font-medium">{{ isp.percentage }}%</span>
-            </div>
-          </div>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-gray-200">
+                <th class="text-left py-3 px-2 text-xs font-semibold text-gray-600 uppercase">#</th>
+                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Provider</th>
+                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Capacity</th>
+                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="isp in topISPs" :key="isp.asn" class="border-b border-gray-100 hover:bg-orange-50 transition-colors">
+                <td class="py-3 px-2 text-sm font-bold text-gray-900">{{ isp.rank }}</td>
+                <td class="py-3 px-4">
+                  <p class="text-sm font-medium text-gray-900">{{ isp.name }}</p>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <p class="text-sm font-semibold text-gray-900">{{ (isp.capacity / 100000000).toFixed(2) }} BTC</p>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                    {{ isp.percentage }}%
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
       <!-- Rankings Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top Nodes by Liquidity -->
-        <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 text-white border border-gray-700">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Liquidity Ranking</h2>
-            <a href="#" class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors flex items-center space-x-1">
-              <span>View more</span>
-              <span>»</span>
-            </a>
+        <!-- Top Nodes by Capacity -->
+        <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+          <div class="mb-6">
+            <h3 class="text-lg font-bold text-gray-900">Top Nodes by Capacity</h3>
+            <p class="text-sm text-gray-600">Most liquidity</p>
           </div>
 
-          <div class="space-y-1">
-            <div class="grid grid-cols-3 gap-2 text-xs text-gray-500 font-semibold pb-2 border-b border-gray-700">
-              <div>Alias</div>
-              <div class="text-right">Liquidity</div>
-              <div class="text-right">USD</div>
-            </div>
-
-            <div v-for="(node, index) in topNodesByCapacity" :key="node.publicKey"
-              class="grid grid-cols-3 gap-2 py-2 hover:bg-gray-800/50 rounded transition-colors">
-              <div class="text-sm text-cyan-400 font-medium truncate">{{ node.alias }}</div>
-              <div class="text-sm text-right">
-                <span class="text-white">{{ (node.capacity / 100000000).toFixed(2) }}</span>
-                <span class="text-gray-500 text-xs ml-1">BTC</span>
-                <span class="text-gray-600 text-xs ml-1">({{ ((node.capacity / stats.latest.total_capacity) * 100).toFixed(1) }}%)</span>
+          <div class="space-y-3">
+            <div v-for="node in topNodesByCapacity" :key="node.publicKey"
+              class="flex items-center justify-between p-3 rounded-xl hover:bg-orange-50 transition-colors border border-gray-100">
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-400 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                  {{ node.rank }}
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-gray-900">{{ node.alias }}</p>
+                  <p class="text-xs text-gray-500">{{ (node.capacity / 100000000).toFixed(2) }} BTC</p>
+                </div>
               </div>
-              <div class="text-sm text-right text-green-400 font-semibold">
-                {{ ((node.capacity / 100000000) * 98000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }} $
+              <div class="text-right">
+                <p class="text-sm font-bold text-orange-600">${{ ((node.capacity / 100000000) * 98000).toLocaleString('en-US', { maximumFractionDigits: 0 }) }}</p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Top Nodes by Channels -->
-        <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 text-white border border-gray-700">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Connectivity Ranking</h2>
-            <a href="#" class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors flex items-center space-x-1">
-              <span>View more</span>
-              <span>»</span>
-            </a>
+        <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+          <div class="mb-6">
+            <h3 class="text-lg font-bold text-gray-900">Top Nodes by Channels</h3>
+            <p class="text-sm text-gray-600">Most connected</p>
           </div>
 
-          <div class="space-y-1">
-            <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 font-semibold pb-2 border-b border-gray-700">
-              <div>Alias</div>
-              <div class="text-right">Channels</div>
-            </div>
-
-            <div v-for="(node, index) in topNodesByChannels" :key="node.publicKey"
-              class="grid grid-cols-2 gap-2 py-2 hover:bg-gray-800/50 rounded transition-colors">
-              <div class="text-sm text-cyan-400 font-medium truncate">{{ node.alias }}</div>
-              <div class="text-sm text-right">
-                <span class="text-white font-semibold">{{ node.channels.toLocaleString() }}</span>
-                <span class="text-gray-600 text-xs ml-1">({{ ((node.channels / stats.latest.channel_count) * 100).toFixed(1) }}%)</span>
+          <div class="space-y-3">
+            <div v-for="node in topNodesByChannels" :key="node.publicKey"
+              class="flex items-center justify-between p-3 rounded-xl hover:bg-orange-50 transition-colors border border-gray-100">
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-400 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                  {{ node.rank }}
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-gray-900">{{ node.alias }}</p>
+                  <p class="text-xs text-gray-500">{{ node.channels.toLocaleString() }} channels</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-bold text-orange-600">{{ ((node.channels / stats.latest.channel_count) * 100).toFixed(2) }}%</p>
               </div>
             </div>
           </div>
@@ -286,16 +323,16 @@ const topNodesByChannels = computed(() => {
 </template>
 
 <style scoped>
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
+@keyframes pulse-slow {
+  0%, 100% {
     opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
   }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
+.animate-pulse {
+  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 </style>
