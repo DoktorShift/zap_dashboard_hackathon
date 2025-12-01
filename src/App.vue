@@ -32,6 +32,7 @@ import { nostrRelayManager } from './utils/nostrRelayManager.js'
 import { useNostrNotes } from './composables/useNostrNotes.js'
 import Calendar from './pages/Calendar.vue'
 import WelcomeModal from './components/WelcomeModal.vue'
+import HelpModal from './components/HelpModal.vue'
 
 
 // UI state for dismissible banners
@@ -172,6 +173,7 @@ const currentPage = ref('dashboard')
 const activeSettingsTab = ref('nostr')
 const showConnectionModal = ref(false)
 const showWelcomeModal = ref(true)
+const showHelpModal = ref(false)
 const isMobileMenuOpen = ref(false)
 const isRefreshingData = ref(false)
 const dataLoadingProgress = ref({
@@ -828,6 +830,20 @@ const handleWelcomeClose = () => {
   showWelcomeModal.value = false
 }
 
+// Help modal handlers
+const handleShowHelp = () => {
+  showHelpModal.value = true
+}
+
+const handleHelpClose = () => {
+  showHelpModal.value = false
+}
+
+const handleTriggerLogin = () => {
+  console.log('🚀 Triggering nostr-login widget from App...')
+  document.dispatchEvent(new Event('nlLaunch'))
+}
+
 // Onboarding checklist handlers
 const handleChecklistTaskAction = (action) => {
   switch (action) {
@@ -888,10 +904,11 @@ const handleChecklistTaskAction = (action) => {
     <div :class="['flex-1 flex flex-col h-screen overflow-hidden', isWritingMode ? 'lg:ml-0' : 'lg:ml-64']">
       <!-- Fixed Top Bar -->
       <header :class="['sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-orange-100/50', isWritingMode ? 'lg:hidden' : '']">
-        <TopBar 
-          @show-connection="showConnectionModal = true" 
+        <TopBar
+          @show-connection="showConnectionModal = true"
           @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen"
           @change-page="changePage"
+          @show-help="handleShowHelp"
         />
       </header>
       
@@ -1059,12 +1076,13 @@ const handleChecklistTaskAction = (action) => {
           <!-- Page Content with Transition -->
           <transition name="page-fade" mode="out-in">
             <ErrorBoundary v-if="!pageLoadingError && !isPageLoading">
-              <component 
-                :is="components[currentPage]" 
+              <component
+                :is="components[currentPage]"
                 :key="currentPage"
                 :initial-tab="currentPage === 'settings' ? activeSettingsTab : undefined"
                 @change-page="changePage"
                 @writing-mode-change="handleWritingModeChange"
+                @trigger-login="handleTriggerLogin"
               />
             </ErrorBoundary>
           </transition>
@@ -1077,6 +1095,16 @@ const handleChecklistTaskAction = (action) => {
       <WelcomeModal
         v-if="showWelcomeModal"
         @close="handleWelcomeClose"
+      />
+    </Teleport>
+
+    <!-- Help Modal - Teleported to modal-root -->
+    <Teleport to="#modal-root">
+      <HelpModal
+        v-if="showHelpModal"
+        :auto-show="false"
+        @close="handleHelpClose"
+        @trigger-login="handleTriggerLogin"
       />
     </Teleport>
 

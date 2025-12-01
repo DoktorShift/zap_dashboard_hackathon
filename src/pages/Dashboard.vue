@@ -1,5 +1,7 @@
 <script setup>
-import { computed, inject, ref, onMounted, watch } from 'vue'
+import { computed, inject, ref, onMounted, watch, defineEmits } from 'vue'
+
+const emit = defineEmits(['trigger-login'])
 import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -436,7 +438,10 @@ const getTrendColorClass = (change) => {
 
 <template>
   <!-- Empty State - No Authentication -->
-  <EmptyStateDashboard v-if="!isAuthenticated" />
+  <EmptyStateDashboard
+    v-if="!isAuthenticated"
+    @trigger-login="$emit('trigger-login')"
+  />
 
   <!-- Loading State -->
   <LoadingStateDashboard v-else-if="isLoading" />

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   IconBolt,
   IconChartBar,
@@ -8,8 +8,13 @@ import {
   IconTarget,
   IconUsers,
   IconCurrencyBitcoin,
-  IconTrendingUp
+  IconTrendingUp,
+  IconWorld,
+  IconLogin,
+  IconRefresh
 } from '@iconify-prerendered/vue-tabler'
+import { useLightningNetwork } from '../composables/useLightningNetwork.js'
+import LightningNetworkMap from './LightningNetworkMap.vue'
 
 const props = defineProps({
   isAuthenticated: {
@@ -18,33 +23,42 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['trigger-login'])
+
+const showMap = ref(false)
+
+// Use Lightning Network data
+const {
+  globalStats,
+  formattedStats,
+  isLoading,
+  networkHealth,
+  refresh
+} = useLightningNetwork()
+
 // Trigger nostr-login widget
 const handleConnect = () => {
   console.log('🚀 Triggering nostr-login widget from EmptyStateDashboard...')
-  document.dispatchEvent(new Event('nlLaunch'))
+  emit('trigger-login')
 }
 
-// Network stats (these would come from backend in production)
-const networkStats = [
-  {
-    icon: IconBolt,
-    value: '1.2M+',
-    label: 'Total Zaps Tracked',
-    description: 'Across the ZapTracker network'
-  },
-  {
-    icon: IconCurrencyBitcoin,
-    value: '50K',
-    label: 'Sats Average Daily',
-    description: 'Median creator earnings'
-  },
-  {
-    icon: IconUsers,
-    value: '5,000+',
-    label: 'Active Users',
-    description: 'Growing every day'
+const toggleMap = () => {
+  showMap.value = !showMap.value
+}
+
+// Network health color
+const healthColor = computed(() => {
+  switch (networkHealth.value) {
+    case 'excellent':
+      return 'text-green-600 bg-green-50 border-green-200'
+    case 'good':
+      return 'text-blue-600 bg-blue-50 border-blue-200'
+    case 'fair':
+      return 'text-yellow-600 bg-yellow-50 border-yellow-200'
+    default:
+      return 'text-gray-600 bg-gray-50 border-gray-200'
   }
-]
+})
 
 const features = [
   {
@@ -80,181 +94,271 @@ const features = [
   {
     icon: IconUsers,
     name: 'Audience Insights',
-    description: 'Understand and grow your supporter base',
+    description: 'Understand your supporters and grow your community',
     image: '/ZapStore_Preview_2.png'
   }
 ]
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50">
+  <div class="space-y-8 animate-fade-in">
     <!-- Hero Section -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 pb-16">
-      <div class="text-center space-y-8">
-        <!-- Animated Logo -->
-        <div class="flex justify-center">
-          <div class="relative">
-            <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full blur-2xl opacity-30 animate-pulse"></div>
-            <div class="relative w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full flex items-center justify-center shadow-xl">
-              <IconBolt class="w-12 h-12 sm:w-16 sm:h-16 text-white" />
-            </div>
+    <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-2xl shadow-2xl">
+      <div class="absolute inset-0 bg-grid-pattern opacity-10"></div>
+      <div class="relative px-6 py-12 sm:px-12 sm:py-16 text-center">
+        <div class="flex justify-center mb-6">
+          <div class="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-xl animate-pulse-glow">
+            <IconBolt class="w-10 h-10 text-white" />
           </div>
         </div>
-
-        <!-- Main Headline -->
-        <div class="space-y-4">
-          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900">
-            Track Your Lightning Earnings
-            <span class="block text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-amber-500">
-              Like a Pro
-            </span>
-          </h1>
-          <p class="text-xl sm:text-2xl text-gray-600 max-w-3xl mx-auto">
-            ZapTracker gives you complete visibility into your Bitcoin Lightning ecosystem
-          </p>
-        </div>
-
-        <!-- CTA Buttons -->
-        <div class="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-          <button
-            @click="handleConnect"
-            class="px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg font-bold rounded-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2"
-          >
-            <IconBolt class="w-6 h-6" />
-            <span>Connect with Nostr</span>
-          </button>
-          <a
-            href="https://usenostr.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="px-8 py-4 bg-white border-2 border-orange-500 text-orange-600 text-lg font-semibold rounded-xl hover:bg-orange-50 transition-all duration-200 flex items-center justify-center space-x-2"
-          >
-            <span>Learn About Nostr</span>
-            <IconTrendingUp class="w-5 h-5" />
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Network Stats Section -->
-    <div class="bg-white/80 backdrop-blur-sm border-y border-orange-100 py-16">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-12">
-          <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Join the Lightning Community
-          </h2>
-          <p class="text-lg text-gray-600">
-            Trusted by creators and builders worldwide
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div
-            v-for="(stat, index) in networkStats"
-            :key="index"
-            class="bg-white p-8 rounded-2xl shadow-lg border border-orange-100 hover:shadow-xl transition-all duration-300 hover:scale-105"
-          >
-            <div class="flex flex-col items-center text-center space-y-4">
-              <div class="w-16 h-16 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full flex items-center justify-center">
-                <component :is="stat.icon" class="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <div class="text-4xl font-bold text-gray-900 mb-2">{{ stat.value }}</div>
-                <div class="text-lg font-semibold text-gray-700 mb-1">{{ stat.label }}</div>
-                <div class="text-sm text-gray-500">{{ stat.description }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Features Section -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-          Everything You Need to Succeed
-        </h2>
-        <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-          Powerful features designed to help you track, analyze, and grow your Lightning presence
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div
-          v-for="(feature, index) in features"
-          :key="index"
-          class="group bg-white rounded-2xl shadow-lg border border-orange-100 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:scale-105"
-        >
-          <!-- Feature Image -->
-          <div class="relative h-48 bg-gradient-to-br from-orange-100 to-amber-100 overflow-hidden">
-            <img
-              :src="feature.image"
-              :alt="feature.name"
-              class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-300"
-              loading="lazy"
-            />
-            <div class="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent"></div>
-          </div>
-
-          <!-- Feature Content -->
-          <div class="p-6">
-            <div class="flex items-start space-x-4">
-              <div class="w-12 h-12 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                <component :is="feature.icon" class="w-6 h-6 text-white" />
-              </div>
-              <div class="flex-1">
-                <h3 class="text-xl font-bold text-gray-900 mb-2">{{ feature.name }}</h3>
-                <p class="text-sm text-gray-600">{{ feature.description }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom CTA Section -->
-    <div class="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 py-20">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 class="text-3xl sm:text-4xl font-bold text-white mb-6">
-          Ready to Get Started?
-        </h2>
-        <p class="text-xl text-orange-50 mb-8">
-          Connect your Nostr account in seconds and start tracking your Lightning earnings
+        <h1 class="text-3xl sm:text-5xl font-bold text-white mb-4 drop-shadow-lg">
+          Welcome to ZapTracker
+        </h1>
+        <p class="text-lg sm:text-xl text-orange-50 mb-8 max-w-2xl mx-auto">
+          Your comprehensive Lightning Network dashboard for tracking zaps, managing earnings, and growing your presence.
         </p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             @click="handleConnect"
-            class="px-10 py-5 bg-white text-orange-600 text-lg font-bold rounded-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2"
+            class="px-8 py-4 bg-white text-orange-600 font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2"
           >
-            <IconBolt class="w-6 h-6" />
+            <IconLogin class="w-5 h-5" />
             <span>Connect with Nostr</span>
           </button>
-          <a
-            href="https://usenostr.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="px-10 py-5 bg-transparent border-2 border-white text-white text-lg font-semibold rounded-xl hover:bg-white/10 transition-all duration-200 flex items-center justify-center"
+          <button
+            @click="toggleMap"
+            class="px-8 py-4 bg-white/10 backdrop-blur-sm text-white border-2 border-white/30 font-semibold rounded-xl hover:bg-white/20 transition-all duration-200 flex items-center justify-center space-x-2"
           >
-            Need help? Learn about Nostr
-          </a>
+            <IconWorld class="w-5 h-5" />
+            <span>{{ showMap ? 'Hide' : 'Explore' }} Global Network</span>
+          </button>
         </div>
       </div>
+    </div>
+
+    <!-- Lightning Network Stats Section -->
+    <div class="bg-white rounded-xl shadow-lg border border-orange-100 overflow-hidden">
+      <div class="bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-4 border-b border-orange-100">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900 flex items-center space-x-2">
+              <IconWorld class="w-7 h-7 text-orange-600" />
+              <span>Lightning Network Statistics</span>
+            </h2>
+            <p class="text-sm text-gray-600 mt-1">Real-time data from the global Lightning Network</p>
+          </div>
+          <div class="flex items-center space-x-3">
+            <span
+              :class="['px-3 py-1 rounded-full text-xs font-medium border', healthColor]"
+            >
+              Network: {{ networkHealth }}
+            </span>
+            <button
+              @click="refresh"
+              :disabled="isLoading"
+              class="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200 disabled:opacity-50"
+            >
+              <IconRefresh :class="['w-5 h-5', isLoading ? 'animate-spin' : '']" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div v-if="isLoading" class="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6">
+        <div v-for="i in 3" :key="i" class="animate-pulse">
+          <div class="bg-gray-200 rounded-lg h-32"></div>
+        </div>
+      </div>
+
+      <div v-else-if="formattedStats" class="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6">
+        <!-- Total Nodes -->
+        <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-200 hover:shadow-lg transition-all duration-300">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-400 rounded-lg flex items-center justify-center shadow-lg">
+              <IconBolt class="w-6 h-6 text-white" />
+            </div>
+            <IconTrendingUp class="w-5 h-5 text-green-600" />
+          </div>
+          <div class="text-3xl font-bold text-gray-900 mb-1">
+            {{ formattedStats.totalNodes }}
+          </div>
+          <div class="text-sm font-medium text-gray-600">Total Lightning Nodes</div>
+        </div>
+
+        <!-- Total Capacity -->
+        <div class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-6 border border-amber-200 hover:shadow-lg transition-all duration-300">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-12 h-12 bg-gradient-to-br from-amber-400 to-yellow-400 rounded-lg flex items-center justify-center shadow-lg">
+              <IconCurrencyBitcoin class="w-6 h-6 text-white" />
+            </div>
+            <IconTrendingUp class="w-5 h-5 text-green-600" />
+          </div>
+          <div class="text-3xl font-bold text-gray-900 mb-1">
+            {{ formattedStats.totalCapacity }}
+          </div>
+          <div class="text-sm font-medium text-gray-600">Network Capacity</div>
+        </div>
+
+        <!-- Countries -->
+        <div class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200 hover:shadow-lg transition-all duration-300">
+          <div class="flex items-center justify-between mb-3">
+            <div class="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-lg flex items-center justify-center shadow-lg">
+              <IconWorld class="w-6 h-6 text-white" />
+            </div>
+            <IconTrendingUp class="w-5 h-5 text-green-600" />
+          </div>
+          <div class="text-3xl font-bold text-gray-900 mb-1">
+            {{ formattedStats.totalCountries }}
+          </div>
+          <div class="text-sm font-medium text-gray-600">Countries with Nodes</div>
+        </div>
+      </div>
+
+      <!-- Top Countries Quick View -->
+      <div v-if="formattedStats && !showMap" class="px-6 pb-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Countries by Node Count</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div
+            v-for="country in formattedStats.topCountries.slice(0, 5)"
+            :key="country.iso"
+            class="bg-orange-50 rounded-lg p-3 border border-orange-200 hover:border-orange-300 transition-all text-center"
+          >
+            <div class="text-3xl mb-2">{{ country.flagEmoji }}</div>
+            <div class="text-sm font-semibold text-gray-900 truncate">
+              {{ country.name?.en || country.iso }}
+            </div>
+            <div class="text-xs text-gray-600 mt-1">
+              {{ country.count }} nodes
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 text-center">
+          <button
+            @click="toggleMap"
+            class="text-sm text-orange-600 hover:text-orange-700 font-medium inline-flex items-center space-x-1"
+          >
+            <span>View Full Global Map</span>
+            <IconWorld class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lightning Network Map -->
+    <LightningNetworkMap
+      v-if="showMap && globalStats"
+      :countries="globalStats.allCountries"
+      :is-loading="isLoading"
+    />
+
+    <!-- Why Connect Section -->
+    <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-8 border border-orange-200">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4 text-center">Why Connect Your Account?</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gradient-to-br from-orange-400 to-amber-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+            <IconBolt class="w-8 h-8 text-white" />
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-2">Track Your Zaps</h3>
+          <p class="text-sm text-gray-600">Monitor all your Lightning payments and zaps in real-time</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gradient-to-br from-amber-400 to-yellow-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+            <IconChartBar class="w-8 h-8 text-white" />
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-2">Analyze Earnings</h3>
+          <p class="text-sm text-gray-600">Get insights into your revenue streams and supporter behavior</p>
+        </div>
+        <div class="text-center">
+          <div class="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+            <IconTarget class="w-8 h-8 text-white" />
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-2">Grow Your Presence</h3>
+          <p class="text-sm text-gray-600">Create campaigns, share content, and build your Lightning audience</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features Showcase -->
+    <div>
+      <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">Powerful Features for Lightning Creators</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          v-for="feature in features"
+          :key="feature.name"
+          class="group bg-white rounded-xl border border-gray-200 hover:border-orange-300 hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer"
+        >
+          <div class="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+            <img
+              :src="feature.image"
+              :alt="feature.name"
+              class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            />
+          </div>
+          <div class="p-5">
+            <div class="flex items-center space-x-3 mb-3">
+              <div class="w-10 h-10 bg-gradient-to-br from-orange-100 to-amber-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                <component :is="feature.icon" class="w-5 h-5 text-orange-600" />
+              </div>
+              <h3 class="font-semibold text-gray-900 text-lg">{{ feature.name }}</h3>
+            </div>
+            <p class="text-sm text-gray-600 leading-relaxed">{{ feature.description }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Final CTA -->
+    <div class="bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 rounded-2xl p-8 sm:p-12 text-center shadow-2xl">
+      <h2 class="text-2xl sm:text-3xl font-bold text-white mb-4">Ready to Start Tracking?</h2>
+      <p class="text-lg text-orange-50 mb-6 max-w-2xl mx-auto">
+        Join thousands of creators and businesses using ZapTracker to manage their Lightning earnings
+      </p>
+      <button
+        @click="handleConnect"
+        class="px-8 py-4 bg-white text-orange-600 font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 inline-flex items-center space-x-2"
+      >
+        <IconBolt class="w-5 h-5" />
+        <span>Connect with Nostr Now</span>
+      </button>
     </div>
   </div>
 </template>
 
 <style scoped>
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-  50% {
-    opacity: 0.5;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.6);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.bg-grid-pattern {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 </style>
