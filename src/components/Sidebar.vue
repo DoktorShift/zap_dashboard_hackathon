@@ -58,16 +58,16 @@ const handleShowHelp = () => {
 </script>
 
 <template>
-  <aside class="h-screen w-72 bg-white border-r border-gray-200 flex flex-col">
+  <aside class="h-screen w-72 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
     <!-- Logo Section -->
-    <div class="px-6 py-5 border-b border-gray-100">
+    <div class="flex-shrink-0 px-6 py-5 border-b border-gray-100">
       <div class="flex items-center space-x-3">
         <div class="w-9 h-9 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl flex items-center justify-center shadow-sm">
           <IconBolt class="w-5 h-5 text-white" />
         </div>
-        <div>
-          <h1 class="text-lg font-semibold text-gray-900 leading-tight">ZapTracker</h1>
-          <p class="text-xs text-gray-500">Lightning Analytics</p>
+        <div class="min-w-0 flex-1">
+          <h1 class="text-base font-semibold text-gray-900 leading-tight truncate">ZapTracker</h1>
+          <p class="text-xs text-gray-500 truncate">Lightning Analytics</p>
         </div>
       </div>
     </div>
@@ -80,7 +80,7 @@ const handleShowHelp = () => {
             @click="handlePageChange(item)"
             :disabled="isItemDisabled(item)"
             :class="[
-              'w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-left transition-all duration-200',
+              'w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200',
               currentPage === item.id
                 ? 'bg-orange-50 text-orange-600 font-medium shadow-sm'
                 : isItemDisabled(item)
@@ -99,42 +99,42 @@ const handleShowHelp = () => {
                   : 'text-gray-500'
               ]"
             />
-            <span class="text-sm">{{ item.label }}</span>
+            <span class="text-sm truncate">{{ item.label }}</span>
           </button>
         </li>
       </ul>
     </nav>
 
     <!-- Stats Section (Only when authenticated) -->
-    <div v-if="isAuthenticated && combinedZapData.length > 0" class="px-3 py-4 border-t border-gray-100">
+    <div v-if="isAuthenticated && combinedZapData.length > 0" class="flex-shrink-0 px-4 py-4 border-t border-gray-100">
       <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4">
-        <p class="text-xs font-medium text-gray-600 mb-3">Your Activity</p>
-        <div class="space-y-2">
+        <p class="text-xs font-semibold text-gray-700 mb-3">Your Activity</p>
+        <div class="space-y-2.5">
           <div class="flex items-center justify-between">
             <span class="text-xs text-gray-600">Total Zaps</span>
-            <span class="text-sm font-semibold text-gray-900">{{ totalZaps.toLocaleString() }}</span>
+            <span class="text-sm font-bold text-gray-900 tabular-nums">{{ totalZaps.toLocaleString() }}</span>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-xs text-gray-600">Total Sats</span>
-            <span class="text-sm font-semibold text-orange-600">{{ totalSats.toLocaleString() }}</span>
+            <span class="text-sm font-bold text-orange-600 tabular-nums">{{ totalSats.toLocaleString() }}</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Help Button (Only when not authenticated) -->
-    <div v-if="!isAuthenticated" class="px-3 py-4 border-t border-gray-100">
+    <div v-if="!isAuthenticated" class="flex-shrink-0 px-4 py-4 border-t border-gray-100">
       <button
         @click="handleShowHelp"
-        class="w-full px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-medium rounded-xl shadow-sm hover:shadow-md transition-all duration-200"
+        class="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
       >
         How to Get Started
       </button>
     </div>
 
     <!-- Footer -->
-    <div class="px-6 py-4 border-t border-gray-100">
-      <p class="text-xs text-gray-500 text-center">
+    <div class="flex-shrink-0 px-6 py-3 border-t border-gray-100">
+      <p class="text-xs text-gray-500 text-center truncate">
         © 2024 ZapTracker
       </p>
     </div>

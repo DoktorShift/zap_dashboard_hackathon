@@ -222,29 +222,29 @@ onMounted(() => {
             </div>
 
             <!-- Slide Title -->
-            <div class="text-center mb-8">
-              <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+            <div class="text-center mb-6">
+              <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
                 {{ slide.title }}
               </h2>
-              <p v-if="slide.subtitle" class="text-xl text-gray-600 mb-4">
+              <p v-if="slide.subtitle" class="text-lg text-gray-600 mb-3">
                 {{ slide.subtitle }}
               </p>
-              <p v-if="slide.description && !slide.showFAQ && !slide.showGettingStarted" class="text-lg text-gray-600 max-w-2xl mx-auto">
+              <p v-if="slide.description && !slide.showFAQ && !slide.showGettingStarted" class="text-base text-gray-600 max-w-2xl mx-auto">
                 {{ slide.description }}
               </p>
             </div>
 
             <!-- FAQ Content -->
-            <div v-if="slide.showFAQ" class="max-w-3xl mx-auto w-full space-y-4 pb-8">
+            <div v-if="slide.showFAQ" class="max-w-3xl mx-auto w-full space-y-3 pb-6">
               <div
                 v-for="(item, idx) in faqItems"
                 :key="idx"
-                class="bg-orange-50/50 rounded-xl p-6 border border-orange-100 hover:border-orange-200 transition-all"
+                class="bg-orange-50/50 rounded-xl p-5 border border-orange-100 hover:border-orange-200 transition-all"
               >
                 <div class="flex items-start space-x-3">
-                  <IconHelp class="w-6 h-6 text-orange-500 flex-shrink-0 mt-1" />
-                  <div>
-                    <h3 class="font-semibold text-gray-900 mb-2">{{ item.question }}</h3>
+                  <IconHelp class="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-semibold text-gray-900 mb-1.5 text-sm">{{ item.question }}</h3>
                     <p class="text-gray-600 text-sm leading-relaxed">{{ item.answer }}</p>
                   </div>
                 </div>
@@ -252,24 +252,24 @@ onMounted(() => {
             </div>
 
             <!-- Getting Started Content -->
-            <div v-if="slide.showGettingStarted" class="max-w-3xl mx-auto w-full space-y-6 pb-8">
+            <div v-if="slide.showGettingStarted" class="max-w-3xl mx-auto w-full space-y-4 pb-6">
               <div
                 v-for="step in gettingStartedSteps"
                 :key="step.number"
-                class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100 hover:border-orange-300 transition-all"
+                class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-100 hover:border-orange-300 transition-all"
               >
                 <div class="flex items-start space-x-4">
                   <div class="flex-shrink-0">
-                    <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-400 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                    <div class="w-10 h-10 bg-gradient-to-br from-orange-400 to-amber-400 rounded-full flex items-center justify-center text-white font-bold text-base shadow-md">
                       {{ step.number }}
                     </div>
                   </div>
-                  <div class="flex-1">
-                    <div class="flex items-center space-x-2 mb-2">
-                      <component :is="step.icon" class="w-5 h-5 text-orange-600" />
-                      <h3 class="font-semibold text-gray-900">{{ step.title }}</h3>
-                      <span v-if="step.required" class="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">Required</span>
-                      <span v-else class="text-xs bg-gray-400 text-white px-2 py-1 rounded-full">Optional</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center flex-wrap gap-2 mb-2">
+                      <component :is="step.icon" class="w-4 h-4 text-orange-600 flex-shrink-0" />
+                      <h3 class="font-semibold text-gray-900 text-sm">{{ step.title }}</h3>
+                      <span v-if="step.required" class="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full flex-shrink-0">Required</span>
+                      <span v-else class="text-xs bg-gray-400 text-white px-2 py-0.5 rounded-full flex-shrink-0">Optional</span>
                     </div>
                     <p class="text-gray-600 text-sm leading-relaxed">{{ step.description }}</p>
                   </div>
