@@ -252,58 +252,43 @@ const features = [
       :is-loading="isLoading"
     />
 
-    <!-- Why Connect Section -->
-    <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-8 border border-orange-200">
-      <h2 class="text-2xl font-bold text-gray-900 mb-4 text-center">Why Connect Your Account?</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-        <div class="text-center">
-          <div class="w-16 h-16 bg-gradient-to-br from-orange-400 to-amber-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <IconBolt class="w-8 h-8 text-white" />
+    <!-- Why Connect Section - Compact -->
+    <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-200">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 max-w-4xl mx-auto">
+        <div class="flex items-center space-x-3">
+          <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-400 rounded-lg flex items-center justify-center shadow-md flex-shrink-0">
+            <IconBolt class="w-6 h-6 text-white" />
           </div>
-          <h3 class="font-semibold text-gray-900 mb-2">Track Your Zaps</h3>
-          <p class="text-sm text-gray-600">Monitor all your Lightning payments and zaps in real-time</p>
-        </div>
-        <div class="text-center">
-          <div class="w-16 h-16 bg-gradient-to-br from-amber-400 to-yellow-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <IconChartBar class="w-8 h-8 text-white" />
+          <div>
+            <h3 class="font-semibold text-gray-900 text-sm">Connect Your Account</h3>
+            <p class="text-xs text-gray-600">Track zaps, analyze earnings, and grow your presence</p>
           </div>
-          <h3 class="font-semibold text-gray-900 mb-2">Analyze Earnings</h3>
-          <p class="text-sm text-gray-600">Get insights into your revenue streams and supporter behavior</p>
         </div>
-        <div class="text-center">
-          <div class="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <IconTarget class="w-8 h-8 text-white" />
-          </div>
-          <h3 class="font-semibold text-gray-900 mb-2">Grow Your Presence</h3>
-          <p class="text-sm text-gray-600">Create campaigns, share content, and build your Lightning audience</p>
-        </div>
+        <button
+          @click="handleConnect"
+          class="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-lg shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 whitespace-nowrap"
+        >
+          Get Started
+        </button>
       </div>
     </div>
 
-    <!-- Features Showcase -->
-    <div>
-      <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">Powerful Features for Lightning Creators</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div
-          v-for="feature in features"
-          :key="feature.name"
-          class="group bg-white rounded-xl border border-gray-200 hover:border-orange-300 hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer"
-        >
-          <div class="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-            <img
-              :src="feature.image"
-              :alt="feature.name"
-              class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-            />
-          </div>
-          <div class="p-5">
-            <div class="flex items-center space-x-3 mb-3">
-              <div class="w-10 h-10 bg-gradient-to-br from-orange-100 to-amber-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                <component :is="feature.icon" class="w-5 h-5 text-orange-600" />
-              </div>
-              <h3 class="font-semibold text-gray-900 text-lg">{{ feature.name }}</h3>
+    <!-- Compact Features Overview -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div class="bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-4 border-b border-orange-100">
+        <h2 class="text-xl font-bold text-gray-900 text-center">What You Can Track</h2>
+      </div>
+      <div class="p-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div
+            v-for="feature in features"
+            :key="feature.name"
+            class="group flex flex-col items-center text-center p-3 rounded-lg hover:bg-orange-50 transition-all duration-200 cursor-pointer"
+          >
+            <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 group-hover:shadow-md transition-all duration-200">
+              <component :is="feature.icon" class="w-6 h-6 text-orange-600" />
             </div>
-            <p class="text-sm text-gray-600 leading-relaxed">{{ feature.description }}</p>
+            <h3 class="text-xs font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">{{ feature.name }}</h3>
           </div>
         </div>
       </div>
