@@ -897,7 +897,10 @@ const handleChecklistTaskAction = (action) => {
       'fixed top-0 left-0 h-screen w-64 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:z-30', isWritingMode ? 'lg:-translate-x-full' : '',
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
     ]">
-      <Sidebar @change-page="changePage" />
+      <Sidebar
+        @change-page="changePage"
+        @show-help="handleShowHelp"
+      />
     </div>
     
     <!-- Main Content Area -->

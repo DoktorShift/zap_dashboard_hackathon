@@ -131,16 +131,19 @@ const closeDetail = () => {
         </div>
 
         <!-- Visual Grid Map -->
-        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-8 min-h-[400px] border-2 border-blue-100 relative overflow-hidden">
-          <!-- Decorative Grid -->
-          <div class="absolute inset-0 opacity-20">
-            <div class="grid grid-cols-8 grid-rows-6 h-full gap-1">
-              <div v-for="i in 48" :key="i" class="border border-blue-200"></div>
+        <div class="bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 rounded-xl p-6 sm:p-8 min-h-[500px] border-2 border-blue-200 relative overflow-hidden shadow-inner">
+          <!-- Decorative Grid with World Map Feel -->
+          <div class="absolute inset-0 opacity-10">
+            <div class="grid grid-cols-12 grid-rows-8 h-full gap-0.5">
+              <div v-for="i in 96" :key="i" class="border border-blue-300/50"></div>
             </div>
           </div>
 
+          <!-- Subtle Gradient Overlay for Depth -->
+          <div class="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-blue-100/30"></div>
+
           <!-- Top Countries as Positioned Elements -->
-          <div class="relative h-full flex flex-wrap items-center justify-center gap-6 sm:gap-8">
+          <div class="relative h-full flex flex-wrap items-center justify-center gap-4 sm:gap-6 md:gap-8 p-4">
             <div
               v-for="(country, index) in topCountries.slice(0, 12)"
               :key="country.iso"
@@ -151,19 +154,22 @@ const closeDetail = () => {
               :class="getSizeClass(country.count)"
             >
               <div class="relative">
+                <!-- Glow Effect on Hover -->
+                <div class="absolute inset-0 rounded-full blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 bg-gradient-to-br" :class="getNodeCountColor(country.count)"></div>
+
                 <div
-                  class="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-3xl sm:text-4xl shadow-lg group-hover:shadow-2xl transition-all duration-300 bg-gradient-to-br"
+                  class="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center text-3xl sm:text-4xl md:text-5xl shadow-lg group-hover:shadow-2xl transition-all duration-300 bg-gradient-to-br ring-2 ring-white group-hover:ring-4 group-hover:ring-orange-200"
                   :class="getNodeCountColor(country.count)"
                 >
-                  <span class="drop-shadow-lg">{{ country.flagEmoji }}</span>
+                  <span class="drop-shadow-lg filter group-hover:scale-110 transition-transform duration-300">{{ country.flagEmoji }}</span>
                 </div>
-                <!-- Node count badge -->
-                <div class="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                <!-- Node count badge with better visibility -->
+                <div class="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-gradient-to-br from-orange-500 to-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg ring-2 ring-white">
                   {{ country.count }}
                 </div>
               </div>
-              <div class="mt-2 text-center">
-                <div class="text-xs font-semibold text-gray-700 group-hover:text-orange-600 transition-colors">
+              <div class="mt-2 text-center max-w-[80px] sm:max-w-none">
+                <div class="text-xs sm:text-sm font-semibold text-gray-800 group-hover:text-orange-600 transition-colors truncate">
                   {{ country.name?.en || country.iso }}
                 </div>
               </div>
@@ -184,23 +190,29 @@ const closeDetail = () => {
           </div>
         </div>
 
-        <!-- Legend -->
-        <div class="mt-4 flex flex-wrap items-center gap-4 text-xs">
-          <div class="flex items-center space-x-2">
-            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-orange-600 to-red-600"></div>
-            <span class="text-gray-600">2000+ nodes</span>
+        <!-- Enhanced Legend -->
+        <div class="mt-6 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-4 border border-gray-200">
+          <div class="text-xs font-semibold text-gray-700 mb-3 flex items-center space-x-2">
+            <IconMapPin class="w-4 h-4 text-orange-600" />
+            <span>Node Density Scale</span>
           </div>
-          <div class="flex items-center space-x-2">
-            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-orange-500 to-amber-500"></div>
-            <span class="text-gray-600">1000-2000 nodes</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-yellow-400"></div>
-            <span class="text-gray-600">500-1000 nodes</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-yellow-300 to-amber-300"></div>
-            <span class="text-gray-600">100-500 nodes</span>
+          <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-3 sm:gap-4 text-xs">
+            <div class="flex items-center space-x-2">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-orange-600 to-red-600 shadow-md ring-2 ring-white"></div>
+              <span class="text-gray-700 font-medium">2000+</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 shadow-md ring-2 ring-white"></div>
+              <span class="text-gray-700 font-medium">1000-2000</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-yellow-400 shadow-md ring-2 ring-white"></div>
+              <span class="text-gray-700 font-medium">500-1000</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-300 to-amber-300 shadow-md ring-2 ring-white"></div>
+              <span class="text-gray-700 font-medium">100-500</span>
+            </div>
           </div>
         </div>
       </div>
