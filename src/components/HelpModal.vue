@@ -16,7 +16,14 @@ import {
   IconLogin
 } from '@iconify-prerendered/vue-tabler'
 
-const emit = defineEmits(['close', 'view-only'])
+const props = defineProps({
+  autoShow: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const emit = defineEmits(['close', 'trigger-login'])
 
 const currentSlide = ref(0)
 const totalSlides = 10
@@ -198,22 +205,14 @@ const handleSkip = () => {
 const handleGetStarted = () => {
   markWelcomeSeen()
   emit('close')
-  setTimeout(() => {
-    document.dispatchEvent(new Event('nlLaunch'))
-  }, 300)
+  emit('trigger-login')
 }
 
 const handleViewOnly = () => {
   markWelcomeSeen()
   emit('close')
-  emit('view-only')
+  // View-only mode - just close the modal without triggering login
 }
-
-onMounted(() => {
-  if (hasSeenWelcome()) {
-    emit('close')
-  }
-})
 </script>
 
 <template>
