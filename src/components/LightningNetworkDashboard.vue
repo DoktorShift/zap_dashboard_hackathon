@@ -123,60 +123,142 @@ const nodeTypeChart = computed(() => {
   if (!networkStats.value) return null
 
   const stats = networkStats.value
+  const total = stats.clearnet_nodes + stats.tor_nodes + stats.clearnet_tor_nodes + stats.unannounced_nodes
+
   return {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: {c} nodes ({d}%)'
+      confine: true,
+      backgroundColor: 'rgba(255, 255, 255, 0.98)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      padding: [16, 20],
+      textStyle: {
+        color: '#1f2937',
+        fontSize: 14
+      },
+      extraCssText: 'box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 12px;',
+      formatter: (params) => {
+        const percent = ((params.value / total) * 100).toFixed(1)
+        return `<div style="font-weight: 700; margin-bottom: 8px; font-size: 15px; color: ${params.color};">${params.name}</div>
+                <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Nodes: <strong style="color: #111827;">${params.value.toLocaleString()}</strong></div>
+                <div style="font-size: 13px; color: #6b7280;">Share: <strong style="color: #111827;">${percent}%</strong></div>`
+      }
     },
     legend: {
       orient: 'horizontal',
-      bottom: '0',
-      left: 'center'
+      bottom: '5',
+      left: 'center',
+      itemGap: 24,
+      itemWidth: 14,
+      itemHeight: 14,
+      textStyle: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: '#374151'
+      },
+      icon: 'circle'
     },
     series: [
       {
         name: 'Node Types',
         type: 'pie',
-        radius: ['40%', '70%'],
+        radius: ['52%', '82%'],
+        center: ['50%', '42%'],
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 10,
           borderColor: '#fff',
-          borderWidth: 2
+          borderWidth: 4,
+          shadowBlur: 15,
+          shadowColor: 'rgba(0, 0, 0, 0.12)'
         },
         label: {
-          show: true,
-          formatter: '{b}\n{d}%',
-          fontSize: 12,
-          fontWeight: 'bold'
+          show: false
+        },
+        labelLine: {
+          show: false
         },
         emphasis: {
-          label: {
-            show: true,
-            fontSize: 14,
-            fontWeight: 'bold'
+          scale: true,
+          scaleSize: 12,
+          itemStyle: {
+            shadowBlur: 25,
+            shadowColor: 'rgba(0, 0, 0, 0.25)',
+            borderWidth: 5
           }
         },
+        animationType: 'scale',
+        animationEasing: 'elasticOut',
+        animationDelay: (idx) => idx * 100,
         data: [
           {
             value: stats.clearnet_nodes,
             name: 'Clearnet',
-            itemStyle: { color: '#10b981' }
+            itemStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 1,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: '#34d399' },
+                  { offset: 1, color: '#059669' }
+                ]
+              }
+            }
           },
           {
             value: stats.tor_nodes,
             name: 'Tor',
-            itemStyle: { color: '#f59e0b' }
+            itemStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 1,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: '#fbbf24' },
+                  { offset: 1, color: '#d97706' }
+                ]
+              }
+            }
           },
           {
             value: stats.clearnet_tor_nodes,
             name: 'Clearnet + Tor',
-            itemStyle: { color: '#3b82f6' }
+            itemStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 1,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: '#60a5fa' },
+                  { offset: 1, color: '#2563eb' }
+                ]
+              }
+            }
           },
           {
             value: stats.unannounced_nodes,
             name: 'Unannounced',
-            itemStyle: { color: '#8b5cf6' }
+            itemStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 1,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: '#a78bfa' },
+                  { offset: 1, color: '#7c3aed' }
+                ]
+              }
+            }
           }
         ]
       }
@@ -190,13 +272,28 @@ const countryDistributionChart = computed(() => {
   return {
     tooltip: {
       trigger: 'axis',
+      confine: true,
       axisPointer: {
-        type: 'shadow'
+        type: 'shadow',
+        shadowStyle: {
+          color: 'rgba(251, 191, 36, 0.1)'
+        }
       },
+      backgroundColor: 'rgba(255, 255, 255, 0.98)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      padding: [16, 20],
+      textStyle: {
+        color: '#1f2937',
+        fontSize: 14
+      },
+      extraCssText: 'box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 12px;',
       formatter: (params) => {
         const data = params[0]
         const country = nodesByCountry.value[data.dataIndex]
-        return `${country.name.en}<br/>Nodes: ${country.count.toLocaleString()}<br/>Share: ${country.share}%`
+        return `<div style="font-weight: 700; margin-bottom: 8px; font-size: 15px; color: #f59e0b;">${country.name.en}</div>
+                <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Nodes: <strong style="color: #111827;">${country.count.toLocaleString()}</strong></div>
+                <div style="font-size: 13px; color: #6b7280;">Share: <strong style="color: #059669;">${country.share}%</strong></div>`
       }
     },
     grid: {
@@ -253,59 +350,133 @@ const topISPChart = computed(() => {
   if (!ispRanking.value) return null
 
   const topISPs = ispRanking.value.ispRanking.slice(0, 8)
+  const totalNodes = topISPs.reduce((sum, isp) => sum + isp[4], 0)
 
   return {
     tooltip: {
       trigger: 'item',
+      confine: true,
+      backgroundColor: 'rgba(255, 255, 255, 0.98)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      padding: [16, 20],
+      textStyle: {
+        color: '#1f2937',
+        fontSize: 14
+      },
+      extraCssText: 'box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 12px;',
       formatter: (params) => {
         const isp = topISPs[params.dataIndex]
-        return `${isp[1]}<br/>Capacity: ${lightningNetworkService.formatSats(isp[2])}<br/>Channels: ${isp[3].toLocaleString()}<br/>Nodes: ${isp[4].toLocaleString()}<br/>Share: ${params.percent}%`
+        const percent = ((isp[4] / totalNodes) * 100).toFixed(1)
+        return `<div style="font-weight: 700; margin-bottom: 10px; font-size: 15px; color: ${params.color};">${isp[1]}</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="color: #6b7280; font-size: 13px;">Capacity:</span>
+                  <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${lightningNetworkService.formatSats(isp[2])}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="color: #6b7280; font-size: 13px;">Channels:</span>
+                  <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[3].toLocaleString()}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="color: #6b7280; font-size: 13px;">Nodes:</span>
+                  <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[4].toLocaleString()}</strong>
+                </div>
+                <div style="border-top: 1px solid #e5e7eb; margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #6b7280; font-size: 13px;">Market Share:</span>
+                  <strong style="color: #059669; font-size: 14px; margin-left: 12px;">${percent}%</strong>
+                </div>`
       }
     },
     legend: {
       orient: 'horizontal',
-      bottom: '0',
+      bottom: '5',
       left: 'center',
-      type: 'scroll'
+      type: 'scroll',
+      itemGap: 16,
+      itemWidth: 14,
+      itemHeight: 14,
+      textStyle: {
+        fontSize: 12,
+        fontWeight: 600,
+        color: '#374151'
+      },
+      icon: 'circle',
+      pageIconSize: 12,
+      pageTextStyle: {
+        color: '#6b7280'
+      }
     },
     series: [
       {
         name: 'Hosting Providers',
         type: 'pie',
-        radius: ['40%', '70%'],
+        radius: ['52%', '82%'],
+        center: ['50%', '42%'],
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 10,
           borderColor: '#fff',
-          borderWidth: 2
+          borderWidth: 4,
+          shadowBlur: 15,
+          shadowColor: 'rgba(0, 0, 0, 0.12)'
         },
         label: {
-          show: true,
-          formatter: '{b}\n{d}%',
-          fontSize: 11,
-          fontWeight: 'bold'
+          show: false
+        },
+        labelLine: {
+          show: false
         },
         emphasis: {
-          label: {
-            show: true,
-            fontSize: 13,
-            fontWeight: 'bold'
+          scale: true,
+          scaleSize: 12,
+          itemStyle: {
+            shadowBlur: 25,
+            shadowColor: 'rgba(0, 0, 0, 0.25)',
+            borderWidth: 5
           }
         },
+        animationType: 'scale',
+        animationEasing: 'elasticOut',
+        animationDelay: (idx) => idx * 80,
         data: topISPs.map((isp, index) => ({
           value: isp[4],
-          name: isp[1].substring(0, 20),
+          name: isp[1].length > 18 ? isp[1].substring(0, 18) + '...' : isp[1],
           itemStyle: {
-            color: [
-              '#3b82f6',
-              '#06b6d4',
-              '#8b5cf6',
-              '#ec4899',
-              '#f59e0b',
-              '#10b981',
-              '#ef4444',
-              '#6366f1'
-            ][index]
+            color: {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 1,
+              y2: 1,
+              colorStops: [
+                {
+                  offset: 0,
+                  color: [
+                    '#60a5fa',
+                    '#22d3ee',
+                    '#a78bfa',
+                    '#f472b6',
+                    '#fbbf24',
+                    '#34d399',
+                    '#fb7185',
+                    '#818cf8'
+                  ][index]
+                },
+                {
+                  offset: 1,
+                  color: [
+                    '#2563eb',
+                    '#0891b2',
+                    '#7c3aed',
+                    '#db2777',
+                    '#d97706',
+                    '#059669',
+                    '#e11d48',
+                    '#4f46e5'
+                  ][index]
+                }
+              ]
+            }
           }
         }))
       }
