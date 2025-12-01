@@ -281,18 +281,6 @@ const handleRefresh = () => {
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-2">
-          <!-- Connection Button -->
-          <button 
-            @click="emit('show-connection')"
-            :class="[
-              'btn-secondary text-sm transition-all duration-200',
-              hasConnection ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : ''
-            ]"
-          >
-            <IconBolt :class="['w-4 h-4', hasConnection ? 'text-green-600' : '']" />
-            <span class="hidden sm:inline">{{ hasConnection ? 'Connected' : 'Connect' }}</span>
-          </button>
-          
           <!-- Notifications with Consistent Hover Effect -->
           <div class="hover:bg-orange-50 rounded-lg transition-all duration-200 group">
             <NotificationDropdown />

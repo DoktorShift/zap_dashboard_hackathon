@@ -5,6 +5,8 @@ import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
 import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, getPeriodComparison } from '../utils/timeFilter.js'
+import EmptyStateDashboard from '../components/EmptyStateDashboard.vue'
+import LoadingStateDashboard from '../components/LoadingStateDashboard.vue'
 
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
@@ -433,7 +435,14 @@ const getTrendColorClass = (change) => {
 </script>
 
 <template>
-  <div class="space-y-4 sm:space-y-6">
+  <!-- Empty State - No Authentication -->
+  <EmptyStateDashboard v-if="!isAuthenticated" />
+
+  <!-- Loading State -->
+  <LoadingStateDashboard v-else-if="isLoading" />
+
+  <!-- Dashboard with Data -->
+  <div v-else class="space-y-4 sm:space-y-6">
     <!-- Welcome Banner -->
     <div class="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 text-white p-4 sm:p-6 rounded-xl shadow-lg">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

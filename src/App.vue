@@ -31,6 +31,7 @@ import { useNotifications } from './composables/useNotifications.js'
 import { nostrRelayManager } from './utils/nostrRelayManager.js'
 import { useNostrNotes } from './composables/useNostrNotes.js'
 import Calendar from './pages/Calendar.vue'
+import WelcomeModal from './components/WelcomeModal.vue'
 
 
 // UI state for dismissible banners
@@ -170,6 +171,7 @@ const selectedFilters = ref({
 const currentPage = ref('dashboard')
 const activeSettingsTab = ref('nostr')
 const showConnectionModal = ref(false)
+const showWelcomeModal = ref(true)
 const isMobileMenuOpen = ref(false)
 const isRefreshingData = ref(false)
 const dataLoadingProgress = ref({
@@ -820,6 +822,34 @@ provide('isPageLoading', isPageLoading)
 const handleWritingModeChange = (writingMode) => {
   isWritingMode.value = writingMode
 }
+
+// Welcome modal handlers
+const handleWelcomeClose = () => {
+  showWelcomeModal.value = false
+}
+
+// Onboarding checklist handlers
+const handleChecklistTaskAction = (action) => {
+  switch (action) {
+    case 'connect-nostr':
+      // Trigger nostr-login widget
+      console.log('🚀 Triggering nostr-login widget from checklist...')
+      document.dispatchEvent(new Event('nlLaunch'))
+      break
+    case 'setup-profile':
+      changePage('settings', 'nostr')
+      break
+    case 'connect-wallet':
+      changePage('wallet')
+      break
+    case 'create-content':
+      changePage('content')
+      break
+    case 'create-campaign':
+      changePage('campaigns')
+      break
+  }
+}
 </script>
 
 <template>
@@ -1041,7 +1071,15 @@ const handleWritingModeChange = (writingMode) => {
         </div>
       </main>
     </div>
-    
+
+    <!-- Welcome Modal - Teleported to modal-root -->
+    <Teleport to="#modal-root">
+      <WelcomeModal
+        v-if="showWelcomeModal"
+        @close="handleWelcomeClose"
+      />
+    </Teleport>
+
     <!-- Connection Modal - Teleported to modal-root -->
     <Teleport to="#modal-root">
       <transition name="modal-transition">
@@ -1049,16 +1087,16 @@ const handleWritingModeChange = (writingMode) => {
           <div class="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full transform animate-modal-content max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-lg sm:text-xl font-bold text-gray-800">Connect Your Wallet</h2>
-              <button 
+              <button
                 @click="showConnectionModal = false"
                 class="text-gray-500 flex items-center justify-center flex items-center hover:text-gray-700 p-1 touch-target hover:bg-gray-100 rounded-full transition-all duration-200 hover:scale-110"
               >
                 <IconX class="w-5 h-5" />
               </button>
-            </div> 
+            </div>
             <NWCConnection @connection-success="handleConnectionSuccess" />
             <div v-if="isWalletConnected" class="mt-4 flex justify-end">
-              <button 
+              <button
                 @click="showConnectionModal = false"
                 class="btn-secondary"
               >
