@@ -195,7 +195,7 @@ onMounted(() => {
   <Teleport to="body">
     <div class="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
       <!-- Modal Container -->
-      <div class="relative w-full max-w-5xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col animate-scale-in">
+      <div class="relative w-full max-w-5xl h-[85vh] bg-white rounded-3xl shadow-2xl flex flex-col animate-scale-in overflow-hidden">
         <!-- Close Button -->
         <button
           @click="handleExplore"
@@ -205,31 +205,31 @@ onMounted(() => {
         </button>
 
         <!-- Slides Container -->
-        <div class="relative flex-1 overflow-y-auto">
+        <div class="relative flex-1 overflow-y-auto pb-24">
           <!-- Slide Content -->
           <div
             v-for="(slide, index) in slides"
             :key="slide.id"
             v-show="currentSlide === index"
-            class="p-8 sm:p-12 transition-all duration-500"
+            class="min-h-full p-10 sm:p-16 flex flex-col justify-center transition-all duration-500"
             :class="currentSlide === index ? 'animate-slide-in' : ''"
           >
             <!-- Logo for Hero & Final Slides -->
-            <div v-if="slide.showLogo" class="flex justify-center mb-8">
-              <div class="w-24 h-24 bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 rounded-2xl flex items-center justify-center shadow-xl animate-pulse-glow">
-                <IconBolt class="w-12 h-12 text-white" />
+            <div v-if="slide.showLogo" class="flex justify-center mb-12">
+              <div class="w-32 h-32 bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 rounded-3xl flex items-center justify-center shadow-2xl animate-pulse-glow">
+                <IconBolt class="w-16 h-16 text-white" />
               </div>
             </div>
 
             <!-- Slide Title -->
-            <div class="text-center mb-6">
-              <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            <div class="text-center mb-10">
+              <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-5 leading-tight">
                 {{ slide.title }}
               </h2>
-              <p v-if="slide.subtitle" class="text-lg text-gray-600 mb-3">
+              <p v-if="slide.subtitle" class="text-xl text-gray-600 mb-4 leading-relaxed">
                 {{ slide.subtitle }}
               </p>
-              <p v-if="slide.description && !slide.showFAQ && !slide.showGettingStarted" class="text-base text-gray-600 max-w-2xl mx-auto">
+              <p v-if="slide.description && !slide.showFAQ && !slide.showGettingStarted" class="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
                 {{ slide.description }}
               </p>
             </div>
@@ -301,17 +301,17 @@ onMounted(() => {
             </div>
 
             <!-- CTA Buttons (Final Slide) -->
-            <div v-if="slide.isFinal" class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+            <div v-if="slide.isFinal" class="flex flex-col sm:flex-row gap-5 justify-center mt-12 max-w-3xl mx-auto">
               <button
                 @click="handleConnect"
-                class="px-8 py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2"
+                class="px-12 py-5 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white text-lg font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
               >
-                <IconLogin class="w-5 h-5" />
+                <IconLogin class="w-6 h-6" />
                 <span>Connect with Nostr</span>
               </button>
               <button
                 @click="handleExplore"
-                class="px-8 py-4 bg-white border-2 border-orange-300 text-orange-600 font-semibold rounded-xl hover:bg-orange-50 hover:scale-105 transition-all duration-200"
+                class="px-12 py-5 bg-white border-2 border-orange-300 text-orange-600 text-lg font-semibold rounded-2xl hover:bg-orange-50 hover:border-orange-400 hover:scale-105 transition-all duration-200"
               >
                 Explore Without Login
               </button>
@@ -320,15 +320,15 @@ onMounted(() => {
         </div>
 
         <!-- Navigation -->
-        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent p-6">
+        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-12 pb-6 px-8">
           <div class="flex items-center justify-between max-w-5xl mx-auto">
             <!-- Previous Button -->
             <button
               @click="prevSlide"
               :disabled="currentSlide === 0"
-              class="p-3 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:scale-110"
+              class="p-3 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 disabled:opacity-20 disabled:cursor-not-allowed transition-all duration-200 hover:scale-110 shadow-md"
             >
-              <IconChevronLeft class="w-6 h-6" />
+              <IconChevronLeft class="w-7 h-7" />
             </button>
 
             <!-- Slide Indicators -->
@@ -351,9 +351,9 @@ onMounted(() => {
             <button
               @click="nextSlide"
               :disabled="currentSlide === totalSlides - 1"
-              class="p-3 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:scale-110"
+              class="p-3 rounded-full bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-20 disabled:cursor-not-allowed transition-all duration-200 hover:scale-110 shadow-md"
             >
-              <IconChevronRight class="w-6 h-6" />
+              <IconChevronRight class="w-7 h-7" />
             </button>
           </div>
         </div>

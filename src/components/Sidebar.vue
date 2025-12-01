@@ -60,13 +60,13 @@ const handleShowHelp = () => {
 <template>
   <aside class="h-screen w-72 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
     <!-- Logo Section -->
-    <div class="flex-shrink-0 px-6 py-5 border-b border-gray-100">
-      <div class="flex items-center space-x-3">
-        <div class="w-9 h-9 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl flex items-center justify-center shadow-sm">
-          <IconBolt class="w-5 h-5 text-white" />
+    <div class="flex-shrink-0 px-6 py-6 border-b border-gray-100">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg">
+          <IconBolt class="w-7 h-7 text-white" />
         </div>
         <div class="min-w-0 flex-1">
-          <h1 class="text-base font-semibold text-gray-900 leading-tight truncate">ZapTracker</h1>
+          <h1 class="text-lg font-bold text-gray-900 leading-tight truncate">ZapTracker</h1>
           <p class="text-xs text-gray-500 truncate">Lightning Analytics</p>
         </div>
       </div>
@@ -123,17 +123,17 @@ const handleShowHelp = () => {
     </div>
 
     <!-- Help Button (Only when not authenticated) -->
-    <div v-if="!isAuthenticated" class="flex-shrink-0 px-4 py-4 border-t border-gray-100">
+    <div v-if="!isAuthenticated" class="flex-shrink-0 px-4 py-5 border-t border-gray-100">
       <button
         @click="handleShowHelp"
-        class="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200"
+        class="w-full px-5 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-base font-semibold rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
       >
         How to Get Started
       </button>
     </div>
 
     <!-- Footer -->
-    <div class="flex-shrink-0 px-6 py-3 border-t border-gray-100">
+    <div class="flex-shrink-0 px-6 py-4 border-t border-gray-100">
       <p class="text-xs text-gray-500 text-center truncate">
         © 2024 ZapTracker
       </p>
