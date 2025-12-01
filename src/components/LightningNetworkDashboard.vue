@@ -125,6 +125,33 @@ const nodeTypeChart = computed(() => {
   const stats = networkStats.value
   const total = stats.clearnet_nodes + stats.tor_nodes + stats.clearnet_tor_nodes + stats.unannounced_nodes
 
+  const nodeTypeInfo = {
+    'Clearnet': {
+      description: 'Public nodes accessible via standard internet',
+      benefits: 'Fast connections, easy to reach, better for routing',
+      security: 'IP address visible to network',
+      value: stats.clearnet_nodes
+    },
+    'Tor': {
+      description: 'Anonymous nodes accessible only via Tor network',
+      benefits: 'Enhanced privacy, hidden IP address',
+      security: 'Maximum anonymity, slower connections',
+      value: stats.tor_nodes
+    },
+    'Clearnet + Tor': {
+      description: 'Hybrid nodes accessible via both networks',
+      benefits: 'Best of both worlds - privacy option with speed',
+      security: 'Flexible connectivity, balanced approach',
+      value: stats.clearnet_tor_nodes
+    },
+    'Unannounced': {
+      description: 'Private nodes not advertised to the network',
+      benefits: 'Maximum privacy, used for personal channels',
+      security: 'Not visible in public network graph',
+      value: stats.unannounced_nodes
+    }
+  }
+
   return {
     tooltip: {
       trigger: 'item',
@@ -132,17 +159,22 @@ const nodeTypeChart = computed(() => {
       backgroundColor: 'rgba(255, 255, 255, 0.98)',
       borderColor: '#e5e7eb',
       borderWidth: 1,
-      padding: [16, 20],
+      padding: [20, 24],
       textStyle: {
         color: '#1f2937',
         fontSize: 14
       },
-      extraCssText: 'box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 12px;',
+      extraCssText: 'box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 12px; max-width: 380px;',
       formatter: (params) => {
         const percent = ((params.value / total) * 100).toFixed(1)
-        return `<div style="font-weight: 700; margin-bottom: 8px; font-size: 15px; color: ${params.color};">${params.name}</div>
-                <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Nodes: <strong style="color: #111827;">${params.value.toLocaleString()}</strong></div>
-                <div style="font-size: 13px; color: #6b7280;">Share: <strong style="color: #111827;">${percent}%</strong></div>`
+        const info = nodeTypeInfo[params.name]
+        return `<div style="font-weight: 700; margin-bottom: 10px; font-size: 16px; color: ${params.color};">${params.name}</div>
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; font-style: italic;">${info.description}</div>
+                <div style="background: #f9fafb; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+                  <div style="font-size: 13px; color: #6b7280; margin-bottom: 6px;">Nodes: <strong style="color: #111827;">${params.value.toLocaleString()}</strong> (${percent}%)</div>
+                  <div style="font-size: 12px; color: #059669; margin-bottom: 4px;">✓ ${info.benefits}</div>
+                  <div style="font-size: 12px; color: #3b82f6;">🔒 ${info.security}</div>
+                </div>`
       }
     },
     legend: {
@@ -349,8 +381,39 @@ const countryDistributionChart = computed(() => {
 const topISPChart = computed(() => {
   if (!ispRanking.value) return null
 
-  const topISPs = ispRanking.value.ispRanking.slice(0, 8)
-  const totalNodes = topISPs.reduce((sum, isp) => sum + isp[4], 0)
+  const allISPs = ispRanking.value.ispRanking
+  const threshold = 0.05
+  const totalNodes = allISPs.reduce((sum, isp) => sum + isp[4], 0)
+
+  const mainISPs = []
+  let othersNodes = 0
+  let othersCapacity = 0
+  let othersChannels = 0
+  let othersCount = 0
+
+  allISPs.forEach(isp => {
+    const share = isp[4] / totalNodes
+    if (share >= threshold && mainISPs.length < 6) {
+      mainISPs.push(isp)
+    } else {
+      othersNodes += isp[4]
+      othersCapacity += isp[2]
+      othersChannels += isp[3]
+      othersCount++
+    }
+  })
+
+  if (othersNodes > 0) {
+    mainISPs.push([
+      'others',
+      `Others (${othersCount} providers)`,
+      othersCapacity,
+      othersChannels,
+      othersNodes
+    ])
+  }
+
+  const topISPs = mainISPs
 
   return {
     tooltip: {
@@ -368,22 +431,58 @@ const topISPChart = computed(() => {
       formatter: (params) => {
         const isp = topISPs[params.dataIndex]
         const percent = ((isp[4] / totalNodes) * 100).toFixed(1)
-        return `<div style="font-weight: 700; margin-bottom: 10px; font-size: 15px; color: ${params.color};">${isp[1]}</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                  <span style="color: #6b7280; font-size: 13px;">Capacity:</span>
-                  <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${lightningNetworkService.formatSats(isp[2])}</strong>
+        const avgCapacityPerNode = isp[2] / isp[4]
+        const avgChannelsPerNode = (isp[3] / isp[4]).toFixed(0)
+
+        let additionalInfo = ''
+        if (isp[0] === 'others') {
+          additionalInfo = `<div style="font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; font-style: italic;">Combined total from ${othersCount} smaller hosting providers</div>`
+        } else {
+          const ispTypes = {
+            'DigitalOcean': 'Popular cloud platform known for developer-friendly VPS hosting',
+            'Amazon': 'AWS - World\'s largest cloud infrastructure provider',
+            'Google': 'Google Cloud Platform with global network infrastructure',
+            'Hetzner': 'European provider known for cost-effective dedicated servers',
+            'OVH': 'European hosting giant with data centers worldwide',
+            'Contabo': 'Budget-friendly German hosting provider'
+          }
+
+          const ispInfo = Object.keys(ispTypes).find(key => isp[1].includes(key))
+          if (ispInfo) {
+            additionalInfo = `<div style="font-size: 12px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; font-style: italic;">${ispTypes[ispInfo]}</div>`
+          }
+        }
+
+        return `<div style="font-weight: 700; margin-bottom: 10px; font-size: 16px; color: ${params.color};">${isp[1]}</div>
+                ${additionalInfo}
+                <div style="background: #f9fafb; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="color: #6b7280; font-size: 13px;">Total Capacity:</span>
+                    <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${lightningNetworkService.formatSats(isp[2])}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="color: #6b7280; font-size: 13px;">Channels:</span>
+                    <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[3].toLocaleString()}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #6b7280; font-size: 13px;">Nodes:</span>
+                    <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[4].toLocaleString()}</strong>
+                  </div>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                  <span style="color: #6b7280; font-size: 13px;">Channels:</span>
-                  <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[3].toLocaleString()}</strong>
+                <div style="background: #eff6ff; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                  <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">📊 Avg per node:</div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                    <span style="color: #6b7280; font-size: 12px;">Capacity:</span>
+                    <strong style="color: #3b82f6; font-size: 12px;">${lightningNetworkService.formatSats(avgCapacityPerNode)}</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #6b7280; font-size: 12px;">Channels:</span>
+                    <strong style="color: #3b82f6; font-size: 12px;">${avgChannelsPerNode}</strong>
+                  </div>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                  <span style="color: #6b7280; font-size: 13px;">Nodes:</span>
-                  <strong style="color: #111827; font-size: 13px; margin-left: 12px;">${isp[4].toLocaleString()}</strong>
-                </div>
-                <div style="border-top: 1px solid #e5e7eb; margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="border-top: 1px solid #e5e7eb; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
                   <span style="color: #6b7280; font-size: 13px;">Market Share:</span>
-                  <strong style="color: #059669; font-size: 14px; margin-left: 12px;">${percent}%</strong>
+                  <strong style="color: #059669; font-size: 15px; margin-left: 12px;">${percent}%</strong>
                 </div>`
       }
     },
@@ -438,47 +537,41 @@ const topISPChart = computed(() => {
         animationType: 'scale',
         animationEasing: 'elasticOut',
         animationDelay: (idx) => idx * 80,
-        data: topISPs.map((isp, index) => ({
-          value: isp[4],
-          name: isp[1].length > 18 ? isp[1].substring(0, 18) + '...' : isp[1],
-          itemStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 1,
-              y2: 1,
-              colorStops: [
-                {
-                  offset: 0,
-                  color: [
-                    '#60a5fa',
-                    '#22d3ee',
-                    '#a78bfa',
-                    '#f472b6',
-                    '#fbbf24',
-                    '#34d399',
-                    '#fb7185',
-                    '#818cf8'
-                  ][index]
-                },
-                {
-                  offset: 1,
-                  color: [
-                    '#2563eb',
-                    '#0891b2',
-                    '#7c3aed',
-                    '#db2777',
-                    '#d97706',
-                    '#059669',
-                    '#e11d48',
-                    '#4f46e5'
-                  ][index]
-                }
-              ]
+        data: topISPs.map((isp, index) => {
+          const isOthers = isp[0] === 'others'
+          const displayName = isp[1].length > 20 ? isp[1].substring(0, 20) + '...' : isp[1]
+
+          const colors = [
+            ['#60a5fa', '#2563eb'],
+            ['#22d3ee', '#0891b2'],
+            ['#a78bfa', '#7c3aed'],
+            ['#f472b6', '#db2777'],
+            ['#fbbf24', '#d97706'],
+            ['#34d399', '#059669'],
+            ['#fb7185', '#e11d48']
+          ]
+
+          const colorIndex = index % colors.length
+          const [lightColor, darkColor] = isOthers ? ['#94a3b8', '#64748b'] : colors[colorIndex]
+
+          return {
+            value: isp[4],
+            name: displayName,
+            itemStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 1,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: lightColor },
+                  { offset: 1, color: darkColor }
+                ]
+              }
             }
           }
-        }))
+        })
       }
     ]
   }
