@@ -11,7 +11,8 @@ import {
   IconTrendingUp,
   IconActivity,
   IconLogin,
-  IconZoomIn
+  IconZoomIn,
+  IconExternalLink
 } from '@iconify-prerendered/vue-tabler'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -70,6 +71,10 @@ const loadData = async () => {
   }
 }
 
+const openNodeOnAmboss = (publicKey) => {
+  window.open(`https://amboss.space/node/${publicKey}`, '_blank')
+}
+
 const statsCards = computed(() => {
   if (!networkStats.value) return []
 
@@ -121,7 +126,7 @@ const nodeTypeChart = computed(() => {
   return {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: {c} ({d}%)'
+      formatter: '{b}: {c} nodes ({d}%)'
     },
     legend: {
       orient: 'horizontal',
@@ -187,6 +192,11 @@ const countryDistributionChart = computed(() => {
       trigger: 'axis',
       axisPointer: {
         type: 'shadow'
+      },
+      formatter: (params) => {
+        const data = params[0]
+        const country = nodesByCountry.value[data.dataIndex]
+        return `${country.name.en}<br/>Nodes: ${country.count.toLocaleString()}<br/>Share: ${country.share}%`
       }
     },
     grid: {
@@ -246,53 +256,58 @@ const topISPChart = computed(() => {
 
   return {
     tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      },
+      trigger: 'item',
       formatter: (params) => {
-        const data = params[0]
-        const isp = topISPs[data.dataIndex]
-        return `${isp[1]}<br/>Capacity: ${lightningNetworkService.formatSats(isp[2])}<br/>Channels: ${isp[3]}<br/>Nodes: ${isp[4]}`
+        const isp = topISPs[params.dataIndex]
+        return `${isp[1]}<br/>Capacity: ${lightningNetworkService.formatSats(isp[2])}<br/>Channels: ${isp[3].toLocaleString()}<br/>Nodes: ${isp[4].toLocaleString()}<br/>Share: ${params.percent}%`
       }
     },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'value'
-    },
-    yAxis: {
-      type: 'category',
-      data: topISPs.map(isp => isp[1].substring(0, 20)),
-      axisLabel: {
-        fontSize: 10
-      }
+    legend: {
+      orient: 'horizontal',
+      bottom: '0',
+      left: 'center',
+      type: 'scroll'
     },
     series: [
       {
-        name: 'Nodes',
-        type: 'bar',
-        data: topISPs.map(isp => ({
-          value: isp[4],
-          itemStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 1,
-              y2: 0,
-              colorStops: [
-                { offset: 0, color: '#3b82f6' },
-                { offset: 1, color: '#06b6d4' }
-              ]
-            }
+        name: 'Hosting Providers',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}\n{d}%',
+          fontSize: 11,
+          fontWeight: 'bold'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 13,
+            fontWeight: 'bold'
           }
-        })),
-        barMaxWidth: 30
+        },
+        data: topISPs.map((isp, index) => ({
+          value: isp[4],
+          name: isp[1].substring(0, 20),
+          itemStyle: {
+            color: [
+              '#3b82f6',
+              '#06b6d4',
+              '#8b5cf6',
+              '#ec4899',
+              '#f59e0b',
+              '#10b981',
+              '#ef4444',
+              '#6366f1'
+            ][index]
+          }
+        }))
       }
     ]
   }
@@ -375,7 +390,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Charts Row 1 -->
+      <!-- Charts Row 1 - Two Pie Charts Side by Side -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Node Types Pie Chart -->
         <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
@@ -386,7 +401,7 @@ onMounted(() => {
               </div>
               <div>
                 <h3 class="text-lg font-bold text-gray-900">Node Distribution</h3>
-                <p class="text-sm text-gray-500">By connectivity type</p>
+                <p class="text-sm text-gray-500">Network connectivity types (Clearnet, Tor, Hybrid)</p>
               </div>
             </div>
           </div>
@@ -399,22 +414,22 @@ onMounted(() => {
           />
         </div>
 
-        <!-- Top Countries Bar Chart -->
+        <!-- Top Hosting Providers Pie Chart -->
         <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <IconWorld class="w-6 h-6 text-blue-600" />
+              <div class="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center">
+                <IconServer class="w-6 h-6 text-cyan-600" />
               </div>
               <div>
-                <h3 class="text-lg font-bold text-gray-900">Top Countries</h3>
-                <p class="text-sm text-gray-500">By node count</p>
+                <h3 class="text-lg font-bold text-gray-900">Top Hosting Providers</h3>
+                <p class="text-sm text-gray-500">Infrastructure providers by node distribution</p>
               </div>
             </div>
           </div>
           <VChart
-            v-if="countryDistributionChart"
-            :option="countryDistributionChart"
+            v-if="topISPChart"
+            :option="topISPChart"
             class="w-full"
             style="height: 320px;"
             autoresize
@@ -424,22 +439,22 @@ onMounted(() => {
 
       <!-- Charts Row 2 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Top ISPs -->
+        <!-- Top Countries Bar Chart -->
         <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center">
-                <IconServer class="w-6 h-6 text-cyan-600" />
+              <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <IconWorld class="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 class="text-lg font-bold text-gray-900">Top Hosting Providers</h3>
-                <p class="text-sm text-gray-500">By node count</p>
+                <h3 class="text-lg font-bold text-gray-900">Top Countries</h3>
+                <p class="text-sm text-gray-500">Geographic distribution of Lightning nodes globally</p>
               </div>
             </div>
           </div>
           <VChart
-            v-if="topISPChart"
-            :option="topISPChart"
+            v-if="countryDistributionChart"
+            :option="countryDistributionChart"
             class="w-full"
             style="height: 320px;"
             autoresize
@@ -455,7 +470,7 @@ onMounted(() => {
               </div>
               <div>
                 <h3 class="text-lg font-bold text-gray-900">Top Nodes by Liquidity</h3>
-                <p class="text-sm text-gray-500">Highest capacity</p>
+                <p class="text-sm text-gray-500">Highest capacity routing nodes on the network</p>
               </div>
             </div>
           </div>
@@ -463,21 +478,25 @@ onMounted(() => {
             <div
               v-for="(node, index) in topNodesByCapacity"
               :key="node.publicKey"
-              class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+              @click="openNodeOnAmboss(node.publicKey)"
+              class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-orange-50 hover:shadow-md transition-all cursor-pointer group"
             >
               <div class="flex items-center space-x-3 flex-1 min-w-0">
                 <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
                   {{ index + 1 }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-semibold text-gray-900 truncate">{{ node.alias }}</p>
+                  <p class="text-sm font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{{ node.alias }}</p>
                   <p class="text-xs text-gray-500">{{ node.channels }} channels</p>
                 </div>
               </div>
-              <div class="text-right flex-shrink-0 ml-4">
-                <p class="text-sm font-bold text-green-600">
-                  {{ lightningNetworkService.formatSats(node.capacity) }}
-                </p>
+              <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
+                <div class="text-right">
+                  <p class="text-sm font-bold text-green-600">
+                    {{ lightningNetworkService.formatSats(node.capacity) }}
+                  </p>
+                </div>
+                <IconExternalLink class="w-4 h-4 text-gray-400 group-hover:text-orange-500 transition-colors" />
               </div>
             </div>
           </div>
@@ -509,49 +528,6 @@ onMounted(() => {
           <p class="text-white/80 text-sm mt-6">
             No sign-up required • Privacy-first • Open protocol
           </p>
-        </div>
-      </div>
-
-      <!-- Network Stats Table -->
-      <div v-if="networkStats" class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-        <h3 class="text-xl font-bold text-gray-900 mb-6">Detailed Network Statistics</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="space-y-4">
-            <div class="flex justify-between items-center py-3 border-b border-gray-100">
-              <span class="text-gray-600">Average Fee Rate</span>
-              <span class="font-semibold text-gray-900">{{ networkStats.avg_fee_rate }} ppm</span>
-            </div>
-            <div class="flex justify-between items-center py-3 border-b border-gray-100">
-              <span class="text-gray-600">Median Fee Rate</span>
-              <span class="font-semibold text-gray-900">{{ networkStats.med_fee_rate }} ppm</span>
-            </div>
-            <div class="flex justify-between items-center py-3 border-b border-gray-100">
-              <span class="text-gray-600">Average Base Fee</span>
-              <span class="font-semibold text-gray-900">{{ networkStats.avg_base_fee_mtokens }} msats</span>
-            </div>
-            <div class="flex justify-between items-center py-3 border-b border-gray-100">
-              <span class="text-gray-600">Median Base Fee</span>
-              <span class="font-semibold text-gray-900">{{ networkStats.med_base_fee_mtokens }} msats</span>
-            </div>
-          </div>
-          <div class="space-y-4">
-            <div class="flex justify-between items-center py-3 border-b border-gray-100">
-              <span class="text-gray-600">Median Capacity</span>
-              <span class="font-semibold text-gray-900">{{ lightningNetworkService.formatSats(networkStats.med_capacity) }}</span>
-            </div>
-            <div class="flex justify-between items-center py-3 border-b border-gray-100">
-              <span class="text-gray-600">Clearnet Nodes</span>
-              <span class="font-semibold text-gray-900">{{ lightningNetworkService.formatNumber(networkStats.clearnet_nodes) }}</span>
-            </div>
-            <div class="flex justify-between items-center py-3 border-b border-gray-100">
-              <span class="text-gray-600">Tor Nodes</span>
-              <span class="font-semibold text-gray-900">{{ lightningNetworkService.formatNumber(networkStats.tor_nodes) }}</span>
-            </div>
-            <div class="flex justify-between items-center py-3 border-b border-gray-100">
-              <span class="text-gray-600">Unannounced Nodes</span>
-              <span class="font-semibold text-gray-900">{{ lightningNetworkService.formatNumber(networkStats.unannounced_nodes) }}</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
