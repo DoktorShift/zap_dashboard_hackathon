@@ -9,6 +9,7 @@ import { useBtcPrice } from '../composables/useBtcPrice.js'
 import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, getPeriodComparison } from '../utils/timeFilter.js'
 import EmptyStateDashboard from '../components/EmptyStateDashboard.vue'
 import LoadingStateDashboard from '../components/LoadingStateDashboard.vue'
+import LightningNetworkDashboard from '../components/LightningNetworkDashboard.vue'
 
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
@@ -437,8 +438,8 @@ const getTrendColorClass = (change) => {
 </script>
 
 <template>
-  <!-- Empty State - No Authentication -->
-  <EmptyStateDashboard
+  <!-- Lightning Network Dashboard - No Authentication -->
+  <LightningNetworkDashboard
     v-if="!isAuthenticated"
     @trigger-login="$emit('trigger-login')"
   />

@@ -1,0 +1,559 @@
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { lightningNetworkService } from '../services/lightningNetworkService.js'
+import {
+  IconBolt,
+  IconNetwork,
+  IconUsers,
+  IconCoins,
+  IconWorld,
+  IconServer,
+  IconTrendingUp,
+  IconActivity,
+  IconLogin,
+  IconZoomIn
+} from '@iconify-prerendered/vue-tabler'
+import VChart from 'vue-echarts'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { PieChart, BarChart, LineChart } from 'echarts/charts'
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+} from 'echarts/components'
+
+use([
+  CanvasRenderer,
+  PieChart,
+  BarChart,
+  LineChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+])
+
+const emit = defineEmits(['trigger-login'])
+
+const isLoading = ref(true)
+const networkStats = ref(null)
+const topNodesByCapacity = ref([])
+const topNodesByConnectivity = ref([])
+const nodesByCountry = ref([])
+const ispRanking = ref(null)
+const historicalData = ref([])
+
+const loadData = async () => {
+  isLoading.value = true
+  try {
+    const [stats, topCap, topConn, countries, isp, historical] = await Promise.all([
+      lightningNetworkService.getNetworkStats('latest'),
+      lightningNetworkService.getTopNodesByCapacity(),
+      lightningNetworkService.getTopNodesByConnectivity(),
+      lightningNetworkService.getNodesByCountry(),
+      lightningNetworkService.getISPRanking(),
+      lightningNetworkService.getHistoricalStats()
+    ])
+
+    networkStats.value = stats.latest
+    topNodesByCapacity.value = topCap.slice(0, 10)
+    topNodesByConnectivity.value = topConn.slice(0, 10)
+    nodesByCountry.value = countries.slice(0, 10)
+    ispRanking.value = isp
+    historicalData.value = historical
+  } catch (error) {
+    console.error('Failed to load Lightning Network data:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const statsCards = computed(() => {
+  if (!networkStats.value) return []
+
+  const stats = networkStats.value
+  return [
+    {
+      title: 'Total Channels',
+      value: lightningNetworkService.formatNumber(stats.channel_count),
+      icon: IconNetwork,
+      color: 'from-orange-500 to-amber-500',
+      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-600',
+      subtitle: 'Active payment channels'
+    },
+    {
+      title: 'Network Nodes',
+      value: lightningNetworkService.formatNumber(stats.node_count),
+      icon: IconUsers,
+      color: 'from-blue-500 to-cyan-500',
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-600',
+      subtitle: 'Connected Lightning nodes'
+    },
+    {
+      title: 'Total Capacity',
+      value: lightningNetworkService.formatSats(stats.total_capacity),
+      icon: IconCoins,
+      color: 'from-green-500 to-emerald-500',
+      bgColor: 'bg-green-50',
+      textColor: 'text-green-600',
+      subtitle: 'Network liquidity'
+    },
+    {
+      title: 'Average Capacity',
+      value: lightningNetworkService.formatSats(stats.avg_capacity),
+      icon: IconActivity,
+      color: 'from-purple-500 to-pink-500',
+      bgColor: 'bg-purple-50',
+      textColor: 'text-purple-600',
+      subtitle: 'Per channel'
+    }
+  ]
+})
+
+const nodeTypeChart = computed(() => {
+  if (!networkStats.value) return null
+
+  const stats = networkStats.value
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'horizontal',
+      bottom: '0',
+      left: 'center'
+    },
+    series: [
+      {
+        name: 'Node Types',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}\n{d}%',
+          fontSize: 12,
+          fontWeight: 'bold'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 14,
+            fontWeight: 'bold'
+          }
+        },
+        data: [
+          {
+            value: stats.clearnet_nodes,
+            name: 'Clearnet',
+            itemStyle: { color: '#10b981' }
+          },
+          {
+            value: stats.tor_nodes,
+            name: 'Tor',
+            itemStyle: { color: '#f59e0b' }
+          },
+          {
+            value: stats.clearnet_tor_nodes,
+            name: 'Clearnet + Tor',
+            itemStyle: { color: '#3b82f6' }
+          },
+          {
+            value: stats.unannounced_nodes,
+            name: 'Unannounced',
+            itemStyle: { color: '#8b5cf6' }
+          }
+        ]
+      }
+    ]
+  }
+})
+
+const countryDistributionChart = computed(() => {
+  if (nodesByCountry.value.length === 0) return null
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'value',
+      axisLabel: {
+        formatter: (value) => `${(value / 1000).toFixed(0)}K`
+      }
+    },
+    yAxis: {
+      type: 'category',
+      data: nodesByCountry.value.map(c => c.iso),
+      axisLabel: {
+        fontSize: 11
+      }
+    },
+    series: [
+      {
+        name: 'Nodes',
+        type: 'bar',
+        data: nodesByCountry.value.map(c => ({
+          value: c.count,
+          itemStyle: {
+            color: {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 1,
+              y2: 0,
+              colorStops: [
+                { offset: 0, color: '#f59e0b' },
+                { offset: 1, color: '#f97316' }
+              ]
+            }
+          }
+        })),
+        barMaxWidth: 30,
+        label: {
+          show: true,
+          position: 'right',
+          formatter: '{c}'
+        }
+      }
+    ]
+  }
+})
+
+const topISPChart = computed(() => {
+  if (!ispRanking.value) return null
+
+  const topISPs = ispRanking.value.ispRanking.slice(0, 8)
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: (params) => {
+        const data = params[0]
+        const isp = topISPs[data.dataIndex]
+        return `${isp[1]}<br/>Capacity: ${lightningNetworkService.formatSats(isp[2])}<br/>Channels: ${isp[3]}<br/>Nodes: ${isp[4]}`
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'value'
+    },
+    yAxis: {
+      type: 'category',
+      data: topISPs.map(isp => isp[1].substring(0, 20)),
+      axisLabel: {
+        fontSize: 10
+      }
+    },
+    series: [
+      {
+        name: 'Nodes',
+        type: 'bar',
+        data: topISPs.map(isp => ({
+          value: isp[4],
+          itemStyle: {
+            color: {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 1,
+              y2: 0,
+              colorStops: [
+                { offset: 0, color: '#3b82f6' },
+                { offset: 1, color: '#06b6d4' }
+              ]
+            }
+          }
+        })),
+        barMaxWidth: 30
+      }
+    ]
+  }
+})
+
+onMounted(() => {
+  loadData()
+})
+</script>
+
+<template>
+  <div class="max-w-7xl mx-auto space-y-8">
+    <!-- Hero Section -->
+    <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-3xl p-8 md:p-12 shadow-2xl">
+      <div class="absolute inset-0 bg-black/10"></div>
+      <div class="relative z-10">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center space-x-4">
+            <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+              <IconBolt class="w-10 h-10 text-white animate-pulse" />
+            </div>
+            <div>
+              <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
+                Lightning Network Explorer
+              </h1>
+              <p class="text-white/90 text-lg">
+                Real-time insights into Bitcoin's Lightning Network
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+          <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="flex-1">
+              <p class="text-white/90 text-base mb-2">
+                Discover the power of instant, low-cost Bitcoin transactions
+              </p>
+              <p class="text-white text-sm">
+                Connect your Nostr account to track your Lightning earnings and analyze your zap data
+              </p>
+            </div>
+            <button
+              @click="emit('trigger-login')"
+              class="px-8 py-4 bg-white text-orange-600 font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center space-x-3 whitespace-nowrap"
+            >
+              <IconLogin class="w-6 h-6" />
+              <span>Connect with Nostr</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="isLoading" class="flex items-center justify-center py-20">
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-orange-500 mx-auto mb-4"></div>
+        <p class="text-gray-600 text-lg">Loading Lightning Network data...</p>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div v-else class="space-y-8">
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div
+          v-for="card in statsCards"
+          :key="card.title"
+          class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-100"
+        >
+          <div class="flex items-start justify-between mb-4">
+            <div :class="['w-14 h-14 rounded-2xl flex items-center justify-center', card.bgColor]">
+              <component :is="card.icon" :class="['w-8 h-8', card.textColor]" />
+            </div>
+          </div>
+          <h3 class="text-gray-600 text-sm font-medium mb-2">{{ card.title }}</h3>
+          <p class="text-3xl font-bold text-gray-900 mb-1">{{ card.value }}</p>
+          <p class="text-xs text-gray-500">{{ card.subtitle }}</p>
+        </div>
+      </div>
+
+      <!-- Charts Row 1 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Node Types Pie Chart -->
+        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                <IconNetwork class="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-gray-900">Node Distribution</h3>
+                <p class="text-sm text-gray-500">By connectivity type</p>
+              </div>
+            </div>
+          </div>
+          <VChart
+            v-if="nodeTypeChart"
+            :option="nodeTypeChart"
+            class="w-full"
+            style="height: 320px;"
+            autoresize
+          />
+        </div>
+
+        <!-- Top Countries Bar Chart -->
+        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <IconWorld class="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-gray-900">Top Countries</h3>
+                <p class="text-sm text-gray-500">By node count</p>
+              </div>
+            </div>
+          </div>
+          <VChart
+            v-if="countryDistributionChart"
+            :option="countryDistributionChart"
+            class="w-full"
+            style="height: 320px;"
+            autoresize
+          />
+        </div>
+      </div>
+
+      <!-- Charts Row 2 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Top ISPs -->
+        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center">
+                <IconServer class="w-6 h-6 text-cyan-600" />
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-gray-900">Top Hosting Providers</h3>
+                <p class="text-sm text-gray-500">By node count</p>
+              </div>
+            </div>
+          </div>
+          <VChart
+            v-if="topISPChart"
+            :option="topISPChart"
+            class="w-full"
+            style="height: 320px;"
+            autoresize
+          />
+        </div>
+
+        <!-- Top Nodes by Capacity -->
+        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                <IconTrendingUp class="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-gray-900">Top Nodes by Liquidity</h3>
+                <p class="text-sm text-gray-500">Highest capacity</p>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-3 max-h-80 overflow-y-auto">
+            <div
+              v-for="(node, index) in topNodesByCapacity"
+              :key="node.publicKey"
+              class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              <div class="flex items-center space-x-3 flex-1 min-w-0">
+                <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                  {{ index + 1 }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-gray-900 truncate">{{ node.alias }}</p>
+                  <p class="text-xs text-gray-500">{{ node.channels }} channels</p>
+                </div>
+              </div>
+              <div class="text-right flex-shrink-0 ml-4">
+                <p class="text-sm font-bold text-green-600">
+                  {{ lightningNetworkService.formatSats(node.capacity) }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Call to Action -->
+      <div class="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-3xl p-8 md:p-12 shadow-2xl">
+        <div class="max-w-3xl mx-auto text-center">
+          <div class="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <IconZoomIn class="w-12 h-12 text-white" />
+          </div>
+          <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">
+            Ready to Track Your Lightning Earnings?
+          </h2>
+          <p class="text-white/90 text-lg mb-8 leading-relaxed">
+            Connect your Nostr account to unlock powerful analytics for your zaps, campaigns, and Lightning Network activity.
+            See who's supporting your content, track engagement, and optimize your strategy.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              @click="emit('trigger-login')"
+              class="px-10 py-5 bg-white text-blue-600 font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
+            >
+              <IconLogin class="w-6 h-6" />
+              <span>Connect with Nostr</span>
+            </button>
+          </div>
+          <p class="text-white/80 text-sm mt-6">
+            No sign-up required • Privacy-first • Open protocol
+          </p>
+        </div>
+      </div>
+
+      <!-- Network Stats Table -->
+      <div v-if="networkStats" class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        <h3 class="text-xl font-bold text-gray-900 mb-6">Detailed Network Statistics</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div class="flex justify-between items-center py-3 border-b border-gray-100">
+              <span class="text-gray-600">Average Fee Rate</span>
+              <span class="font-semibold text-gray-900">{{ networkStats.avg_fee_rate }} ppm</span>
+            </div>
+            <div class="flex justify-between items-center py-3 border-b border-gray-100">
+              <span class="text-gray-600">Median Fee Rate</span>
+              <span class="font-semibold text-gray-900">{{ networkStats.med_fee_rate }} ppm</span>
+            </div>
+            <div class="flex justify-between items-center py-3 border-b border-gray-100">
+              <span class="text-gray-600">Average Base Fee</span>
+              <span class="font-semibold text-gray-900">{{ networkStats.avg_base_fee_mtokens }} msats</span>
+            </div>
+            <div class="flex justify-between items-center py-3 border-b border-gray-100">
+              <span class="text-gray-600">Median Base Fee</span>
+              <span class="font-semibold text-gray-900">{{ networkStats.med_base_fee_mtokens }} msats</span>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div class="flex justify-between items-center py-3 border-b border-gray-100">
+              <span class="text-gray-600">Median Capacity</span>
+              <span class="font-semibold text-gray-900">{{ lightningNetworkService.formatSats(networkStats.med_capacity) }}</span>
+            </div>
+            <div class="flex justify-between items-center py-3 border-b border-gray-100">
+              <span class="text-gray-600">Clearnet Nodes</span>
+              <span class="font-semibold text-gray-900">{{ lightningNetworkService.formatNumber(networkStats.clearnet_nodes) }}</span>
+            </div>
+            <div class="flex justify-between items-center py-3 border-b border-gray-100">
+              <span class="text-gray-600">Tor Nodes</span>
+              <span class="font-semibold text-gray-900">{{ lightningNetworkService.formatNumber(networkStats.tor_nodes) }}</span>
+            </div>
+            <div class="flex justify-between items-center py-3 border-b border-gray-100">
+              <span class="text-gray-600">Unannounced Nodes</span>
+              <span class="font-semibold text-gray-900">{{ lightningNetworkService.formatNumber(networkStats.unannounced_nodes) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
