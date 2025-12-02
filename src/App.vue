@@ -851,6 +851,12 @@ const handleTriggerLogin = () => {
   document.dispatchEvent(new Event('nlLaunch'))
 }
 
+const handleTriggerViewOnly = () => {
+  console.log('👁️ Triggering view-only mode from App...')
+  // Trigger nostr-login widget with readonly option
+  document.dispatchEvent(new Event('nlLaunch'))
+}
+
 // Onboarding checklist handlers
 const handleChecklistTaskAction = (action) => {
   switch (action) {
@@ -1116,6 +1122,7 @@ const handleChecklistTaskAction = (action) => {
         :auto-show="false"
         @close="handleHelpClose"
         @trigger-login="handleTriggerLogin"
+        @trigger-view-only="handleTriggerViewOnly"
       />
     </Teleport>
 

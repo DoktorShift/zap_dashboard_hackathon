@@ -23,7 +23,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'trigger-login'])
+const emit = defineEmits(['close', 'trigger-login', 'trigger-view-only'])
 
 const currentSlide = ref(0)
 const totalSlides = 10
@@ -41,7 +41,6 @@ const slides = [
     id: 'welcome',
     title: 'Welcome to ZapTracker',
     subtitle: 'Your Lightning Network Command Center',
-    description: 'Track, analyze, and grow your Lightning Network presence with powerful analytics and insights.',
     showLogo: true
   },
   {
@@ -102,13 +101,7 @@ const slides = [
   {
     id: 'zapgoals',
     title: 'Set and Track Zap Goals',
-    description: 'Create fundraising campaigns with customizable goals. Share campaign links, track progress in real-time, and celebrate milestones with your community.',
-    image: '/ZapTracker_campaigns.png',
-    features: [
-      { icon: IconTarget, text: 'Campaign creation' },
-      { icon: IconBolt, text: 'Goal tracking' },
-      { icon: IconChartBar, text: 'Progress analytics' }
-    ]
+    image: '/ZapTracker_campaigns.png'
   },
   {
     id: 'faq',
@@ -169,8 +162,7 @@ const slides = [
   {
     id: 'cta',
     title: 'Let\'s Dive In!',
-    subtitle: 'Choose how you want to explore ZapTracker',
-    description: 'Connect with your Nostr account for full features, or try view-only mode to explore the platform.',
+    subtitle: 'Connect with your Nostr account for full features, or try view-only mode to explore the platform.',
     showLogo: true,
     isFinal: true
   }
@@ -211,7 +203,7 @@ const handleGetStarted = () => {
 const handleViewOnly = () => {
   markWelcomeSeen()
   emit('close')
-  // View-only mode - just close the modal without triggering login
+  emit('trigger-view-only')
 }
 </script>
 
@@ -264,25 +256,21 @@ const handleViewOnly = () => {
                 {{ currentSlideData.title }}
               </h1>
 
-              <p class="text-xl sm:text-2xl text-orange-600 font-semibold">
+              <p class="text-xl sm:text-2xl text-orange-600 font-semibold mb-12">
                 {{ currentSlideData.subtitle }}
               </p>
 
-              <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-                {{ currentSlideData.description }}
-              </p>
-
-              <div class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+              <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-lg mx-auto">
                 <button
                   @click="nextSlide"
-                  class="px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2"
+                  class="flex-1 px-8 py-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2"
                 >
                   <span>Take a Tour</span>
                   <IconChevronRight class="w-5 h-5" />
                 </button>
                 <button
                   @click="handleGetStarted"
-                  class="px-8 py-4 bg-white border-2 border-orange-500 text-orange-600 rounded-xl font-semibold hover:bg-orange-50 transition-all duration-200"
+                  class="flex-1 px-8 py-5 bg-white border-2 border-orange-500 text-orange-600 text-lg rounded-xl font-bold hover:bg-orange-50 hover:shadow-lg transform hover:scale-105 transition-all duration-200"
                 >
                   Connect Now
                 </button>
@@ -324,6 +312,73 @@ const handleViewOnly = () => {
                     <component :is="feature.icon" class="w-5 h-5 text-white" />
                   </div>
                   <span class="text-sm font-medium text-gray-700 pt-2">{{ feature.text }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Page 7: Campaigns - Custom Empty State Style -->
+            <div v-else-if="currentSlideData.id === 'zapgoals'" class="space-y-6">
+              <!-- Screenshot -->
+              <div v-if="currentSlideData.image" class="flex justify-center mb-8">
+                <div class="relative max-w-4xl w-full">
+                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur-3xl opacity-20"></div>
+                  <img
+                    :src="currentSlideData.image"
+                    :alt="currentSlideData.title"
+                    class="relative w-full h-auto rounded-2xl shadow-2xl border-4 border-white"
+                  />
+                </div>
+              </div>
+
+              <div class="text-center max-w-3xl mx-auto">
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+                  {{ currentSlideData.title }}
+                </h2>
+                <p class="text-lg text-gray-600 leading-relaxed mb-8">
+                  Create fundraising campaigns with customizable goals. Share campaign links, track progress in real-time, and celebrate milestones with your community.
+                </p>
+
+                <!-- Campaign Features -->
+                <div class="grid md:grid-cols-2 gap-4 text-left">
+                  <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
+                    <div class="flex items-start space-x-3">
+                      <IconTarget class="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
+                      <div>
+                        <h4 class="font-bold text-gray-900 mb-1">Campaign Creation</h4>
+                        <p class="text-sm text-gray-600">Set goals and customize your fundraising page</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
+                    <div class="flex items-start space-x-3">
+                      <IconBolt class="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
+                      <div>
+                        <h4 class="font-bold text-gray-900 mb-1">Real-Time Tracking</h4>
+                        <p class="text-sm text-gray-600">Monitor progress and supporter contributions live</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
+                    <div class="flex items-start space-x-3">
+                      <IconChartBar class="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
+                      <div>
+                        <h4 class="font-bold text-gray-900 mb-1">Progress Analytics</h4>
+                        <p class="text-sm text-gray-600">Detailed insights on campaign performance</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
+                    <div class="flex items-start space-x-3">
+                      <IconUsers class="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
+                      <div>
+                        <h4 class="font-bold text-gray-900 mb-1">Community Engagement</h4>
+                        <p class="text-sm text-gray-600">Share links and engage with your supporters</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -385,8 +440,8 @@ const handleViewOnly = () => {
             </div>
 
             <!-- Page 10: Final CTA -->
-            <div v-else-if="currentSlideData.isFinal" class="text-center space-y-6">
-              <div class="flex justify-center mb-6">
+            <div v-else-if="currentSlideData.isFinal" class="text-center">
+              <div class="flex justify-center mb-8">
                 <div class="relative">
                   <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
                   <img
@@ -397,40 +452,39 @@ const handleViewOnly = () => {
                 </div>
               </div>
 
-              <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">
+              <h2 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
                 {{ currentSlideData.title }}
               </h2>
 
-              <p class="text-xl text-orange-600 font-semibold">
+              <p class="text-lg text-gray-600 max-w-2xl mx-auto mb-12">
                 {{ currentSlideData.subtitle }}
               </p>
 
-              <p class="text-base text-gray-600 max-w-2xl mx-auto">
-                {{ currentSlideData.description }}
-              </p>
-
               <!-- CTAs -->
-              <div class="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+              <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-2xl mx-auto mb-8">
                 <button
                   @click="handleGetStarted"
-                  class="px-10 py-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
+                  class="flex-1 px-10 py-6 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
                 >
                   <IconLogin class="w-6 h-6" />
                   <span>Connect with Nostr</span>
                 </button>
                 <button
                   @click="handleViewOnly"
-                  class="px-10 py-5 bg-white border-2 border-gray-300 text-gray-700 text-lg rounded-xl font-semibold hover:bg-gray-50 transition-all duration-200 flex items-center justify-center space-x-3"
+                  class="flex-1 px-10 py-6 bg-white border-2 border-gray-300 text-gray-700 text-lg rounded-xl font-bold hover:bg-gray-50 hover:border-gray-400 hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
                 >
                   <IconEye class="w-6 h-6" />
-                  <span>View-Only Mode</span>
+                  <span>Read-Only Mode</span>
                 </button>
               </div>
 
-              <div class="mt-8 pt-6 border-t border-gray-200 space-y-2">
-                <p class="text-sm text-gray-500">
-                  View-only mode lets you explore with any public npub
+              <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 max-w-2xl mx-auto">
+                <p class="text-sm text-gray-700">
+                  <strong>Read-Only Mode:</strong> Explore ZapTracker by entering any public Nostr npub to view their analytics and activity.
                 </p>
+              </div>
+
+              <div class="mt-6">
                 <a
                   href="https://usenostr.org"
                   target="_blank"
