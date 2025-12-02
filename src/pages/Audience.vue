@@ -28,6 +28,8 @@ import {
   IconTarget,
   IconGlobe,
   IconWifi,
+  IconInfoCircle,
+  IconBulb,
   IconWifiOff
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
@@ -670,22 +672,111 @@ watch(following, (newFollowing, oldFollowing) => {
             <p class="text-gray-600">Loading people you follow...</p>
           </div>
 
-          <div v-else-if="filteredFollowing.length === 0" class="text-center py-12">
-            <IconUsers class="w-12 h-12 mx-auto text-gray-300 mb-4" />
-            <h3 class="text-lg font-medium text-gray-900 mb-2">
-              {{ searchQuery ? 'No matching users' : 'Not following anyone yet' }}
-            </h3>
-            <p class="text-gray-600 mb-4">
-              {{ searchQuery ? 'Try adjusting your search terms' : 'Discover and follow interesting people on Nostr' }}
-            </p>
-            <button
-              v-if="!searchQuery"
-              @click="activeTab = 'following'"
-              class="btn-primary"
-            >
-              <IconSearch class="w-4 h-4" />
-              Browse Following
-            </button>
+          <div v-else-if="filteredFollowing.length === 0" class="max-w-2xl mx-auto">
+            <!-- Search No Results -->
+            <div v-if="searchQuery" class="text-center py-12">
+              <IconSearch class="w-12 h-12 mx-auto text-gray-300 mb-4" />
+              <h3 class="text-xl font-semibold text-gray-900 mb-2">No Matching Users</h3>
+              <p class="text-gray-600 mb-4">Try adjusting your search terms</p>
+            </div>
+
+            <!-- Not Following Anyone Yet -->
+            <div v-else class="py-8">
+              <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-3xl shadow-lg mb-6">
+                  <IconUsers class="w-10 h-10 text-white" />
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">Build Your Network</h3>
+                <p class="text-lg text-gray-600">
+                  You're not following anyone yet. Let's connect you with interesting people!
+                </p>
+              </div>
+
+              <!-- Why Empty -->
+              <div class="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6 mb-8">
+                <div class="flex items-start space-x-4">
+                  <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <IconInfoCircle class="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">Growing Your Audience Starts Here</h4>
+                    <p class="text-gray-700 leading-relaxed">
+                      Following people on Nostr helps you discover content, build relationships, and grow your own audience.
+                      When you support others, they're more likely to discover and support you too.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Steps -->
+              <div class="space-y-4 mb-8">
+                <h4 class="text-xl font-bold text-gray-900 text-center mb-6">How to Find People to Follow</h4>
+
+                <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+                  <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                      1
+                    </div>
+                    <div class="flex-1">
+                      <h5 class="font-semibold text-gray-900 mb-2">Use Nostr Clients to Discover</h5>
+                      <p class="text-gray-600 text-sm mb-3">
+                        Browse Primal, Damus, Amethyst, or Nostrudel to find users posting interesting content. Look for hashtags you care about and follow the creators.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+                  <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                      2
+                    </div>
+                    <div class="flex-1">
+                      <h5 class="font-semibold text-gray-900 mb-2">Follow People Who Zap You</h5>
+                      <p class="text-gray-600 text-sm mb-3">
+                        Check your ZapFeed to see who's supporting your content. Following your supporters builds community and encourages more engagement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-all">
+                  <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-purple-600">
+                      3
+                    </div>
+                    <div class="flex-1">
+                      <h5 class="font-semibold text-gray-900 mb-2">Join Conversations & Communities</h5>
+                      <p class="text-gray-600 text-sm mb-3">
+                        Engage with posts that interest you. Reply, share thoughts, and follow people whose perspectives you value.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tips -->
+              <div class="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl p-6">
+                <h5 class="font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                  <IconBulb class="w-5 h-5 text-amber-500" />
+                  <span>Networking Tips</span>
+                </h5>
+                <ul class="space-y-2 text-sm text-gray-700">
+                  <li class="flex items-start space-x-2">
+                    <span class="text-purple-600 font-bold mt-0.5">•</span>
+                    <span>Follow people with similar interests first - quality connections matter more than quantity</span>
+                  </li>
+                  <li class="flex items-start space-x-2">
+                    <span class="text-purple-600 font-bold mt-0.5">•</span>
+                    <span>Engage before you expect engagement - support others to build genuine relationships</span>
+                  </li>
+                  <li class="flex items-start space-x-2">
+                    <span class="text-purple-600 font-bold mt-0.5">•</span>
+                    <span>Start small - follow 10-20 people you genuinely want to hear from, then grow naturally</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           <div v-else class="space-y-3">
