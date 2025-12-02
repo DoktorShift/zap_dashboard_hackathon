@@ -252,19 +252,19 @@ const handleLoginClick = () => {
       
       <!-- Right Side Actions -->
       <div class="flex items-center space-x-2 sm:space-x-3">
-        <!-- How to Start Button - Always Visible -->
+        <!-- How to Start Button - Desktop - Always Visible -->
         <button
           @click="emit('show-help')"
-          class="hidden sm:flex items-center space-x-2 px-4 py-2 text-sm font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all duration-200 border border-orange-200"
+          class="hidden sm:flex items-center space-x-2 px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl shadow-md hover:shadow-lg hover:from-blue-600 hover:to-cyan-600 transition-all duration-200 transform hover:scale-105"
         >
           <IconHelp class="w-4 h-4" />
           <span>How to Start</span>
         </button>
 
-        <!-- Mobile Help Icon - Always Visible -->
+        <!-- Mobile Help Button - Always Visible -->
         <button
           @click="emit('show-help')"
-          class="sm:hidden p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target border border-orange-200"
+          class="sm:hidden flex items-center justify-center w-11 h-11 bg-gradient-to-br from-blue-500 to-cyan-500 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 touch-target"
         >
           <IconHelp class="w-5 h-5" />
         </button>
