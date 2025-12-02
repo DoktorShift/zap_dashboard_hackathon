@@ -36,6 +36,13 @@ use([
   GridComponent
 ])
 
+const props = defineProps({
+  hideAuthPrompts: {
+    type: Boolean,
+    default: false
+  }
+})
+
 const emit = defineEmits(['trigger-login', 'show-help'])
 
 const isLoading = ref(true)
@@ -604,7 +611,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+        <div v-if="!hideAuthPrompts" class="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
           <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div class="flex-1">
               <p class="text-white/90 text-base mb-2">
@@ -777,7 +784,7 @@ onMounted(() => {
       </div>
 
       <!-- Call to Action -->
-      <div class="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-3xl p-8 md:p-12 shadow-2xl">
+      <div v-if="!hideAuthPrompts" class="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-3xl p-8 md:p-12 shadow-2xl">
         <div class="max-w-3xl mx-auto text-center">
           <div class="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6">
             <IconZoomIn class="w-12 h-12 text-white" />

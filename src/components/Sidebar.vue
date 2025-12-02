@@ -1,5 +1,5 @@
 <script setup>
-import { inject, computed } from 'vue'
+import { inject, computed, ref } from 'vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import {
   IconDashboard,
@@ -11,7 +11,10 @@ import {
   IconTarget,
   IconCalendar,
   IconUsers,
-  IconSettings
+  IconSettings,
+  IconChevronDown,
+  IconChevronRight,
+  IconActivity
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -19,6 +22,7 @@ const combinedZapData = inject('combinedZapData')
 const emit = defineEmits(['change-page', 'show-help'])
 
 const { isAuthenticated } = useNostrAuth()
+const dashboardSubmenuOpen = ref(false)
 
 const totalZaps = computed(() => {
   return combinedZapData.value.filter(zap => zap.eventId).length
@@ -31,7 +35,17 @@ const totalSats = computed(() => {
 })
 
 const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: IconDashboard, requiresAuth: false },
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: IconDashboard,
+    requiresAuth: false,
+    hasSubmenu: true,
+    submenuItems: [
+      { id: 'dashboard', label: 'ZapTracker Dashboard', icon: IconDashboard },
+      { id: 'lightning-explorer', label: 'Lightning Explorer', icon: IconActivity }
+    ]
+  },
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt, requiresAuth: true },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar, requiresAuth: true },
   { id: 'wallet', label: 'Wallet', icon: IconWallet, requiresAuth: true },
@@ -43,9 +57,25 @@ const menuItems = [
   { id: 'settings', label: 'Settings', icon: IconSettings, requiresAuth: false }
 ]
 
+const toggleDashboardSubmenu = () => {
+  dashboardSubmenuOpen.value = !dashboardSubmenuOpen.value
+}
+
 const handlePageChange = (item) => {
   if (item.requiresAuth && !isAuthenticated.value) return
+
+  // If clicking on dashboard parent and logged in, toggle submenu
+  if (item.hasSubmenu && isAuthenticated.value) {
+    toggleDashboardSubmenu()
+    return
+  }
+
+  // If not logged in, go directly to dashboard (lightning explorer)
   emit('change-page', item.id)
+}
+
+const handleSubmenuClick = (subItem) => {
+  emit('change-page', subItem.id)
 }
 
 const isItemDisabled = (item) => {
@@ -76,12 +106,13 @@ const handleShowHelp = () => {
     <nav class="flex-1 px-3 py-4 overflow-y-auto">
       <ul class="space-y-1">
         <li v-for="item in menuItems" :key="item.id">
+          <!-- Main Menu Item -->
           <button
             @click="handlePageChange(item)"
             :disabled="isItemDisabled(item)"
             :class="[
               'w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200',
-              currentPage === item.id
+              (currentPage === item.id || (item.hasSubmenu && (currentPage === 'dashboard' || currentPage === 'lightning-explorer')))
                 ? 'bg-orange-50 text-orange-600 font-medium shadow-sm'
                 : isItemDisabled(item)
                 ? 'text-gray-400 cursor-not-allowed'
@@ -92,15 +123,49 @@ const handleShowHelp = () => {
               :is="item.icon"
               :class="[
                 'w-5 h-5 flex-shrink-0',
-                currentPage === item.id
+                (currentPage === item.id || (item.hasSubmenu && (currentPage === 'dashboard' || currentPage === 'lightning-explorer')))
                   ? 'text-orange-500'
                   : isItemDisabled(item)
                   ? 'text-gray-300'
                   : 'text-gray-500'
               ]"
             />
-            <span class="text-sm truncate">{{ item.label }}</span>
+            <span class="text-sm truncate flex-1">{{ item.label }}</span>
+            <component
+              v-if="item.hasSubmenu && isAuthenticated"
+              :is="dashboardSubmenuOpen ? IconChevronDown : IconChevronRight"
+              class="w-4 h-4 flex-shrink-0 text-gray-400"
+            />
           </button>
+
+          <!-- Submenu Items -->
+          <ul
+            v-if="item.hasSubmenu && isAuthenticated && dashboardSubmenuOpen"
+            class="mt-1 ml-4 space-y-1"
+          >
+            <li v-for="subItem in item.submenuItems" :key="subItem.id">
+              <button
+                @click="handleSubmenuClick(subItem)"
+                :class="[
+                  'w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-left transition-all duration-200',
+                  currentPage === subItem.id
+                    ? 'bg-orange-100 text-orange-700 font-medium'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                ]"
+              >
+                <component
+                  :is="subItem.icon"
+                  :class="[
+                    'w-4 h-4 flex-shrink-0',
+                    currentPage === subItem.id
+                      ? 'text-orange-600'
+                      : 'text-gray-400'
+                  ]"
+                />
+                <span class="text-xs truncate">{{ subItem.label }}</span>
+              </button>
+            </li>
+          </ul>
         </li>
       </ul>
     </nav>

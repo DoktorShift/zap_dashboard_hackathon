@@ -426,6 +426,7 @@ provide('refreshProfile', refreshProfile)
 
 const components = {
   dashboard: Dashboard,
+  'lightning-explorer': Dashboard,
   'zap-feed': ZapFeed,
   analytics: Analytics,
   'chat-zaps': ChatZaps,

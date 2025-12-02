@@ -11,6 +11,8 @@ import EmptyStateDashboard from '../components/EmptyStateDashboard.vue'
 import LoadingStateDashboard from '../components/LoadingStateDashboard.vue'
 import LightningNetworkDashboard from '../components/LightningNetworkDashboard.vue'
 
+const currentPage = inject('currentPage')
+
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
 const echartsError = ref(null)
@@ -438,14 +440,15 @@ const getTrendColorClass = (change) => {
 </script>
 
 <template>
-  <!-- Lightning Network Dashboard - No Authentication -->
+  <!-- Lightning Network Explorer - Accessible when logged in or not -->
   <LightningNetworkDashboard
-    v-if="!isAuthenticated"
+    v-if="currentPage === 'lightning-explorer' || !isAuthenticated"
     @trigger-login="$emit('trigger-login')"
     @show-help="$emit('show-help')"
+    :hideAuthPrompts="isAuthenticated"
   />
 
-  <!-- Loading State -->
+  <!-- Loading State (User Dashboard Only) -->
   <LoadingStateDashboard v-else-if="isLoading" />
 
   <!-- Dashboard with Data -->
