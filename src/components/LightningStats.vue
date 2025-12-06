@@ -1,12 +1,32 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { IconBolt, IconTrendingUp, IconTrendingDown, IconWorld, IconServer, IconActivity } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconTrendingUp, IconTrendingDown, IconWorld, IconServer, IconActivity, IconInfoCircle } from '@iconify-prerendered/vue-tabler'
 import { getISPRanking, getNodeRankings, getLightningStatistics, formatSats } from '../utils/lightningStatsService.js'
 
 const isLoading = ref(true)
 const stats = ref(null)
 const ispData = ref(null)
 const nodeRankings = ref(null)
+const activeTooltip = ref(null)
+
+const tooltips = {
+  networkCapacity: 'The total Bitcoin locked in all Lightning channels. More capacity means the network can handle larger payments.',
+  activeNodes: 'Number of operational Lightning nodes routing payments. Each node strengthens the network.',
+  paymentChannels: 'Direct payment connections between nodes. Think of them as highways for instant Bitcoin transactions.',
+  avgCapacity: 'The typical size of a payment channel. Larger channels can route bigger payments.',
+  clearnetCapacity: 'Bitcoin held in channels on nodes accessible via regular internet.',
+  torCapacity: 'Bitcoin held in channels on privacy-focused Tor nodes.',
+  feeRate: 'Average cost to route payments through the network, measured in parts per million (ppm).',
+  baseFee: 'Flat fee charged per payment routing, measured in millisatoshis (1/1000 of a sat).'
+}
+
+const showTooltip = (key) => {
+  activeTooltip.value = key
+}
+
+const hideTooltip = () => {
+  activeTooltip.value = null
+}
 
 onMounted(async () => {
   isLoading.value = true
@@ -115,51 +135,111 @@ const topNodesByChannels = computed(() => {
       <!-- Hero Stats -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Total Capacity -->
-        <div class="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-md">
+        <div class="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-md relative group">
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
               <IconBolt class="w-6 h-6" />
             </div>
-            <div class="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium flex items-center space-x-1">
-              <IconTrendingUp class="w-3 h-3" />
-              <span>+0.4%</span>
+            <div class="flex items-center space-x-2">
+              <div class="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium flex items-center space-x-1">
+                <IconTrendingUp class="w-3 h-3" />
+                <span>+0.4%</span>
+              </div>
+              <button
+                @mouseenter="showTooltip('networkCapacity')"
+                @mouseleave="hideTooltip"
+                class="p-1 text-white/60 hover:text-white transition-colors"
+              >
+                <IconInfoCircle class="w-5 h-5" />
+              </button>
             </div>
           </div>
           <p class="text-white/80 text-sm font-medium mb-1">Network Capacity</p>
           <p class="text-3xl font-semibold mb-1">{{ networkCapacity.btc }} BTC</p>
           <p class="text-white/90 text-lg font-medium">${{ networkCapacity.usd }}</p>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'networkCapacity'"
+            class="absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-0 left-full ml-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <div class="absolute w-3 h-3 bg-gray-900 border-l border-t border-gray-700 transform rotate-45 -left-1.5 top-8"></div>
+            <h4 class="font-medium text-sm mb-2 text-white">Network Capacity</h4>
+            <p class="text-xs text-gray-300 leading-relaxed">{{ tooltips.networkCapacity }}</p>
+          </div>
         </div>
 
         <!-- Total Nodes -->
-        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative">
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
               <IconServer class="w-6 h-6 text-orange-600" />
             </div>
-            <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
-              <IconTrendingUp class="w-3 h-3" />
-              <span>+0.4%</span>
+            <div class="flex items-center space-x-2">
+              <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
+                <IconTrendingUp class="w-3 h-3" />
+                <span>+0.4%</span>
+              </div>
+              <button
+                @mouseenter="showTooltip('activeNodes')"
+                @mouseleave="hideTooltip"
+                class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <IconInfoCircle class="w-5 h-5" />
+              </button>
             </div>
           </div>
           <p class="text-gray-600 text-sm font-medium mb-1">Active Nodes</p>
           <p class="text-3xl font-semibold text-gray-900">{{ stats?.latest?.node_count?.toLocaleString() || 'N/A' }}</p>
           <p class="text-gray-500 text-sm mt-1">Running worldwide</p>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'activeNodes'"
+            class="absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-0 left-full ml-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <div class="absolute w-3 h-3 bg-gray-900 border-l border-t border-gray-700 transform rotate-45 -left-1.5 top-8"></div>
+            <h4 class="font-medium text-sm mb-2 text-white">Active Nodes</h4>
+            <p class="text-xs text-gray-300 leading-relaxed">{{ tooltips.activeNodes }}</p>
+          </div>
         </div>
 
         <!-- Total Channels -->
-        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow relative">
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
               <IconActivity class="w-6 h-6 text-orange-600" />
             </div>
-            <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
-              <IconTrendingUp class="w-3 h-3" />
-              <span>+0.4%</span>
+            <div class="flex items-center space-x-2">
+              <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
+                <IconTrendingUp class="w-3 h-3" />
+                <span>+0.4%</span>
+              </div>
+              <button
+                @mouseenter="showTooltip('paymentChannels')"
+                @mouseleave="hideTooltip"
+                class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <IconInfoCircle class="w-5 h-5" />
+              </button>
             </div>
           </div>
           <p class="text-gray-600 text-sm font-medium mb-1">Payment Channels</p>
           <p class="text-3xl font-semibold text-gray-900">{{ stats?.latest?.channel_count?.toLocaleString() || 'N/A' }}</p>
           <p class="text-gray-500 text-sm mt-1">Open connections</p>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'paymentChannels'"
+            class="absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-0 left-full ml-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <div class="absolute w-3 h-3 bg-gray-900 border-l border-t border-gray-700 transform rotate-45 -left-1.5 top-8"></div>
+            <h4 class="font-medium text-sm mb-2 text-white">Payment Channels</h4>
+            <p class="text-xs text-gray-300 leading-relaxed">{{ tooltips.paymentChannels }}</p>
+          </div>
         </div>
       </div>
 
@@ -334,5 +414,16 @@ const topNodesByChannels = computed(() => {
 
 .animate-pulse {
   animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

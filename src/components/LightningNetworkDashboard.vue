@@ -12,7 +12,8 @@ import {
   IconActivity,
   IconLogin,
   IconZoomIn,
-  IconExternalLink
+  IconExternalLink,
+  IconInfoCircle
 } from '@iconify-prerendered/vue-tabler'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -52,6 +53,58 @@ const topNodesByConnectivity = ref([])
 const nodesByCountry = ref([])
 const ispRanking = ref(null)
 const historicalData = ref([])
+const activeTooltip = ref(null)
+
+const tooltips = {
+  channels: {
+    title: 'Payment Channels',
+    description: 'Payment channels are direct connections between two Lightning nodes that allow instant Bitcoin transactions. Think of them as private payment tunnels that can process thousands of transactions without touching the Bitcoin blockchain.',
+    example: 'If you and a friend open a channel with 1 BTC, you can send payments back and forth instantly until one of you closes the channel.'
+  },
+  nodes: {
+    title: 'Network Nodes',
+    description: 'A Lightning node is like a router in the Lightning Network. Anyone can run a node to send, receive, or help route Bitcoin payments. More nodes mean a more robust and decentralized network.',
+    example: 'Running a node is similar to running a Bitcoin full node, but it also lets you participate in routing payments and earning fees.'
+  },
+  capacity: {
+    title: 'Total Network Capacity',
+    description: 'This is the total amount of Bitcoin locked in all Lightning channels across the entire network. Higher capacity means more liquidity for routing larger payments.',
+    example: 'If the network has 5,000 BTC capacity, it can theoretically route payments up to that amount across all channels.'
+  },
+  avgCapacity: {
+    title: 'Average Channel Capacity',
+    description: 'The typical amount of Bitcoin held in a single payment channel. Larger channels can route bigger payments but require more capital.',
+    example: 'A channel with 5 million sats can route payments up to that amount in either direction.'
+  },
+  clearnet: {
+    title: 'Clearnet Nodes',
+    description: 'These nodes are accessible via the regular internet with a public IP address. They\'re faster and easier to connect to, but your IP address is visible to the network.',
+    pros: 'Fast connections, reliable routing'
+  },
+  tor: {
+    title: 'Tor Nodes',
+    description: 'These nodes only connect via the Tor network, providing maximum privacy by hiding your IP address. However, they can be slower due to Tor\'s onion routing.',
+    pros: 'Maximum privacy, hidden location'
+  },
+  hybrid: {
+    title: 'Hybrid Nodes (Clearnet + Tor)',
+    description: 'These nodes are accessible via both regular internet and Tor, offering the best of both worlds. They can accept connections from any node type.',
+    pros: 'Flexibility, wider reach, privacy option'
+  },
+  isp: {
+    title: 'Hosting Providers',
+    description: 'Most Lightning nodes run on cloud servers from various hosting providers. This shows which companies host the most nodes. Decentralization across many providers is healthier for the network.',
+    note: 'Running a node at home improves decentralization!'
+  }
+}
+
+const showTooltip = (key) => {
+  activeTooltip.value = key
+}
+
+const hideTooltip = () => {
+  activeTooltip.value = null
+}
 
 const loadData = async () => {
   isLoading.value = true
@@ -94,7 +147,8 @@ const statsCards = computed(() => {
       color: 'from-orange-500 to-amber-500',
       bgColor: 'bg-orange-50',
       textColor: 'text-orange-600',
-      subtitle: 'Active payment channels'
+      subtitle: 'Active payment channels',
+      tooltipKey: 'channels'
     },
     {
       title: 'Network Nodes',
@@ -103,7 +157,8 @@ const statsCards = computed(() => {
       color: 'from-blue-500 to-cyan-500',
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-600',
-      subtitle: 'Connected Lightning nodes'
+      subtitle: 'Connected Lightning nodes',
+      tooltipKey: 'nodes'
     },
     {
       title: 'Total Capacity',
@@ -112,7 +167,8 @@ const statsCards = computed(() => {
       color: 'from-green-500 to-emerald-500',
       bgColor: 'bg-green-50',
       textColor: 'text-green-600',
-      subtitle: 'Network liquidity'
+      subtitle: 'Network liquidity',
+      tooltipKey: 'capacity'
     },
     {
       title: 'Average Capacity',
@@ -121,7 +177,8 @@ const statsCards = computed(() => {
       color: 'from-purple-500 to-pink-500',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-600',
-      subtitle: 'Per channel'
+      subtitle: 'Per channel',
+      tooltipKey: 'avgCapacity'
     }
   ]
 })
@@ -589,6 +646,19 @@ onMounted(() => {
 })
 </script>
 
+<style scoped>
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+
 <template>
   <div class="max-w-7xl mx-auto space-y-8">
     <!-- Hero Section -->
@@ -657,31 +727,83 @@ onMounted(() => {
         <div
           v-for="card in statsCards"
           :key="card.title"
-          class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
+          class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 relative"
         >
           <div class="flex items-start justify-between mb-4">
             <div :class="['w-12 h-12 rounded-xl flex items-center justify-center', card.bgColor]">
               <component :is="card.icon" :class="['w-6 h-6', card.textColor]" />
             </div>
+            <button
+              v-if="card.tooltipKey"
+              @mouseenter="showTooltip(card.tooltipKey)"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
           </div>
           <h3 class="text-gray-600 text-sm font-medium mb-2">{{ card.title }}</h3>
           <p class="text-3xl font-semibold text-gray-900 mb-1">{{ card.value }}</p>
           <p class="text-xs text-gray-500">{{ card.subtitle }}</p>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === card.tooltipKey"
+            class="absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 -top-2 left-full ml-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <div class="absolute w-3 h-3 bg-gray-900 border-l border-t border-gray-700 transform rotate-45 -left-1.5 top-8"></div>
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips[card.tooltipKey].title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips[card.tooltipKey].description }}</p>
+            <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+              <p class="text-xs text-gray-400 italic">{{ tooltips[card.tooltipKey].example }}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Charts Row 1 - Two Pie Charts Side by Side -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Node Types Pie Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-3 flex-1">
               <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
                 <IconNetwork class="w-5 h-5 text-orange-600" />
               </div>
-              <div>
+              <div class="flex-1">
                 <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Node Distribution</h3>
                 <p class="text-sm text-gray-500">Network connectivity types (Clearnet, Tor, Hybrid)</p>
+              </div>
+            </div>
+            <button
+              @mouseenter="showTooltip('clearnet')"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'clearnet'"
+            class="absolute z-50 w-80 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <h4 class="font-medium text-sm mb-3 text-white">Understanding Node Types</h4>
+            <div class="space-y-3">
+              <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <p class="text-xs font-medium text-green-400 mb-1">🌐 Clearnet</p>
+                <p class="text-xs text-gray-300">Public nodes on regular internet. Fast and reliable but IP visible.</p>
+              </div>
+              <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <p class="text-xs font-medium text-purple-400 mb-1">🔒 Tor</p>
+                <p class="text-xs text-gray-300">Anonymous nodes via Tor network. Maximum privacy, slightly slower.</p>
+              </div>
+              <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <p class="text-xs font-medium text-blue-400 mb-1">⚡ Hybrid</p>
+                <p class="text-xs text-gray-300">Best of both worlds! Accessible via clearnet and Tor.</p>
               </div>
             </div>
           </div>
@@ -695,16 +817,36 @@ onMounted(() => {
         </div>
 
         <!-- Top Hosting Providers Pie Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-3 flex-1">
               <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center">
                 <IconServer class="w-5 h-5 text-cyan-600" />
               </div>
-              <div>
+              <div class="flex-1">
                 <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Hosting Providers</h3>
                 <p class="text-sm text-gray-500">Infrastructure providers by node distribution</p>
               </div>
+            </div>
+            <button
+              @mouseenter="showTooltip('isp')"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'isp'"
+            class="absolute z-50 w-80 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.isp.title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips.isp.description }}</p>
+            <div class="bg-green-900/30 rounded-lg p-3 border border-green-700">
+              <p class="text-xs text-green-300">💡 {{ tooltips.isp.note }}</p>
             </div>
           </div>
           <VChart
