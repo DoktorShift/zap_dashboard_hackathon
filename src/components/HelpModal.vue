@@ -536,7 +536,7 @@ const handleViewOnly = () => {
 
                 <div class="mt-4 pt-4 border-t border-blue-200">
                   <p class="text-xs text-gray-600 italic">
-                    Tip: ReadOnly Mode ist best for view your stats. You can even observe other npubs! :O ;)
+                    Tip: Try a creator's npub to see their earnings, zaps, and analytics! ;)
                   </p>
                 </div>
               </div>
