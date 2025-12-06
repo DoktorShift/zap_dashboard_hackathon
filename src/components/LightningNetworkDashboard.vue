@@ -784,35 +784,35 @@ onMounted(() => {
       </div>
 
       <!-- Call to Action -->
-      <div v-if="!hideAuthPrompts" class="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-3xl p-8 md:p-12 shadow-2xl">
+      <div v-if="!hideAuthPrompts" class="bg-gradient-to-br from-gray-900 via-gray-800 to-black border border-gray-700 rounded-3xl p-8 md:p-12 shadow-2xl">
         <div class="max-w-3xl mx-auto text-center">
-          <div class="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <div class="w-20 h-20 bg-white/10 backdrop-blur-sm border border-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <IconZoomIn class="w-12 h-12 text-white" />
           </div>
           <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">
             Ready to Track Your Lightning Earnings?
           </h2>
-          <p class="text-white/90 text-lg mb-8 leading-relaxed">
+          <p class="text-gray-300 text-lg mb-8 leading-relaxed">
             Connect your Nostr account to unlock powerful analytics for your zaps, campaigns, and Lightning Network activity.
             See who's supporting your content, track engagement, and optimize your strategy.
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               @click="emit('trigger-login')"
-              class="px-10 py-5 bg-white text-blue-600 font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
+              class="px-10 py-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
             >
               <IconLogin class="w-6 h-6" />
               <span>Connect with Nostr</span>
             </button>
             <button
               @click="emit('show-help')"
-              class="px-10 py-5 bg-blue-600 text-white font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 border-2 border-white/30"
+              class="px-10 py-5 bg-white text-gray-900 font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 border border-gray-300"
             >
               <IconExternalLink class="w-6 h-6" />
               <span>How It Works</span>
             </button>
           </div>
-          <p class="text-white/80 text-sm mt-6">
+          <p class="text-gray-400 text-sm mt-6">
             No sign-up required • Privacy-first • Open protocol
           </p>
         </div>
