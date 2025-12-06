@@ -530,13 +530,13 @@ const handleViewOnly = () => {
                     <div class="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
                       <span class="text-xs font-bold text-blue-700">3</span>
                     </div>
-                    <span class="text-gray-700">Enter any public <strong>npub</strong> to explore</span>
+                    <span class="text-gray-700">Enter your public <strong>npub</strong> to explore</span>
                   </div>
                 </div>
 
                 <div class="mt-4 pt-4 border-t border-blue-200">
                   <p class="text-xs text-gray-600 italic">
-                    Tip: Try a creator's npub to see their earnings, zaps, and analytics!
+                    Tip: Use this when you only wanna watch your stats. You are not able to post things!
                   </p>
                 </div>
               </div>
