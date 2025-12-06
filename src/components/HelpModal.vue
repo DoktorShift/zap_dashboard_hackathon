@@ -207,13 +207,13 @@ const handleViewOnly = () => {
 </script>
 
 <template>
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[10000] p-4 animate-fade-in">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
+  <div class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 animate-fade-in">
+    <div class="bg-white rounded-3xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
       <!-- Header -->
-      <div class="relative p-4 border-b border-gray-200">
+      <div class="relative p-5 border-b border-gray-200">
         <button
           @click="handleSkip"
-          class="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200"
+          class="absolute top-5 right-5 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200"
         >
           <IconX class="w-5 h-5" />
         </button>
@@ -225,10 +225,10 @@ const handleViewOnly = () => {
             :key="index"
             @click="goToSlide(index)"
             :class="[
-              'h-2 rounded-full transition-all duration-300',
+              'h-1.5 rounded-full transition-all duration-300',
               currentSlide === index
                 ? 'w-8 bg-gradient-to-r from-orange-500 to-amber-500'
-                : 'w-2 bg-gray-300 hover:bg-gray-400'
+                : 'w-1.5 bg-gray-300 hover:bg-gray-400'
             ]"
           />
         </div>
@@ -242,34 +242,34 @@ const handleViewOnly = () => {
             <div v-if="currentSlideData.id === 'welcome'" class="text-center space-y-6">
               <div class="flex justify-center mb-6">
                 <div class="relative">
-                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
+                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full blur-3xl opacity-20"></div>
                   <img
                     src="/new_logo3.png"
                     alt="ZapTracker Logo"
-                    class="relative w-32 h-32 object-contain"
+                    class="relative w-28 h-28 object-contain"
                   />
                 </div>
               </div>
 
-              <h1 class="text-4xl sm:text-5xl font-bold text-gray-900">
+              <h1 class="text-4xl sm:text-5xl font-semibold text-gray-900 tracking-tight">
                 {{ currentSlideData.title }}
               </h1>
 
-              <p class="text-xl sm:text-2xl text-orange-600 font-semibold mb-12">
+              <p class="text-xl sm:text-2xl text-orange-600 font-medium mb-12">
                 {{ currentSlideData.subtitle }}
               </p>
 
-              <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-lg mx-auto">
+              <div class="flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
                 <button
                   @click="nextSlide"
-                  class="flex-1 px-8 py-5 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-2"
+                  class="flex-1 px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2"
                 >
                   <span>Take a Tour</span>
                   <IconChevronRight class="w-5 h-5" />
                 </button>
                 <button
                   @click="handleGetStarted"
-                  class="flex-1 px-8 py-5 bg-white border-2 border-orange-500 text-orange-600 text-lg rounded-xl font-bold hover:bg-orange-50 hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+                  class="flex-1 px-8 py-4 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                 >
                   Connect Now
                 </button>
@@ -279,7 +279,7 @@ const handleViewOnly = () => {
             <!-- Pages 2-7: Features with Screenshots -->
             <div v-else-if="currentSlideData.features" class="space-y-6">
               <div class="text-center">
-                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+                <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
                   {{ currentSlideData.title }}
                 </h2>
                 <p class="text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
@@ -288,27 +288,27 @@ const handleViewOnly = () => {
               </div>
 
               <!-- Screenshot -->
-              <div v-if="currentSlideData.image" class="flex justify-center my-6">
+              <div v-if="currentSlideData.image" class="flex justify-center my-8">
                 <div class="relative max-w-3xl w-full">
-                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-xl blur-xl opacity-20"></div>
+                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur-2xl opacity-10"></div>
                   <img
                     :src="currentSlideData.image"
                     :alt="currentSlideData.title"
-                    class="relative w-full h-auto rounded-xl shadow-2xl border border-gray-200"
+                    class="relative w-full h-auto rounded-2xl shadow-lg border border-gray-200"
                     loading="lazy"
                   />
                 </div>
               </div>
 
               <!-- Features List -->
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mt-6">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto mt-8">
                 <div
                   v-for="(feature, index) in currentSlideData.features"
                   :key="index"
-                  class="flex items-start space-x-3 p-4 bg-orange-50 rounded-xl"
+                  class="flex items-start space-x-3 p-4 bg-gray-50 rounded-xl border border-gray-200"
                 >
-                  <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <component :is="feature.icon" class="w-5 h-5 text-white" />
+                  <div class="w-9 h-9 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <component :is="feature.icon" class="w-4 h-4 text-white" />
                   </div>
                   <span class="text-sm font-medium text-gray-700 pt-2">{{ feature.text }}</span>
                 </div>
@@ -318,64 +318,64 @@ const handleViewOnly = () => {
             <!-- Page 7: Campaigns - Empty State Preview Style -->
             <div v-else-if="currentSlideData.id === 'zapgoals'" class="space-y-6">
               <div class="text-center mb-6">
-                <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl shadow-lg mb-4">
-                  <IconTarget class="w-10 h-10 text-white" />
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl mb-4">
+                  <IconTarget class="w-8 h-8 text-white" />
                 </div>
-                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+                <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
                   {{ currentSlideData.title }}
                 </h2>
-                <p class="text-lg text-gray-600 leading-relaxed max-w-2xl mx-auto">
+                <p class="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto">
                   Create fundraising campaigns with customizable goals. Share campaign links, track progress in real-time, and celebrate milestones with your community.
                 </p>
               </div>
 
               <!-- Campaign Ideas Grid -->
               <div class="max-w-3xl mx-auto">
-                <h4 class="text-xl font-bold text-gray-900 text-center mb-6">Great Campaign Ideas</h4>
+                <h4 class="text-lg font-semibold text-gray-900 text-center mb-6">Great Campaign Ideas</h4>
 
-                <div class="grid md:grid-cols-2 gap-4 mb-6">
-                  <div class="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-orange-300 transition-all">
-                    <div class="flex items-start space-x-3 mb-3">
-                      <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <IconFileText class="w-5 h-5 text-orange-600" />
+                <div class="grid md:grid-cols-2 gap-3 mb-6">
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:bg-gray-50 transition-all">
+                    <div class="flex items-start space-x-3 mb-2">
+                      <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconFileText class="w-4 h-4 text-orange-600" />
                       </div>
-                      <h5 class="font-semibold text-gray-900">Content Creation</h5>
+                      <h5 class="font-medium text-gray-900">Content Creation</h5>
                     </div>
                     <p class="text-sm text-gray-600">
                       Fund a podcast series, video project, or article collection
                     </p>
                   </div>
 
-                  <div class="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-orange-300 transition-all">
-                    <div class="flex items-start space-x-3 mb-3">
-                      <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <IconBolt class="w-5 h-5 text-orange-600" />
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:bg-gray-50 transition-all">
+                    <div class="flex items-start space-x-3 mb-2">
+                      <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconBolt class="w-4 h-4 text-orange-600" />
                       </div>
-                      <h5 class="font-semibold text-gray-900">Open Source Project</h5>
+                      <h5 class="font-medium text-gray-900">Open Source Project</h5>
                     </div>
                     <p class="text-sm text-gray-600">
                       Raise funds to build tools, apps, or contribute to Nostr
                     </p>
                   </div>
 
-                  <div class="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-orange-300 transition-all">
-                    <div class="flex items-start space-x-3 mb-3">
-                      <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <IconCalendar class="w-5 h-5 text-orange-600" />
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:bg-gray-50 transition-all">
+                    <div class="flex items-start space-x-3 mb-2">
+                      <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconCalendar class="w-4 h-4 text-orange-600" />
                       </div>
-                      <h5 class="font-semibold text-gray-900">Event or Meetup</h5>
+                      <h5 class="font-medium text-gray-900">Event or Meetup</h5>
                     </div>
                     <p class="text-sm text-gray-600">
                       Cover costs for Bitcoin or Nostr conferences and workshops
                     </p>
                   </div>
 
-                  <div class="bg-white rounded-xl border-2 border-gray-200 p-5 hover:border-orange-300 transition-all">
-                    <div class="flex items-start space-x-3 mb-3">
-                      <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <IconUsers class="w-5 h-5 text-orange-600" />
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:bg-gray-50 transition-all">
+                    <div class="flex items-start space-x-3 mb-2">
+                      <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconUsers class="w-4 h-4 text-orange-600" />
                       </div>
-                      <h5 class="font-semibold text-gray-900">Community Support</h5>
+                      <h5 class="font-medium text-gray-900">Community Support</h5>
                     </div>
                     <p class="text-sm text-gray-600">
                       Help with education or support causes that matter
@@ -384,22 +384,22 @@ const handleViewOnly = () => {
                 </div>
 
                 <!-- Success Tips -->
-                <div class="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-5">
-                  <h5 class="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
-                    <IconChartBar class="w-5 h-5 text-orange-600" />
+                <div class="bg-orange-50/50 border border-orange-200 rounded-xl p-5">
+                  <h5 class="font-medium text-gray-900 mb-3 flex items-center space-x-2">
+                    <IconChartBar class="w-4 h-4 text-orange-600" />
                     <span>Make Your Campaign Successful</span>
                   </h5>
                   <ul class="space-y-2 text-sm text-gray-700">
                     <li class="flex items-start space-x-2">
-                      <span class="text-orange-600 font-bold mt-0.5">•</span>
+                      <span class="text-orange-600 font-medium mt-0.5">•</span>
                       <span>Set a specific target amount and explain what funds will be used for</span>
                     </li>
                     <li class="flex items-start space-x-2">
-                      <span class="text-orange-600 font-bold mt-0.5">•</span>
+                      <span class="text-orange-600 font-medium mt-0.5">•</span>
                       <span>Share why this matters and how it will benefit the community</span>
                     </li>
                     <li class="flex items-start space-x-2">
-                      <span class="text-orange-600 font-bold mt-0.5">•</span>
+                      <span class="text-orange-600 font-medium mt-0.5">•</span>
                       <span>Keep supporters informed about progress and milestones</span>
                     </li>
                   </ul>
@@ -410,7 +410,7 @@ const handleViewOnly = () => {
             <!-- Page 8: FAQ -->
             <div v-else-if="currentSlideData.id === 'faq'" class="space-y-6">
               <div class="text-center mb-8">
-                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+                <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
                   {{ currentSlideData.title }}
                 </h2>
                 <p class="text-base text-gray-600">
@@ -418,14 +418,14 @@ const handleViewOnly = () => {
                 </p>
               </div>
 
-              <div class="max-w-3xl mx-auto space-y-4">
+              <div class="max-w-3xl mx-auto space-y-3">
                 <div
                   v-for="(faq, index) in currentSlideData.faqs"
                   :key="index"
-                  class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-100"
+                  class="bg-gray-50 rounded-xl p-5 border border-gray-200"
                 >
-                  <h3 class="font-bold text-gray-900 mb-2 flex items-start">
-                    <span class="text-orange-500 mr-2">Q:</span>
+                  <h3 class="font-medium text-gray-900 mb-2 flex items-start">
+                    <span class="text-orange-500 mr-2 font-semibold">Q:</span>
                     <span>{{ faq.q }}</span>
                   </h3>
                   <p class="text-gray-600 text-sm leading-relaxed ml-6">
@@ -438,7 +438,7 @@ const handleViewOnly = () => {
             <!-- Page 9: How to Get Started -->
             <div v-else-if="currentSlideData.id === 'howto'" class="space-y-8">
               <div class="text-center">
-                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+                <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
                   {{ currentSlideData.title }}
                 </h2>
                 <p class="text-base text-gray-600">
@@ -446,17 +446,17 @@ const handleViewOnly = () => {
                 </p>
               </div>
 
-              <div class="max-w-2xl mx-auto space-y-6">
+              <div class="max-w-2xl mx-auto space-y-4">
                 <div
                   v-for="step in currentSlideData.steps"
                   :key="step.number"
-                  class="flex items-start space-x-4 p-5 bg-white rounded-xl border-2 border-orange-100 hover:border-orange-300 transition-all"
+                  class="flex items-start space-x-4 p-5 bg-gray-50 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-white transition-all"
                 >
-                  <div class="w-12 h-12 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span class="text-white text-xl font-bold">{{ step.number }}</span>
+                  <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-white font-semibold">{{ step.number }}</span>
                   </div>
                   <div class="flex-1 pt-1">
-                    <h3 class="font-bold text-gray-900 mb-1">{{ step.title }}</h3>
+                    <h3 class="font-medium text-gray-900 mb-1">{{ step.title }}</h3>
                     <p class="text-sm text-gray-600 leading-relaxed">{{ step.description }}</p>
                   </div>
                 </div>
@@ -467,37 +467,37 @@ const handleViewOnly = () => {
             <div v-else-if="currentSlideData.isFinal" class="text-center">
               <div class="flex justify-center mb-8">
                 <div class="relative">
-                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
+                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full blur-3xl opacity-20"></div>
                   <img
                     src="/new_logo3.png"
                     alt="ZapTracker Logo"
-                    class="relative w-32 h-32 object-contain"
+                    class="relative w-28 h-28 object-contain"
                   />
                 </div>
               </div>
 
-              <h2 class="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
+              <h2 class="text-4xl sm:text-5xl font-semibold text-gray-900 mb-6 tracking-tight">
                 {{ currentSlideData.title }}
               </h2>
 
-              <p class="text-lg text-gray-600 max-w-2xl mx-auto mb-12">
+              <p class="text-base text-gray-600 max-w-2xl mx-auto mb-10">
                 {{ currentSlideData.subtitle }}
               </p>
 
               <!-- CTAs -->
-              <div class="flex flex-col sm:flex-row gap-4 justify-center max-w-2xl mx-auto mb-8">
+              <div class="flex flex-col sm:flex-row gap-3 justify-center max-w-2xl mx-auto mb-8">
                 <button
                   @click="handleGetStarted"
-                  class="flex-1 px-10 py-6 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
+                  class="flex-1 px-8 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2"
                 >
-                  <IconLogin class="w-6 h-6" />
+                  <IconLogin class="w-5 h-5" />
                   <span>Connect with Nostr</span>
                 </button>
                 <button
                   @click="handleViewOnly"
-                  class="flex-1 px-10 py-6 bg-white border-2 border-gray-300 text-gray-700 text-lg rounded-xl font-bold hover:bg-gray-50 hover:border-gray-400 hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
+                  class="flex-1 px-8 py-4 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 flex items-center justify-center space-x-2"
                 >
-                  <IconEye class="w-6 h-6" />
+                  <IconEye class="w-5 h-5" />
                   <span>Read-Only Mode</span>
                 </button>
               </div>
@@ -557,20 +557,20 @@ const handleViewOnly = () => {
       </div>
 
       <!-- Navigation Footer -->
-      <div class="border-t border-gray-200 p-4 bg-gray-50">
+      <div class="border-t border-gray-200 p-5 bg-white">
         <div class="flex justify-between items-center">
           <button
             @click="prevSlide"
             :disabled="!canGoPrev"
             :class="[
-              'px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2',
+              'px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-1.5',
               canGoPrev
-                ? 'text-gray-700 hover:bg-gray-200'
+                ? 'text-gray-700 hover:bg-gray-100'
                 : 'text-gray-400 cursor-not-allowed'
             ]"
           >
-            <IconChevronLeft class="w-5 h-5" />
-            <span>Back</span>
+            <IconChevronLeft class="w-4 h-4" />
+            <span class="text-sm">Back</span>
           </button>
 
           <div class="text-sm text-gray-500 font-medium">
@@ -580,15 +580,15 @@ const handleViewOnly = () => {
           <button
             v-if="canGoNext"
             @click="nextSlide"
-            class="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
+            class="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg font-medium hover:shadow-md transition-all duration-200 flex items-center space-x-1.5"
           >
-            <span>Next</span>
-            <IconChevronRight class="w-5 h-5" />
+            <span class="text-sm">Next</span>
+            <IconChevronRight class="w-4 h-4" />
           </button>
           <button
             v-else
             @click="handleGetStarted"
-            class="px-6 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200"
+            class="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg font-medium hover:shadow-md transition-all duration-200 text-sm"
           >
             Get Started
           </button>
