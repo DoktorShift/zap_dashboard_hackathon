@@ -536,7 +536,7 @@ const handleViewOnly = () => {
 
                 <div class="mt-4 pt-4 border-t border-blue-200">
                   <p class="text-xs text-gray-600 italic">
-                    Tip: Use this when you only wanna watch your stats. You are not able to post things!
+                    Tip: Use this when you only wanna watch your stats. You are not able to publish things!
                   </p>
                 </div>
               </div>
