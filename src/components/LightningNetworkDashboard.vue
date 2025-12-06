@@ -784,35 +784,34 @@ onMounted(() => {
       </div>
 
       <!-- Call to Action -->
-      <div v-if="!hideAuthPrompts" class="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-3xl p-8 md:p-12 shadow-2xl">
-        <div class="max-w-3xl mx-auto text-center">
-          <div class="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <IconZoomIn class="w-12 h-12 text-white" />
+      <div v-if="!hideAuthPrompts" class="bg-white border border-gray-200 rounded-3xl p-12 md:p-16">
+        <div class="max-w-2xl mx-auto text-center">
+          <div class="w-14 h-14 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <IconZoomIn class="w-7 h-7 text-gray-400" />
           </div>
-          <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">
+          <h2 class="text-3xl md:text-4xl font-semibold text-gray-900 mb-4 tracking-tight">
             Ready to Track Your Lightning Earnings?
           </h2>
-          <p class="text-white/90 text-lg mb-8 leading-relaxed">
+          <p class="text-gray-600 text-base mb-10 leading-relaxed max-w-xl mx-auto">
             Connect your Nostr account to unlock powerful analytics for your zaps, campaigns, and Lightning Network activity.
-            See who's supporting your content, track engagement, and optimize your strategy.
           </p>
-          <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <div class="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               @click="emit('trigger-login')"
-              class="px-10 py-5 bg-white text-blue-600 font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3"
+              class="px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-xl hover:shadow-lg hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2"
             >
-              <IconLogin class="w-6 h-6" />
+              <IconLogin class="w-5 h-5" />
               <span>Connect with Nostr</span>
             </button>
             <button
               @click="emit('show-help')"
-              class="px-10 py-5 bg-blue-600 text-white font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 border-2 border-white/30"
+              class="px-8 py-3.5 bg-white text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all duration-200 flex items-center justify-center space-x-2 border border-gray-300"
             >
-              <IconExternalLink class="w-6 h-6" />
+              <IconExternalLink class="w-5 h-5" />
               <span>How It Works</span>
             </button>
           </div>
-          <p class="text-white/80 text-sm mt-6">
+          <p class="text-gray-400 text-sm mt-8">
             No sign-up required • Privacy-first • Open protocol
           </p>
         </div>
