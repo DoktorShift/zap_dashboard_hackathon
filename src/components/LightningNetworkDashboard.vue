@@ -95,6 +95,21 @@ const tooltips = {
     title: 'Hosting Providers',
     description: 'Most Lightning nodes run on cloud servers from various hosting providers. This shows which companies host the most nodes. Decentralization across many providers is healthier for the network.',
     note: 'Running a node at home improves decentralization!'
+  },
+  topCountries: {
+    title: 'Top Countries by Node Count',
+    description: 'This shows where Lightning nodes are located around the world. The more spread out nodes are across different countries, the more resilient the network becomes.',
+    example: 'Don\'t worry if your country isn\'t on the list - anyone anywhere can run a node and help grow the network!'
+  },
+  topNodesByCapacity: {
+    title: 'Top Nodes by Liquidity',
+    description: 'These are the biggest Lightning nodes ranked by how much Bitcoin they have locked in channels. They\'re like the major hubs of the network, helping route large payments.',
+    example: 'You don\'t need millions of sats to run a useful node - even small nodes help strengthen the network!'
+  },
+  topNodesByConnectivity: {
+    title: 'Most Connected Nodes',
+    description: 'These nodes have the most connections (channels) to other nodes. They\'re like airports with lots of flight routes - great for routing payments quickly across the network.',
+    example: 'More connections means more routing options and better payment reliability!'
   }
 }
 
@@ -725,7 +740,7 @@ onMounted(() => {
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div
-          v-for="card in statsCards"
+          v-for="(card, index) in statsCards"
           :key="card.title"
           class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 relative"
         >
@@ -746,13 +761,21 @@ onMounted(() => {
           <p class="text-3xl font-semibold text-gray-900 mb-1">{{ card.value }}</p>
           <p class="text-xs text-gray-500">{{ card.subtitle }}</p>
 
-          <!-- Tooltip -->
+          <!-- Tooltip - Smart positioning based on card index -->
           <div
             v-if="activeTooltip === card.tooltipKey"
-            class="absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 -top-2 left-full ml-4"
+            :class="[
+              'absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 -top-2',
+              index % 4 < 2 ? 'left-full ml-4' : 'right-full mr-4'
+            ]"
             style="animation: fadeIn 0.2s ease-out"
           >
-            <div class="absolute w-3 h-3 bg-gray-900 border-l border-t border-gray-700 transform rotate-45 -left-1.5 top-8"></div>
+            <div
+              :class="[
+                'absolute w-3 h-3 bg-gray-900 border-gray-700 transform rotate-45 top-8',
+                index % 4 < 2 ? 'border-l border-t -left-1.5' : 'border-r border-b -right-1.5'
+              ]"
+            ></div>
             <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips[card.tooltipKey].title }}</h4>
             <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips[card.tooltipKey].description }}</p>
             <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
@@ -862,16 +885,36 @@ onMounted(() => {
       <!-- Charts Row 2 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Top Countries Bar Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-3 flex-1">
               <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
                 <IconWorld class="w-5 h-5 text-blue-600" />
               </div>
-              <div>
+              <div class="flex-1">
                 <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Countries</h3>
                 <p class="text-sm text-gray-500">Geographic distribution of Lightning nodes globally</p>
               </div>
+            </div>
+            <button
+              @mouseenter="showTooltip('topCountries')"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'topCountries'"
+            class="absolute z-50 w-80 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.topCountries.title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips.topCountries.description }}</p>
+            <div class="bg-green-900/30 rounded-lg p-3 border border-green-700">
+              <p class="text-xs text-green-300">💡 {{ tooltips.topCountries.example }}</p>
             </div>
           </div>
           <VChart
@@ -884,16 +927,36 @@ onMounted(() => {
         </div>
 
         <!-- Top Nodes by Capacity -->
-        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-3 flex-1">
               <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
                 <IconTrendingUp class="w-5 h-5 text-green-600" />
               </div>
-              <div>
+              <div class="flex-1">
                 <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Nodes by Liquidity</h3>
                 <p class="text-sm text-gray-500">Highest capacity routing nodes on the network</p>
               </div>
+            </div>
+            <button
+              @mouseenter="showTooltip('topNodesByCapacity')"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'topNodesByCapacity'"
+            class="absolute z-50 w-80 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.topNodesByCapacity.title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips.topNodesByCapacity.description }}</p>
+            <div class="bg-blue-900/30 rounded-lg p-3 border border-blue-700">
+              <p class="text-xs text-blue-300">💡 {{ tooltips.topNodesByCapacity.example }}</p>
             </div>
           </div>
           <div class="space-y-2 max-h-80 overflow-y-auto">
