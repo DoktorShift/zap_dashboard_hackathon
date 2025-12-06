@@ -502,40 +502,40 @@ const handleViewOnly = () => {
                 </button>
               </div>
 
-              <div class="bg-white border border-gray-900 rounded-xl p-6 max-w-2xl mx-auto shadow-sm">
-                <div class="flex items-start space-x-3 mb-4">
-                  <IconEye class="w-6 h-6 text-gray-900 flex-shrink-0 mt-0.5" />
+              <div class="bg-white border border-gray-200 rounded-2xl p-8 max-w-2xl mx-auto">
+                <div class="flex items-start space-x-3 mb-6">
+                  <IconEye class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 class="font-bold text-gray-900 mb-2">How to Use Read-Only Mode</h4>
-                    <p class="text-sm text-gray-700 mb-3">
+                    <h4 class="font-semibold text-gray-900 mb-2 text-base">How to Use Read-Only Mode</h4>
+                    <p class="text-sm text-gray-600 mb-3">
                       Click "Read-Only Mode" above and follow these steps in the login modal:
                     </p>
                   </div>
                 </div>
 
-                <div class="space-y-2 ml-9">
+                <div class="space-y-3 ml-8">
                   <div class="flex items-center space-x-3 text-sm">
-                    <div class="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span class="text-xs font-bold text-white">1</span>
+                    <div class="w-5 h-5 border border-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span class="text-xs font-medium text-gray-600">1</span>
                     </div>
-                    <span class="text-gray-700">Click <strong>"Login"</strong></span>
+                    <span class="text-gray-700">Click <strong class="font-medium text-gray-900">"Login"</strong></span>
                   </div>
                   <div class="flex items-center space-x-3 text-sm">
-                    <div class="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span class="text-xs font-bold text-white">2</span>
+                    <div class="w-5 h-5 border border-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span class="text-xs font-medium text-gray-600">2</span>
                     </div>
-                    <span class="text-gray-700">Click <strong>"Read only"</strong></span>
+                    <span class="text-gray-700">Click <strong class="font-medium text-gray-900">"Read only"</strong></span>
                   </div>
                   <div class="flex items-center space-x-3 text-sm">
-                    <div class="w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span class="text-xs font-bold text-white">3</span>
+                    <div class="w-5 h-5 border border-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span class="text-xs font-medium text-gray-600">3</span>
                     </div>
-                    <span class="text-gray-700">Enter your public <strong>npub</strong> to explore</span>
+                    <span class="text-gray-700">Enter your public <strong class="font-medium text-gray-900">npub</strong> to explore</span>
                   </div>
                 </div>
 
-                <div class="mt-4 pt-4 border-t border-gray-300">
-                  <p class="text-xs text-gray-600 italic">
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                  <p class="text-xs text-gray-500">
                     Tip: Try a creator's npub to see their earnings, zaps, and analytics! ;)
                   </p>
                 </div>
