@@ -89,7 +89,7 @@ const closeDetail = () => {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h3 class="text-2xl font-bold text-gray-900 flex items-center space-x-2">
+        <h3 class="text-2xl font-semibold text-gray-900 flex items-center space-x-2 tracking-tight">
           <IconWorld class="w-7 h-7 text-orange-600" />
           <span>Lightning Network Global Map</span>
         </h3>
@@ -124,9 +124,9 @@ const closeDetail = () => {
     <!-- Map View -->
     <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- World Heatmap (Visual Representation) -->
-      <div class="lg:col-span-2 bg-white rounded-xl p-6 border border-orange-100 shadow-sm">
+      <div class="lg:col-span-2 bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
         <div class="mb-4">
-          <h4 class="text-lg font-semibold text-gray-900 mb-2">Node Distribution Heatmap</h4>
+          <h4 class="text-lg font-medium text-gray-900 mb-2 tracking-tight">Node Distribution Heatmap</h4>
           <p class="text-sm text-gray-600">Larger flags indicate more Lightning nodes</p>
         </div>
 
@@ -218,8 +218,8 @@ const closeDetail = () => {
       </div>
 
       <!-- Country List -->
-      <div class="bg-white rounded-xl p-6 border border-orange-100 shadow-sm">
-        <h4 class="text-lg font-semibold text-gray-900 mb-4">
+      <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+        <h4 class="text-lg font-medium text-gray-900 mb-4 tracking-tight">
           {{ searchQuery ? 'Search Results' : 'All Countries' }}
           <span class="text-sm font-normal text-gray-500 ml-2">
             ({{ filteredCountries.length }})
@@ -264,12 +264,12 @@ const closeDetail = () => {
           class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           @click.self="closeDetail"
         >
-          <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl transform animate-scale-in">
+          <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-xl transform animate-scale-in">
             <div class="flex items-start justify-between mb-4">
               <div class="flex items-center space-x-3">
                 <span class="text-5xl">{{ selectedCountry.flagEmoji }}</span>
                 <div>
-                  <h3 class="text-2xl font-bold text-gray-900">
+                  <h3 class="text-2xl font-semibold text-gray-900 tracking-tight">
                     {{ selectedCountry.name?.en || selectedCountry.iso }}
                   </h3>
                   <p class="text-sm text-gray-500">{{ selectedCountry.iso }}</p>
@@ -285,12 +285,12 @@ const closeDetail = () => {
 
             <div class="space-y-4">
               <!-- Node Count -->
-              <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-4 border border-orange-200">
+              <div class="bg-orange-50 rounded-lg p-4 border border-orange-200">
                 <div class="flex items-center space-x-2 mb-2">
                   <IconBolt class="w-5 h-5 text-orange-600" />
                   <span class="text-sm font-medium text-gray-700">Lightning Nodes</span>
                 </div>
-                <div class="text-3xl font-bold text-gray-900">
+                <div class="text-3xl font-semibold text-gray-900">
                   {{ selectedCountry.count.toLocaleString() }}
                 </div>
                 <div class="text-sm text-gray-600 mt-1">
@@ -299,12 +299,12 @@ const closeDetail = () => {
               </div>
 
               <!-- Capacity -->
-              <div class="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-lg p-4 border border-amber-200">
+              <div class="bg-amber-50 rounded-lg p-4 border border-amber-200">
                 <div class="flex items-center space-x-2 mb-2">
                   <IconCurrencyBitcoin class="w-5 h-5 text-amber-600" />
                   <span class="text-sm font-medium text-gray-700">Total Capacity</span>
                 </div>
-                <div class="text-2xl font-bold text-gray-900">
+                <div class="text-2xl font-semibold text-gray-900">
                   {{ formatCapacity(selectedCountry.capacity) }} sats
                 </div>
                 <div class="text-sm text-gray-600 mt-1">
@@ -316,13 +316,13 @@ const closeDetail = () => {
               <div class="grid grid-cols-2 gap-3">
                 <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
                   <div class="text-xs text-gray-600 mb-1">Avg Capacity/Node</div>
-                  <div class="text-lg font-semibold text-gray-900">
+                  <div class="text-lg font-medium text-gray-900">
                     {{ formatCapacity(parseInt(selectedCountry.capacity) / selectedCountry.count) }}
                   </div>
                 </div>
                 <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
                   <div class="text-xs text-gray-600 mb-1">Global Rank</div>
-                  <div class="text-lg font-semibold text-gray-900">
+                  <div class="text-lg font-medium text-gray-900">
                     #{{ topCountries.findIndex(c => c.iso === selectedCountry.iso) + 1 }}
                   </div>
                 </div>

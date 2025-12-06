@@ -115,7 +115,7 @@ const topNodesByChannels = computed(() => {
       <!-- Hero Stats -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Total Capacity -->
-        <div class="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-lg">
+        <div class="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white shadow-md">
           <div class="flex items-center justify-between mb-4">
             <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
               <IconBolt class="w-6 h-6" />
@@ -126,14 +126,14 @@ const topNodesByChannels = computed(() => {
             </div>
           </div>
           <p class="text-white/80 text-sm font-medium mb-1">Network Capacity</p>
-          <p class="text-3xl font-bold mb-1">{{ networkCapacity.btc }} BTC</p>
-          <p class="text-white/90 text-lg font-semibold">${{ networkCapacity.usd }}</p>
+          <p class="text-3xl font-semibold mb-1">{{ networkCapacity.btc }} BTC</p>
+          <p class="text-white/90 text-lg font-medium">${{ networkCapacity.usd }}</p>
         </div>
 
         <!-- Total Nodes -->
-        <div class="bg-white rounded-2xl p-6 border-2 border-orange-100 shadow-sm hover:shadow-md transition-shadow">
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center">
+            <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
               <IconServer class="w-6 h-6 text-orange-600" />
             </div>
             <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
@@ -142,14 +142,14 @@ const topNodesByChannels = computed(() => {
             </div>
           </div>
           <p class="text-gray-600 text-sm font-medium mb-1">Active Nodes</p>
-          <p class="text-3xl font-bold text-gray-900">{{ stats?.latest?.node_count?.toLocaleString() || 'N/A' }}</p>
+          <p class="text-3xl font-semibold text-gray-900">{{ stats?.latest?.node_count?.toLocaleString() || 'N/A' }}</p>
           <p class="text-gray-500 text-sm mt-1">Running worldwide</p>
         </div>
 
         <!-- Total Channels -->
-        <div class="bg-white rounded-2xl p-6 border-2 border-orange-100 shadow-sm hover:shadow-md transition-shadow">
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
           <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center">
+            <div class="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center">
               <IconActivity class="w-6 h-6 text-orange-600" />
             </div>
             <div class="px-3 py-1 bg-green-50 rounded-full text-xs font-medium text-green-700 flex items-center space-x-1">
@@ -158,19 +158,19 @@ const topNodesByChannels = computed(() => {
             </div>
           </div>
           <p class="text-gray-600 text-sm font-medium mb-1">Payment Channels</p>
-          <p class="text-3xl font-bold text-gray-900">{{ stats?.latest?.channel_count?.toLocaleString() || 'N/A' }}</p>
+          <p class="text-3xl font-semibold text-gray-900">{{ stats?.latest?.channel_count?.toLocaleString() || 'N/A' }}</p>
           <p class="text-gray-500 text-sm mt-1">Open connections</p>
         </div>
       </div>
 
       <!-- Capacity Distribution -->
-      <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+      <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h3 class="text-lg font-bold text-gray-900">Network Distribution</h3>
+            <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Network Distribution</h3>
             <p class="text-sm text-gray-600">Capacity by network type</p>
           </div>
-          <IconWorld class="w-8 h-8 text-orange-500" />
+          <IconWorld class="w-7 h-7 text-orange-500" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -204,32 +204,32 @@ const topNodesByChannels = computed(() => {
       </div>
 
       <!-- Channel Metrics -->
-      <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
-        <h3 class="text-lg font-bold text-gray-900 mb-6">Channel Metrics</h3>
+      <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+        <h3 class="text-lg font-semibold text-gray-900 mb-6 tracking-tight">Channel Metrics</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <p class="text-sm text-gray-600 mb-2">Average Capacity</p>
-            <p class="text-2xl font-bold text-orange-600">{{ avgCapacity.sats }}</p>
+            <p class="text-2xl font-semibold text-orange-600">{{ avgCapacity.sats }}</p>
             <p class="text-sm text-gray-500 mt-1">sats ({{ avgCapacity.btc }} BTC)</p>
           </div>
           <div>
             <p class="text-sm text-gray-600 mb-2">Average Fee Rate</p>
-            <p class="text-2xl font-bold text-orange-600">823</p>
+            <p class="text-2xl font-semibold text-orange-600">823</p>
             <p class="text-sm text-gray-500 mt-1">ppm <span class="text-green-600">+0.7%</span></p>
           </div>
           <div>
             <p class="text-sm text-gray-600 mb-2">Average Base Fee</p>
-            <p class="text-2xl font-bold text-orange-600">950</p>
+            <p class="text-2xl font-semibold text-orange-600">950</p>
             <p class="text-sm text-gray-500 mt-1">mSats <span class="text-red-600">-0.1%</span></p>
           </div>
         </div>
       </div>
 
       <!-- Top ISPs -->
-      <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+      <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h3 class="text-lg font-bold text-gray-900">Top Internet Service Providers</h3>
+            <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Internet Service Providers</h3>
             <p class="text-sm text-gray-600">Largest infrastructure hosting</p>
           </div>
         </div>
@@ -238,23 +238,23 @@ const topNodesByChannels = computed(() => {
           <table class="w-full">
             <thead>
               <tr class="border-b border-gray-200">
-                <th class="text-left py-3 px-2 text-xs font-semibold text-gray-600 uppercase">#</th>
-                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Provider</th>
-                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Capacity</th>
-                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600 uppercase">Share</th>
+                <th class="text-left py-3 px-2 text-xs font-medium text-gray-600 uppercase">#</th>
+                <th class="text-left py-3 px-4 text-xs font-medium text-gray-600 uppercase">Provider</th>
+                <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Capacity</th>
+                <th class="text-right py-3 px-4 text-xs font-medium text-gray-600 uppercase">Share</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="isp in topISPs" :key="isp.asn" class="border-b border-gray-100 hover:bg-orange-50 transition-colors">
-                <td class="py-3 px-2 text-sm font-bold text-gray-900">{{ isp.rank }}</td>
+                <td class="py-3 px-2 text-sm font-medium text-gray-900">{{ isp.rank }}</td>
                 <td class="py-3 px-4">
                   <p class="text-sm font-medium text-gray-900">{{ isp.name }}</p>
                 </td>
                 <td class="py-3 px-4 text-right">
-                  <p class="text-sm font-semibold text-gray-900">{{ (isp.capacity / 100000000).toFixed(2) }} BTC</p>
+                  <p class="text-sm font-medium text-gray-900">{{ (isp.capacity / 100000000).toFixed(2) }} BTC</p>
                 </td>
                 <td class="py-3 px-4 text-right">
-                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
                     {{ isp.percentage }}%
                   </span>
                 </td>
@@ -267,52 +267,52 @@ const topNodesByChannels = computed(() => {
       <!-- Rankings Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Top Nodes by Capacity -->
-        <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
           <div class="mb-6">
-            <h3 class="text-lg font-bold text-gray-900">Top Nodes by Capacity</h3>
+            <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Nodes by Capacity</h3>
             <p class="text-sm text-gray-600">Most liquidity</p>
           </div>
 
-          <div class="space-y-3">
+          <div class="space-y-2">
             <div v-for="node in topNodesByCapacity" :key="node.publicKey"
-              class="flex items-center justify-between p-3 rounded-xl hover:bg-orange-50 transition-colors border border-gray-100">
+              class="flex items-center justify-between p-3 rounded-xl hover:bg-orange-50 transition-colors border border-gray-200 hover:border-orange-200">
               <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-400 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium text-sm">
                   {{ node.rank }}
                 </div>
                 <div>
-                  <p class="text-sm font-semibold text-gray-900">{{ node.alias }}</p>
+                  <p class="text-sm font-medium text-gray-900">{{ node.alias }}</p>
                   <p class="text-xs text-gray-500">{{ (node.capacity / 100000000).toFixed(2) }} BTC</p>
                 </div>
               </div>
               <div class="text-right">
-                <p class="text-sm font-bold text-orange-600">${{ ((node.capacity / 100000000) * 98000).toLocaleString('en-US', { maximumFractionDigits: 0 }) }}</p>
+                <p class="text-sm font-semibold text-orange-600">${{ ((node.capacity / 100000000) * 98000).toLocaleString('en-US', { maximumFractionDigits: 0 }) }}</p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Top Nodes by Channels -->
-        <div class="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm">
+        <div class="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
           <div class="mb-6">
-            <h3 class="text-lg font-bold text-gray-900">Top Nodes by Channels</h3>
+            <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Nodes by Channels</h3>
             <p class="text-sm text-gray-600">Most connected</p>
           </div>
 
-          <div class="space-y-3">
+          <div class="space-y-2">
             <div v-for="node in topNodesByChannels" :key="node.publicKey"
-              class="flex items-center justify-between p-3 rounded-xl hover:bg-orange-50 transition-colors border border-gray-100">
+              class="flex items-center justify-between p-3 rounded-xl hover:bg-orange-50 transition-colors border border-gray-200 hover:border-orange-200">
               <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-400 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                <div class="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium text-sm">
                   {{ node.rank }}
                 </div>
                 <div>
-                  <p class="text-sm font-semibold text-gray-900">{{ node.alias }}</p>
+                  <p class="text-sm font-medium text-gray-900">{{ node.alias }}</p>
                   <p class="text-xs text-gray-500">{{ node.channels.toLocaleString() }} channels</p>
                 </div>
               </div>
               <div class="text-right">
-                <p class="text-sm font-bold text-orange-600">{{ ((node.channels / stats.latest.channel_count) * 100).toFixed(2) }}%</p>
+                <p class="text-sm font-semibold text-orange-600">{{ ((node.channels / stats.latest.channel_count) * 100).toFixed(2) }}%</p>
               </div>
             </div>
           </div>

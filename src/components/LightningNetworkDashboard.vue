@@ -592,19 +592,19 @@ onMounted(() => {
 <template>
   <div class="max-w-7xl mx-auto space-y-8">
     <!-- Hero Section -->
-    <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-3xl p-8 md:p-12 shadow-2xl">
-      <div class="absolute inset-0 bg-black/10"></div>
+    <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-3xl p-8 md:p-12 shadow-lg">
+      <div class="absolute inset-0 bg-black/5"></div>
       <div class="relative z-10">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center space-x-4">
-            <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-              <IconBolt class="w-10 h-10 text-white animate-pulse" />
+            <div class="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+              <IconBolt class="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
+              <h1 class="text-3xl md:text-4xl font-semibold text-white mb-2 tracking-tight">
                 Lightning Network Explorer
               </h1>
-              <p class="text-white/90 text-lg">
+              <p class="text-white/90 text-base">
                 Real-time insights into Bitcoin's Lightning Network
               </p>
             </div>
@@ -621,19 +621,19 @@ onMounted(() => {
                 Connect your Nostr account to track your Lightning earnings and analyze your zap data
               </p>
             </div>
-            <div class="flex flex-col sm:flex-row gap-4">
+            <div class="flex flex-col sm:flex-row gap-3">
               <button
                 @click="emit('trigger-login')"
-                class="px-8 py-4 bg-white text-orange-600 font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 whitespace-nowrap"
+                class="px-8 py-3.5 bg-white text-orange-600 font-medium rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2 whitespace-nowrap"
               >
-                <IconLogin class="w-6 h-6" />
+                <IconLogin class="w-5 h-5" />
                 <span>Connect with Nostr</span>
               </button>
               <button
                 @click="emit('show-help')"
-                class="px-8 py-4 bg-orange-600 text-white font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 whitespace-nowrap border-2 border-white/30"
+                class="px-8 py-3.5 bg-white/20 text-white font-medium rounded-xl hover:bg-white/30 transition-all duration-200 flex items-center justify-center space-x-2 whitespace-nowrap border border-white/30"
               >
-                <IconExternalLink class="w-6 h-6" />
+                <IconExternalLink class="w-5 h-5" />
                 <span>How It Works</span>
               </button>
             </div>
@@ -657,15 +657,15 @@ onMounted(() => {
         <div
           v-for="card in statsCards"
           :key="card.title"
-          class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-100"
+          class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200"
         >
           <div class="flex items-start justify-between mb-4">
-            <div :class="['w-14 h-14 rounded-2xl flex items-center justify-center', card.bgColor]">
-              <component :is="card.icon" :class="['w-8 h-8', card.textColor]" />
+            <div :class="['w-12 h-12 rounded-xl flex items-center justify-center', card.bgColor]">
+              <component :is="card.icon" :class="['w-6 h-6', card.textColor]" />
             </div>
           </div>
           <h3 class="text-gray-600 text-sm font-medium mb-2">{{ card.title }}</h3>
-          <p class="text-3xl font-bold text-gray-900 mb-1">{{ card.value }}</p>
+          <p class="text-3xl font-semibold text-gray-900 mb-1">{{ card.value }}</p>
           <p class="text-xs text-gray-500">{{ card.subtitle }}</p>
         </div>
       </div>
@@ -673,14 +673,14 @@ onMounted(() => {
       <!-- Charts Row 1 - Two Pie Charts Side by Side -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Node Types Pie Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-                <IconNetwork class="w-6 h-6 text-orange-600" />
+              <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
+                <IconNetwork class="w-5 h-5 text-orange-600" />
               </div>
               <div>
-                <h3 class="text-lg font-bold text-gray-900">Node Distribution</h3>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Node Distribution</h3>
                 <p class="text-sm text-gray-500">Network connectivity types (Clearnet, Tor, Hybrid)</p>
               </div>
             </div>
@@ -695,14 +695,14 @@ onMounted(() => {
         </div>
 
         <!-- Top Hosting Providers Pie Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center">
-                <IconServer class="w-6 h-6 text-cyan-600" />
+              <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center">
+                <IconServer class="w-5 h-5 text-cyan-600" />
               </div>
               <div>
-                <h3 class="text-lg font-bold text-gray-900">Top Hosting Providers</h3>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Hosting Providers</h3>
                 <p class="text-sm text-gray-500">Infrastructure providers by node distribution</p>
               </div>
             </div>
@@ -720,14 +720,14 @@ onMounted(() => {
       <!-- Charts Row 2 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Top Countries Bar Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <IconWorld class="w-6 h-6 text-blue-600" />
+              <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                <IconWorld class="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h3 class="text-lg font-bold text-gray-900">Top Countries</h3>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Countries</h3>
                 <p class="text-sm text-gray-500">Geographic distribution of Lightning nodes globally</p>
               </div>
             </div>
@@ -742,37 +742,37 @@ onMounted(() => {
         </div>
 
         <!-- Top Nodes by Capacity -->
-        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200">
           <div class="flex items-center justify-between mb-6">
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <IconTrendingUp class="w-6 h-6 text-green-600" />
+              <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                <IconTrendingUp class="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h3 class="text-lg font-bold text-gray-900">Top Nodes by Liquidity</h3>
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Nodes by Liquidity</h3>
                 <p class="text-sm text-gray-500">Highest capacity routing nodes on the network</p>
               </div>
             </div>
           </div>
-          <div class="space-y-3 max-h-80 overflow-y-auto">
+          <div class="space-y-2 max-h-80 overflow-y-auto">
             <div
               v-for="(node, index) in topNodesByCapacity"
               :key="node.publicKey"
               @click="openNodeOnAmboss(node.publicKey)"
-              class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-orange-50 hover:shadow-md transition-all cursor-pointer group"
+              class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-orange-50 hover:shadow-sm transition-all cursor-pointer group border border-transparent hover:border-orange-200"
             >
               <div class="flex items-center space-x-3 flex-1 min-w-0">
-                <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium text-sm">
                   {{ index + 1 }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{{ node.alias }}</p>
+                  <p class="text-sm font-medium text-gray-900 truncate group-hover:text-orange-600 transition-colors">{{ node.alias }}</p>
                   <p class="text-xs text-gray-500">{{ node.channels }} channels</p>
                 </div>
               </div>
               <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
                 <div class="text-right">
-                  <p class="text-sm font-bold text-green-600">
+                  <p class="text-sm font-semibold text-green-600">
                     {{ lightningNetworkService.formatSats(node.capacity) }}
                   </p>
                 </div>
@@ -784,9 +784,9 @@ onMounted(() => {
       </div>
 
       <!-- Call to Action -->
-      <div v-if="!hideAuthPrompts" class="bg-white border border-gray-200 rounded-3xl p-12 md:p-16">
+      <div v-if="!hideAuthPrompts" class="bg-white border border-gray-200 rounded-3xl p-12 md:p-16 shadow-sm">
         <div class="max-w-2xl mx-auto text-center">
-          <div class="w-14 h-14 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <div class="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <IconZoomIn class="w-7 h-7 text-gray-400" />
           </div>
           <h2 class="text-3xl md:text-4xl font-semibold text-gray-900 mb-4 tracking-tight">
