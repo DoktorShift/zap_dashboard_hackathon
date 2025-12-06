@@ -12,7 +12,8 @@ import {
   IconActivity,
   IconLogin,
   IconZoomIn,
-  IconExternalLink
+  IconExternalLink,
+  IconInfoCircle
 } from '@iconify-prerendered/vue-tabler'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -52,6 +53,73 @@ const topNodesByConnectivity = ref([])
 const nodesByCountry = ref([])
 const ispRanking = ref(null)
 const historicalData = ref([])
+const activeTooltip = ref(null)
+
+const tooltips = {
+  channels: {
+    title: 'Payment Channels',
+    description: 'Payment channels are direct connections between two Lightning nodes that allow instant Bitcoin transactions. Think of them as private payment tunnels that can process thousands of transactions without touching the Bitcoin blockchain.',
+    example: 'If you and a friend open a channel with 1 BTC, you can send payments back and forth instantly until one of you closes the channel.'
+  },
+  nodes: {
+    title: 'Network Nodes',
+    description: 'A Lightning node is like a router in the Lightning Network. Anyone can run a node to send, receive, or help route Bitcoin payments. More nodes mean a more robust and decentralized network.',
+    example: 'Running a node is similar to running a Bitcoin full node, but it also lets you participate in routing payments and earning fees.'
+  },
+  capacity: {
+    title: 'Total Network Capacity',
+    description: 'This is the total amount of Bitcoin locked in all Lightning channels across the entire network. Higher capacity means more liquidity for routing larger payments.',
+    example: 'If the network has 5,000 BTC capacity, it can theoretically route payments up to that amount across all channels.'
+  },
+  avgCapacity: {
+    title: 'Average Channel Capacity',
+    description: 'The typical amount of Bitcoin held in a single payment channel. Larger channels can route bigger payments but require more capital.',
+    example: 'A channel with 5 million sats can route payments up to that amount in either direction.'
+  },
+  clearnet: {
+    title: 'Clearnet Nodes',
+    description: 'These nodes are accessible via the regular internet with a public IP address. They\'re faster and easier to connect to, but your IP address is visible to the network.',
+    pros: 'Fast connections, reliable routing'
+  },
+  tor: {
+    title: 'Tor Nodes',
+    description: 'These nodes only connect via the Tor network, providing maximum privacy by hiding your IP address. However, they can be slower due to Tor\'s onion routing.',
+    pros: 'Maximum privacy, hidden location'
+  },
+  hybrid: {
+    title: 'Hybrid Nodes (Clearnet + Tor)',
+    description: 'These nodes are accessible via both regular internet and Tor, offering the best of both worlds. They can accept connections from any node type.',
+    pros: 'Flexibility, wider reach, privacy option'
+  },
+  isp: {
+    title: 'Hosting Providers',
+    description: 'Most Lightning nodes run on cloud servers from various hosting providers. This shows which companies host the most nodes. Decentralization across many providers is healthier for the network.',
+    note: 'Running a node at home improves decentralization!'
+  },
+  topCountries: {
+    title: 'Top Countries by Node Count',
+    description: 'This shows where Lightning nodes are located around the world. The more spread out nodes are across different countries, the more resilient the network becomes.',
+    example: 'Don\'t worry if your country isn\'t on the list - anyone anywhere can run a node and help grow the network!'
+  },
+  topNodesByCapacity: {
+    title: 'Top Nodes by Liquidity',
+    description: 'These are the biggest Lightning nodes ranked by how much Bitcoin they have locked in channels. They\'re like the major hubs of the network, helping route large payments.',
+    example: 'You don\'t need millions of sats to run a useful node - even small nodes help strengthen the network!'
+  },
+  topNodesByConnectivity: {
+    title: 'Most Connected Nodes',
+    description: 'These nodes have the most connections (channels) to other nodes. They\'re like airports with lots of flight routes - great for routing payments quickly across the network.',
+    example: 'More connections means more routing options and better payment reliability!'
+  }
+}
+
+const showTooltip = (key) => {
+  activeTooltip.value = key
+}
+
+const hideTooltip = () => {
+  activeTooltip.value = null
+}
 
 const loadData = async () => {
   isLoading.value = true
@@ -94,7 +162,8 @@ const statsCards = computed(() => {
       color: 'from-orange-500 to-amber-500',
       bgColor: 'bg-orange-50',
       textColor: 'text-orange-600',
-      subtitle: 'Active payment channels'
+      subtitle: 'Active payment channels',
+      tooltipKey: 'channels'
     },
     {
       title: 'Network Nodes',
@@ -103,7 +172,8 @@ const statsCards = computed(() => {
       color: 'from-blue-500 to-cyan-500',
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-600',
-      subtitle: 'Connected Lightning nodes'
+      subtitle: 'Connected Lightning nodes',
+      tooltipKey: 'nodes'
     },
     {
       title: 'Total Capacity',
@@ -112,7 +182,8 @@ const statsCards = computed(() => {
       color: 'from-green-500 to-emerald-500',
       bgColor: 'bg-green-50',
       textColor: 'text-green-600',
-      subtitle: 'Network liquidity'
+      subtitle: 'Network liquidity',
+      tooltipKey: 'capacity'
     },
     {
       title: 'Average Capacity',
@@ -121,7 +192,8 @@ const statsCards = computed(() => {
       color: 'from-purple-500 to-pink-500',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-600',
-      subtitle: 'Per channel'
+      subtitle: 'Per channel',
+      tooltipKey: 'avgCapacity'
     }
   ]
 })
@@ -589,22 +661,35 @@ onMounted(() => {
 })
 </script>
 
+<style scoped>
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+
 <template>
   <div class="max-w-7xl mx-auto space-y-8">
     <!-- Hero Section -->
-    <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-3xl p-8 md:p-12 shadow-2xl">
-      <div class="absolute inset-0 bg-black/10"></div>
+    <div class="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 rounded-3xl p-8 md:p-12 shadow-lg">
+      <div class="absolute inset-0 bg-black/5"></div>
       <div class="relative z-10">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center space-x-4">
-            <div class="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-              <IconBolt class="w-10 h-10 text-white animate-pulse" />
+            <div class="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+              <IconBolt class="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
+              <h1 class="text-3xl md:text-4xl font-semibold text-white mb-2 tracking-tight">
                 Lightning Network Explorer
               </h1>
-              <p class="text-white/90 text-lg">
+              <p class="text-white/90 text-base">
                 Real-time insights into Bitcoin's Lightning Network
               </p>
             </div>
@@ -621,19 +706,19 @@ onMounted(() => {
                 Connect your Nostr account to track your Lightning earnings and analyze your zap data
               </p>
             </div>
-            <div class="flex flex-col sm:flex-row gap-4">
+            <div class="flex flex-col sm:flex-row gap-3">
               <button
                 @click="emit('trigger-login')"
-                class="px-8 py-4 bg-white text-orange-600 font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 whitespace-nowrap"
+                class="px-8 py-3.5 bg-white text-orange-600 font-medium rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2 whitespace-nowrap"
               >
-                <IconLogin class="w-6 h-6" />
+                <IconLogin class="w-5 h-5" />
                 <span>Connect with Nostr</span>
               </button>
               <button
                 @click="emit('show-help')"
-                class="px-8 py-4 bg-orange-600 text-white font-semibold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex items-center justify-center space-x-3 whitespace-nowrap border-2 border-white/30"
+                class="px-8 py-3.5 bg-white/20 text-white font-medium rounded-xl hover:bg-white/30 transition-all duration-200 flex items-center justify-center space-x-2 whitespace-nowrap border border-white/30"
               >
-                <IconExternalLink class="w-6 h-6" />
+                <IconExternalLink class="w-5 h-5" />
                 <span>How It Works</span>
               </button>
             </div>
@@ -655,33 +740,93 @@ onMounted(() => {
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div
-          v-for="card in statsCards"
+          v-for="(card, index) in statsCards"
           :key="card.title"
-          class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-100"
+          class="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 relative"
         >
           <div class="flex items-start justify-between mb-4">
-            <div :class="['w-14 h-14 rounded-2xl flex items-center justify-center', card.bgColor]">
-              <component :is="card.icon" :class="['w-8 h-8', card.textColor]" />
+            <div :class="['w-12 h-12 rounded-xl flex items-center justify-center', card.bgColor]">
+              <component :is="card.icon" :class="['w-6 h-6', card.textColor]" />
             </div>
+            <button
+              v-if="card.tooltipKey"
+              @mouseenter="showTooltip(card.tooltipKey)"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
           </div>
           <h3 class="text-gray-600 text-sm font-medium mb-2">{{ card.title }}</h3>
-          <p class="text-3xl font-bold text-gray-900 mb-1">{{ card.value }}</p>
+          <p class="text-3xl font-semibold text-gray-900 mb-1">{{ card.value }}</p>
           <p class="text-xs text-gray-500">{{ card.subtitle }}</p>
+
+          <!-- Tooltip - Smart positioning based on card index -->
+          <div
+            v-if="activeTooltip === card.tooltipKey"
+            :class="[
+              'absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 -top-2',
+              index % 4 < 2 ? 'left-full ml-4' : 'right-full mr-4'
+            ]"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <div
+              :class="[
+                'absolute w-3 h-3 bg-gray-900 border-gray-700 transform rotate-45 top-8',
+                index % 4 < 2 ? 'border-l border-t -left-1.5' : 'border-r border-b -right-1.5'
+              ]"
+            ></div>
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips[card.tooltipKey].title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips[card.tooltipKey].description }}</p>
+            <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+              <p class="text-xs text-gray-400 italic">{{ tooltips[card.tooltipKey].example }}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Charts Row 1 - Two Pie Charts Side by Side -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Node Types Pie Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-                <IconNetwork class="w-6 h-6 text-orange-600" />
+            <div class="flex items-center space-x-3 flex-1">
+              <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
+                <IconNetwork class="w-5 h-5 text-orange-600" />
               </div>
-              <div>
-                <h3 class="text-lg font-bold text-gray-900">Node Distribution</h3>
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Node Distribution</h3>
                 <p class="text-sm text-gray-500">Network connectivity types (Clearnet, Tor, Hybrid)</p>
+              </div>
+            </div>
+            <button
+              @mouseenter="showTooltip('clearnet')"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'clearnet'"
+            class="absolute z-50 w-80 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <h4 class="font-medium text-sm mb-3 text-white">Understanding Node Types</h4>
+            <div class="space-y-3">
+              <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <p class="text-xs font-medium text-green-400 mb-1">🌐 Clearnet</p>
+                <p class="text-xs text-gray-300">Public nodes on regular internet. Fast and reliable but IP visible.</p>
+              </div>
+              <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <p class="text-xs font-medium text-purple-400 mb-1">🔒 Tor</p>
+                <p class="text-xs text-gray-300">Anonymous nodes via Tor network. Maximum privacy, slightly slower.</p>
+              </div>
+              <div class="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <p class="text-xs font-medium text-blue-400 mb-1">⚡ Hybrid</p>
+                <p class="text-xs text-gray-300">Best of both worlds! Accessible via clearnet and Tor.</p>
               </div>
             </div>
           </div>
@@ -695,16 +840,36 @@ onMounted(() => {
         </div>
 
         <!-- Top Hosting Providers Pie Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center">
-                <IconServer class="w-6 h-6 text-cyan-600" />
+            <div class="flex items-center space-x-3 flex-1">
+              <div class="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center">
+                <IconServer class="w-5 h-5 text-cyan-600" />
               </div>
-              <div>
-                <h3 class="text-lg font-bold text-gray-900">Top Hosting Providers</h3>
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Hosting Providers</h3>
                 <p class="text-sm text-gray-500">Infrastructure providers by node distribution</p>
               </div>
+            </div>
+            <button
+              @mouseenter="showTooltip('isp')"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'isp'"
+            class="absolute z-50 w-80 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.isp.title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips.isp.description }}</p>
+            <div class="bg-green-900/30 rounded-lg p-3 border border-green-700">
+              <p class="text-xs text-green-300">💡 {{ tooltips.isp.note }}</p>
             </div>
           </div>
           <VChart
@@ -720,16 +885,36 @@ onMounted(() => {
       <!-- Charts Row 2 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Top Countries Bar Chart -->
-        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <IconWorld class="w-6 h-6 text-blue-600" />
+            <div class="flex items-center space-x-3 flex-1">
+              <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                <IconWorld class="w-5 h-5 text-blue-600" />
               </div>
-              <div>
-                <h3 class="text-lg font-bold text-gray-900">Top Countries</h3>
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Countries</h3>
                 <p class="text-sm text-gray-500">Geographic distribution of Lightning nodes globally</p>
               </div>
+            </div>
+            <button
+              @mouseenter="showTooltip('topCountries')"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'topCountries'"
+            class="absolute z-50 w-80 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.topCountries.title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips.topCountries.description }}</p>
+            <div class="bg-green-900/30 rounded-lg p-3 border border-green-700">
+              <p class="text-xs text-green-300">💡 {{ tooltips.topCountries.example }}</p>
             </div>
           </div>
           <VChart
@@ -742,37 +927,57 @@ onMounted(() => {
         </div>
 
         <!-- Top Nodes by Capacity -->
-        <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-200 relative">
           <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <IconTrendingUp class="w-6 h-6 text-green-600" />
+            <div class="flex items-center space-x-3 flex-1">
+              <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                <IconTrendingUp class="w-5 h-5 text-green-600" />
               </div>
-              <div>
-                <h3 class="text-lg font-bold text-gray-900">Top Nodes by Liquidity</h3>
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900 tracking-tight">Top Nodes by Liquidity</h3>
                 <p class="text-sm text-gray-500">Highest capacity routing nodes on the network</p>
               </div>
             </div>
+            <button
+              @mouseenter="showTooltip('topNodesByCapacity')"
+              @mouseleave="hideTooltip"
+              class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <IconInfoCircle class="w-5 h-5" />
+            </button>
           </div>
-          <div class="space-y-3 max-h-80 overflow-y-auto">
+
+          <!-- Tooltip -->
+          <div
+            v-if="activeTooltip === 'topNodesByCapacity'"
+            class="absolute z-50 w-80 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 right-4"
+            style="animation: fadeIn 0.2s ease-out"
+          >
+            <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.topNodesByCapacity.title }}</h4>
+            <p class="text-xs text-gray-300 leading-relaxed mb-3">{{ tooltips.topNodesByCapacity.description }}</p>
+            <div class="bg-blue-900/30 rounded-lg p-3 border border-blue-700">
+              <p class="text-xs text-blue-300">💡 {{ tooltips.topNodesByCapacity.example }}</p>
+            </div>
+          </div>
+          <div class="space-y-2 max-h-80 overflow-y-auto">
             <div
               v-for="(node, index) in topNodesByCapacity"
               :key="node.publicKey"
               @click="openNodeOnAmboss(node.publicKey)"
-              class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-orange-50 hover:shadow-md transition-all cursor-pointer group"
+              class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-orange-50 hover:shadow-sm transition-all cursor-pointer group border border-transparent hover:border-orange-200"
             >
               <div class="flex items-center space-x-3 flex-1 min-w-0">
-                <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg flex items-center justify-center text-white font-medium text-sm">
                   {{ index + 1 }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors">{{ node.alias }}</p>
+                  <p class="text-sm font-medium text-gray-900 truncate group-hover:text-orange-600 transition-colors">{{ node.alias }}</p>
                   <p class="text-xs text-gray-500">{{ node.channels }} channels</p>
                 </div>
               </div>
               <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
                 <div class="text-right">
-                  <p class="text-sm font-bold text-green-600">
+                  <p class="text-sm font-semibold text-green-600">
                     {{ lightningNetworkService.formatSats(node.capacity) }}
                   </p>
                 </div>
@@ -784,9 +989,9 @@ onMounted(() => {
       </div>
 
       <!-- Call to Action -->
-      <div v-if="!hideAuthPrompts" class="bg-white border border-gray-200 rounded-3xl p-12 md:p-16">
+      <div v-if="!hideAuthPrompts" class="bg-white border border-gray-200 rounded-3xl p-12 md:p-16 shadow-sm">
         <div class="max-w-2xl mx-auto text-center">
-          <div class="w-14 h-14 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <div class="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <IconZoomIn class="w-7 h-7 text-gray-400" />
           </div>
           <h2 class="text-3xl md:text-4xl font-semibold text-gray-900 mb-4 tracking-tight">
