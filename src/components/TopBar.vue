@@ -255,7 +255,7 @@ const handleLoginClick = () => {
         <!-- How to Start Button - Desktop - Always Visible -->
         <button
           @click="emit('show-help')"
-          class="hidden sm:flex items-center space-x-2 px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl shadow-md hover:shadow-lg hover:from-blue-600 hover:to-cyan-600 transition-all duration-200 transform hover:scale-105"
+          class="hidden sm:flex items-center space-x-2 px-4 py-2 text-sm font-medium bg-white text-gray-700 rounded-lg border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
         >
           <IconHelp class="w-4 h-4" />
           <span>How to Start</span>
@@ -264,7 +264,7 @@ const handleLoginClick = () => {
         <!-- Mobile Help Button - Always Visible -->
         <button
           @click="emit('show-help')"
-          class="sm:hidden flex items-center justify-center w-11 h-11 bg-gradient-to-br from-blue-500 to-cyan-500 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 touch-target"
+          class="sm:hidden relative text-gray-500 hover:text-orange-600 p-2 rounded-xl transition-all duration-200 hover:bg-orange-50 group flex items-center justify-center touch-target"
         >
           <IconHelp class="w-5 h-5" />
         </button>
