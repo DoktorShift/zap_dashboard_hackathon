@@ -235,24 +235,25 @@ const handleShowHelp = () => {
     </div>
 
     <!-- Footer -->
-    <div class="flex-shrink-0 px-6 py-3 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
-      <div class="flex flex-col items-center gap-2">
+    <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
+      <div class="flex items-center justify-center gap-8">
         <a
           href="https://geyser.fund/project/zaptracker?hero=drshift"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-xs text-gray-500 hover:text-orange-500 transition-colors duration-200 font-medium"
+          class="opacity-60 hover:opacity-100 transition-all duration-300 hover:scale-110"
+          title="Support on Geyser"
         >
-          Support ZapTracker
+          <img src="/geyser-logo/logo-brand.svg" alt="Geyser" class="h-6 w-auto" />
         </a>
         <a
           href="https://github.com/pratik227/zap_dashboard"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-gray-400 hover:text-gray-700 transition-colors duration-200"
+          class="opacity-60 hover:opacity-100 text-gray-700 transition-all duration-300 hover:scale-110"
           title="View on GitHub"
         >
-          <IconBrandGithub class="w-5 h-5" />
+          <IconBrandGithub class="w-6 h-6" />
         </a>
       </div>
     </div>
