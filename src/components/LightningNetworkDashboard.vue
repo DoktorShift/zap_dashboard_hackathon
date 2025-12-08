@@ -765,7 +765,7 @@ onMounted(() => {
           <div
             v-if="activeTooltip === card.tooltipKey"
             :class="[
-              'absolute z-50 w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700',
+              'absolute pointer-events-none z-[9999] w-72 p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700',
               // Mobile: Show below
               'top-full mt-2 left-1/2 -translate-x-1/2',
               // Medium screens (2 columns): Even on right, odd on left
@@ -826,7 +826,7 @@ onMounted(() => {
           <!-- Tooltip - Responsive -->
           <div
             v-if="activeTooltip === 'clearnet'"
-            class="absolute z-50 w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-4"
+            class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-4"
             style="animation: fadeIn 0.2s ease-out"
           >
             <h4 class="font-medium text-sm mb-3 text-white">Understanding Node Types</h4>
@@ -878,7 +878,7 @@ onMounted(() => {
           <!-- Tooltip - Responsive -->
           <div
             v-if="activeTooltip === 'isp'"
-            class="absolute z-50 w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-4"
+            class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-4"
             style="animation: fadeIn 0.2s ease-out"
           >
             <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.isp.title }}</h4>
@@ -923,7 +923,7 @@ onMounted(() => {
           <!-- Tooltip - Responsive -->
           <div
             v-if="activeTooltip === 'topCountries'"
-            class="absolute z-50 w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-4"
+            class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-4"
             style="animation: fadeIn 0.2s ease-out"
           >
             <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.topCountries.title }}</h4>
@@ -965,7 +965,7 @@ onMounted(() => {
           <!-- Tooltip - Responsive -->
           <div
             v-if="activeTooltip === 'topNodesByCapacity'"
-            class="absolute z-50 w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-4"
+            class="absolute pointer-events-none z-[9999] w-80 max-w-[calc(100vw-2rem)] p-4 bg-gray-900 text-white rounded-xl shadow-2xl border border-gray-700 top-16 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:right-4"
             style="animation: fadeIn 0.2s ease-out"
           >
             <h4 class="font-medium text-sm mb-2 text-white">{{ tooltips.topNodesByCapacity.title }}</h4>
