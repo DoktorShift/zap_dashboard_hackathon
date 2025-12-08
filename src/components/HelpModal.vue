@@ -13,7 +13,8 @@ import {
   IconTarget,
   IconUsers,
   IconEye,
-  IconLogin
+  IconLogin,
+  IconInfoCircle
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -26,7 +27,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'trigger-login', 'trigger-view-only'])
 
 const currentSlide = ref(0)
-const totalSlides = 10
+const totalSlides = 11
 
 const hasSeenWelcome = () => {
   return localStorage.getItem('zaptracker_welcome_seen') === 'true'
@@ -42,6 +43,11 @@ const slides = [
     title: 'Welcome to ZapTracker',
     subtitle: 'Your Lightning Network Command Center',
     showLogo: true
+  },
+  {
+    id: 'requirements',
+    title: 'What You\'ll Need',
+    subtitle: 'Get set up in just a few minutes'
   },
   {
     id: 'analytics',
@@ -276,7 +282,78 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Pages 2-7: Features with Screenshots -->
+            <!-- Page 2: Requirements -->
+            <div v-else-if="currentSlideData.id === 'requirements'" class="space-y-8">
+              <div class="text-center max-w-2xl mx-auto">
+                <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-4 tracking-tight">
+                  {{ currentSlideData.title }}
+                </h2>
+                <p class="text-base text-gray-600">
+                  Two simple things to get started
+                </p>
+              </div>
+
+              <div class="max-w-2xl mx-auto space-y-3">
+                <!-- Nostr Identity - Required -->
+                <div class="group bg-white rounded-xl p-6 border-2 border-orange-200 hover:border-orange-300 hover:shadow-md transition-all duration-200">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconLogin class="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Nostr Identity</h3>
+                        <p class="text-xs text-orange-600 font-medium">Required to connect</p>
+                      </div>
+                    </div>
+                    <div class="relative group/tooltip">
+                      <IconInfoCircle class="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-help" />
+                      <div class="absolute right-0 top-8 w-72 bg-gray-900 text-white text-xs rounded-lg p-3 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-10 shadow-xl">
+                        <p class="leading-relaxed">Your Nostr identity is like a universal login that works across all Nostr apps. No passwords or emails needed - just one key for everything.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="text-sm text-gray-600 mb-4">
+                    Don't have one? Create yours in under a minute.
+                  </p>
+                  <a
+                    href="https://nostrid.mybuho.de"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg text-sm font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+                  >
+                    <span>Get Nostr Identity</span>
+                    <IconChevronRight class="w-4 h-4" />
+                  </a>
+                </div>
+
+                <!-- Lightning Wallet - Optional -->
+                <div class="group bg-white rounded-xl p-6 border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-10 h-10 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconWallet class="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Lightning Wallet</h3>
+                        <p class="text-xs text-gray-600 font-medium">Optional - add anytime</p>
+                      </div>
+                    </div>
+                    <div class="relative group/tooltip">
+                      <IconInfoCircle class="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-help" />
+                      <div class="absolute right-0 top-8 w-72 bg-gray-900 text-white text-xs rounded-lg p-3 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-10 shadow-xl">
+                        <p class="leading-relaxed">Connect via NWC (Nostr Wallet Connect) to send and receive zaps. Your wallet stays secure - ZapTracker only tracks payments. You can explore without one and add it later in Settings.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="text-sm text-gray-600">
+                    Explore ZapTracker now, connect your wallet later from Settings.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pages 3-8: Features with Screenshots -->
             <div v-else-if="currentSlideData.features" class="space-y-6">
               <div class="text-center">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
@@ -315,7 +392,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 7: Campaigns - Empty State Preview Style -->
+            <!-- Page 8: Campaigns - Empty State Preview Style -->
             <div v-else-if="currentSlideData.id === 'zapgoals'" class="space-y-6">
               <div class="text-center mb-6">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl mb-4">
@@ -407,7 +484,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 8: FAQ -->
+            <!-- Page 9: FAQ -->
             <div v-else-if="currentSlideData.id === 'faq'" class="space-y-6">
               <div class="text-center mb-8">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
@@ -435,7 +512,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 9: How to Get Started -->
+            <!-- Page 10: How to Get Started -->
             <div v-else-if="currentSlideData.id === 'howto'" class="space-y-8">
               <div class="text-center">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
@@ -463,7 +540,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 10: Final CTA -->
+            <!-- Page 11: Final CTA -->
             <div v-else-if="currentSlideData.isFinal" class="text-center">
               <div class="flex justify-center mb-8">
                 <div class="relative">

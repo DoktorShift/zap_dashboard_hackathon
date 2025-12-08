@@ -27,10 +27,8 @@ import {
   IconStar,
   IconTarget,
   IconGlobe,
-  IconWifi,
   IconInfoCircle,
-  IconBulb,
-  IconWifiOff
+  IconBulb
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useAudience } from '../composables/useAudience.js'
@@ -91,7 +89,6 @@ const showListModal = ref(false)
 const selectedList = ref(null)
 const showBulkActions = ref(false)
 const selectedUsers = ref(new Set())
-const showRelayStatus = ref(false)
 const selectedBadge = ref(null)
 const showBadgeModal = ref(false)
 
@@ -146,7 +143,7 @@ const filteredFollowers = computed(() => {
 
 const filteredSuggestions = computed(() => {
   let suggestions = suggestedUsers.value
-  
+
   // Apply search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
@@ -156,17 +153,13 @@ const filteredSuggestions = computed(() => {
       suggestion.pubkey.toLowerCase().includes(query)
     )
   }
-  
+
   // Limit results if not showing all
   if (!showAllSuggestions.value) {
     suggestions = suggestions.slice(0, 12)
   }
-  
-  return suggestions
-})
 
-const relayStats = computed(() => {
-  return nostrRelayManager.getConnectionStats()
+  return suggestions
 })
 
 // Generate smart suggestions based on mutual follows
@@ -504,73 +497,6 @@ watch(following, (newFollowing, oldFollowing) => {
 
     <!-- Authenticated Content -->
     <div v-else>
-      <!-- Header with Relay Status -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-<!--          <h1 class="text-2xl font-bold text-gray-900 mb-2 flex items-center space-x-2">-->
-<!--            <IconUsers class="w-6 h-6 text-orange-600" />-->
-<!--            <span>Audience</span>-->
-<!--          </h1>-->
-<!--          <p class="text-gray-600">-->
-<!--            Manage your Nostr network and create follow lists-->
-<!--          </p>-->
-        </div>
-
-        <!-- Relay Status & Actions -->
-        <div class="flex items-center space-x-3">
-          <!-- Relay Status Pill -->
-          <div class="relative">
-            <button
-              class="mb-4"
-              @click="showRelayStatus = !showRelayStatus"
-              :class="[
-                'flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                relayStats.connected > 0 
-                  ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100' 
-                  : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
-              ]"
-            >
-              <IconWifi v-if="relayStats.connected > 0" class="w-4 h-4" />
-              <IconWifiOff v-else class="w-4 h-4" />
-              <span>{{ relayStats.connected }}/{{ relayStats.total }} relays</span>
-              <IconChevronDown :class="['w-3 h-3 transition-transform', showRelayStatus ? 'rotate-180' : '']" />
-            </button>
-            
-            <!-- Relay Status Dropdown -->
-            <div v-if="showRelayStatus" class="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
-              <div class="px-3 py-2 border-b border-gray-100">
-                <h4 class="font-medium text-gray-900 text-sm">Relay Status</h4>
-              </div>
-              <div class="px-3 py-2 space-y-1">
-                <div class="flex justify-between text-xs">
-                  <span class="text-gray-600">Connected:</span>
-                  <span class="font-medium text-green-600">{{ relayStats.connected }}</span>
-                </div>
-                <div class="flex justify-between text-xs">
-                  <span class="text-gray-600">Write enabled:</span>
-                  <span class="font-medium text-blue-600">{{ relayStats.writeEnabled }}</span>
-                </div>
-                <div class="flex justify-between text-xs">
-                  <span class="text-gray-600">Read enabled:</span>
-                  <span class="font-medium text-purple-600">{{ relayStats.readEnabled }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Sync Button -->
-          <!-- Sync Button - Commented out for later proper integration -->
-          <!-- <button
-            @click="refreshFollowing"
-            :disabled="isLoading"
-            class="btn-secondary"
-          >
-            <IconRefresh :class="['w-4 h-4', isLoading ? 'animate-spin' : '']" />
-            <span class="hidden sm:inline">Sync</span>
-          </button> -->
-
-        </div>
-      </div>
 
       <!-- Tab Navigation -->
       <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">

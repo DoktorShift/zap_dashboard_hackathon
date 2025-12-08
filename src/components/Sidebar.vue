@@ -1,5 +1,5 @@
 <script setup>
-import { inject, computed, ref } from 'vue'
+import { inject, computed, ref, watch } from 'vue'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import {
   IconDashboard,
@@ -17,7 +17,7 @@ import {
   IconActivity,
   IconCoins,
   IconSparkles,
-  IconBrandGithub
+  IconVideo
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -27,7 +27,8 @@ const isWalletConnected = inject('isWalletConnected')
 const emit = defineEmits(['change-page', 'show-help'])
 
 const { isAuthenticated } = useNostrAuth()
-const dashboardSubmenuOpen = ref(false)
+const dashboardSubmenuOpen = ref(true)
+const studioSubmenuOpen = ref(false)
 
 const totalZaps = computed(() => {
   return combinedZapData.value.filter(zap => zap.eventId).length
@@ -39,6 +40,20 @@ const totalSats = computed(() => {
     .reduce((sum, zap) => sum + zap.amount, 0)
 })
 
+const checkAndOpenParentMenu = () => {
+  const dashboardPages = ['dashboard', 'lightning-explorer']
+  const studioPages = ['content', 'notes', 'campaigns']
+
+  if (dashboardPages.includes(currentPage.value)) {
+    dashboardSubmenuOpen.value = true
+  }
+  if (studioPages.includes(currentPage.value)) {
+    studioSubmenuOpen.value = true
+  }
+}
+
+checkAndOpenParentMenu()
+
 const menuItems = [
   {
     id: 'dashboard',
@@ -46,36 +61,67 @@ const menuItems = [
     icon: IconDashboard,
     requiresAuth: false,
     hasSubmenu: true,
+    submenuKey: 'dashboard',
     submenuItems: [
       { id: 'dashboard', label: 'ZapTracker Dashboard', icon: IconDashboard },
       { id: 'lightning-explorer', label: 'Lightning Explorer', icon: IconActivity }
     ]
   },
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt, requiresAuth: true },
-  { id: 'analytics', label: 'Analytics', icon: IconChartBar, requiresAuth: true },
   { id: 'wallet', label: 'Wallet', icon: IconWallet, requiresAuth: true },
-  { id: 'content', label: 'Content', icon: IconFileText, requiresAuth: true },
-  { id: 'notes', label: 'Notes', icon: IconEdit, requiresAuth: true },
-  { id: 'campaigns', label: 'Campaigns', icon: IconTarget, requiresAuth: true },
-  { id: 'calendar', label: 'Calendar', icon: IconCalendar, requiresAuth: true },
+  { id: 'analytics', label: 'Analytics', icon: IconChartBar, requiresAuth: true },
+  {
+    id: 'studio',
+    label: 'Studio',
+    icon: IconVideo,
+    requiresAuth: true,
+    hasSubmenu: true,
+    submenuKey: 'studio',
+    submenuItems: [
+      { id: 'content', label: 'Content', icon: IconFileText },
+      { id: 'notes', label: 'Notes', icon: IconEdit },
+      { id: 'campaigns', label: 'Campaigns', icon: IconTarget }
+    ]
+  },
   { id: 'audience', label: 'Audience', icon: IconUsers, requiresAuth: true },
+  { id: 'calendar', label: 'Calendar', icon: IconCalendar, requiresAuth: true },
   { id: 'settings', label: 'Settings', icon: IconSettings, requiresAuth: false }
 ]
 
-const toggleDashboardSubmenu = () => {
-  dashboardSubmenuOpen.value = !dashboardSubmenuOpen.value
+const toggleSubmenu = (submenuKey) => {
+  if (submenuKey === 'dashboard') {
+    dashboardSubmenuOpen.value = !dashboardSubmenuOpen.value
+  } else if (submenuKey === 'studio') {
+    studioSubmenuOpen.value = !studioSubmenuOpen.value
+  }
+}
+
+const isSubmenuOpen = (submenuKey) => {
+  if (submenuKey === 'dashboard') return dashboardSubmenuOpen.value
+  if (submenuKey === 'studio') return studioSubmenuOpen.value
+  return false
+}
+
+const isParentActive = (item) => {
+  if (!item.hasSubmenu) return false
+  return item.submenuItems.some(subItem => subItem.id === currentPage.value)
 }
 
 const handlePageChange = (item) => {
   if (item.requiresAuth && !isAuthenticated.value) return
 
-  // If clicking on dashboard parent and logged in, toggle submenu
-  if (item.hasSubmenu && isAuthenticated.value) {
-    toggleDashboardSubmenu()
+  // If clicking on a parent with submenu
+  if (item.hasSubmenu) {
+    // For dashboard, always toggle when clicked
+    if (item.submenuKey === 'dashboard' && !isAuthenticated.value) {
+      emit('change-page', 'lightning-explorer')
+      return
+    }
+    toggleSubmenu(item.submenuKey)
     return
   }
 
-  // If not logged in, go directly to dashboard (lightning explorer)
+  // Regular item
   emit('change-page', item.id)
 }
 
@@ -90,6 +136,10 @@ const isItemDisabled = (item) => {
 const handleShowHelp = () => {
   emit('show-help')
 }
+
+watch(currentPage, () => {
+  checkAndOpenParentMenu()
+})
 </script>
 
 <template>
@@ -119,7 +169,7 @@ const handleShowHelp = () => {
             :disabled="isItemDisabled(item)"
             :class="[
               'w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200',
-              (currentPage === item.id || (item.hasSubmenu && (currentPage === 'dashboard' || currentPage === 'lightning-explorer')))
+              (currentPage === item.id || isParentActive(item))
                 ? 'bg-gradient-to-r from-orange-50 to-amber-50 text-orange-600 font-semibold shadow-sm border border-orange-100'
                 : isItemDisabled(item)
                 ? 'text-gray-400 cursor-not-allowed'
@@ -130,7 +180,7 @@ const handleShowHelp = () => {
               :is="item.icon"
               :class="[
                 'w-5 h-5 flex-shrink-0',
-                (currentPage === item.id || (item.hasSubmenu && (currentPage === 'dashboard' || currentPage === 'lightning-explorer')))
+                (currentPage === item.id || isParentActive(item))
                   ? 'text-orange-500'
                   : isItemDisabled(item)
                   ? 'text-gray-300'
@@ -139,37 +189,51 @@ const handleShowHelp = () => {
             />
             <span class="text-sm truncate flex-1">{{ item.label }}</span>
             <component
-              v-if="item.hasSubmenu && isAuthenticated"
-              :is="dashboardSubmenuOpen ? IconChevronDown : IconChevronRight"
-              class="w-4 h-4 flex-shrink-0 text-gray-400"
+              v-if="item.hasSubmenu && (isAuthenticated || item.submenuKey === 'dashboard')"
+              :is="isSubmenuOpen(item.submenuKey) ? IconChevronDown : IconChevronRight"
+              :class="[
+                'w-4 h-4 flex-shrink-0 ml-2 transition-transform duration-200',
+                (currentPage === item.id || isParentActive(item)) ? 'text-orange-500' : 'text-gray-400'
+              ]"
             />
           </button>
 
           <!-- Submenu Items -->
           <ul
-            v-if="item.hasSubmenu && isAuthenticated && dashboardSubmenuOpen"
-            class="mt-1 ml-4 space-y-1"
+            v-if="item.hasSubmenu && (isAuthenticated || item.submenuKey === 'dashboard') && isSubmenuOpen(item.submenuKey)"
+            class="mt-1 ml-3 space-y-0.5 relative"
           >
+            <div class="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-orange-200 via-orange-300 to-transparent"></div>
             <li v-for="subItem in item.submenuItems" :key="subItem.id">
               <button
                 @click="handleSubmenuClick(subItem)"
                 :class="[
-                  'w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-left transition-all duration-200',
+                  'w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-left transition-all duration-200 relative',
                   currentPage === subItem.id
                     ? 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 font-semibold shadow-sm'
                     : 'text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900'
                 ]"
               >
-                <component
-                  :is="subItem.icon"
-                  :class="[
-                    'w-4 h-4 flex-shrink-0',
-                    currentPage === subItem.id
-                      ? 'text-orange-600'
-                      : 'text-gray-400'
-                  ]"
-                />
-                <span class="text-xs truncate">{{ subItem.label }}</span>
+                <div class="flex items-center space-x-3 pl-3">
+                  <div
+                    :class="[
+                      'absolute left-4 w-2 h-2 rounded-full transition-all duration-200',
+                      currentPage === subItem.id
+                        ? 'bg-orange-500 ring-2 ring-orange-200'
+                        : 'bg-gray-300'
+                    ]"
+                  ></div>
+                  <component
+                    :is="subItem.icon"
+                    :class="[
+                      'w-4 h-4 flex-shrink-0 ml-2',
+                      currentPage === subItem.id
+                        ? 'text-orange-600'
+                        : 'text-gray-400'
+                    ]"
+                  />
+                  <span class="text-xs truncate">{{ subItem.label }}</span>
+                </div>
               </button>
             </li>
           </ul>
