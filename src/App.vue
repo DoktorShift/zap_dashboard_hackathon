@@ -638,10 +638,13 @@ onMounted(async () => {
   }
 
   // Check if we need to show connection modal (only for non-standalone pages)
-  if (!isWalletConnected.value && !isStandalonePage.value) {
-    console.log('💳 No wallet connected, showing connection modal')
-    showConnectionModal.value = true
-  } else if (isWalletConnected.value) {
+  // COMMENTED OUT: Auto-showing connection modal was too aggressive
+  // Users can still connect via the Wallet page's "Connect Wallet" button or Settings
+  // if (!isWalletConnected.value && !isStandalonePage.value) {
+  //   console.log('💳 No wallet connected, showing connection modal')
+  //   showConnectionModal.value = true
+  // } else if (isWalletConnected.value) {
+  if (isWalletConnected.value) {
     console.log('💳 Wallet already connected, refreshing data...')
     setTimeout(() => {
       refreshZapData(true)
