@@ -236,24 +236,36 @@ const handleShowHelp = () => {
 
     <!-- Footer -->
     <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
-      <div class="flex items-center justify-center gap-8">
+      <div class="space-y-3">
         <a
           href="https://geyser.fund/project/zaptracker?hero=drshift"
           target="_blank"
           rel="noopener noreferrer"
-          class="opacity-60 hover:opacity-100 transition-all duration-300 hover:scale-110"
+          class="flex items-center gap-3 group"
           title="Support on Geyser"
         >
-          <img src="/geyser-logo/logo-brand.svg" alt="Geyser" class="h-6 w-auto" />
+          <div class="flex-shrink-0 w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity duration-300">
+            <img
+              src="/geyser-logo/logo-brand.svg"
+              alt="Geyser"
+              class="w-full h-full object-contain grayscale brightness-0"
+            />
+          </div>
+          <span class="text-xs text-gray-600 group-hover:text-gray-900 transition-colors duration-300 font-medium">
+            Support ZapTracker
+          </span>
         </a>
         <a
           href="https://github.com/pratik227/zap_dashboard"
           target="_blank"
           rel="noopener noreferrer"
-          class="opacity-60 hover:opacity-100 text-gray-700 transition-all duration-300 hover:scale-110"
+          class="flex items-center gap-3 group"
           title="View on GitHub"
         >
-          <IconBrandGithub class="w-6 h-6" />
+          <IconBrandGithub class="w-5 h-5 flex-shrink-0 text-gray-600 opacity-70 group-hover:opacity-100 group-hover:text-gray-900 transition-all duration-300" />
+          <span class="text-xs text-gray-600 group-hover:text-gray-900 transition-colors duration-300 font-medium">
+            View Source Code
+          </span>
         </a>
       </div>
     </div>
