@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, ref } from 'vue'
-import { generateAvatar } from '../utils/avatarGenerator.js'
+import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 import {
   IconBolt,
   IconFileText,
@@ -20,11 +20,11 @@ import {
   IconHeart,
   IconBulb
 } from '@iconify-prerendered/vue-tabler'
-import { filterZapsByTimeRange } from '../utils/timeFilter.js'
-import ZapEventModal from '../components/ZapEventModal.vue'
-import { useContentZaps } from '../composables/useContentZaps.js'
-import Filters from '../components/Filters.vue'
-import SkeletonList from '../components/SkeletonList.vue'
+import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
+import ZapEventModal from '../components/modals/ZapEventModal.vue'
+import { useContentZaps } from '../composables/content/useContentZaps.js'
+import Filters from '../components/shared/Filters.vue'
+import SkeletonList from '../components/shared/SkeletonList.vue'
 
 const zapData = inject('zapData')
 const combinedZapData = inject('combinedZapData')

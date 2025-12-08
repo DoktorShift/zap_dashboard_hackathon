@@ -30,19 +30,19 @@ import {
   IconInfoCircle,
   IconBulb
 } from '@iconify-prerendered/vue-tabler'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useAudience } from '../composables/useAudience.js'
-import { nostrRelayManager } from '../utils/nostrRelayManager.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useAudience } from '../composables/audience/useAudience.js'
+import { nostrRelayManager } from '../utils/network/nostrRelayManager.js'
 import * as nip19 from 'nostr-tools/nip19'
 import { verifyEvent } from 'nostr-tools/pure'
-import ProfileCard from '../components/ProfileCard.vue'
-import ProfileModal from '../components/ProfileModal.vue'
-import FollowListModal from '../components/FollowListModal.vue'
-import FollowListCard from '../components/FollowListCard.vue'
-import AudienceOverview from '../components/AudienceOverview.vue'
-import FollowListManager from '../components/FollowListManager.vue'
-import SuggestionsTab from '../components/SuggestionsTab.vue'
-import BadgeDetailModal from '../components/BadgeDetailModal.vue'
+import ProfileCard from '../components/profile/ProfileCard.vue'
+import ProfileModal from '../components/modals/ProfileModal.vue'
+import FollowListModal from '../components/audience/FollowListModal.vue'
+import FollowListCard from '../components/audience/FollowListCard.vue'
+import AudienceOverview from '../components/audience/AudienceOverview.vue'
+import FollowListManager from '../components/audience/FollowListManager.vue'
+import SuggestionsTab from '../components/shared/SuggestionsTab.vue'
+import BadgeDetailModal from '../components/badges/BadgeDetailModal.vue'
 
 // Authentication
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()

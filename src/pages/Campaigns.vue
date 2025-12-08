@@ -30,15 +30,15 @@ import {
   IconCode,
   IconHeart
 } from '@iconify-prerendered/vue-tabler'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useCampaigns } from '../composables/useCampaigns.js'
-import { useNotifications } from '../composables/useNotifications.js'
-import { formatDate } from '../utils/dateUtils.js'
-import CampaignCard from '../components/CampaignCard.vue'
-import CampaignCreateModal from '../components/CampaignCreateModal.vue'
-import CampaignDeleteModal from '../components/CampaignDeleteModal.vue'
-import CampaignShareModal from '../components/CampaignShareModal.vue'
-import SkeletonCard from '../components/SkeletonCard.vue'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useCampaigns } from '../composables/campaigns/useCampaigns.js'
+import { useNotifications } from '../composables/core/useNotifications.js'
+import { formatDate } from '../utils/core/dateUtils.js'
+import CampaignCard from '../components/campaigns/CampaignCard.vue'
+import CampaignCreateModal from '../components/campaigns/CampaignCreateModal.vue'
+import CampaignDeleteModal from '../components/campaigns/CampaignDeleteModal.vue'
+import CampaignShareModal from '../components/campaigns/CampaignShareModal.vue'
+import SkeletonCard from '../components/shared/SkeletonCard.vue'
 
 // Get changePage function from parent
 const changePage = inject('changePage')

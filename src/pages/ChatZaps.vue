@@ -21,11 +21,11 @@ import {
   IconQrcode
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
-import { useNostrChat } from '../composables/useNostrChat.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useNostrConnections } from '../composables/useNostrConnections.js'
+import { useNostrChat } from '../composables/social/useNostrChat.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useNostrConnections } from '../composables/core/useNostrConnections.js'
 import * as nip19 from 'nostr-tools/nip19'
-import UserProfileModal from '../components/UserProfileModal.vue'
+import UserProfileModal from '../components/modals/UserProfileModal.vue'
 
 // Authentication
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()

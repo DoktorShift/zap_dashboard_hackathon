@@ -3,13 +3,13 @@ import { computed, inject, ref, onMounted, watch, defineEmits } from 'vue'
 
 const emit = defineEmits(['trigger-login', 'change-page'])
 import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight } from '@iconify-prerendered/vue-tabler'
-import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useBtcPrice } from '../composables/useBtcPrice.js'
-import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, getPeriodComparison } from '../utils/timeFilter.js'
-import EmptyStateDashboard from '../components/EmptyStateDashboard.vue'
-import LoadingStateDashboard from '../components/LoadingStateDashboard.vue'
-import LightningNetworkDashboard from '../components/LightningNetworkDashboard.vue'
+import { getNWCClient, getBalance, getWalletInfo } from '../utils/wallet/nwcClient.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useBtcPrice } from '../composables/core/useBtcPrice.js'
+import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, getPeriodComparison } from '../utils/core/timeFilter.js'
+import EmptyStateDashboard from '../components/shared/EmptyStateDashboard.vue'
+import LoadingStateDashboard from '../components/shared/LoadingStateDashboard.vue'
+import LightningNetworkDashboard from '../components/zaps/LightningNetworkDashboard.vue'
 
 const currentPage = inject('currentPage')
 
