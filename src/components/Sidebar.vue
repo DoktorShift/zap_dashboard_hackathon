@@ -16,7 +16,8 @@ import {
   IconChevronRight,
   IconActivity,
   IconCoins,
-  IconSparkles
+  IconSparkles,
+  IconBrandGithub
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -234,10 +235,30 @@ const handleShowHelp = () => {
     </div>
 
     <!-- Footer -->
-    <div class="flex-shrink-0 px-6 py-3 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
-      <p class="text-xs text-gray-400 text-center truncate">
-        © 2024 ZapTracker
-      </p>
+    <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
+      <a
+        href="https://geyser.fund/project/zaptracker?hero=drshift"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-3 group"
+        title="Support on Geyser"
+      >
+        <div class="flex-shrink-0 w-5 h-5 relative">
+          <img
+            src="/geyser-logo/logo-icon-black.svg"
+            alt="Geyser"
+            class="w-full h-full object-contain absolute inset-0 transition-opacity duration-300 group-hover:opacity-0"
+          />
+          <img
+            src="/geyser-logo/heart-red.svg"
+            alt="Support"
+            class="w-full h-full object-contain absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:animate-pulse"
+          />
+        </div>
+        <span class="text-xs text-gray-600 group-hover:text-rose-600 transition-colors duration-300 font-medium">
+          Support ZapTracker
+        </span>
+      </a>
     </div>
   </aside>
 </template>
