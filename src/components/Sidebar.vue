@@ -236,12 +236,12 @@ const handleShowHelp = () => {
 
     <!-- Footer -->
     <div class="flex-shrink-0 px-6 py-3 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col items-center gap-2">
         <a
           href="https://geyser.fund/project/zaptracker?hero=drshift"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-xs text-gray-500 hover:text-orange-500 transition-colors duration-200"
+          class="text-xs text-gray-500 hover:text-orange-500 transition-colors duration-200 font-medium"
         >
           Support ZapTracker
         </a>
@@ -249,10 +249,10 @@ const handleShowHelp = () => {
           href="https://github.com/pratik227/zap_dashboard"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+          class="text-gray-400 hover:text-gray-700 transition-colors duration-200"
           title="View on GitHub"
         >
-          <IconBrandGithub class="w-4 h-4" />
+          <IconBrandGithub class="w-5 h-5" />
         </a>
       </div>
     </div>
