@@ -13,7 +13,8 @@ import {
   IconTarget,
   IconUsers,
   IconEye,
-  IconLogin
+  IconLogin,
+  IconInfoCircle
 } from '@iconify-prerendered/vue-tabler'
 
 const props = defineProps({
@@ -283,79 +284,70 @@ const handleViewOnly = () => {
 
             <!-- Page 2: Requirements -->
             <div v-else-if="currentSlideData.id === 'requirements'" class="space-y-8">
-              <div class="text-center">
-                <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
+              <div class="text-center max-w-2xl mx-auto">
+                <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-4 tracking-tight">
                   {{ currentSlideData.title }}
                 </h2>
-                <p class="text-base text-gray-600 mb-8">
-                  {{ currentSlideData.subtitle }}
+                <p class="text-base text-gray-600">
+                  Two simple things to get started
                 </p>
               </div>
 
-              <div class="max-w-3xl mx-auto space-y-4">
+              <div class="max-w-2xl mx-auto space-y-3">
                 <!-- Nostr Identity - Required -->
-                <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-6 border-2 border-orange-200">
-                  <div class="flex items-start space-x-4">
-                    <div class="w-12 h-12 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <IconLogin class="w-6 h-6 text-white" />
-                    </div>
-                    <div class="flex-1">
-                      <div class="flex items-center space-x-2 mb-2">
-                        <h3 class="text-xl font-semibold text-gray-900">Nostr Identity</h3>
-                        <span class="px-2 py-0.5 bg-orange-500 text-white text-xs font-medium rounded-full">Required</span>
+                <div class="group bg-white rounded-xl p-6 border-2 border-orange-200 hover:border-orange-300 hover:shadow-md transition-all duration-200">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconLogin class="w-5 h-5 text-white" />
                       </div>
-                      <p class="text-gray-700 mb-4 leading-relaxed">
-                        Your Nostr identity is your key to the decentralized world. Think of it as your universal login that works across all Nostr apps - no passwords, no email required.
-                      </p>
-                      <p class="text-sm text-gray-600 mb-4">
-                        Don't have one yet? No worries! It takes less than a minute to create.
-                      </p>
-                      <a
-                        href="https://nostrid.mybuho.de"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center space-x-2 px-4 py-2.5 bg-white border-2 border-orange-300 text-orange-700 rounded-lg font-medium hover:bg-orange-50 hover:border-orange-400 transition-all duration-200"
-                      >
-                        <IconLogin class="w-4 h-4" />
-                        <span>Get Your Nostr Identity</span>
-                        <IconChevronRight class="w-4 h-4" />
-                      </a>
+                      <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Nostr Identity</h3>
+                        <p class="text-xs text-orange-600 font-medium">Required to connect</p>
+                      </div>
+                    </div>
+                    <div class="relative group/tooltip">
+                      <IconInfoCircle class="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-help" />
+                      <div class="absolute right-0 top-8 w-72 bg-gray-900 text-white text-xs rounded-lg p-3 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-10 shadow-xl">
+                        <p class="leading-relaxed">Your Nostr identity is like a universal login that works across all Nostr apps. No passwords or emails needed - just one key for everything.</p>
+                      </div>
                     </div>
                   </div>
+                  <p class="text-sm text-gray-600 mb-4">
+                    Don't have one? Create yours in under a minute.
+                  </p>
+                  <a
+                    href="https://nostrid.mybuho.de"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg text-sm font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+                  >
+                    <span>Get Nostr Identity</span>
+                    <IconChevronRight class="w-4 h-4" />
+                  </a>
                 </div>
 
                 <!-- Lightning Wallet - Optional -->
-                <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border-2 border-gray-200">
-                  <div class="flex items-start space-x-4">
-                    <div class="w-12 h-12 bg-gradient-to-r from-gray-600 to-gray-700 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <IconWallet class="w-6 h-6 text-white" />
-                    </div>
-                    <div class="flex-1">
-                      <div class="flex items-center space-x-2 mb-2">
-                        <h3 class="text-xl font-semibold text-gray-900">Lightning Wallet</h3>
-                        <span class="px-2 py-0.5 bg-gray-500 text-white text-xs font-medium rounded-full">Optional</span>
+                <div class="group bg-white rounded-xl p-6 border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                      <div class="w-10 h-10 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconWallet class="w-5 h-5 text-white" />
                       </div>
-                      <p class="text-gray-700 mb-4 leading-relaxed">
-                        Connect a Lightning wallet to send and receive zaps instantly. With NWC (Nostr Wallet Connect), your wallet stays secure while ZapTracker tracks your payments.
-                      </p>
-                      <p class="text-sm text-gray-600 mb-4">
-                        You can explore ZapTracker without a wallet and add one later when you're ready to transact.
-                      </p>
-                      <button
-                        disabled
-                        class="inline-flex items-center space-x-2 px-4 py-2.5 bg-gray-200 text-gray-500 rounded-lg font-medium cursor-not-allowed"
-                      >
-                        <IconWallet class="w-4 h-4" />
-                        <span>Coming Soon</span>
-                      </button>
+                      <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Lightning Wallet</h3>
+                        <p class="text-xs text-gray-600 font-medium">Optional - add anytime</p>
+                      </div>
+                    </div>
+                    <div class="relative group/tooltip">
+                      <IconInfoCircle class="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-help" />
+                      <div class="absolute right-0 top-8 w-72 bg-gray-900 text-white text-xs rounded-lg p-3 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 z-10 shadow-xl">
+                        <p class="leading-relaxed">Connect via NWC (Nostr Wallet Connect) to send and receive zaps. Your wallet stays secure - ZapTracker only tracks payments. You can explore without one and add it later in Settings.</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <!-- Info Box -->
-                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
-                  <p class="text-sm text-blue-900 leading-relaxed">
-                    <strong class="font-semibold">Quick Tip:</strong> You can start exploring ZapTracker right away with just your Nostr identity. The Lightning wallet can be added anytime from Settings when you're ready to send or receive payments.
+                  <p class="text-sm text-gray-600">
+                    Explore ZapTracker now, connect your wallet later from Settings.
                   </p>
                 </div>
               </div>
