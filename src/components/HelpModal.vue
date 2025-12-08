@@ -26,7 +26,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'trigger-login', 'trigger-view-only'])
 
 const currentSlide = ref(0)
-const totalSlides = 10
+const totalSlides = 11
 
 const hasSeenWelcome = () => {
   return localStorage.getItem('zaptracker_welcome_seen') === 'true'
@@ -42,6 +42,11 @@ const slides = [
     title: 'Welcome to ZapTracker',
     subtitle: 'Your Lightning Network Command Center',
     showLogo: true
+  },
+  {
+    id: 'requirements',
+    title: 'What You\'ll Need',
+    subtitle: 'Get set up in just a few minutes'
   },
   {
     id: 'analytics',
@@ -276,7 +281,87 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Pages 2-7: Features with Screenshots -->
+            <!-- Page 2: Requirements -->
+            <div v-else-if="currentSlideData.id === 'requirements'" class="space-y-8">
+              <div class="text-center">
+                <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
+                  {{ currentSlideData.title }}
+                </h2>
+                <p class="text-base text-gray-600 mb-8">
+                  {{ currentSlideData.subtitle }}
+                </p>
+              </div>
+
+              <div class="max-w-3xl mx-auto space-y-4">
+                <!-- Nostr Identity - Required -->
+                <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-6 border-2 border-orange-200">
+                  <div class="flex items-start space-x-4">
+                    <div class="w-12 h-12 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <IconLogin class="w-6 h-6 text-white" />
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center space-x-2 mb-2">
+                        <h3 class="text-xl font-semibold text-gray-900">Nostr Identity</h3>
+                        <span class="px-2 py-0.5 bg-orange-500 text-white text-xs font-medium rounded-full">Required</span>
+                      </div>
+                      <p class="text-gray-700 mb-4 leading-relaxed">
+                        Your Nostr identity is your key to the decentralized world. Think of it as your universal login that works across all Nostr apps - no passwords, no email required.
+                      </p>
+                      <p class="text-sm text-gray-600 mb-4">
+                        Don't have one yet? No worries! It takes less than a minute to create.
+                      </p>
+                      <a
+                        href="https://nostrid.mybuho.de"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center space-x-2 px-4 py-2.5 bg-white border-2 border-orange-300 text-orange-700 rounded-lg font-medium hover:bg-orange-50 hover:border-orange-400 transition-all duration-200"
+                      >
+                        <IconLogin class="w-4 h-4" />
+                        <span>Get Your Nostr Identity</span>
+                        <IconChevronRight class="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Lightning Wallet - Optional -->
+                <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border-2 border-gray-200">
+                  <div class="flex items-start space-x-4">
+                    <div class="w-12 h-12 bg-gradient-to-r from-gray-600 to-gray-700 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <IconWallet class="w-6 h-6 text-white" />
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center space-x-2 mb-2">
+                        <h3 class="text-xl font-semibold text-gray-900">Lightning Wallet</h3>
+                        <span class="px-2 py-0.5 bg-gray-500 text-white text-xs font-medium rounded-full">Optional</span>
+                      </div>
+                      <p class="text-gray-700 mb-4 leading-relaxed">
+                        Connect a Lightning wallet to send and receive zaps instantly. With NWC (Nostr Wallet Connect), your wallet stays secure while ZapTracker tracks your payments.
+                      </p>
+                      <p class="text-sm text-gray-600 mb-4">
+                        You can explore ZapTracker without a wallet and add one later when you're ready to transact.
+                      </p>
+                      <button
+                        disabled
+                        class="inline-flex items-center space-x-2 px-4 py-2.5 bg-gray-200 text-gray-500 rounded-lg font-medium cursor-not-allowed"
+                      >
+                        <IconWallet class="w-4 h-4" />
+                        <span>Coming Soon</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                  <p class="text-sm text-blue-900 leading-relaxed">
+                    <strong class="font-semibold">Quick Tip:</strong> You can start exploring ZapTracker right away with just your Nostr identity. The Lightning wallet can be added anytime from Settings when you're ready to send or receive payments.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pages 3-8: Features with Screenshots -->
             <div v-else-if="currentSlideData.features" class="space-y-6">
               <div class="text-center">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
@@ -315,7 +400,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 7: Campaigns - Empty State Preview Style -->
+            <!-- Page 8: Campaigns - Empty State Preview Style -->
             <div v-else-if="currentSlideData.id === 'zapgoals'" class="space-y-6">
               <div class="text-center mb-6">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl mb-4">
@@ -407,7 +492,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 8: FAQ -->
+            <!-- Page 9: FAQ -->
             <div v-else-if="currentSlideData.id === 'faq'" class="space-y-6">
               <div class="text-center mb-8">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
@@ -435,7 +520,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 9: How to Get Started -->
+            <!-- Page 10: How to Get Started -->
             <div v-else-if="currentSlideData.id === 'howto'" class="space-y-8">
               <div class="text-center">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
@@ -463,7 +548,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 10: Final CTA -->
+            <!-- Page 11: Final CTA -->
             <div v-else-if="currentSlideData.isFinal" class="text-center">
               <div class="flex justify-center mb-8">
                 <div class="relative">
