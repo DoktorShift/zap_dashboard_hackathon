@@ -38,18 +38,18 @@ import {
   IconInfoCircle,
   IconBulb
 } from '@iconify-prerendered/vue-tabler'
-import { useNostrNotes } from '../composables/useNostrNotes.js'
-import { useNostrAuth } from '../composables/useNostrAuth.js'
-import { useContentZaps } from '../composables/useContentZaps.js'
-import { useEngagementMetrics } from '../composables/useEngagementMetrics.js'
-import { useBtcPrice } from '../composables/useBtcPrice.js'
-import { useMentions } from '../composables/useMentions.js'
-import { generateAvatar } from '../utils/avatarGenerator.js'
-import EngagementMetrics from '../components/EngagementMetrics.vue'
-import NoteSuccessModal from '../components/NoteSuccessModal.vue'
-import ContentRenderer from '../components/ContentRenderer.vue'
-import MentionInput from '../components/MentionInput.vue'
-import MentionRenderer from '../components/MentionRenderer.vue'
+import { useNostrNotes } from '../composables/content/useNostrNotes.js'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { useContentZaps } from '../composables/content/useContentZaps.js'
+import { useEngagementMetrics } from '../composables/analytics/useEngagementMetrics.js'
+import { useBtcPrice } from '../composables/core/useBtcPrice.js'
+import { useMentions } from '../composables/content/useMentions.js'
+import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import EngagementMetrics from '../components/analytics/EngagementMetrics.vue'
+import NoteSuccessModal from '../components/modals/NoteSuccessModal.vue'
+import ContentRenderer from '../components/content/ContentRenderer.vue'
+import MentionInput from '../components/content/MentionInput.vue'
+import MentionRenderer from '../components/content/MentionRenderer.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 

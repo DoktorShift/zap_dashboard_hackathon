@@ -1,14 +1,14 @@
 <script setup>
 import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from 'vue'
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
-import Sidebar from './components/Sidebar.vue'
+import Sidebar from './components/layout/Sidebar.vue'
 import { IconTarget } from '@iconify-prerendered/vue-tabler'
-import { useContentZaps } from './composables/useContentZaps.js'
-import { generateAvatar } from './utils/avatarGenerator.js'
-import TopBar from './components/TopBar.vue'
+import { useContentZaps } from './composables/content/useContentZaps.js'
+import { generateAvatar } from './utils/profile/avatarGenerator.js'
+import TopBar from './components/layout/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
-import { useNostrLongForm } from './composables/useNostrLongForm.js'
-import { useNostrAuth } from './composables/useNostrAuth.js'
+import { useNostrLongForm } from './composables/content/useNostrLongForm.js'
+import { useNostrAuth } from './composables/auth/useNostrAuth.js'
 import ZapFeed from './pages/ZapFeed.vue'
 import Analytics from './pages/Analytics.vue'
 import ChatZaps from './pages/ChatZaps.vue'
@@ -24,15 +24,15 @@ import Finances from './pages/Finances.vue'
 import Settings from './pages/Settings.vue'
 import InvoiceShare from './pages/InvoiceShare.vue'
 import Notes from './pages/Notes.vue'
-import NWCConnection from './components/NWCConnection.vue'
-import ErrorBoundary from './components/ErrorBoundary.vue'
-import { useNostrConnections } from './composables/useNostrConnections.js'
-import { useNotifications } from './composables/useNotifications.js'
-import { nostrRelayManager } from './utils/nostrRelayManager.js'
-import { useNostrNotes } from './composables/useNostrNotes.js'
+import NWCConnection from './components/wallet/NWCConnection.vue'
+import ErrorBoundary from './components/shared/ErrorBoundary.vue'
+import { useNostrConnections } from './composables/core/useNostrConnections.js'
+import { useNotifications } from './composables/core/useNotifications.js'
+import { nostrRelayManager } from './utils/network/nostrRelayManager.js'
+import { useNostrNotes } from './composables/content/useNostrNotes.js'
 import Calendar from './pages/Calendar.vue'
-import WelcomeModal from './components/WelcomeModal.vue'
-import HelpModal from './components/HelpModal.vue'
+import WelcomeModal from './components/modals/WelcomeModal.vue'
+import HelpModal from './components/modals/HelpModal.vue'
 
 
 // UI state for dismissible banners
@@ -638,10 +638,13 @@ onMounted(async () => {
   }
 
   // Check if we need to show connection modal (only for non-standalone pages)
-  if (!isWalletConnected.value && !isStandalonePage.value) {
-    console.log('💳 No wallet connected, showing connection modal')
-    showConnectionModal.value = true
-  } else if (isWalletConnected.value) {
+  // COMMENTED OUT: Auto-showing connection modal was too aggressive
+  // Users can still connect via the Wallet page's "Connect Wallet" button or Settings
+  // if (!isWalletConnected.value && !isStandalonePage.value) {
+  //   console.log('💳 No wallet connected, showing connection modal')
+  //   showConnectionModal.value = true
+  // } else if (isWalletConnected.value) {
+  if (isWalletConnected.value) {
     console.log('💳 Wallet already connected, refreshing data...')
     setTimeout(() => {
       refreshZapData(true)

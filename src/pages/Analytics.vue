@@ -3,12 +3,12 @@ import { computed, inject, ref, onMounted } from 'vue'
 import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
 
 const emit = defineEmits(['show-help'])
-import { filterZapsByTimeRange } from '../utils/timeFilter.js'
+import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
 import * as nip19 from 'nostr-tools/nip19'
-import UserProfileModal from '../components/UserProfileModal.vue'
-import { generateAvatar } from '../utils/avatarGenerator.js'
-import EngagementAnalytics from '../components/EngagementAnalytics.vue'
-import EmptyStateAnalytics from '../components/EmptyStateAnalytics.vue'
+import UserProfileModal from '../components/modals/UserProfileModal.vue'
+import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import EngagementAnalytics from '../components/analytics/EngagementAnalytics.vue'
+import EmptyStateAnalytics from '../components/analytics/EmptyStateAnalytics.vue'
 import { IconExternalLink, IconHeart, IconRepeat, IconBookmark } from '@iconify-prerendered/vue-tabler'
 
 // Lazy load ECharts to prevent issues
