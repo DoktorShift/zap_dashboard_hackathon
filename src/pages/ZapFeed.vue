@@ -549,7 +549,7 @@ const formatAmount = (amount) => {
               <div>
                 <h4 class="text-lg font-semibold text-gray-900 mb-2">Why is this empty?</h4>
                 <p class="text-gray-700 leading-relaxed">
-                  This feed will show all the zaps (Lightning payments) you receive on your Nostr campaigns, posts and content.
+                  This feed will show all the zaps (Lightning payments) you receive on your Nostr campaigns, notes and content.
                   Once people start zapping your content, you'll see them appear here in real-time.
                 </p>
               </div>
