@@ -1,8 +1,8 @@
 <script setup>
 import { computed, inject, ref, onMounted, watch, defineEmits } from 'vue'
 
-const emit = defineEmits(['trigger-login'])
-import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
+const emit = defineEmits(['trigger-login', 'change-page'])
+import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/nwcClient.js'
 import { useNostrAuth } from '../composables/useNostrAuth.js'
 import { useBtcPrice } from '../composables/useBtcPrice.js'
@@ -87,7 +87,7 @@ const connectionStatus = computed(() => {
     return {
       type: 'nostr-only',
       title: 'Nostr Connected',
-      description: 'Connect your NWC wallet to see payment data too',
+      description: 'Connect your Lightning wallet via NWC to view payment history in the Wallet tab',
       dataTypes: 'Nostr zaps only'
     }
   } else if (hasNWC) {
@@ -468,8 +468,16 @@ const getTrendColorClass = (change) => {
                 ({{ connectionStatus.dataTypes }} • last 30 days vs previous 30 days)
               </span>
             </span>
-            <span v-else>
-              {{ connectionStatus.description }}
+            <span v-else class="flex items-center gap-3 flex-wrap">
+              <span>{{ connectionStatus.description }}</span>
+              <button
+                v-if="connectionStatus.type === 'nostr-only'"
+                @click="emit('change-page', 'wallet')"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-medium rounded-lg border border-white/30 hover:border-white/50 transition-all duration-200"
+              >
+                <span>View Wallet</span>
+                <IconArrowRight class="w-3.5 h-3.5" />
+              </button>
             </span>
           </p>
         </div>
