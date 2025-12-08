@@ -28,7 +28,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'trigger-login', 'trigger-view-only'])
 
 const currentSlide = ref(0)
-const totalSlides = 11
+const totalSlides = 12
 
 const hasSeenWelcome = () => {
   return localStorage.getItem('zaptracker_welcome_seen') === 'true'
@@ -109,6 +109,17 @@ const slides = [
     id: 'zapgoals',
     title: 'Set and Track Zap Goals',
     image: '/Onboarding-Pictures/campaigns.png'
+  },
+  {
+    id: 'calendar',
+    title: 'Schedule Events & Meetups',
+    description: 'Create and share calendar events with your community. Organize online or in-person meetups, invite participants, and coordinate seamlessly using Nostr calendar events.',
+    image: '/Onboarding-Pictures/calendar.png',
+    features: [
+      { icon: IconCalendar, text: 'Create calendar events' },
+      { icon: IconUsers, text: 'Invite participants' },
+      { icon: IconTarget, text: 'Share event links' }
+    ]
   },
   {
     id: 'faq',
@@ -355,7 +366,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Pages 3-8: Features with Screenshots -->
+            <!-- Pages 3-7: Features with Screenshots -->
             <div v-else-if="currentSlideData.features" class="space-y-6">
               <div class="text-center">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
@@ -413,14 +424,11 @@ const handleViewOnly = () => {
 
             <!-- Page 8: Campaigns - Empty State Preview Style -->
             <div v-else-if="currentSlideData.id === 'zapgoals'" class="space-y-6">
-              <div class="text-center mb-6">
-                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl mb-4">
-                  <IconTarget class="w-8 h-8 text-white" />
-                </div>
+              <div class="text-center">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
                   {{ currentSlideData.title }}
                 </h2>
-                <p class="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto">
+                <p class="text-base text-gray-600 max-w-2xl mx-auto leading-relaxed mb-6">
                   Create fundraising campaigns with customizable goals. Share campaign links, track progress in real-time, and celebrate milestones with your community.
                 </p>
               </div>
@@ -516,7 +524,112 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 9: FAQ -->
+            <!-- Page 9: Calendar Events -->
+            <div v-else-if="currentSlideData.id === 'calendar'" class="space-y-6">
+              <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl mb-4">
+                  <IconCalendar class="w-8 h-8 text-white" />
+                </div>
+                <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
+                  {{ currentSlideData.title }}
+                </h2>
+                <p class="text-base text-gray-600 leading-relaxed max-w-2xl mx-auto">
+                  {{ currentSlideData.description }}
+                </p>
+              </div>
+
+              <!-- Screenshot -->
+              <div v-if="currentSlideData.image" class="flex justify-center my-8">
+                <div class="relative max-w-3xl w-full">
+                  <div class="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur-2xl opacity-10"></div>
+                  <img
+                    :src="currentSlideData.image"
+                    :alt="currentSlideData.title"
+                    class="relative w-full h-auto rounded-2xl shadow-lg border border-gray-200"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+
+              <!-- Calendar Features Grid -->
+              <div class="max-w-3xl mx-auto">
+                <h4 class="text-lg font-semibold text-gray-900 text-center mb-6">What You Can Do</h4>
+
+                <div class="grid md:grid-cols-2 gap-3 mb-6">
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:bg-gray-50 transition-all">
+                    <div class="flex items-start space-x-3 mb-2">
+                      <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconCalendar class="w-4 h-4 text-orange-600" />
+                      </div>
+                      <h5 class="font-medium text-gray-900">Create Events</h5>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                      Set up calendar events with date, time, location, and description
+                    </p>
+                  </div>
+
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:bg-gray-50 transition-all">
+                    <div class="flex items-start space-x-3 mb-2">
+                      <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconUsers class="w-4 h-4 text-orange-600" />
+                      </div>
+                      <h5 class="font-medium text-gray-900">Invite Participants</h5>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                      Share event invitations and see who's joining your meetup
+                    </p>
+                  </div>
+
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:bg-gray-50 transition-all">
+                    <div class="flex items-start space-x-3 mb-2">
+                      <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconTarget class="w-4 h-4 text-orange-600" />
+                      </div>
+                      <h5 class="font-medium text-gray-900">Share Event Links</h5>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                      Generate shareable links for your events across Nostr
+                    </p>
+                  </div>
+
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 hover:border-orange-300 hover:bg-gray-50 transition-all">
+                    <div class="flex items-start space-x-3 mb-2">
+                      <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <IconEye class="w-4 h-4 text-orange-600" />
+                      </div>
+                      <h5 class="font-medium text-gray-900">Track Attendance</h5>
+                    </div>
+                    <p class="text-sm text-gray-600">
+                      See who's confirmed and manage your event participants
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Event Types -->
+                <div class="bg-orange-50/50 border border-orange-200 rounded-xl p-5">
+                  <h5 class="font-medium text-gray-900 mb-3 flex items-center space-x-2">
+                    <IconCalendar class="w-4 h-4 text-orange-600" />
+                    <span>Perfect For</span>
+                  </h5>
+                  <ul class="space-y-2 text-sm text-gray-700">
+                    <li class="flex items-start space-x-2">
+                      <span class="text-orange-600 font-medium mt-0.5">•</span>
+                      <span>Bitcoin and Nostr meetups in your city</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                      <span class="text-orange-600 font-medium mt-0.5">•</span>
+                      <span>Online community calls, workshops, or discussions</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                      <span class="text-orange-600 font-medium mt-0.5">•</span>
+                      <span>Conference coordination and networking events</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Page 10: FAQ -->
             <div v-else-if="currentSlideData.id === 'faq'" class="space-y-6">
               <div class="text-center mb-8">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
@@ -544,7 +657,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 10: How to Get Started -->
+            <!-- Page 11: How to Get Started -->
             <div v-else-if="currentSlideData.id === 'howto'" class="space-y-8">
               <div class="text-center">
                 <h2 class="text-3xl sm:text-4xl font-semibold text-gray-900 mb-3 tracking-tight">
@@ -572,7 +685,7 @@ const handleViewOnly = () => {
               </div>
             </div>
 
-            <!-- Page 11: Final CTA -->
+            <!-- Page 12: Final CTA -->
             <div v-else-if="currentSlideData.isFinal" class="text-center">
               <div class="flex justify-center mb-8">
                 <div class="relative">
