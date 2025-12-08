@@ -16,7 +16,8 @@ import {
   IconChevronRight,
   IconActivity,
   IconCoins,
-  IconSparkles
+  IconSparkles,
+  IconBrandGithub
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -235,9 +236,25 @@ const handleShowHelp = () => {
 
     <!-- Footer -->
     <div class="flex-shrink-0 px-6 py-3 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
-      <p class="text-xs text-gray-400 text-center truncate">
-        © 2024 ZapTracker
-      </p>
+      <div class="flex items-center justify-between">
+        <a
+          href="https://geyser.fund/project/zaptracker?hero=drshift"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs text-gray-500 hover:text-orange-500 transition-colors duration-200"
+        >
+          Support ZapTracker
+        </a>
+        <a
+          href="https://github.com/pratik227/zap_dashboard"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+          title="View on GitHub"
+        >
+          <IconBrandGithub class="w-4 h-4" />
+        </a>
+      </div>
     </div>
   </aside>
 </template>
