@@ -165,12 +165,12 @@ watch(currentPage, () => {
 <template>
   <aside class="h-screen w-72 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 flex flex-col overflow-hidden shadow-xl">
     <!-- Logo Section -->
-    <div class="flex-shrink-0 px-6 py-6 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
-      <div class="flex items-center space-x-3">
+    <div class="flex-shrink-0 px-5 py-6 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
+      <div class="flex items-center gap-3 min-w-0">
         <img
           src="/new_logo3.png"
           alt="ZapTracker Logo"
-          class="w-14 h-14 object-contain"
+          class="w-14 h-14 object-contain flex-shrink-0"
         />
         <div class="min-w-0 flex-1">
           <h1 class="text-xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent leading-tight truncate">ZapTracker</h1>
@@ -180,7 +180,7 @@ watch(currentPage, () => {
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-1 px-3 py-4 overflow-y-auto">
+    <nav class="flex-1 px-4 py-4 overflow-y-auto">
       <ul class="space-y-1">
         <li v-for="item in menuItems" :key="item.id">
           <!-- Main Menu Item -->
@@ -188,7 +188,7 @@ watch(currentPage, () => {
             @click="handlePageChange(item)"
             :disabled="isItemDisabled(item)"
             :class="[
-              'w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200',
+              'w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200',
               (currentPage === item.id || isParentActive(item))
                 ? 'bg-gradient-to-r from-orange-50 to-amber-50 text-orange-600 font-semibold shadow-sm border border-orange-100'
                 : isItemDisabled(item)
@@ -207,12 +207,12 @@ watch(currentPage, () => {
                   : 'text-gray-500'
               ]"
             />
-            <span class="text-sm truncate flex-1">{{ item.label }}</span>
+            <span class="text-sm flex-1 min-w-0 truncate">{{ item.label }}</span>
             <component
               v-if="item.hasSubmenu && (isAuthenticated || item.submenuKey === 'dashboard')"
               :is="isSubmenuOpen(item.submenuKey) ? IconChevronDown : IconChevronRight"
               :class="[
-                'w-4 h-4 flex-shrink-0 ml-2 transition-transform duration-200',
+                'w-4 h-4 flex-shrink-0 transition-transform duration-200',
                 (currentPage === item.id || isParentActive(item)) ? 'text-orange-500' : 'text-gray-400'
               ]"
             />
@@ -221,20 +221,20 @@ watch(currentPage, () => {
           <!-- Submenu Items -->
           <ul
             v-if="item.hasSubmenu && (isAuthenticated || item.submenuKey === 'dashboard') && isSubmenuOpen(item.submenuKey)"
-            class="mt-1 ml-3 space-y-0.5 relative"
+            class="mt-1 ml-2 mr-1 space-y-0.5 relative"
           >
             <div class="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-orange-200 via-orange-300 to-transparent"></div>
             <li v-for="subItem in item.submenuItems" :key="subItem.id">
               <button
                 @click="handleSubmenuClick(subItem)"
                 :class="[
-                  'w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-left transition-all duration-200 relative',
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 relative',
                   currentPage === subItem.id
                     ? 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 font-semibold shadow-sm'
                     : 'text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900'
                 ]"
               >
-                <div class="flex items-center space-x-3 pl-3">
+                <div class="flex items-center gap-3 pl-3 flex-1 min-w-0">
                   <div
                     :class="[
                       'absolute left-4 w-2 h-2 rounded-full transition-all duration-200',
@@ -252,7 +252,7 @@ watch(currentPage, () => {
                         : 'text-gray-400'
                     ]"
                   />
-                  <span class="text-xs truncate">{{ subItem.label }}</span>
+                  <span class="text-xs flex-1 min-w-0 truncate">{{ subItem.label }}</span>
                 </div>
               </button>
             </li>
@@ -264,10 +264,10 @@ watch(currentPage, () => {
     <!-- Stats & Wallet Section (Only when authenticated) -->
     <div v-if="isAuthenticated" class="flex-shrink-0 border-t border-gray-200 bg-white/50 backdrop-blur-sm">
       <!-- Wallet Status -->
-      <div v-if="isWalletConnected && activeConnection" class="px-4 pt-4">
+      <div v-if="isWalletConnected && activeConnection" class="px-5 pt-4">
         <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-200 shadow-sm">
-          <div class="flex items-center space-x-2 mb-3">
-            <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+          <div class="flex items-center gap-2 mb-3 min-w-0">
+            <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
               <IconWallet class="w-5 h-5 text-white" />
             </div>
             <div class="flex-1 min-w-0">
@@ -279,28 +279,28 @@ watch(currentPage, () => {
       </div>
 
       <!-- Zap Stats -->
-      <div v-if="combinedZapData.length > 0" class="px-4 py-4">
+      <div v-if="combinedZapData.length > 0" class="px-5 py-4">
         <div class="bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 rounded-2xl p-4 border border-orange-200 shadow-sm">
-          <div class="flex items-center space-x-2 mb-3">
-            <div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center shadow-md">
+          <div class="flex items-center gap-2 mb-3 min-w-0">
+            <div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center shadow-md flex-shrink-0">
               <IconBolt class="w-5 h-5 text-white" />
             </div>
-            <p class="text-xs font-bold text-gray-700">Your Activity</p>
+            <p class="text-xs font-bold text-gray-700 flex-1 min-w-0 truncate">Your Activity</p>
           </div>
           <div class="space-y-2.5">
-            <div class="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
-              <div class="flex items-center space-x-2">
-                <IconBolt class="w-4 h-4 text-orange-500" />
-                <span class="text-xs text-gray-600 font-medium">Total Zaps</span>
+            <div class="flex items-center justify-between gap-2 bg-white/60 rounded-lg px-3 py-2 min-w-0">
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <IconBolt class="w-4 h-4 text-orange-500 flex-shrink-0" />
+                <span class="text-xs text-gray-600 font-medium truncate">Total Zaps</span>
               </div>
-              <span class="text-sm font-bold text-gray-900 tabular-nums">{{ totalZaps.toLocaleString() }}</span>
+              <span class="text-sm font-bold text-gray-900 tabular-nums flex-shrink-0">{{ totalZaps.toLocaleString() }}</span>
             </div>
-            <div class="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
-              <div class="flex items-center space-x-2">
-                <IconCoins class="w-4 h-4 text-orange-500" />
-                <span class="text-xs text-gray-600 font-medium">Total Sats</span>
+            <div class="flex items-center justify-between gap-2 bg-white/60 rounded-lg px-3 py-2 min-w-0">
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <IconCoins class="w-4 h-4 text-orange-500 flex-shrink-0" />
+                <span class="text-xs text-gray-600 font-medium truncate">Total Sats</span>
               </div>
-              <span class="text-sm font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tabular-nums">{{ totalSats.toLocaleString() }}</span>
+              <span class="text-sm font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tabular-nums flex-shrink-0">{{ totalSats.toLocaleString() }}</span>
             </div>
           </div>
         </div>
@@ -308,23 +308,23 @@ watch(currentPage, () => {
     </div>
 
     <!-- Help Button (Only when not authenticated) -->
-    <div v-if="!isAuthenticated" class="flex-shrink-0 px-4 py-5 border-t border-gray-200 bg-white/50">
+    <div v-if="!isAuthenticated" class="flex-shrink-0 px-5 py-5 border-t border-gray-200 bg-white/50">
       <button
         @click="handleShowHelp"
-        class="w-full px-5 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-bold rounded-2xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2"
+        class="w-full px-5 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-bold rounded-2xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
       >
-        <IconSparkles class="w-5 h-5" />
-        <span>How to Get Started</span>
+        <IconSparkles class="w-5 h-5 flex-shrink-0" />
+        <span class="truncate">How to Get Started</span>
       </button>
     </div>
 
     <!-- Footer -->
-    <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
+    <div class="flex-shrink-0 px-5 py-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
       <a
         href="https://geyser.fund/project/zaptracker?hero=drshift"
         target="_blank"
         rel="noopener noreferrer"
-        class="flex items-center gap-3 group"
+        class="flex items-center gap-3 group min-w-0"
         title="Support on Geyser"
       >
         <div class="flex-shrink-0 w-5 h-5 relative">
@@ -339,7 +339,7 @@ watch(currentPage, () => {
             class="w-full h-full object-contain absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:animate-pulse"
           />
         </div>
-        <span class="text-xs text-gray-600 group-hover:text-rose-600 transition-colors duration-300 font-medium">
+        <span class="text-xs text-gray-600 group-hover:text-rose-600 transition-colors duration-300 font-medium flex-1 min-w-0 truncate">
           Support ZapTracker
         </span>
       </a>
