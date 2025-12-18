@@ -167,11 +167,20 @@ const fetchWalletBalance = async () => {
 
   isLoadingBalance.value = true
   try {
-    const balance = await getBalance()
-    walletBalance.value = balance?.balance || 0
+    console.log('[Sidebar] Fetching wallet balance...')
+    const balanceData = await getBalance()
+    console.log('[Sidebar] Balance data received:', balanceData)
+
+    if (balanceData && typeof balanceData.balance === 'number') {
+      walletBalance.value = balanceData.balance
+      console.log('[Sidebar] Balance set to:', balanceData.balance, 'msats')
+    } else {
+      console.warn('[Sidebar] Invalid balance data:', balanceData)
+      walletBalance.value = 0
+    }
   } catch (error) {
-    console.warn('Failed to fetch wallet balance:', error)
-    walletBalance.value = null
+    console.error('[Sidebar] Failed to fetch wallet balance:', error)
+    walletBalance.value = 0
   } finally {
     isLoadingBalance.value = false
   }
@@ -179,6 +188,7 @@ const fetchWalletBalance = async () => {
 
 const formattedBalance = computed(() => {
   if (walletBalance.value === null) return null
+  if (walletBalance.value === 0) return '0'
   const sats = Math.floor(walletBalance.value / 1000)
   return sats.toLocaleString()
 })
@@ -193,15 +203,28 @@ watch(currentPage, () => {
 
 watch(isWalletConnected, (connected) => {
   if (connected) {
-    fetchWalletBalance()
+    setTimeout(() => {
+      fetchWalletBalance()
+    }, 500)
   } else {
     walletBalance.value = null
   }
 }, { immediate: true })
 
+watch(activeConnection, (newConnection, oldConnection) => {
+  if (newConnection && newConnection !== oldConnection) {
+    console.log('[Sidebar] Active connection changed, refreshing balance...')
+    setTimeout(() => {
+      fetchWalletBalance()
+    }, 1000)
+  }
+})
+
 onMounted(() => {
   if (isWalletConnected.value) {
-    fetchWalletBalance()
+    setTimeout(() => {
+      fetchWalletBalance()
+    }, 1000)
   }
 })
 </script>
