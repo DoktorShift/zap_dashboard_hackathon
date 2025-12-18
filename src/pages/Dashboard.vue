@@ -654,19 +654,28 @@ const getTrendColorClass = (change) => {
   </div>
 
     <!-- Wallet Balance Card -->
-    <div v-if="walletBalance > 0" class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white mt-4 p-4 sm:p-6 rounded-xl shadow-xl border border-gray-700/50">
+    <button
+      v-if="walletBalance > 0"
+      @click="emit('change-page', 'wallet')"
+      class="w-full mt-4 p-6 rounded-2xl shadow-2xl border border-gray-700/30 bg-gradient-to-br from-slate-900 via-gray-900 to-slate-950 hover:from-slate-800 hover:via-gray-800 hover:to-slate-900 transition-all duration-300 hover:scale-[1.02] hover:shadow-amber-500/10 hover:border-amber-500/20 group cursor-pointer text-left"
+    >
       <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-lg font-semibold mb-1 flex items-center space-x-2">
-            <IconBolt class="w-5 h-5" />
-            <span>Wallet Balance</span>
-          </h3>
-          <p class="text-gray-300 text-sm">Available in your connected wallet</p>
+        <div class="flex-1">
+          <div class="flex items-center space-x-2 mb-2">
+            <div class="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 border border-amber-500/30 group-hover:from-amber-500/30 group-hover:to-amber-600/30 group-hover:border-amber-500/50 transition-all duration-300">
+              <IconBolt class="w-5 h-5 text-amber-400 group-hover:text-amber-300 transition-colors duration-300" />
+            </div>
+            <h3 class="text-lg font-semibold text-white group-hover:text-amber-50 transition-colors duration-300">Wallet Balance</h3>
+          </div>
+          <p class="text-gray-400 text-sm group-hover:text-gray-300 transition-colors duration-300">Available in your connected wallet</p>
         </div>
-        <div class="text-right">
-          <p class="text-2xl sm:text-3xl font-bold">{{ walletBalance.toLocaleString() }}</p>
-          <p class="text-gray-300 text-sm">sats</p>
+        <div class="flex items-center space-x-4">
+          <div class="text-right">
+            <p class="text-3xl sm:text-4xl font-bold text-white tabular-nums group-hover:text-amber-50 transition-colors duration-300">{{ walletBalance.toLocaleString() }}</p>
+            <p class="text-gray-400 text-sm font-medium group-hover:text-amber-300/80 transition-colors duration-300">sats</p>
+          </div>
+          <IconArrowRight class="w-6 h-6 text-gray-600 group-hover:text-amber-400 group-hover:translate-x-1 transition-all duration-300" />
         </div>
       </div>
-    </div>
+    </button>
 </template>
