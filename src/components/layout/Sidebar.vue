@@ -160,17 +160,17 @@ watch(currentPage, () => {
 </script>
 
 <template>
-  <aside class="h-screen w-72 min-w-72 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 flex flex-col overflow-hidden shadow-xl">
+  <aside class="h-screen w-72 min-w-72 max-w-72 bg-gradient-to-b from-white to-gray-50 border-r border-gray-200 flex flex-col overflow-hidden shadow-xl">
     <!-- Logo Section -->
-    <div class="flex-shrink-0 px-6 py-6 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
-      <div class="flex items-center space-x-3">
+    <div class="flex-shrink-0 px-4 py-4 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
+      <div class="flex items-center space-x-2.5 min-w-0">
         <img
           src="/new_logo3.png"
           alt="ZapTracker Logo"
-          class="w-14 h-14 object-contain"
+          class="w-12 h-12 flex-shrink-0 object-contain"
         />
-        <div class="min-w-0 flex-1">
-          <h1 class="text-xl font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent leading-tight truncate">
+        <div class="min-w-0 flex-1 overflow-hidden">
+          <h1 class="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent leading-tight truncate">
             ZapTracker
           </h1>
           <p class="text-xs text-gray-500 truncate">Lightning Analytics</p>
@@ -179,7 +179,7 @@ watch(currentPage, () => {
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-1 px-3 py-4 overflow-y-auto overflow-x-hidden">
+    <nav class="flex-1 px-2.5 py-3 overflow-y-auto overflow-x-hidden">
       <ul class="space-y-1">
         <li v-for="item in menuItems" :key="item.id">
           <!-- Main Menu Item -->
@@ -187,7 +187,7 @@ watch(currentPage, () => {
             @click="handlePageChange(item)"
             :disabled="isItemDisabled(item)"
             :class="[
-              'w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200',
+              'w-full flex items-center space-x-2.5 px-3 py-2.5 rounded-xl text-left transition-all duration-200 min-w-0',
               (currentPage === item.id || isParentActive(item))
                 ? 'bg-gradient-to-r from-orange-50 to-amber-50 text-orange-600 font-semibold shadow-sm border border-orange-100'
                 : isItemDisabled(item)
@@ -220,23 +220,23 @@ watch(currentPage, () => {
           <!-- Submenu Items -->
           <ul
             v-if="item.hasSubmenu && (isAuthenticated || item.submenuKey === 'dashboard') && isSubmenuOpen(item.submenuKey)"
-            class="mt-1 ml-3 space-y-0.5 relative"
+            class="mt-1 ml-2 space-y-0.5 relative"
           >
-            <div class="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-orange-200 via-orange-300 to-transparent"></div>
+            <div class="absolute left-4 top-0 bottom-0 w-px bg-gradient-to-b from-orange-200 via-orange-300 to-transparent"></div>
             <li v-for="subItem in item.submenuItems" :key="subItem.id">
               <button
                 @click="handleSubmenuClick(subItem)"
                 :class="[
-                  'w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-left transition-all duration-200 relative',
+                  'w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-left transition-all duration-200 relative min-w-0',
                   currentPage === subItem.id
                     ? 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 font-semibold shadow-sm'
                     : 'text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900'
                 ]"
               >
-                <div class="flex items-center space-x-3 pl-3">
+                <div class="flex items-center space-x-2 pl-2 min-w-0 overflow-hidden">
                   <div
                     :class="[
-                      'absolute left-4 w-2 h-2 rounded-full transition-all duration-200',
+                      'absolute left-3 w-2 h-2 rounded-full transition-all duration-200 flex-shrink-0',
                       currentPage === subItem.id
                         ? 'bg-orange-500 ring-2 ring-orange-200'
                         : 'bg-gray-300'
@@ -245,13 +245,13 @@ watch(currentPage, () => {
                   <component
                     :is="subItem.icon"
                     :class="[
-                      'w-4 h-4 flex-shrink-0 ml-2',
+                      'w-4 h-4 flex-shrink-0 ml-1',
                       currentPage === subItem.id
                         ? 'text-orange-600'
                         : 'text-gray-400'
                     ]"
                   />
-                  <span class="text-xs truncate">{{ subItem.label }}</span>
+                  <span class="text-xs truncate flex-1 min-w-0">{{ subItem.label }}</span>
                 </div>
               </button>
             </li>
@@ -263,47 +263,47 @@ watch(currentPage, () => {
     <!-- Stats & Wallet Section -->
     <div v-if="isAuthenticated" class="flex-shrink-0 border-t border-gray-200 bg-white/50 backdrop-blur-sm">
       <!-- Wallet Status -->
-      <div v-if="isWalletConnected && activeConnection" class="px-4 pt-4">
-        <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-200 shadow-sm">
-          <div class="flex items-center space-x-2 mb-3">
-            <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+      <div v-if="isWalletConnected && activeConnection" class="px-3 pt-3">
+        <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200 shadow-sm">
+          <div class="flex items-center space-x-2 min-w-0">
+            <div class="w-8 h-8 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center shadow-md flex-shrink-0">
               <IconWallet class="w-5 h-5 text-white" />
             </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-xs font-bold text-gray-700 truncate">
+            <div class="flex-1 min-w-0 overflow-hidden">
+              <p class="text-xs font-bold text-gray-800 truncate">
                 {{ activeConnection.name || 'Wallet Connected' }}
               </p>
-              <p class="text-xs text-green-600 font-medium">Connected</p>
+              <p class="text-xs text-gray-600 font-medium truncate">Connected</p>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Zap Stats -->
-      <div v-if="combinedZapData.length > 0" class="px-4 py-4">
-        <div class="bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 rounded-2xl p-4 border border-orange-200 shadow-sm">
-          <div class="flex items-center space-x-2 mb-3">
-            <div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center shadow-md">
+      <div v-if="combinedZapData.length > 0" class="px-3 py-3">
+        <div class="bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 rounded-xl p-3 border border-orange-200 shadow-sm">
+          <div class="flex items-center space-x-2 mb-2.5 min-w-0">
+            <div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center shadow-md flex-shrink-0">
               <IconBolt class="w-5 h-5 text-white" />
             </div>
-            <p class="text-xs font-bold text-gray-700">Your Activity</p>
+            <p class="text-xs font-bold text-gray-700 truncate">Your Activity</p>
           </div>
-          <div class="space-y-2.5">
-            <div class="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
-              <div class="flex items-center space-x-2">
-                <IconBolt class="w-4 h-4 text-orange-500" />
-                <span class="text-xs text-gray-600 font-medium">Total Zaps</span>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between bg-white/60 rounded-lg px-2.5 py-1.5 min-w-0 gap-2">
+              <div class="flex items-center space-x-1.5 min-w-0 flex-1">
+                <IconBolt class="w-4 h-4 text-orange-500 flex-shrink-0" />
+                <span class="text-xs text-gray-600 font-medium truncate">Total Zaps</span>
               </div>
-              <span class="text-sm font-bold text-gray-900 tabular-nums">
+              <span class="text-sm font-bold text-gray-900 tabular-nums flex-shrink-0">
                 {{ totalZaps.toLocaleString() }}
               </span>
             </div>
-            <div class="flex items-center justify-between bg-white/60 rounded-lg px-3 py-2">
-              <div class="flex items-center space-x-2">
-                <IconCoins class="w-4 h-4 text-orange-500" />
-                <span class="text-xs text-gray-600 font-medium">Total Sats</span>
+            <div class="flex items-center justify-between bg-white/60 rounded-lg px-2.5 py-1.5 min-w-0 gap-2">
+              <div class="flex items-center space-x-1.5 min-w-0 flex-1">
+                <IconCoins class="w-4 h-4 text-orange-500 flex-shrink-0" />
+                <span class="text-xs text-gray-600 font-medium truncate">Total Sats</span>
               </div>
-              <span class="text-sm font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tabular-nums">
+              <span class="text-sm font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tabular-nums flex-shrink-0">
                 {{ totalSats.toLocaleString() }}
               </span>
             </div>
@@ -313,26 +313,26 @@ watch(currentPage, () => {
     </div>
 
     <!-- Help Button -->
-    <div v-if="!isAuthenticated" class="flex-shrink-0 px-4 py-5 border-t border-gray-200 bg-white/50">
+    <div v-if="!isAuthenticated" class="flex-shrink-0 px-3 py-4 border-t border-gray-200 bg-white/50">
       <button
         @click="handleShowHelp"
-        class="w-full px-5 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-bold rounded-2xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2"
+        class="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-sm font-bold rounded-xl shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-200 flex items-center justify-center space-x-2"
       >
-        <IconSparkles class="w-5 h-5" />
-        <span>How to Get Started</span>
+        <IconSparkles class="w-4 h-4 flex-shrink-0" />
+        <span class="truncate">How to Get Started</span>
       </button>
     </div>
 
     <!-- Footer -->
-    <div class="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
+    <div class="flex-shrink-0 px-4 py-3 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
       <a
         href="https://geyser.fund/project/zaptracker?hero=drshift"
         target="_blank"
         rel="noopener noreferrer"
-        class="flex items-center gap-3 group"
+        class="flex items-center gap-2.5 group min-w-0"
         title="Support on Geyser"
       >
-        <div class="flex-shrink-0 w-5 h-5 relative">
+        <div class="flex-shrink-0 w-4 h-4 relative">
           <img
             src="/geyser-logo/logo-icon-black.svg"
             alt="Geyser"
@@ -344,7 +344,7 @@ watch(currentPage, () => {
             class="w-full h-full object-contain absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:animate-pulse"
           />
         </div>
-        <span class="text-xs text-gray-600 group-hover:text-rose-600 transition-colors duration-300 font-medium">
+        <span class="text-xs text-gray-600 group-hover:text-rose-600 transition-colors duration-300 font-medium truncate flex-1 min-w-0">
           Support ZapTracker
         </span>
       </a>
@@ -365,5 +365,27 @@ aside * {
 
 button:disabled {
   pointer-events: none;
+}
+
+nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+}
+
+nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+nav::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 3px;
+}
+
+nav::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.5);
 }
 </style>
