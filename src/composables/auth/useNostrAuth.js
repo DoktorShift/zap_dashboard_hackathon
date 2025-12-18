@@ -778,26 +778,88 @@ const initAuthAndRelays = async () => {
     const handleGlobalAuth = async (event) => {
       try {
         const eventType = event.detail?.type || event.detail
-        console.log('Global nlAuth event received:', {
+        const eventData = event.detail || {}
+        console.log('🎉 Global nlAuth event received:', {
           type: event.type,
           detail: event.detail,
           eventType,
-          hasWindowNostr: !!window.nostr
+          hasWindowNostr: !!window.nostr,
+          hasGetPublicKey: !!(window.nostr && window.nostr.getPublicKey),
+          hasPubkey: !!eventData.pubkey,
+          hasName: !!eventData.name,
+          hasPicture: !!eventData.picture
         })
 
         // Handle logout
         if (eventType === 'logout') {
-          console.log('Logout event received, clearing user...')
+          console.log('👋 Logout event received, clearing user...')
           currentUser.value = null
+          localStorage.removeItem(NOSTR_USER_KEY)
           return
         }
 
-        // Handle login/signup
-        if (eventType === 'login' || eventType === 'signup' || !eventType) {
-          await restoreSessionFromWindowNostr()
+        // Handle login/signup - use data from nlAuth event if available
+        if (eventType === 'login' || eventType === 'signup' || eventData.pubkey) {
+          console.log('🔐 Login/signup event detected')
+          
+          // If nlAuth event contains pubkey and profile data, use it directly
+          if (eventData.pubkey) {
+            console.log('📋 Using profile data from nlAuth event:', eventData.name, eventData.picture)
+            
+            const npub = nip19.npubEncode(eventData.pubkey)
+            const userData = {
+              pubkey: eventData.pubkey,
+              npub,
+              profile: {
+                name: eventData.name || `User ${eventData.pubkey.substring(0, 8)}`,
+                display_name: eventData.name || null,
+                about: null,
+                picture: eventData.picture || null,
+                nip05: eventData.nip05 || null,
+                lud16: eventData.lud16 || null,
+                lud06: null,
+                website: null,
+                banner: null
+              },
+              lastUpdated: new Date().toISOString(),
+              profileEvent: null
+            }
+            
+            console.log('✅ Setting currentUser from nlAuth event:', userData.npub, userData.profile.name)
+            currentUser.value = userData
+            saveUserToStorage(userData)
+            
+            // Fetch and update user's NIP-65 relay list in background
+            updateRelaysFromNip65(eventData.pubkey).catch(err => 
+              console.warn('Failed to update relays from NIP-65:', err)
+            )
+            
+            // Start listening for user events
+            startUserEventListener(eventData.pubkey)
+            
+            console.log('✅ Login complete from nlAuth event!')
+            return
+          }
+          
+          // Fallback: wait for window.nostr if no pubkey in event
+          console.log('⏳ No pubkey in event, waiting for window.nostr...')
+          let attempts = 0
+          const maxAttempts = 20 // 2 seconds max
+          while ((!window.nostr || !window.nostr.getPublicKey) && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100))
+            attempts++
+          }
+          
+          if (window.nostr && window.nostr.getPublicKey) {
+            console.log('✅ window.nostr ready after', attempts * 100, 'ms, restoring session...')
+            const success = await restoreSessionFromWindowNostr()
+            console.log('🔐 Session restore result:', success, 'currentUser:', currentUser.value?.npub)
+          } else {
+            console.error('❌ window.nostr not available after waiting')
+          }
         }
       } catch (error) {
-        console.error('Global auth error:', error)
+        console.error('❌ Global auth error:', error)
         authError.value = error.message
       }
     }
