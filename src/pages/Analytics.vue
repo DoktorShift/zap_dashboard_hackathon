@@ -10,6 +10,7 @@ import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 import EngagementAnalytics from '../components/analytics/EngagementAnalytics.vue'
 import EmptyStateAnalytics from '../components/analytics/EmptyStateAnalytics.vue'
 import { IconExternalLink, IconHeart, IconRepeat, IconBookmark } from '@iconify-prerendered/vue-tabler'
+import { calculateSmartYAxisRange, applySplitAxisTransformation } from '../utils/chart/chartScaling.js'
 
 // Lazy load ECharts to prevent issues
 // Lazy load ECharts to prevent issues
@@ -115,7 +116,7 @@ const connectionStatus = computed(() => {
 // Process real zap data for daily activity
 const dailyActivityOption = computed(() => {
   const zaps = analyticsData.value
-  
+
   if (zaps.length === 0) {
     // Show empty state with sample structure
     const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -126,7 +127,7 @@ const dailyActivityOption = computed(() => {
         value: 0
       }
     })
-    
+
     return {
       title: {
         text: `Daily ${connectionStatus.value.dataLabel} Activity (Last 7 Days)`,
@@ -174,7 +175,7 @@ const dailyActivityOption = computed(() => {
       }]
     }
   }
-  
+
   // Process real data - group by day for last 7 days
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date()
@@ -185,7 +186,7 @@ const dailyActivityOption = computed(() => {
       value: 0
     }
   })
-  
+
   // Aggregate zaps by day
   zaps.forEach(zap => {
     const zapDate = new Date(zap.timestamp).toDateString()
@@ -194,8 +195,12 @@ const dailyActivityOption = computed(() => {
       dayData.value += zap.amount
     }
   })
-  
-  return {
+
+  // Calculate smart Y-axis range with split-axis detection
+  const scalingResult = calculateSmartYAxisRange(last7Days)
+
+  // Base chart configuration
+  const baseConfig = {
     title: {
       text: `Daily ${connectionStatus.value.dataLabel} Activity (Last 7 Days)`,
       textStyle: { color: '#7c2d12', fontSize: 16, fontWeight: 'bold' }
@@ -204,11 +209,7 @@ const dailyActivityOption = computed(() => {
       trigger: 'axis',
       backgroundColor: '#fff',
       borderColor: '#f97316',
-      textStyle: { color: '#374151' },
-      formatter: function(params) {
-        const data = params[0]
-        return `${data.name}: ${data.value} sats`
-      }
+      textStyle: { color: '#374151' }
     },
     xAxis: {
       type: 'category',
@@ -241,6 +242,9 @@ const dailyActivityOption = computed(() => {
       }
     }]
   }
+
+  // Apply split-axis transformation while keeping original styling
+  return applySplitAxisTransformation(baseConfig, scalingResult)
 })
 
 // Process real data for top supporters
