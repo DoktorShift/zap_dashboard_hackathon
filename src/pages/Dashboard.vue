@@ -654,18 +654,18 @@ const getTrendColorClass = (change) => {
   </div>
 
     <!-- Wallet Balance Card -->
-    <div v-if="walletBalance > 0" class="bg-gradient-to-r from-green-400 to-emerald-500 text-white mt-4 p-4 sm:p-6 rounded-xl shadow-lg">
+    <div v-if="walletBalance > 0" class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white mt-4 p-4 sm:p-6 rounded-xl shadow-xl border border-gray-700/50">
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-lg font-semibold mb-1 flex items-center space-x-2">
             <IconBolt class="w-5 h-5" />
             <span>Wallet Balance</span>
           </h3>
-          <p class="text-green-100 text-sm">Available in your connected wallet</p>
+          <p class="text-gray-300 text-sm">Available in your connected wallet</p>
         </div>
         <div class="text-right">
           <p class="text-2xl sm:text-3xl font-bold">{{ walletBalance.toLocaleString() }}</p>
-          <p class="text-green-100 text-sm">sats</p>
+          <p class="text-gray-300 text-sm">sats</p>
         </div>
       </div>
     </div>
