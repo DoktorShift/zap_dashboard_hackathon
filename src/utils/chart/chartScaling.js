@@ -106,6 +106,29 @@ function transformValueWithSplitAxis(value, splitThreshold, maxValue, splitRatio
 }
 
 /**
+ * Inverse transform: converts transformed value back to original value
+ * @param {number} transformedValue - Transformed display value
+ * @param {number} splitThreshold - Threshold where axis splits
+ * @param {number} maxValue - Maximum value in dataset
+ * @param {number} splitRatio - Ratio of chart height for small section
+ * @returns {number} - Original value in sats
+ */
+function inverseTransformValueWithSplitAxis(transformedValue, splitThreshold, maxValue, splitRatio = 0.25) {
+  const virtualMax = maxValue * splitRatio / (1 - splitRatio) + splitThreshold
+  const bottomSectionMax = virtualMax * splitRatio
+
+  if (transformedValue <= bottomSectionMax) {
+    // In the small values section
+    return (transformedValue / (virtualMax * splitRatio)) * splitThreshold
+  } else {
+    // In the large values section
+    const topSectionHeight = virtualMax * (1 - splitRatio)
+    const normalizedLarge = (transformedValue - bottomSectionMax) / topSectionHeight
+    return splitThreshold + (normalizedLarge * (maxValue - splitThreshold))
+  }
+}
+
+/**
  * Calculate smart Y-axis range using nice round numbers
  * Google Analytics approach: detect extreme disparities and use split-axis scale
  *
@@ -179,6 +202,9 @@ export function calculateSmartYAxisRange(dayData) {
     disparity: Math.round(disparity),
     transformValue: useSplitAxis
       ? (val) => transformValueWithSplitAxis(val, splitThreshold, yAxisMax, 0.25)
+      : (val) => val,
+    inverseTransformValue: useSplitAxis
+      ? (val) => inverseTransformValueWithSplitAxis(val, splitThreshold, yAxisMax, 0.25)
       : (val) => val
   }
 }
@@ -368,27 +394,20 @@ export function applySplitAxisTransformation(baseConfig, scalingResult) {
   // Generate custom intervals for proper y-axis labeling
   const customIntervals = generateSplitAxisIntervals(scalingResult)
 
-  // Update Y-axis to use virtual max with custom intervals
+  // Update Y-axis to use virtual max with inverse transform for labels
   const yAxisConfig = {
     ...baseConfig.yAxis,
     type: 'value',
     min: 0,
     max: virtualMax,
-    interval: customIntervals && customIntervals.length > 0 ? Math.ceil(virtualMax / customIntervals.length) : null,
     splitNumber: 5,
     axisLabel: {
       ...baseConfig.yAxis?.axisLabel,
       show: true,
       formatter: (value) => {
-        if (!customIntervals) return formatSats(value)
-        const closest = customIntervals.reduce((prev, curr) =>
-          Math.abs(curr.value - value) < Math.abs(prev.value - value) ? curr : prev
-        )
-        const tolerance = Math.max(virtualMax * 0.1, 1)
-        if (Math.abs(closest.value - value) < tolerance) {
-          return closest.label
-        }
-        return formatSats(Math.round(value))
+        // Inverse transform to get original value, then format it
+        const originalValue = scalingResult.inverseTransformValue(value)
+        return formatSats(Math.round(originalValue))
       }
     },
     splitLine: baseConfig.yAxis?.splitLine || {
@@ -456,24 +475,16 @@ export function applyGoogleAnalyticsStyling(baseConfig, scalingResult, color = '
     type: 'value',
     min: 0,
     max: virtualMax,
-    interval: useSplitAxis && customIntervals?.length > 0 ? Math.ceil(virtualMax / customIntervals.length) : undefined,
     splitNumber: 5,
     axisLabel: {
       ...baseConfig.yAxis?.axisLabel,
       fontSize: 11,
       color: '#9ca3af',
-      formatter: useSplitAxis ? (value) => {
-        // Find the closest custom interval
-        if (!customIntervals) return formatSats(value)
-        const closest = customIntervals.reduce((prev, curr) =>
-          Math.abs(curr.value - value) < Math.abs(prev.value - value) ? curr : prev
-        )
-        const tolerance = Math.max(virtualMax * 0.1, 1)
-        if (Math.abs(closest.value - value) < tolerance) {
-          return closest.label
-        }
-        return formatSats(Math.round(value))
-      } : (value) => formatSats(value)
+      formatter: (value) => {
+        // Inverse transform to get original value, then format it
+        const originalValue = scalingResult.inverseTransformValue(value)
+        return formatSats(Math.round(originalValue))
+      }
     },
     splitLine: {
       lineStyle: {
