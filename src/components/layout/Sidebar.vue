@@ -370,7 +370,10 @@ onMounted(() => {
 
       <!-- Zap Stats -->
       <div v-if="combinedZapData.length > 0" class="px-3 py-3">
-        <div class="bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 rounded-xl p-3 border border-orange-200 shadow-sm">
+        <button
+          @click="emit('change-page', 'zap-feed')"
+          class="w-full bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 rounded-xl p-3 border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 transition-all duration-200 hover:scale-[1.02] cursor-pointer text-left"
+        >
           <div class="flex items-center space-x-2 mb-2.5 min-w-0">
             <div class="w-8 h-8 bg-gradient-to-br from-orange-400 to-amber-500 rounded-lg flex items-center justify-center shadow-md flex-shrink-0">
               <IconBolt class="w-5 h-5 text-white" />
@@ -397,7 +400,7 @@ onMounted(() => {
               </span>
             </div>
           </div>
-        </div>
+        </button>
       </div>
     </div>
 
