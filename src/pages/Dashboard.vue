@@ -2,7 +2,7 @@
 import { computed, inject, ref, onMounted, watch, defineEmits } from 'vue'
 
 const emit = defineEmits(['trigger-login', 'change-page'])
-import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconCurrencyBitcoin, IconUsers, IconChartLine, IconAlertCircle, IconArrowRight, IconWallet } from '@iconify-prerendered/vue-tabler'
 import { getNWCClient, getBalance, getWalletInfo } from '../utils/wallet/nwcClient.js'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useBtcPrice } from '../composables/core/useBtcPrice.js'
@@ -654,19 +654,28 @@ const getTrendColorClass = (change) => {
   </div>
 
     <!-- Wallet Balance Card -->
-    <div v-if="walletBalance > 0" class="bg-gradient-to-r from-green-400 to-emerald-500 text-white mt-4 p-4 sm:p-6 rounded-xl shadow-lg">
+    <button
+      v-if="walletBalance > 0"
+      @click="emit('change-page', 'wallet')"
+      class="w-full mt-4 p-5 rounded-xl bg-gray-900 hover:bg-gray-850 border border-gray-800 hover:border-gray-700 shadow-md hover:shadow-lg transition-all duration-200 ease-out group cursor-pointer text-left"
+    >
       <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-lg font-semibold mb-1 flex items-center space-x-2">
-            <IconBolt class="w-5 h-5" />
-            <span>Wallet Balance</span>
-          </h3>
-          <p class="text-green-100 text-sm">Available in your connected wallet</p>
+        <div class="flex-1">
+          <div class="flex items-center space-x-3 mb-1">
+            <div class="p-2 rounded-lg bg-amber-500/10 group-hover:bg-amber-500/15 transition-colors duration-200">
+              <IconWallet class="w-5 h-5 text-amber-500" />
+            </div>
+            <h3 class="text-base font-medium text-white">Wallet Balance</h3>
+          </div>
+          <p class="text-gray-400 text-sm ml-11">Available in your connected wallet</p>
         </div>
-        <div class="text-right">
-          <p class="text-2xl sm:text-3xl font-bold">{{ walletBalance.toLocaleString() }}</p>
-          <p class="text-green-100 text-sm">sats</p>
+        <div class="flex items-center space-x-4">
+          <div class="text-right">
+            <p class="text-3xl sm:text-4xl font-normal text-white tabular-nums">{{ walletBalance.toLocaleString() }}</p>
+            <p class="text-gray-500 text-sm font-normal mt-0.5">sats</p>
+          </div>
+          <IconArrowRight class="w-5 h-5 text-gray-600 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all duration-200" />
         </div>
       </div>
-    </div>
+    </button>
 </template>
