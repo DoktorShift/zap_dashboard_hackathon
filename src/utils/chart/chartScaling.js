@@ -374,8 +374,8 @@ export function applySplitAxisTransformation(baseConfig, scalingResult) {
     type: 'value',
     min: 0,
     max: virtualMax,
-    interval: null,
-    splitNumber: customIntervals?.length || 5,
+    interval: customIntervals && customIntervals.length > 0 ? Math.ceil(virtualMax / customIntervals.length) : null,
+    splitNumber: 5,
     axisLabel: {
       ...baseConfig.yAxis?.axisLabel,
       show: true,
@@ -384,7 +384,11 @@ export function applySplitAxisTransformation(baseConfig, scalingResult) {
         const closest = customIntervals.reduce((prev, curr) =>
           Math.abs(curr.value - value) < Math.abs(prev.value - value) ? curr : prev
         )
-        return Math.abs(closest.value - value) < virtualMax * 0.01 ? closest.label : ''
+        const tolerance = Math.max(virtualMax * 0.1, 1)
+        if (Math.abs(closest.value - value) < tolerance) {
+          return closest.label
+        }
+        return formatSats(Math.round(value))
       }
     },
     splitLine: baseConfig.yAxis?.splitLine || {
@@ -452,8 +456,8 @@ export function applyGoogleAnalyticsStyling(baseConfig, scalingResult, color = '
     type: 'value',
     min: 0,
     max: virtualMax,
-    interval: useSplitAxis ? null : undefined,
-    splitNumber: useSplitAxis ? customIntervals?.length : 5,
+    interval: useSplitAxis && customIntervals?.length > 0 ? Math.ceil(virtualMax / customIntervals.length) : undefined,
+    splitNumber: 5,
     axisLabel: {
       ...baseConfig.yAxis?.axisLabel,
       fontSize: 11,
@@ -464,7 +468,11 @@ export function applyGoogleAnalyticsStyling(baseConfig, scalingResult, color = '
         const closest = customIntervals.reduce((prev, curr) =>
           Math.abs(curr.value - value) < Math.abs(prev.value - value) ? curr : prev
         )
-        return Math.abs(closest.value - value) < virtualMax * 0.01 ? closest.label : ''
+        const tolerance = Math.max(virtualMax * 0.1, 1)
+        if (Math.abs(closest.value - value) < tolerance) {
+          return closest.label
+        }
+        return formatSats(Math.round(value))
       } : (value) => formatSats(value)
     },
     splitLine: {
