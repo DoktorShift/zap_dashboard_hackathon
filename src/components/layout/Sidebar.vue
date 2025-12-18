@@ -1,6 +1,7 @@
 <script setup>
-import { inject, computed, ref, watch } from 'vue'
+import { inject, computed, ref, watch, onMounted } from 'vue'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
+import { useNostrConnections } from '../../composables/core/useNostrConnections.js'
 import {
   IconDashboard,
   IconBolt,
@@ -28,6 +29,10 @@ const isWalletConnected = inject('isWalletConnected')
 const emit = defineEmits(['change-page', 'show-help'])
 
 const { isAuthenticated } = useNostrAuth()
+const { getBalance } = useNostrConnections()
+
+const walletBalance = ref(null)
+const isLoadingBalance = ref(false)
 const dashboardSubmenuOpen = ref(true)
 const studioSubmenuOpen = ref(false)
 const audienceSubmenuOpen = ref(false)
@@ -154,8 +159,50 @@ const handleShowHelp = () => {
   emit('show-help')
 }
 
+const fetchWalletBalance = async () => {
+  if (!isWalletConnected.value) {
+    walletBalance.value = null
+    return
+  }
+
+  isLoadingBalance.value = true
+  try {
+    const balance = await getBalance()
+    walletBalance.value = balance?.balance || 0
+  } catch (error) {
+    console.warn('Failed to fetch wallet balance:', error)
+    walletBalance.value = null
+  } finally {
+    isLoadingBalance.value = false
+  }
+}
+
+const formattedBalance = computed(() => {
+  if (walletBalance.value === null) return null
+  const sats = Math.floor(walletBalance.value / 1000)
+  return sats.toLocaleString()
+})
+
+const handleWalletClick = () => {
+  emit('change-page', 'wallet')
+}
+
 watch(currentPage, () => {
   checkAndOpenParentMenu()
+})
+
+watch(isWalletConnected, (connected) => {
+  if (connected) {
+    fetchWalletBalance()
+  } else {
+    walletBalance.value = null
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  if (isWalletConnected.value) {
+    fetchWalletBalance()
+  }
 })
 </script>
 
@@ -264,19 +311,38 @@ watch(currentPage, () => {
     <div v-if="isAuthenticated" class="flex-shrink-0 border-t border-gray-200 bg-white/50 backdrop-blur-sm">
       <!-- Wallet Status -->
       <div v-if="isWalletConnected && activeConnection" class="px-3 pt-3">
-        <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200 shadow-sm">
-          <div class="flex items-center space-x-2 min-w-0">
+        <button
+          @click="handleWalletClick"
+          class="w-full bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-3 border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+        >
+          <div class="flex items-center space-x-2 min-w-0 mb-2">
             <div class="w-8 h-8 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center shadow-md flex-shrink-0">
               <IconWallet class="w-5 h-5 text-white" />
             </div>
-            <div class="flex-1 min-w-0 overflow-hidden">
+            <div class="flex-1 min-w-0 overflow-hidden text-left">
               <p class="text-xs font-bold text-gray-800 truncate">
                 {{ activeConnection.name || 'Wallet Connected' }}
               </p>
               <p class="text-xs text-gray-600 font-medium truncate">Connected</p>
             </div>
           </div>
-        </div>
+          <div v-if="formattedBalance !== null" class="bg-white/60 rounded-lg px-2.5 py-2">
+            <div class="flex items-center justify-between min-w-0 gap-2">
+              <span class="text-xs text-gray-600 font-medium">Balance</span>
+              <div class="flex items-center space-x-1 flex-shrink-0">
+                <span class="text-sm font-bold text-gray-900 tabular-nums">
+                  {{ formattedBalance }}
+                </span>
+                <span class="text-xs text-gray-500 font-medium">sats</span>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="isLoadingBalance" class="bg-white/60 rounded-lg px-2.5 py-2">
+            <div class="flex items-center justify-center">
+              <div class="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-gray-600"></div>
+            </div>
+          </div>
+        </button>
       </div>
 
       <!-- Zap Stats -->
