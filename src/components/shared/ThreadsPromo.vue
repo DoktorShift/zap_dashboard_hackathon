@@ -173,7 +173,7 @@ const handleClick = () => {
     class="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-orange-50 transition-colors duration-200"
   >
     <div class="flex items-center space-x-3">
-      <img src="/threads_logo.png" alt="Threads" class="w-5 h-5 object-contain" />
+      <img src="/threads_logo.png" alt="Threads" class="w-6 h-6 object-contain" />
       <span class="font-medium text-gray-700 hover:text-orange-700">Try Threads</span>
     </div>
     <span class="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs font-semibold rounded-full">
