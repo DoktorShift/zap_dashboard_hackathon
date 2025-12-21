@@ -170,21 +170,15 @@ const handleClick = () => {
   <button
     v-if="variant === 'menu'"
     @click="handleClick"
-    class="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 transition-all duration-300 group rounded-lg mx-1"
+    class="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-orange-50 transition-colors duration-200"
   >
     <div class="flex items-center space-x-3">
-      <div class="relative w-6 h-6 transform group-hover:scale-125 group-hover:rotate-12 transition-all duration-300">
-        <div class="absolute inset-0 bg-orange-400 rounded-lg blur-sm opacity-0 group-hover:opacity-50 transition-opacity"></div>
-        <img src="/threads_logo.png" alt="Threads" class="relative w-full h-full object-contain" />
-      </div>
-      <span class="font-bold text-gray-700 group-hover:text-orange-700 transition-colors">Try Threads</span>
+      <img src="/threads_logo.png" alt="Threads" class="w-5 h-5 object-contain" />
+      <span class="font-medium text-gray-700 hover:text-orange-700">Try Threads</span>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="px-2.5 py-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 text-xs font-black rounded-full group-hover:from-orange-200 group-hover:to-amber-200 transition-all shadow-sm group-hover:shadow-md transform group-hover:scale-110">
-        NEW
-      </span>
-      <IconSparkles class="w-3.5 h-3.5 text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />
-    </div>
+    <span class="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs font-semibold rounded-full">
+      NEW
+    </span>
   </button>
 </template>
 
