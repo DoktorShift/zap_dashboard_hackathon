@@ -821,7 +821,7 @@ const showPromoAtTop = computed(() => {
       <!-- Compact View -->
       <div v-else class="space-y-4">
         <!-- Threads Promo at top when few items (compact view) -->
-        <ThreadsPromo v-if="showPromoAtTop && currentPage === 1" variant="zapfeed" />
+        <ThreadsPromo v-if="showPromoAtTop && currentPage === 1" variant="zapfeed-compact" />
 
         <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 overflow-hidden">
         <div class="divide-y divide-gray-100/60">
