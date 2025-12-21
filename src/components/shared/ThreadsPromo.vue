@@ -22,10 +22,8 @@ const showDismissButton = computed(() => {
 })
 
 onMounted(() => {
-  if (props.variant === 'notes') {
-    const dismissed = localStorage.getItem(storageKey.value)
-    isDismissed.value = dismissed === 'true'
-  }
+  const dismissed = localStorage.getItem(storageKey.value)
+  isDismissed.value = dismissed === 'true'
 
   setTimeout(() => {
     isVisible.value = true

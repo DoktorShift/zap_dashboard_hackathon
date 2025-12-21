@@ -54,11 +54,8 @@ const isInitialLoading = ref(true)
 const currentPage = ref(1)
 const itemsPerPage = 20
 
-// Threads promo state
-const showThreadsPromo = computed(() => {
-  const dismissed = localStorage.getItem('threads_promo_dismissed_zapfeed')
-  return dismissed !== 'true' && filteredZaps.value.length >= 3
-})
+// Threads promo - always show, component handles dismissal internally
+const showThreadsPromo = ref(true)
 
 // Simulate initial data load
 setTimeout(() => {
@@ -446,10 +443,15 @@ const formatAmount = (amount) => {
   return amount.toLocaleString()
 }
 
-// Helper to check if we should show promo at this index
+// Helper to check if we should show promo at this index (position 3 when there are 3+ items)
 const shouldShowPromoAtIndex = (index) => {
-  return index === 2 && showThreadsPromo.value
+  return index === 2 && showThreadsPromo.value && filteredZaps.value.length >= 3
 }
+
+// Show promo at top when few or no items
+const showPromoAtTop = computed(() => {
+  return showThreadsPromo.value && filteredZaps.value.length < 3
+})
 </script>
 
 <template>
@@ -749,6 +751,9 @@ const shouldShowPromoAtIndex = (index) => {
 
       <!-- Feed View -->
       <div v-else-if="viewMode === 'feed'" class="space-y-4">
+        <!-- Threads Promo at top when few items -->
+        <ThreadsPromo v-if="showPromoAtTop && currentPage === 1" variant="zapfeed" />
+
         <template v-for="(zap, index) in paginatedZaps" :key="zap.id">
           <!-- Threads Promo Card at position 3 (only on first page) -->
           <ThreadsPromo v-if="shouldShowPromoAtIndex(index) && currentPage === 1" variant="zapfeed" class="mb-4" />
@@ -814,7 +819,11 @@ const shouldShowPromoAtIndex = (index) => {
       </div>
 
       <!-- Compact View -->
-      <div v-else class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 overflow-hidden">
+      <div v-else class="space-y-4">
+        <!-- Threads Promo at top when few items (compact view) -->
+        <ThreadsPromo v-if="showPromoAtTop && currentPage === 1" variant="zapfeed" />
+
+        <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 overflow-hidden">
         <div class="divide-y divide-gray-100/60">
           <div
             v-for="(zap, index) in paginatedZaps"
@@ -854,6 +863,7 @@ const shouldShowPromoAtIndex = (index) => {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 
