@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, ref } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 import {
   IconBolt,
@@ -18,7 +18,9 @@ import {
   IconInfoCircle,
   IconUsers,
   IconHeart,
-  IconBulb
+  IconBulb,
+  IconChevronLeft,
+  IconChevronRight
 } from '@iconify-prerendered/vue-tabler'
 import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
 import ZapEventModal from '../components/modals/ZapEventModal.vue'
@@ -47,6 +49,10 @@ const selectedZapId = ref(null)
 const showFilters = ref(false)
 const viewMode = ref('feed') // 'feed' or 'compact'
 const isInitialLoading = ref(true)
+
+// Pagination state
+const currentPage = ref(1)
+const itemsPerPage = 20
 
 // Threads promo state
 const showThreadsPromo = computed(() => {
@@ -156,6 +162,74 @@ const filteredZaps = computed(() => {
   zaps = filterZapsByTimeRange(zaps, selectedTimeRange.value)
   
   return zaps.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+})
+
+// Pagination computed properties
+const totalPages = computed(() => {
+  return Math.ceil(filteredZaps.value.length / itemsPerPage)
+})
+
+const paginatedZaps = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredZaps.value.slice(start, end)
+})
+
+// Reset to page 1 when filters change
+watch(filteredZaps, () => {
+  currentPage.value = 1
+})
+
+// Pagination controls
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const previousPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+// Get visible page numbers for pagination
+const visiblePageNumbers = computed(() => {
+  const pages = []
+  const maxVisible = 7
+
+  if (totalPages.value <= maxVisible) {
+    for (let i = 1; i <= totalPages.value; i++) {
+      pages.push(i)
+    }
+  } else {
+    if (currentPage.value <= 4) {
+      for (let i = 1; i <= 5; i++) pages.push(i)
+      pages.push('...')
+      pages.push(totalPages.value)
+    } else if (currentPage.value >= totalPages.value - 3) {
+      pages.push(1)
+      pages.push('...')
+      for (let i = totalPages.value - 4; i <= totalPages.value; i++) pages.push(i)
+    } else {
+      pages.push(1)
+      pages.push('...')
+      for (let i = currentPage.value - 1; i <= currentPage.value + 1; i++) pages.push(i)
+      pages.push('...')
+      pages.push(totalPages.value)
+    }
+  }
+
+  return pages
 })
 
 // Handle click on zap item
@@ -678,9 +752,9 @@ const shouldShowPromoAtIndex = (index) => {
 
       <!-- Feed View -->
       <div v-else-if="viewMode === 'feed'" class="space-y-4">
-        <template v-for="(zap, index) in filteredZaps" :key="zap.id">
-          <!-- Threads Promo Card at position 3 -->
-          <ThreadsPromo v-if="shouldShowPromoAtIndex(index)" variant="zapfeed" class="mb-4" />
+        <template v-for="(zap, index) in paginatedZaps" :key="zap.id">
+          <!-- Threads Promo Card at position 3 (only on first page) -->
+          <ThreadsPromo v-if="shouldShowPromoAtIndex(index) && currentPage === 1" variant="zapfeed" class="mb-4" />
 
           <!-- Regular Zap Card -->
           <div
@@ -746,7 +820,7 @@ const shouldShowPromoAtIndex = (index) => {
       <div v-else class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 overflow-hidden">
         <div class="divide-y divide-gray-100/60">
           <div
-            v-for="(zap, index) in filteredZaps"
+            v-for="(zap, index) in paginatedZaps"
             :key="zap.id"
             @click="handleZapClick(zap)"
             class="p-4 hover:bg-gray-50/80 transition-all duration-150 cursor-pointer"
@@ -785,9 +859,69 @@ const shouldShowPromoAtIndex = (index) => {
           </div>
         </div>
       </div>
+
+      <!-- Pagination Controls -->
+      <div v-if="filteredZaps.length > itemsPerPage && !isInitialLoading" class="mt-8 flex items-center justify-center">
+        <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 p-4">
+          <div class="flex items-center space-x-2">
+            <!-- Previous Button -->
+            <button
+              @click="previousPage"
+              :disabled="currentPage === 1"
+              :class="[
+                'p-2.5 rounded-xl transition-all duration-200',
+                currentPage === 1
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
+              ]"
+            >
+              <IconChevronLeft class="w-5 h-5" />
+            </button>
+
+            <!-- Page Numbers -->
+            <div class="flex items-center space-x-1">
+              <button
+                v-for="(page, idx) in visiblePageNumbers"
+                :key="idx"
+                @click="page !== '...' && goToPage(page)"
+                :disabled="page === '...'"
+                :class="[
+                  'min-w-[40px] h-10 rounded-xl text-sm font-semibold transition-all duration-200',
+                  page === currentPage
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md'
+                    : page === '...'
+                    ? 'text-gray-400 cursor-default'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
+                ]"
+              >
+                {{ page }}
+              </button>
+            </div>
+
+            <!-- Next Button -->
+            <button
+              @click="nextPage"
+              :disabled="currentPage === totalPages"
+              :class="[
+                'p-2.5 rounded-xl transition-all duration-200',
+                currentPage === totalPages
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
+              ]"
+            >
+              <IconChevronRight class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Page Info -->
+          <div class="mt-3 text-center text-xs text-gray-500">
+            Page {{ currentPage }} of {{ totalPages }} ({{ filteredZaps.length }} total zaps)
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-  
+
   <!-- Event Modal -->
   <ZapEventModal 
     :event-id="selectedEventId" 
