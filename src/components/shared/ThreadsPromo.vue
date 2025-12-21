@@ -71,7 +71,7 @@ const handleClick = () => {
               <h4 class="text-base font-bold text-gray-900">Organize your notes into Threads</h4>
               <IconSparkles class="w-4 h-4 text-orange-500 animate-pulse" />
             </div>
-            <p class="text-sm text-gray-600 leading-snug">Connect conversations, track engagement, and grow your audience</p>
+            <p class="text-sm text-gray-600 leading-snug">Connect conversations, schedule your notes, and grow your audience</p>
           </div>
         </div>
 
@@ -143,7 +143,7 @@ const handleClick = () => {
               </div>
             </div>
             <p class="text-white/95 text-base leading-relaxed drop-shadow-md font-medium">
-              Organize conversations, track engagement, and grow your Nostr presence like never before
+              Organize notes into Threds, schedule, and grow your Nostr presence like never before
             </p>
           </div>
         </div>
@@ -156,7 +156,7 @@ const handleClick = () => {
             </div>
             <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-2 rounded-xl transform group-hover:scale-105 transition-transform">
               <IconTrendingUp class="w-5 h-5" />
-              <span class="text-sm font-bold drop-shadow-sm">Analytics</span>
+              <span class="text-sm font-bold drop-shadow-sm">Scheduling</span>
             </div>
           </div>
 
