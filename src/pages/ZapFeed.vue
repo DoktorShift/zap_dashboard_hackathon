@@ -824,46 +824,50 @@ const showPromoAtTop = computed(() => {
         <ThreadsPromo v-if="showPromoAtTop && currentPage === 1" variant="zapfeed-compact" />
 
         <div class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 shadow-lg shadow-gray-200/30 overflow-hidden">
-        <div class="divide-y divide-gray-100/60">
-          <div
-            v-for="(zap, index) in paginatedZaps"
-            :key="zap.id"
-            @click="handleZapClick(zap)"
-            class="p-4 hover:bg-gray-50/80 transition-all duration-150 cursor-pointer"
-          >
-            <div class="flex items-center space-x-3">
-              <!-- Avatar -->
-              <div class="w-9 h-9 rounded-xl overflow-hidden border border-gray-200/60 flex-shrink-0 shadow-sm">
-                <img
-                  :src="getSenderAvatar(zap.sender, index)"
-                  :alt="getSenderName(zap.sender)"
-                  class="w-full h-full object-cover"
-                />
+          <div class="divide-y divide-gray-100/60">
+            <template v-for="(zap, index) in paginatedZaps" :key="zap.id">
+              <!-- Compact Threads Promo at position 3 (only on first page) -->
+              <div v-if="shouldShowPromoAtIndex(index) && currentPage === 1" class="p-3 bg-gray-50/50">
+                <ThreadsPromo variant="zapfeed-compact" />
               </div>
 
-              <!-- Content -->
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center space-x-2 min-w-0">
-                    <span class="font-semibold text-gray-900 text-sm truncate">
-                      {{ getSenderName(zap.sender) }}
-                    </span>
-                    <span class="text-xs text-gray-500">{{ formatDate(zap.timestamp) }}</span>
+              <!-- Compact Zap Row -->
+              <div
+                @click="handleZapClick(zap)"
+                class="p-4 hover:bg-gray-50/80 transition-all duration-150 cursor-pointer"
+              >
+                <div class="flex items-center space-x-3">
+                  <div class="w-9 h-9 rounded-xl overflow-hidden border border-gray-200/60 flex-shrink-0 shadow-sm">
+                    <img
+                      :src="getSenderAvatar(zap.sender, index)"
+                      :alt="getSenderName(zap.sender)"
+                      class="w-full h-full object-cover"
+                    />
                   </div>
-                  
-                  <div class="flex items-center space-x-1.5 bg-gradient-to-r from-orange-50 to-amber-50 px-3 py-1 rounded-xl border border-orange-200/30 shadow-sm flex-shrink-0">
-                    <IconBolt class="w-3 h-3 text-orange-600" />
-                    <span class="font-bold text-orange-700 text-sm">{{ formatAmount(zap.amount) }}</span>
+
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-1">
+                      <div class="flex items-center space-x-2 min-w-0">
+                        <span class="font-semibold text-gray-900 text-sm truncate">
+                          {{ getSenderName(zap.sender) }}
+                        </span>
+                        <span class="text-xs text-gray-500">{{ formatDate(zap.timestamp) }}</span>
+                      </div>
+
+                      <div class="flex items-center space-x-1.5 bg-gradient-to-r from-orange-50 to-amber-50 px-3 py-1 rounded-xl border border-orange-200/30 shadow-sm flex-shrink-0">
+                        <IconBolt class="w-3 h-3 text-orange-600" />
+                        <span class="font-bold text-orange-700 text-sm">{{ formatAmount(zap.amount) }}</span>
+                      </div>
+                    </div>
+
+                    <p class="text-sm text-gray-600 truncate leading-relaxed">
+                      {{ truncateNote(zap.note, 80) }}
+                    </p>
                   </div>
                 </div>
-                
-                <p class="text-sm text-gray-600 truncate leading-relaxed">
-                  {{ truncateNote(zap.note, 80) }}
-                </p>
               </div>
-            </div>
+            </template>
           </div>
-        </div>
         </div>
       </div>
 
