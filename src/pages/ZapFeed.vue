@@ -25,6 +25,7 @@ import ZapEventModal from '../components/modals/ZapEventModal.vue'
 import { useContentZaps } from '../composables/content/useContentZaps.js'
 import Filters from '../components/shared/Filters.vue'
 import SkeletonList from '../components/shared/SkeletonList.vue'
+import ThreadsPromo from '../components/shared/ThreadsPromo.vue'
 
 const zapData = inject('zapData')
 const combinedZapData = inject('combinedZapData')
@@ -46,6 +47,12 @@ const selectedZapId = ref(null)
 const showFilters = ref(false)
 const viewMode = ref('feed') // 'feed' or 'compact'
 const isInitialLoading = ref(true)
+
+// Threads promo state
+const showThreadsPromo = computed(() => {
+  const dismissed = localStorage.getItem('threads_promo_dismissed_zapfeed')
+  return dismissed !== 'true' && filteredZaps.value.length >= 3
+})
 
 // Simulate initial data load
 setTimeout(() => {
@@ -364,6 +371,11 @@ const formatAmount = (amount) => {
   }
   return amount.toLocaleString()
 }
+
+// Helper to check if we should show promo at this index
+const shouldShowPromoAtIndex = (index) => {
+  return index === 2 && showThreadsPromo.value
+}
 </script>
 
 <template>
@@ -666,12 +678,15 @@ const formatAmount = (amount) => {
 
       <!-- Feed View -->
       <div v-else-if="viewMode === 'feed'" class="space-y-4">
-        <div
-          v-for="(zap, index) in filteredZaps"
-          :key="zap.id"
-          @click="handleZapClick(zap)"
-          class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 hover:border-gray-300/60 hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-0.5"
-        >
+        <template v-for="(zap, index) in filteredZaps" :key="zap.id">
+          <!-- Threads Promo Card at position 3 -->
+          <ThreadsPromo v-if="shouldShowPromoAtIndex(index)" variant="zapfeed" class="mb-4" />
+
+          <!-- Regular Zap Card -->
+          <div
+            @click="handleZapClick(zap)"
+            class="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-200/40 hover:border-gray-300/60 hover:shadow-lg hover:shadow-gray-200/30 transition-all duration-200 cursor-pointer overflow-hidden hover:-translate-y-0.5"
+          >
           <div class="p-5 sm:p-6">
             <!-- Header -->
             <div class="flex items-start space-x-3 mb-4">
@@ -723,7 +738,8 @@ const formatAmount = (amount) => {
               </p>
             </div>
           </div>
-        </div>
+          </div>
+        </template>
       </div>
 
       <!-- Compact View -->
