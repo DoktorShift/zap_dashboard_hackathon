@@ -12,7 +12,6 @@ const props = defineProps({
 
 const isDismissed = ref(false)
 const isVisible = ref(false)
-const isHovered = ref(false)
 
 const storageKey = computed(() => {
   return `threads_promo_dismissed_${props.variant}`
@@ -51,8 +50,6 @@ const handleClick = () => {
   <transition name="fade-slide">
     <div
       v-if="variant === 'notes' && !isDismissed && isVisible"
-      @mouseenter="isHovered = true"
-      @mouseleave="isHovered = false"
       class="relative overflow-hidden bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50 border border-orange-200/60 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-300 group"
     >
       <!-- Dismiss button - absolute positioned -->
@@ -99,8 +96,6 @@ const handleClick = () => {
     <div
       v-if="variant === 'zapfeed' && !isDismissed && isVisible"
       @click="handleClick"
-      @mouseenter="isHovered = true"
-      @mouseleave="isHovered = false"
       class="relative bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 rounded-3xl border-2 border-orange-300/50 shadow-2xl hover:shadow-3xl transition-all duration-500 cursor-pointer overflow-hidden hover:-translate-y-2 hover:scale-[1.02] group"
     >
       <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/30 via-transparent to-yellow-300/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -135,7 +130,7 @@ const handleClick = () => {
               </div>
             </div>
             <p class="text-white/95 text-base leading-relaxed drop-shadow-md font-medium">
-              Organize notes into Threds, schedule, and grow your Nostr presence like never before
+              Organize notes into Threads, schedule, and grow your Nostr presence like never before
             </p>
           </div>
         </div>
@@ -170,11 +165,11 @@ const handleClick = () => {
   <button
     v-if="variant === 'menu'"
     @click="handleClick"
-    class="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-orange-50 transition-colors duration-200"
+    class="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-orange-50 transition-colors duration-200 group"
   >
     <div class="flex items-center space-x-3">
       <img src="/threads_logo.png" alt="Threads" class="w-6 h-6 object-contain" />
-      <span class="font-medium text-gray-700 hover:text-orange-700">Try Threads</span>
+      <span class="font-medium text-gray-700 group-hover:text-orange-700 transition-colors">Try Threads</span>
     </div>
     <span class="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs font-semibold rounded-full">
       NEW
