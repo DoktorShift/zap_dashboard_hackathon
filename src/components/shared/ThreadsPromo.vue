@@ -53,51 +53,43 @@ const handleClick = () => {
       v-if="variant === 'notes' && !isDismissed && isVisible"
       @mouseenter="isHovered = true"
       @mouseleave="isHovered = false"
-      class="relative overflow-hidden bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50 border-2 border-orange-200/60 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 group"
+      class="relative overflow-hidden bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50 border border-orange-200/60 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-300 group"
     >
-      <div class="absolute inset-0 bg-gradient-to-r from-orange-100/20 to-amber-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      <!-- Dismiss button - absolute positioned -->
+      <button
+        v-if="showDismissButton"
+        @click.stop="handleDismiss"
+        class="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-white/80 rounded-lg transition-all duration-200 z-10"
+        title="Dismiss"
+      >
+        <IconX class="w-4 h-4" />
+      </button>
 
-      <div class="relative flex items-center justify-between gap-4">
-        <div class="flex items-center gap-4 flex-1 min-w-0">
+      <div class="relative flex flex-col sm:flex-row sm:items-center gap-4">
+        <!-- Logo and Text -->
+        <div class="flex items-start sm:items-center gap-3 flex-1 min-w-0 pr-6 sm:pr-0">
           <div class="relative flex-shrink-0">
-            <div class="absolute inset-0 bg-gradient-to-br from-orange-400 to-amber-400 rounded-2xl blur-md opacity-50 group-hover:opacity-70 transition-opacity duration-300"></div>
-            <div class="relative w-14 h-14 bg-white rounded-2xl p-2 shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+            <div class="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl p-1.5 shadow-sm">
               <img src="/threads_logo.png" alt="Threads" class="w-full h-full object-contain" />
             </div>
           </div>
 
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
-              <h4 class="text-base font-bold text-gray-900">Organize your notes into Threads</h4>
-              <IconSparkles class="w-4 h-4 text-orange-500 animate-pulse" />
-            </div>
-            <p class="text-sm text-gray-600 leading-snug">Connect conversations, schedule your notes, and grow your audience</p>
+            <h4 class="text-sm sm:text-base font-semibold text-gray-900 leading-tight">Organize your notes into Threads</h4>
+            <p class="text-xs sm:text-sm text-gray-500 mt-0.5 leading-snug">Connect conversations, schedule, and grow your audience</p>
           </div>
         </div>
 
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <button
-            @click="handleClick"
-            class="relative px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-bold rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl shadow-lg overflow-hidden group/btn whitespace-nowrap"
-          >
-            <span class="relative z-10 flex items-center gap-2">
-              Try Threads
-              <svg class="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-              </svg>
-            </span>
-            <div class="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover/btn:opacity-100 transition-opacity"></div>
-          </button>
-
-          <button
-            v-if="showDismissButton"
-            @click.stop="handleDismiss"
-            class="p-2 text-gray-400 hover:text-gray-700 hover:bg-white/80 rounded-xl transition-all duration-200 hover:scale-110"
-            title="Dismiss"
-          >
-            <IconX class="w-5 h-5" />
-          </button>
-        </div>
+        <!-- Button -->
+        <button
+          @click="handleClick"
+          class="flex-shrink-0 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-sm font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-2 w-full sm:w-auto"
+        >
+          Try Threads
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+          </svg>
+        </button>
       </div>
     </div>
   </transition>
