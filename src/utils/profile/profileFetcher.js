@@ -27,9 +27,10 @@ const normalizeProfileData = (pubkey, profileData) => {
 export const fetchProfile = async (pubkey, { ttl = 24 * 60 * 60 * 1000 } = {}) => {
   if (!pubkey) return null
 
-  // Return cached if fresh
+  // Return cached if fresh AND has picture (don't return incomplete cached profiles)
   const cached = profileCache.get(pubkey)
-  if (cached && (Date.now() - cached.timestamp) < ttl) {
+  if (cached && (Date.now() - cached.timestamp) < ttl && cached.profile?.picture) {
+    console.log('📦 fetchProfile: Returning cached profile with picture for', pubkey.substring(0, 16))
     return cached.profile
   }
 
@@ -38,14 +39,42 @@ export const fetchProfile = async (pubkey, { ttl = 24 * 60 * 60 * 1000 } = {}) =
     return profileFetchPromises.get(pubkey)
   }
 
+  console.log('🔍 fetchProfile: Fetching from relays for', pubkey.substring(0, 16))
   const p = _fetchProfileFromRelays(pubkey)
   profileFetchPromises.set(pubkey, p)
 
   try {
     const profile = await p
+
+    // Handle null profile (EOSE without profile event found)
+    if (!profile) {
+      console.log('⚠️ fetchProfile: No profile found on relays for', pubkey.substring(0, 16))
+      // Create a minimal fallback
+      const fallback = {
+        pubkey,
+        name: `user:${pubkey.substring(0, 8)}`,
+        display_name: null,
+        about: null,
+        picture: null,
+        banner: null,
+        website: null,
+        nip05: null,
+        bot: false,
+        birthday: null,
+        lud06: null,
+        lud16: null,
+        updated_at: Date.now()
+      }
+      // Cache with shorter TTL so we retry sooner
+      profileCache.set(pubkey, { profile: fallback, timestamp: Date.now() - (ttl / 2) })
+      return fallback
+    }
+
+    console.log('✅ fetchProfile: Got profile for', pubkey.substring(0, 16), '- picture:', profile.picture ? 'YES' : 'NO')
     profileCache.set(pubkey, { profile, timestamp: Date.now() })
     return profile
   } catch (err) {
+    console.error('❌ fetchProfile: Error for', pubkey.substring(0, 16), '-', err.message)
     // Fallback profile
     const fallback = {
       pubkey,
