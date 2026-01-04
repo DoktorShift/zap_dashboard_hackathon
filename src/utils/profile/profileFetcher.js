@@ -104,38 +104,54 @@ const _fetchProfileFromRelays = async (pubkey) => {
     throw new Error(`Invalid pubkey for profile fetch: ${pubkey}`)
   }
 
+  console.log('🔌 _fetchProfileFromRelays: Starting fetch for', pubkey.substring(0, 16))
+  console.log('🔌 _fetchProfileFromRelays: nostrRelayManager available:', !!nostrRelayManager)
+  console.log('🔌 _fetchProfileFromRelays: subscribeToEvents available:', typeof nostrRelayManager?.subscribeToEvents)
+
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Profile fetch timeout')), 15000)
+    const timeout = setTimeout(() => {
+      console.log('⏱️ _fetchProfileFromRelays: TIMEOUT after 15s for', pubkey.substring(0, 16))
+      reject(new Error('Profile fetch timeout'))
+    }, 15000)
 
     try {
+      console.log('📡 _fetchProfileFromRelays: Calling subscribeToEvents for', pubkey.substring(0, 16))
       const sub = nostrRelayManager.subscribeToEvents([
         { kinds: [0], authors: [pubkey], limit: 1 }
       ], {
         onevent: (event) => {
+          console.log('📨 _fetchProfileFromRelays: onevent fired for', pubkey.substring(0, 16))
           try {
             clearTimeout(timeout)
             const data = JSON.parse(event.content || '{}')
             const profile = normalizeProfileData(event.pubkey || pubkey, data)
+            console.log('✅ _fetchProfileFromRelays: Profile parsed successfully for', pubkey.substring(0, 16))
             sub.close()
             resolve(profile)
           } catch (e) {
+            console.error('❌ _fetchProfileFromRelays: Error parsing event for', pubkey.substring(0, 16), e)
             clearTimeout(timeout)
             sub.close()
             reject(e)
           }
         },
         oneose: () => {
+          console.log('🏁 _fetchProfileFromRelays: EOSE received for', pubkey.substring(0, 16))
           setTimeout(() => {
             clearTimeout(timeout)
             sub.close()
+            console.log('⚠️ _fetchProfileFromRelays: Resolving null (no profile found) for', pubkey.substring(0, 16))
             resolve(null)
           }, 1000)
         },
         onclose: () => {
+          console.log('🔒 _fetchProfileFromRelays: onclose fired for', pubkey.substring(0, 16))
           clearTimeout(timeout)
         }
       })
+      console.log('✅ _fetchProfileFromRelays: Subscription created:', !!sub, 'for', pubkey.substring(0, 16))
     } catch (e) {
+      console.error('❌ _fetchProfileFromRelays: Exception during subscribe for', pubkey.substring(0, 16), e)
       clearTimeout(timeout)
       reject(e)
     }
