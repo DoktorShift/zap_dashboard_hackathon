@@ -782,36 +782,62 @@ const handleGlobalAuth = async (event) => {
     if (eventType === 'login' || eventType === 'signup' || eventData.pubkey) {
       console.log('🔐 Login/signup event detected')
 
-      // If nlAuth event contains pubkey and profile data, use it directly
+      // If nlAuth event contains pubkey, process login
       if (eventData.pubkey) {
-        console.log('📋 Using profile data from nlAuth event:', eventData.name, eventData.picture)
+        console.log('📋 nlAuth event data:', eventData.name, eventData.picture)
 
         const npub = nip19.npubEncode(eventData.pubkey)
+
+        // IMPORTANT: Check if we already have stored user data for this pubkey
+        // On page refresh, nostr-login fires nlAuth with incomplete data (just pubkey)
+        // We should MERGE with existing data, not overwrite it
+        let existingProfile = null
+        const storedUser = localStorage.getItem(NOSTR_USER_KEY)
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser)
+            if (parsed.pubkey === eventData.pubkey) {
+              existingProfile = parsed.profile
+              console.log('♻️ Found existing stored profile for this user, will merge data')
+            }
+          } catch (e) {
+            console.warn('Failed to parse stored user:', e)
+          }
+        }
+
+        // Also check currentUser (might be loaded already)
+        if (!existingProfile && currentUser.value?.pubkey === eventData.pubkey) {
+          existingProfile = currentUser.value.profile
+          console.log('♻️ Using existing currentUser profile, will merge data')
+        }
+
+        // Build userData by merging: event data takes priority, fall back to existing stored data
         const userData = {
           pubkey: eventData.pubkey,
           npub,
           profile: {
-            name: eventData.name || `User ${eventData.pubkey.substring(0, 8)}`,
-            display_name: eventData.name || null,
-            about: null,
-            picture: eventData.picture || null,
-            nip05: eventData.nip05 || null,
-            lud16: eventData.lud16 || null,
-            lud06: null,
-            website: null,
-            banner: null
+            // Use event data if provided, otherwise use existing stored data, otherwise use fallback
+            name: eventData.name || existingProfile?.name || `User ${eventData.pubkey.substring(0, 8)}`,
+            display_name: eventData.name || existingProfile?.display_name || null,
+            about: existingProfile?.about || null,
+            picture: eventData.picture || existingProfile?.picture || null,
+            nip05: eventData.nip05 || existingProfile?.nip05 || null,
+            lud16: eventData.lud16 || existingProfile?.lud16 || null,
+            lud06: existingProfile?.lud06 || null,
+            website: existingProfile?.website || null,
+            banner: existingProfile?.banner || null
           },
           lastUpdated: new Date().toISOString(),
           profileEvent: null
         }
 
-        console.log('✅ Setting currentUser from nlAuth event:', userData.npub, userData.profile.name)
+        console.log('✅ Setting currentUser (merged):', userData.npub, userData.profile.name, 'picture:', !!userData.profile.picture)
         currentUser.value = userData
         saveUserToStorage(userData)
 
-        // If profile picture is missing, fetch full profile from relays in background
+        // If profile picture is STILL missing after merge, fetch full profile from relays
         if (!userData.profile.picture) {
-          console.log('📷 Picture missing, fetching full profile from relays...')
+          console.log('📷 Picture still missing after merge, fetching full profile from relays...')
           fetchAndStoreProfile(eventData.pubkey).catch(err =>
             console.warn('Failed to fetch full profile:', err)
           )
