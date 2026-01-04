@@ -753,155 +753,56 @@ const restoreSessionFromWindowNostr = async () => {
   }
 }
 
-// Global auth handler - defined at module level to be registered before async operations
-// This ensures we catch nlAuth events from the sidebar widget even during relay initialization
+// Global auth handler - SIMPLE version
+// Principle: Trust localStorage for existing data, fetch from relays for new logins
 const handleGlobalAuth = async (event) => {
   try {
     const eventType = event.detail?.type || event.detail
     const eventData = event.detail || {}
-    console.log('🎉 Global nlAuth event received:', {
-      type: event.type,
-      detail: event.detail,
-      eventType,
-      hasWindowNostr: !!window.nostr,
-      hasGetPublicKey: !!(window.nostr && window.nostr.getPublicKey),
-      hasPubkey: !!eventData.pubkey,
-      hasName: !!eventData.name,
-      hasPicture: !!eventData.picture
-    })
+    const pubkey = eventData.pubkey
+
+    console.log('🎉 nlAuth event:', eventType, pubkey ? pubkey.substring(0, 12) + '...' : 'no pubkey')
 
     // Handle logout
     if (eventType === 'logout') {
-      console.log('👋 Logout event received, clearing user...')
+      console.log('👋 Logout event')
       currentUser.value = null
       localStorage.removeItem(NOSTR_USER_KEY)
       return
     }
 
-    // Handle login/signup - use data from nlAuth event if available
-    if (eventType === 'login' || eventType === 'signup' || eventData.pubkey) {
-      console.log('🔐 Login/signup event detected')
-
-      // If nlAuth event contains pubkey, process login
-      if (eventData.pubkey) {
-        console.log('📋 nlAuth event data:', eventData.name, eventData.picture)
-
-        const npub = nip19.npubEncode(eventData.pubkey)
-
-        // IMPORTANT: Check if we already have stored user data for this pubkey
-        // On page refresh, nostr-login fires nlAuth with incomplete data (just pubkey)
-        // We should MERGE with existing data, not overwrite it
-        let existingProfile = null
-        const storedUser = localStorage.getItem(NOSTR_USER_KEY)
-        if (storedUser) {
-          try {
-            const parsed = JSON.parse(storedUser)
-            if (parsed.pubkey === eventData.pubkey) {
-              existingProfile = parsed.profile
-              console.log('♻️ Found existing stored profile for this user, will merge data')
-            }
-          } catch (e) {
-            console.warn('Failed to parse stored user:', e)
-          }
-        }
-
-        // Also check currentUser (might be loaded already)
-        if (!existingProfile && currentUser.value?.pubkey === eventData.pubkey) {
-          existingProfile = currentUser.value.profile
-          console.log('♻️ Using existing currentUser profile, will merge data')
-        }
-
-        // Build userData by merging: event data takes priority, fall back to existing stored data
-        const userData = {
-          pubkey: eventData.pubkey,
-          npub,
-          profile: {
-            // Use event data if provided, otherwise use existing stored data, otherwise use fallback
-            name: eventData.name || existingProfile?.name || `User ${eventData.pubkey.substring(0, 8)}`,
-            display_name: eventData.name || existingProfile?.display_name || null,
-            about: existingProfile?.about || null,
-            picture: eventData.picture || existingProfile?.picture || null,
-            nip05: eventData.nip05 || existingProfile?.nip05 || null,
-            lud16: eventData.lud16 || existingProfile?.lud16 || null,
-            lud06: existingProfile?.lud06 || null,
-            website: existingProfile?.website || null,
-            banner: existingProfile?.banner || null
-          },
-          lastUpdated: new Date().toISOString(),
-          profileEvent: null
-        }
-
-        // If we had NO existing profile data AND picture is missing, fetch profile FIRST
-        // This ensures user sees their avatar immediately on login, not a fallback
-        const hadExistingProfile = !!existingProfile
-        if (!hadExistingProfile && !userData.profile.picture) {
-          console.log('📷 No existing profile and picture missing, fetching full profile BEFORE setting user...')
-          try {
-            // Await the profile fetch - this ensures avatar is ready before UI renders
-            const fullUserData = await fetchAndStoreProfile(eventData.pubkey)
-            console.log('✅ Got full profile, setting currentUser:', fullUserData.npub, fullUserData.profile?.name, 'picture:', !!fullUserData.profile?.picture)
-            // fetchAndStoreProfile already sets currentUser and saves to storage
-
-            // Fetch and update user's NIP-65 relay list in background
-            updateRelaysFromNip65(eventData.pubkey).catch(err =>
-              console.warn('Failed to update relays from NIP-65:', err)
-            )
-
-            // Start listening for user events
-            startUserEventListener(eventData.pubkey)
-
-            console.log('✅ Login complete from nlAuth event (with full profile fetch)!')
-            return
-          } catch (err) {
-            console.warn('Failed to fetch full profile, using incomplete data:', err)
-            // Fall through to use incomplete data as fallback
-          }
-        }
-
-        // Normal flow: we have existing profile data or picture is present
-        console.log('✅ Setting currentUser (merged):', userData.npub, userData.profile.name, 'picture:', !!userData.profile.picture)
-        currentUser.value = userData
-        saveUserToStorage(userData)
-
-        // If profile picture is STILL missing after merge (rare edge case), fetch in background
-        if (!userData.profile.picture) {
-          console.log('📷 Picture still missing, fetching full profile in background...')
-          fetchAndStoreProfile(eventData.pubkey).catch(err =>
-            console.warn('Failed to fetch full profile:', err)
-          )
-        }
-
-        // Fetch and update user's NIP-65 relay list in background
-        updateRelaysFromNip65(eventData.pubkey).catch(err =>
-          console.warn('Failed to update relays from NIP-65:', err)
-        )
-
-        // Start listening for user events
-        startUserEventListener(eventData.pubkey)
-
-        console.log('✅ Login complete from nlAuth event!')
+    // Handle login/signup
+    if (eventType === 'login' || eventType === 'signup' || pubkey) {
+      // If same user is already loaded with profile, do nothing (handles page refresh)
+      if (currentUser.value?.pubkey === pubkey && currentUser.value?.profile?.picture) {
+        console.log('✅ User already loaded with profile, skipping')
         return
       }
 
-      // Fallback: wait for window.nostr if no pubkey in event
-      console.log('⏳ No pubkey in event, waiting for window.nostr...')
-      let attempts = 0
-      const maxAttempts = 20 // 2 seconds max
-      while ((!window.nostr || !window.nostr.getPublicKey) && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-        attempts++
+      // Get pubkey from event or window.nostr
+      let userPubkey = pubkey
+      if (!userPubkey && window.nostr?.getPublicKey) {
+        userPubkey = await window.nostr.getPublicKey()
       }
 
-      if (window.nostr && window.nostr.getPublicKey) {
-        console.log('✅ window.nostr ready after', attempts * 100, 'ms, restoring session...')
-        const success = await restoreSessionFromWindowNostr()
-        console.log('🔐 Session restore result:', success, 'currentUser:', currentUser.value?.npub)
-      } else {
-        console.error('❌ window.nostr not available after waiting')
+      if (!userPubkey) {
+        console.error('❌ No pubkey available')
+        return
       }
+
+      // Always fetch full profile from relays (simple and reliable)
+      console.log('📥 Fetching full profile from relays...')
+      await fetchAndStoreProfile(userPubkey)
+      // fetchAndStoreProfile sets currentUser and saves to storage
+
+      // Background tasks
+      updateRelaysFromNip65(userPubkey).catch(() => {})
+      startUserEventListener(userPubkey)
+
+      console.log('✅ Login complete:', currentUser.value?.profile?.name)
     }
   } catch (error) {
-    console.error('❌ Global auth error:', error)
+    console.error('❌ Auth error:', error)
     authError.value = error.message
   }
 }
