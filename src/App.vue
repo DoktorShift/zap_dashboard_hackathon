@@ -139,7 +139,7 @@ const {
 } = useNostrConnections()
 
 // Use the Nostr auth composable
-const { isAuthenticated } = useNostrAuth()
+const { isAuthenticated, login } = useNostrAuth()
 
 // Use the notifications composable
 const {
@@ -588,22 +588,11 @@ onMounted(async () => {
     showHelpModal.value = true
   }
 
-  // Check nostr-login availability
-  console.log('🔍 Checking nostr-login availability...')
-  const nostrLoginScript = document.querySelector('script[src*="nostr-login"]')
-  if (nostrLoginScript) {
-    console.log('✅ Nostr-login script found in DOM')
-  } else {
-    console.error('❌ Nostr-login script NOT found in DOM - login will not work!')
-  }
-
-  // Check if window.nostr is available (could be from extension or nostr-login)
+  // Check NIP-07 extension availability
   if (window.nostr) {
-    console.log('✅ window.nostr is available')
-    console.log('   - Has getPublicKey:', typeof window.nostr.getPublicKey === 'function')
-    console.log('   - Has signEvent:', typeof window.nostr.signEvent === 'function')
+    console.log('✅ NIP-07 extension detected')
   } else {
-    console.log('ℹ️ window.nostr not available yet (normal if no extension installed)')
+    console.log('ℹ️ No NIP-07 extension - user needs to install Alby, nos2x, or similar to login')
   }
 
   // Check authentication state
@@ -850,24 +839,36 @@ const handleHelpClose = () => {
   showHelpModal.value = false
 }
 
-const handleTriggerLogin = () => {
-  console.log('🚀 Triggering nostr-login widget from App...')
-  document.dispatchEvent(new Event('nlLaunch'))
+const showLoginError = (error) => {
+  if (error.message.includes('No Nostr extension')) {
+    alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+  } else {
+    alert('Login failed: ' + error.message)
+  }
 }
 
-const handleTriggerViewOnly = () => {
-  console.log('👁️ Triggering view-only mode from App...')
-  // Trigger nostr-login widget with readonly option
-  document.dispatchEvent(new Event('nlLaunch'))
+const handleTriggerLogin = async () => {
+  try {
+    await login()
+  } catch (error) {
+    showLoginError(error)
+  }
+}
+
+const handleTriggerViewOnly = async () => {
+  // View-only mode removed - now requires extension
+  await handleTriggerLogin()
 }
 
 // Onboarding checklist handlers
-const handleChecklistTaskAction = (action) => {
+const handleChecklistTaskAction = async (action) => {
   switch (action) {
     case 'connect-nostr':
-      // Trigger nostr-login widget
-      console.log('🚀 Triggering nostr-login widget from checklist...')
-      document.dispatchEvent(new Event('nlLaunch'))
+      try {
+        await login()
+      } catch (error) {
+        showLoginError(error)
+      }
       break
     case 'setup-profile':
       changePage('settings', 'nostr')

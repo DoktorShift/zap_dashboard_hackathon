@@ -16,9 +16,8 @@ const relayError = ref('')
 const NOSTR_USER_KEY = 'nostrUser'
 const NOSTR_RELAYS_KEY = 'nostrRelays'
 
-// Initialization guards to prevent multiple setups and race conditions
+// Initialization guard to prevent multiple setups
 let isInitialized = false
-let globalAuthListenerAdded = false
 
 // Default relays with proper configuration
 const DEFAULT_RELAYS = [
@@ -455,184 +454,74 @@ const startUserEventListener = (pubkey) => {
   }
 }
 
-// Check if nostr-login is available
-const checkNostrLoginAvailable = () => {
-  const checks = {
-    windowNostr: typeof window !== 'undefined' && 'nostr' in window,
-    hasNostrLoginScript: !!document.querySelector('script[src*="nostr-login"]'),
-    canDispatchEvents: typeof document !== 'undefined' && typeof CustomEvent !== 'undefined'
+// Login function - NIP-07 browser extension only
+const login = async () => {
+  console.log('🚀 Login with NIP-07 extension')
+
+  // Check if user is already logged in
+  if (isAuthenticated.value && currentUser.value) {
+    console.log('✅ User already logged in:', currentUser.value.npub)
+    return currentUser.value
   }
 
-  console.log('🔍 Nostr-login availability check:', checks)
-  return checks
-}
+  // Check for NIP-07 extension
+  if (!window.nostr) {
+    const error = 'No Nostr extension found. Please install Alby, nos2x, or another NIP-07 browser extension.'
+    console.error('❌', error)
+    authError.value = error
+    throw new Error(error)
+  }
 
-// Login function
-const login = () => {
-  return new Promise((resolve, reject) => {
-    console.log('🚀 Login function called')
-    isLoading.value = true
-    authError.value = ''
+  isLoading.value = true
+  authError.value = ''
 
-    // Check if user is already logged in
-    if (isAuthenticated.value && currentUser.value) {
-      console.log('✅ User already logged in:', currentUser.value.npub)
-      isLoading.value = false
-      resolve(currentUser.value)
-      return
-    }
+  try {
+    // Get public key from extension
+    console.log('🔑 Requesting public key from extension...')
+    const pubkey = await window.nostr.getPublicKey()
+    console.log('✅ Got pubkey:', pubkey.substring(0, 16) + '...')
 
-    // Check nostr-login availability
-    const availability = checkNostrLoginAvailable()
-    if (!availability.hasNostrLoginScript) {
-      console.error('❌ Nostr-login script not found in DOM')
-      authError.value = 'Nostr-login not properly loaded. Please refresh the page.'
-      isLoading.value = false
-      reject(new Error('Nostr-login script not loaded'))
-      return
-    }
-
-    console.log('📡 Setting up authentication flow...')
-
-    // Track timeout and interval for cleanup
-    let timeoutId = null
-    let progressInterval = null
-
-    // Listen for auth events
-    const handleAuth = async (event) => {
+    // Check if this user is already stored
+    const existingUser = localStorage.getItem(NOSTR_USER_KEY)
+    if (existingUser) {
       try {
-        console.log('🎉 Nostr auth event received:', {
-          type: event.type,
-          detail: event.detail,
-          hasWindowNostr: !!window.nostr
-        })
-
-        // Clear timeout and interval since we got a response
-        if (timeoutId) clearTimeout(timeoutId)
-        if (progressInterval) clearInterval(progressInterval)
-
-        if (window.nostr && window.nostr.getPublicKey) {
-          console.log('🔑 Fetching public key from window.nostr...')
-          const pubkey = await window.nostr.getPublicKey()
-          console.log('✅ Got pubkey from nostr:', pubkey.substring(0, 16) + '...')
-
-          // Check if this user is already stored
-          const existingUser = localStorage.getItem(NOSTR_USER_KEY)
-          if (existingUser) {
-            try {
-              const userData = JSON.parse(existingUser)
-              if (userData.pubkey === pubkey) {
-                console.log('♻️ User already exists, using stored data:', userData.npub)
-                currentUser.value = userData
-
-                // Start listening for user events
-                startUserEventListener(pubkey)
-
-                // Clean up event listener
-                document.removeEventListener('nlAuth', handleAuth)
-
-                console.log('✅ Authentication completed successfully!')
-                resolve(userData)
-                return
-              } else {
-                console.log('🔄 Different user detected, fetching new profile...')
-              }
-            } catch (error) {
-              console.warn('⚠️ Failed to parse existing user data:', error)
-            }
-          }
-
-          // Fetch and store profile for new user
-          console.log('📥 Fetching user profile...')
-          const userData = await fetchAndStoreProfile(pubkey)
-          console.log('✅ Profile fetched successfully:', userData.npub)
-
-          // Start listening for user events
+        const userData = JSON.parse(existingUser)
+        if (userData.pubkey === pubkey) {
+          console.log('♻️ Using stored profile:', userData.npub)
+          currentUser.value = userData
           startUserEventListener(pubkey)
-
-          // Clean up event listener
-          document.removeEventListener('nlAuth', handleAuth)
-
-          console.log('✅ Authentication completed successfully!')
-          resolve(userData)
-        } else {
-          console.error('❌ window.nostr not available or missing getPublicKey')
-          throw new Error('Nostr provider not available. Please connect using the nostr-login modal.')
+          updateRelaysFromNip65(pubkey).catch(() => {})
+          return userData
         }
-      } catch (error) {
-        console.error('❌ Auth error:', error)
-        authError.value = error.message
-
-        // Clean up timers
-        if (timeoutId) clearTimeout(timeoutId)
-        if (progressInterval) clearInterval(progressInterval)
-
-        document.removeEventListener('nlAuth', handleAuth)
-        reject(error)
-      } finally {
-        isLoading.value = false
+      } catch (e) {
+        console.warn('Failed to parse stored user:', e)
       }
     }
 
-    // Add event listener
-    console.log('👂 Adding nlAuth event listener...')
-    document.addEventListener('nlAuth', handleAuth)
+    // Fetch profile from relays
+    console.log('📥 Fetching profile from relays...')
+    const userData = await fetchAndStoreProfile(pubkey)
+    console.log('✅ Login complete:', userData.profile?.name || userData.npub)
 
-    // Dispatch login event
-    console.log('🚀 Dispatching nlLaunch event to trigger nostr-login modal...')
-    document.dispatchEvent(new Event('nlLaunch'))
+    // Background tasks
+    startUserEventListener(pubkey)
+    updateRelaysFromNip65(pubkey).catch(() => {})
 
-    // Log after a short delay to check if modal appeared
-    setTimeout(() => {
-      if (isLoading.value) {
-        console.log('⏳ Waiting for user to complete authentication in nostr-login modal...')
-        console.log('💡 Take your time! The app will wait for you to:')
-        console.log('   • Choose your authentication method')
-        console.log('   • Enter your credentials')
-        console.log('   • Complete the login process')
-        console.log('')
-        console.log('⚠️ If modal did not appear, check:')
-        console.log('   1. Browser console for nostr-login errors')
-        console.log('   2. If nostr-login CDN is accessible')
-        console.log('   3. If popup blockers are interfering')
-      }
-    }, 1000)
-
-    // Progress reminders every 30 seconds
-    progressInterval = setInterval(() => {
-      if (isLoading.value) {
-        console.log('⏳ Still waiting for authentication... Take your time!')
-      } else {
-        clearInterval(progressInterval)
-      }
-    }, 30000)
-
-    // Extended timeout - 5 minutes to give users plenty of time
-    const timeoutDuration = 300000 // 5 minutes (300 seconds)
-    timeoutId = setTimeout(() => {
-      if (isLoading.value) {
-        console.error(`⏰ Login timeout - no response after ${timeoutDuration / 60000} minutes`)
-        console.log('💡 This usually means:')
-        console.log('   • You closed the authentication modal')
-        console.log('   • The modal did not appear due to popup blocker')
-        console.log('   • You can try clicking "Connect Nostr" again')
-
-        clearInterval(progressInterval)
-        document.removeEventListener('nlAuth', handleAuth)
-        isLoading.value = false
-        authError.value = 'Authentication timed out. Please try again.'
-        reject(new Error('Login timeout'))
-      }
-    }, timeoutDuration)
-  })
+    return userData
+  } catch (error) {
+    console.error('❌ Login error:', error)
+    authError.value = error.message || 'Login failed'
+    throw error
+  } finally {
+    isLoading.value = false
+  }
 }
 
 // Logout function
 const logout = () => {
   try {
-    // Dispatch logout event
-    document.dispatchEvent(new Event('nlLogout'))
-    
+    console.log('👋 Logging out...')
+
     // Clear state (but preserve relays)
     currentUser.value = null
     authError.value = ''
@@ -678,9 +567,8 @@ const logout = () => {
     initializeNWC(null)
     nostrRelayManager.cleanup()
 
-    // Reset initialization flags for clean re-initialization after reload
+    // Reset initialization flag for clean re-initialization after reload
     isInitialized = false
-    globalAuthListenerAdded = false
 
     console.log('User logged out successfully')
     console.log('Preserved data: relays, campaigns, follow packs (will be restored on re-login)')
@@ -753,80 +641,17 @@ const restoreSessionFromWindowNostr = async () => {
   }
 }
 
-// Global auth handler - SIMPLE version
-// Principle: Trust localStorage for existing data, fetch from relays for new logins
-const handleGlobalAuth = async (event) => {
-  try {
-    const eventType = event.detail?.type || event.detail
-    const eventData = event.detail || {}
-    const pubkey = eventData.pubkey
-
-    console.log('🎉 nlAuth event:', eventType, pubkey ? pubkey.substring(0, 12) + '...' : 'no pubkey')
-
-    // Handle logout
-    if (eventType === 'logout') {
-      console.log('👋 Logout event')
-      currentUser.value = null
-      localStorage.removeItem(NOSTR_USER_KEY)
-      return
-    }
-
-    // Handle login/signup
-    if (eventType === 'login' || eventType === 'signup' || pubkey) {
-      // If same user is already loaded with profile, do nothing (handles page refresh)
-      if (currentUser.value?.pubkey === pubkey && currentUser.value?.profile?.picture) {
-        console.log('✅ User already loaded with profile, skipping')
-        return
-      }
-
-      // Get pubkey from event or window.nostr
-      let userPubkey = pubkey
-      if (!userPubkey && window.nostr?.getPublicKey) {
-        userPubkey = await window.nostr.getPublicKey()
-      }
-
-      if (!userPubkey) {
-        console.error('❌ No pubkey available')
-        return
-      }
-
-      // Always fetch full profile from relays (simple and reliable)
-      console.log('📥 Fetching full profile from relays...')
-      await fetchAndStoreProfile(userPubkey)
-      // fetchAndStoreProfile sets currentUser and saves to storage
-
-      // Background tasks
-      updateRelaysFromNip65(userPubkey).catch(() => {})
-      startUserEventListener(userPubkey)
-
-      console.log('✅ Login complete:', currentUser.value?.profile?.name)
-    }
-  } catch (error) {
-    console.error('❌ Auth error:', error)
-    authError.value = error.message
-  }
-}
-
-// Initialize auth and relays
+// Initialize auth and relays - simplified for NIP-07 only
 const initAuthAndRelays = async () => {
-  // Guard against multiple initializations (prevents duplicate event listeners and race conditions)
   if (isInitialized) {
     console.log('Auth already initialized, skipping...')
     return
   }
   isInitialized = true
-  console.log('Initializing Nostr auth and relays...')
+  console.log('🚀 Initializing Nostr auth and relays...')
 
   try {
-    // CRITICAL: Register nlAuth listener FIRST, before any async operations
-    // This ensures we catch login events from the sidebar widget even during relay initialization
-    if (!globalAuthListenerAdded) {
-      console.log('🎧 Adding global nlAuth event listener (early registration)...')
-      document.addEventListener('nlAuth', handleGlobalAuth)
-      globalAuthListenerAdded = true
-    }
-
-    // Load user from storage
+    // Load user from storage first
     const hasUser = loadUserFromStorage()
 
     // Load or initialize relays
@@ -836,7 +661,7 @@ const initAuthAndRelays = async () => {
       saveRelaysToStorage(userRelays.value)
     }
 
-    // Initialize relay manager with user relays (async operation)
+    // Initialize relay manager
     await nostrRelayManager.initialize(userRelays.value)
 
     // Set up relay manager event listeners
@@ -850,46 +675,29 @@ const initAuthAndRelays = async () => {
     // Sync initial statuses
     syncRelayStatuses()
 
-    // Check if window.nostr is already available (nostr-login restored session before init)
-    if (window.nostr && window.nostr.getPublicKey) {
-      console.log('🔑 window.nostr already available, attempting session restore...')
-      await restoreSessionFromWindowNostr()
-    } else {
-      // Wait for nostr-login to initialize and potentially restore session
-      console.log('⏳ window.nostr not ready, waiting for nostr-login to initialize...')
-
-      // Poll for window.nostr availability (nostr-login may take time to restore)
-      const waitForWindowNostr = () => {
-        return new Promise((resolve) => {
-          let attempts = 0
-          const maxAttempts = 30 // 3 seconds max
-          const checkInterval = setInterval(() => {
-            attempts++
-            if (window.nostr && window.nostr.getPublicKey) {
-              clearInterval(checkInterval)
-              console.log('✅ window.nostr became available after', attempts * 100, 'ms')
-              resolve(true)
-            } else if (attempts >= maxAttempts) {
-              clearInterval(checkInterval)
-              console.log('⏱️ window.nostr not available after waiting')
-              resolve(false)
-            }
-          }, 100)
-        })
+    // If user is stored and extension is available, verify/restore session
+    if (hasUser && window.nostr?.getPublicKey) {
+      console.log('🔑 Extension available, verifying session...')
+      try {
+        const pubkey = await window.nostr.getPublicKey()
+        if (currentUser.value?.pubkey === pubkey) {
+          console.log('✅ Session verified for:', currentUser.value.npub)
+          startUserEventListener(pubkey)
+          updateRelaysFromNip65(pubkey).catch(() => {})
+        } else {
+          console.log('🔄 Different user in extension, clearing stored user')
+          currentUser.value = null
+          localStorage.removeItem(NOSTR_USER_KEY)
+        }
+      } catch (e) {
+        console.log('ℹ️ Could not verify session (extension may need unlock)')
       }
-
-      const nostrAvailable = await waitForWindowNostr()
-      if (nostrAvailable) {
-        console.log('🔄 Attempting session restore after window.nostr became available...')
-        await restoreSessionFromWindowNostr()
-      } else if (hasUser) {
-        // IMPORTANT: Keep stored user - localStorage IS our persistence mechanism
-        // The user will be prompted to authenticate when signing is required
-        console.log('✅ Keeping stored user from localStorage (window.nostr not required for display)')
-      }
+    } else if (hasUser) {
+      // User stored but no extension - keep for display, login required for actions
+      console.log('ℹ️ User loaded from storage (extension needed for signing)')
     }
 
-    // If user exists and session was restored, start listening for their events
+    // Start event listener if user exists
     if (currentUser.value) {
       setTimeout(() => {
         startUserEventListener(currentUser.value.pubkey)
@@ -898,7 +706,6 @@ const initAuthAndRelays = async () => {
   } catch (error) {
     console.error('Failed to initialize auth and relays:', error)
     authError.value = 'Failed to initialize Nostr connection'
-    // Reset initialization flag on error so it can be retried
     isInitialized = false
   }
 }
