@@ -27,44 +27,16 @@
     <link rel="icon" type="image/png" href="/new_logo3.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Nostr Login Modal -->
-    <script
-      src="https://www.unpkg.com/nostr-login@latest/dist/unpkg.js"
-      data-dark-mode="true"
-      data-theme="default"
-      data-perms="sign_event:*,nip04_encrypt,nip04_decrypt,zap,pay_invoice,make_invoice,get_balance,list_transactions"
-      data-title="Welcome to ZapTracker!"
-      data-description="Connect your Nostr identity to access social features"
-      data-no-banner="false"
-      data-start-screen="welcome"
-      data-allow-local="true"
-      data-methods="connect,extension,local,readOnly"
-      data-bunkers="nsec.app,amber"
-      onload="console.log('✅ Nostr-login script loaded successfully')"
-      onerror="console.error('❌ Failed to load nostr-login from CDN')"
-    ></script>
-
-    <!-- Nostr-login initialization check -->
+    <!-- NIP-07 browser extension check -->
     <script>
       window.addEventListener('DOMContentLoaded', () => {
-        console.log('🔍 Checking nostr-login initialization...')
-        console.log('window.nostr available:', !!window.nostr)
-        console.log('Nostr-login script element:', !!document.querySelector('script[src*="nostr-login"]'))
-
-        // Listen for all nostr-login events for debugging
-        document.addEventListener('nlAuth', (e) => {
-          console.log('🎯 nlAuth event detected:', e.detail)
-        })
-
-        // Check if nostr-login initialized after a delay
         setTimeout(() => {
-          const nostrLoginLoaded = document.querySelector('script[src*="nostr-login"]')
-          if (nostrLoginLoaded) {
-            console.log('✅ Nostr-login appears to be loaded')
+          if (window.nostr) {
+            console.log('✅ NIP-07 extension detected')
           } else {
-            console.error('❌ Nostr-login script not found after page load')
+            console.log('ℹ️ No NIP-07 extension - install Alby, nos2x, or similar to login')
           }
-        }, 1000)
+        }, 500)
       })
     </script>
 

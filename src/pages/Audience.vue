@@ -249,6 +249,11 @@ const handleNostrLogin = async () => {
     await login()
   } catch (error) {
     console.error('Login failed:', error)
+    if (error.message.includes('No Nostr extension')) {
+      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+    } else {
+      alert('Login failed: ' + error.message)
+    }
   }
 }
 

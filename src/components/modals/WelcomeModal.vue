@@ -15,8 +15,11 @@ import {
   IconEye,
   IconLogin
 } from '@iconify-prerendered/vue-tabler'
+import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 
 const emit = defineEmits(['close', 'view-only'])
+
+const { login } = useNostrAuth()
 
 const currentSlide = ref(0)
 const totalSlides = 10
@@ -195,11 +198,19 @@ const handleSkip = () => {
   emit('close')
 }
 
-const handleGetStarted = () => {
+const handleGetStarted = async () => {
   markWelcomeSeen()
   emit('close')
-  setTimeout(() => {
-    document.dispatchEvent(new Event('nlLaunch'))
+  setTimeout(async () => {
+    try {
+      await login()
+    } catch (error) {
+      if (error.message.includes('No Nostr extension')) {
+        alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+      } else {
+        alert('Login failed: ' + error.message)
+      }
+    }
   }, 300)
 }
 

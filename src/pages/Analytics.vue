@@ -1,8 +1,24 @@
 <script setup>
 import { computed, inject, ref, onMounted } from 'vue'
 import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
+import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 
 const emit = defineEmits(['show-help'])
+
+const { login } = useNostrAuth()
+
+const handleConnectNostr = async () => {
+  try {
+    await login()
+  } catch (error) {
+    console.error('Login failed:', error.message)
+    if (error.message.includes('No Nostr extension')) {
+      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+    } else {
+      alert('Login failed: ' + error.message)
+    }
+  }
+}
 import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
 import * as nip19 from 'nostr-tools/nip19'
 import UserProfileModal from '../components/modals/UserProfileModal.vue'
@@ -637,7 +653,7 @@ const formatEngagementNumber = (num) => {
   <!-- Empty State - No Data -->
   <EmptyStateAnalytics
     v-if="analyticsData.length === 0 && !isAuthenticated"
-    @connect-nostr="() => document.dispatchEvent(new Event('nlLaunch'))"
+    @connect-nostr="handleConnectNostr"
     @show-help="$emit('show-help')"
     @go-to-content="$emit('change-page', 'content')"
   />

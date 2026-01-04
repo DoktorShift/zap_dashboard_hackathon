@@ -36,7 +36,7 @@ const currentPage = inject('currentPage')
 const emit = defineEmits(['show-connection', 'toggle-mobile-menu', 'change-page', 'show-help'])
 
 // Use Nostr authentication
-const { isAuthenticated, userProfile, currentUser, logout } = useNostrAuth()
+const { isAuthenticated, userProfile, currentUser, logout, login, authError } = useNostrAuth()
 
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
@@ -222,9 +222,17 @@ const handleRefresh = () => {
   }
 }
 
-const handleLoginClick = () => {
-  console.log('🚀 Triggering nostr-login widget from TopBar...')
-  document.dispatchEvent(new Event('nlLaunch'))
+const handleLoginClick = async () => {
+  try {
+    await login()
+  } catch (error) {
+    // Show user-friendly error message
+    if (error.message.includes('No Nostr extension')) {
+      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+    } else {
+      alert('Login failed: ' + error.message)
+    }
+  }
 }
 </script>
 
