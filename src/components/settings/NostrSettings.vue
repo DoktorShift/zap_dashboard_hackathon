@@ -184,6 +184,7 @@ const formatRelayUrl = (url) => {
 
 // Get user avatar
 const getUserAvatar = () => {
+  console.log('userProfile:', userProfile.value)
   return userProfile.value?.picture ||
          userProfile.value?.avatar ||
          generateAvatar(currentUser.value?.pubkey)
@@ -272,7 +273,7 @@ const toggleRelaySection = () => {
 
         <!-- Profile Content -->
         <div class="px-5 sm:px-6 pb-6">
-          <!-- Avatar & Name -->
+          <!-- 'Avatar & Name -->
           <div class="flex items-end justify-between -mt-10 sm:-mt-12 mb-4">
             <div class="relative">
               <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-white">
