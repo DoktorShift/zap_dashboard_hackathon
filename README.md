@@ -13,6 +13,15 @@ Zap Tracker revolutionizes how creators and users interact with Bitcoin Lightnin
 
 The platform serves as a central hub for Lightning Network payment management, offering real-time visibility into your Zap ecosystem. Users can monitor their complete payment history, track supporter engagement, and analyze performance metrics through intuitive visualizations.
 
+### Documentation
+
+| Document | Description |
+|----------|-------------|
+| [GUIDE.md](GUIDE.md) | Comprehensive user guide with step-by-step instructions |
+| [use_cases.md](use_cases.md) | Real-world scenarios for creators, merchants, communities |
+| [STRUCTURE.md](STRUCTURE.md) | Technical codebase organization for contributors |
+| [nip07.md](nip07.md) | NIP-07 browser extension specification |
+
 ### Getting Started
 A modern, real-time dashboard for managing and analyzing Lightning Network zaps (tips) with Nostr Wallet Connect integration.
 
@@ -68,6 +77,8 @@ npm run preview
 
 ## 🔌 Setup ZapTracker
 
+> **Need detailed instructions?** See the [complete setup guide](GUIDE.md#first-steps) for troubleshooting and tips.
+
 ### Get your NWC URL
 - Open your NWC Provider
 - Go to Settings → Connect Apps
@@ -113,6 +124,8 @@ npm run preview
 - QR code generation and scanning
 - Transaction history
 
+> Learn more about [wallet operations](GUIDE.md#wallet-operations) or see [merchant use cases](use_cases.md#merchants--freelancers).
+
 ![Wallet-NWC](https://github.com/user-attachments/assets/02f5c67e-6e5d-4c29-bcff-7aff2e60ef5f)
 
 ### Content Management
@@ -120,6 +133,8 @@ npm run preview
 - Track content performance and engagement
 - Content monetization with zaps
 - Content analytics and insights
+
+> See [use cases for content creators](use_cases.md#content-creators) for monetization strategies.
 
 ![Content Management](https://storage.googleapis.com/geyser-images-distribution-prod-us/bdc7adfe-fd7c-43d4-a348-30ffd5f3ad99_new_content_ui_2/image_large.webp)
 
@@ -132,12 +147,16 @@ npm run preview
 - Performance metrics and insights
 - Daily, weekly, and monthly activity views
 
+> Dive deeper into [analytics interpretation](GUIDE.md#analytics-deep-dive) for actionable insights.
+
 ![Analytics Dashboard](https://storage.googleapis.com/geyser-images-distribution-prod-us/5508d59f-4a20-466f-87a4-5a6c38063a5f_Analytics_new/image_large.webp)
 
 
 ### Audience
 - Build your community with [Follow Packs](https://github.com/callebtc/following.space)
 - Engage & grow your supporter base
+
+> Learn how to [build and curate Follow Lists](GUIDE.md#growing-your-audience) or see [community builder use cases](use_cases.md#community-builders).
 
 ![Audience](https://storage.googleapis.com/geyser-images-distribution-prod-us/cd595b5c-2807-46f4-91f7-f8e722cea04f_Audience_2/image_large.webp)
 [See Blog Post on Geyser](https://geyser.fund/project/zaptracker/posts/view/4926?hero=drshift)
@@ -146,11 +165,15 @@ npm run preview
 - Set funding goals like Kickstarter - but with Bitcoin zaps
 - Track progress, motivate supporters, unlock milestones
 
+> See how to [run successful campaigns](GUIDE.md#running-campaigns) or explore [event organizer](use_cases.md#event-organizers) and [open source funding](use_cases.md#open-source-developers) use cases.
+
 ![ZapGoals](https://storage.googleapis.com/geyser-images-distribution-prod-us/2069d1d6-edfb-4b78-b291-4de2b849c86a_sneak_peek_campaigns_4/image_large.webp)
 
 [See Blog Post on Geyser](https://geyser.fund/project/zaptracker/posts/view/4831?hero=drshift)
 
 ## 🤝 Contributing
+
+> **First time contributing?** Check out [STRUCTURE.md](STRUCTURE.md) to understand the codebase organization.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -167,13 +190,6 @@ npm run preview
 [//]: # (- Write meaningful commit messages)
 
 [//]: # (- Test thoroughly before submitting PRs)
-
-## 🙏 Acknowledgments
-
-- **Nostr Wallet Connect** - For the wallet connection protocol
-- **Alby** - For the Lightning wallet integration
-- **Vue.js** - For the amazing frontend framework
-- **Tailwind CSS** - For the utility-first CSS framework
 
 ## 📞 Support
 
