@@ -2,6 +2,8 @@
 
 This document describes the organization of the ZapTracker codebase to help contributors quickly find and understand where different parts of the application live.
 
+> **Looking for user documentation?** See [GUIDE.md](GUIDE.md) for usage instructions or [use_cases.md](use_cases.md) for real-world scenarios.
+
 ## Overview
 
 The project follows a feature-based organization pattern where related files are grouped together by domain/feature area rather than by file type. This makes it easier to find related code and understand feature boundaries.
@@ -306,3 +308,12 @@ When adding a new feature:
 ## Questions?
 
 If you're unsure where something belongs, look for similar existing features or ask in the project discussions.
+
+---
+
+## Related Documentation
+
+- [README.md](README.md) - Project overview and quick start
+- [GUIDE.md](GUIDE.md) - Comprehensive user guide
+- [use_cases.md](use_cases.md) - Real-world usage scenarios
+- [nip07.md](nip07.md) - NIP-07 browser extension specification
