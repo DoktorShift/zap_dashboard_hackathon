@@ -24,9 +24,7 @@ const {
   progress,
   rootEvent,
   leaderboard,
-  totalSats,
-  totalZapCount,
-  totalParticipants,
+  allZaps,
   replyCount,
   resolveContest,
   reset
@@ -37,6 +35,35 @@ const inputValue = ref('')
 const inputError = ref('')
 const expandedEntry = ref(null)
 const copiedPubkey = ref(null)
+
+// Filter: 'all' = post + comments, 'post-only' = only root post zaps
+const zapScope = ref('all')
+
+// Filtered leaderboard: re-aggregate from existing leaderboard based on scope
+const filteredLeaderboard = computed(() => {
+  if (zapScope.value === 'all') return leaderboard.value
+
+  const rootId = rootEvent.value?.id
+  if (!rootId) return leaderboard.value
+
+  const entries = []
+  for (const entry of leaderboard.value) {
+    const filtered = entry.zaps.filter(z => z.eventId === rootId)
+    if (filtered.length === 0) continue
+    entries.push({
+      ...entry,
+      zaps: filtered,
+      totalSats: filtered.reduce((sum, z) => sum + z.amount, 0),
+      zapCount: filtered.length
+    })
+  }
+  return entries.sort((a, b) => b.totalSats - a.totalSats)
+})
+
+// Filtered summary stats
+const totalSats = computed(() => filteredLeaderboard.value.reduce((sum, e) => sum + e.totalSats, 0))
+const totalZapCount = computed(() => filteredLeaderboard.value.reduce((sum, e) => sum + e.zapCount, 0))
+const totalParticipants = computed(() => filteredLeaderboard.value.length)
 
 // Parse user input into a hex event ID
 const parseEventInput = (input) => {
@@ -105,6 +132,7 @@ const handleReset = () => {
   inputValue.value = ''
   inputError.value = ''
   expandedEntry.value = null
+  zapScope.value = 'all'
   reset()
 }
 
@@ -155,6 +183,7 @@ const getMedal = (index) => {
 
 // Whether results are loaded
 const hasResults = computed(() => leaderboard.value.length > 0)
+const hasFilteredResults = computed(() => filteredLeaderboard.value.length > 0)
 const hasAttempted = computed(() => rootEvent.value !== null || error.value !== '')
 </script>
 
@@ -273,22 +302,53 @@ const hasAttempted = computed(() => rootEvent.value !== null || error.value !== 
 
       <!-- Leaderboard -->
       <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
           <h2 class="text-base font-semibold text-gray-900 flex items-center gap-2">
             <IconTrophy class="w-5 h-5 text-orange-500" />
             Leaderboard
           </h2>
-          <button
-            @click="handleReset"
-            class="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            New search
-          </button>
+          <div class="flex items-center gap-2">
+            <!-- Scope filter -->
+            <div class="flex items-center bg-gray-100 rounded-xl p-1">
+              <button
+                @click="zapScope = 'all'"
+                :class="[
+                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                  zapScope === 'all'
+                    ? 'bg-white text-orange-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                ]"
+              >
+                Post + Comments
+              </button>
+              <button
+                @click="zapScope = 'post-only'"
+                :class="[
+                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                  zapScope === 'post-only'
+                    ? 'bg-white text-orange-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                ]"
+              >
+                Post only
+              </button>
+            </div>
+            <button
+              @click="handleReset"
+              class="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              New search
+            </button>
+          </div>
         </div>
 
-        <div class="divide-y divide-gray-100">
+        <div v-if="!hasFilteredResults" class="px-6 py-12 text-center">
+          <p class="text-sm text-gray-500">No zaps match this filter.</p>
+        </div>
+
+        <div v-else class="divide-y divide-gray-100">
           <div
-            v-for="(entry, index) in leaderboard"
+            v-for="(entry, index) in filteredLeaderboard"
             :key="entry.pubkey"
           >
             <!-- Main Row -->
