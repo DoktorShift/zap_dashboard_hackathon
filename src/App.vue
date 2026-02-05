@@ -31,6 +31,7 @@ import { useNotifications } from './composables/core/useNotifications.js'
 import { nostrRelayManager } from './utils/network/nostrRelayManager.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
 import Calendar from './pages/Calendar.vue'
+import ContestResolver from './pages/ContestResolver.vue'
 import WelcomeModal from './components/modals/WelcomeModal.vue'
 import HelpModal from './components/modals/HelpModal.vue'
 
@@ -442,7 +443,8 @@ const components = {
   settings: Settings,
   'invoice-share': InvoiceShare,
   notes: Notes,
-  calendar: Calendar
+  calendar: Calendar,
+  contest: ContestResolver
 }
 
 // Check if current page is standalone

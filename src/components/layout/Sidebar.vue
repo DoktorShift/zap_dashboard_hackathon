@@ -19,7 +19,8 @@ import {
   IconCoins,
   IconSparkles,
   IconVideo,
-  IconMessageCircle
+  IconMessageCircle,
+  IconTrophy
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -49,7 +50,7 @@ const totalSats = computed(() => {
 
 const checkAndOpenParentMenu = () => {
   const dashboardPages = ['dashboard', 'lightning-explorer']
-  const studioPages = ['content', 'notes', 'campaigns']
+  const studioPages = ['content', 'notes', 'campaigns', 'contest']
   const audiencePages = ['audience', 'chat-zaps']
 
   if (dashboardPages.includes(currentPage.value)) {
@@ -91,7 +92,8 @@ const menuItems = [
     submenuItems: [
       { id: 'content', label: 'Content', icon: IconFileText },
       { id: 'notes', label: 'Notes', icon: IconEdit },
-      { id: 'campaigns', label: 'Campaigns', icon: IconTarget }
+      { id: 'campaigns', label: 'Campaigns', icon: IconTarget },
+      { id: 'contest', label: 'Contest', icon: IconTrophy }
     ]
   },
   {
