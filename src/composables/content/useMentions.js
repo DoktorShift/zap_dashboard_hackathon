@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { fetchProfile } from '../../utils/profile/profileFetcher.js'
 
 // Cache for user search results
 const searchCache = new Map() // key: query, value: { results, timestamp }
@@ -38,7 +39,6 @@ export function useMentions() {
     }
     
     try {
-      console.log('Fetching contact list for mention suggestions...')
       
       const contactEvent = await nostrRelayManager.getEvent({
         kinds: [3], // Contact list (NIP-02)
@@ -47,7 +47,6 @@ export function useMentions() {
       })
       
       if (!contactEvent) {
-        console.log('No contact list found')
         return []
       }
       
@@ -61,7 +60,6 @@ export function useMentions() {
           isContact: true
         }))
       
-      console.log(`Found ${contacts.length} contacts for mention suggestions`)
       
       // Fetch profiles for contacts
       const contactsWithProfiles = await Promise.all(
@@ -91,29 +89,20 @@ export function useMentions() {
   }
   
   /**
-   * Fetch a single user profile
+   * Fetch a single user profile using shared profileFetcher
    */
   const fetchUserProfile = async (pubkey) => {
     try {
-      const profileEvent = await nostrRelayManager.getEvent({
-        kinds: [0], // Profile metadata
-        authors: [pubkey],
-        limit: 1
-      })
-      
-      if (profileEvent && profileEvent.content) {
-        const metadata = JSON.parse(profileEvent.content)
-        return {
-          pubkey,
-          name: metadata.name || '',
-          displayName: metadata.display_name || metadata.name || '',
-          nip05: metadata.nip05 || '',
-          picture: metadata.picture || '',
-          about: metadata.about || ''
-        }
+      const profile = await fetchProfile(pubkey)
+      if (!profile) return { pubkey }
+      return {
+        pubkey,
+        name: profile.name || '',
+        displayName: profile.display_name || profile.name || '',
+        nip05: profile.nip05 || '',
+        picture: profile.picture || '',
+        about: profile.about || ''
       }
-      
-      return { pubkey }
     } catch (error) {
       console.warn('Failed to fetch profile for', pubkey.substring(0, 8), error)
       return { pubkey }
@@ -139,7 +128,6 @@ export function useMentions() {
     const cacheKey = `${query.toLowerCase()}_${limit}`
     const cached = searchCache.get(cacheKey)
     if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-      console.log('Using cached search results for:', query)
       searchResults.value = cached.results
       return cached.results
     }
@@ -210,17 +198,6 @@ export function useMentions() {
         }
       }
       
-      // 4. Fallback: Search profiles by name/nip05
-      if (results.length < limit) {
-        const profileResults = await searchProfiles(query, limit - results.length)
-        profileResults.forEach(result => {
-          if (!seenPubkeys.has(result.pubkey)) {
-            results.push(result)
-            seenPubkeys.add(result.pubkey)
-          }
-        })
-      }
-      
       // Cache the results
       searchCache.set(`${query.toLowerCase()}_${limit}`, {
         results,
@@ -262,12 +239,9 @@ export function useMentions() {
         pubkey = query.toLowerCase()
       }
       
-      // Try as nip-05 identifier
+      // NIP-05 identifiers require HTTP verification (not yet implemented)
       if (!pubkey && query.includes('@')) {
-        // For nip-05, we'd need to do HTTP verification
-        // For now, we'll just search profiles with this nip-05
-        const profiles = await searchProfiles(query, 1)
-        return profiles[0] || null
+        return null
       }
       
       // If we found a pubkey, fetch the profile
@@ -291,7 +265,6 @@ export function useMentions() {
    */
   const searchWithNIP50 = async (query, limit) => {
     try {
-      console.log('Trying NIP-50 search for:', query)
       
       const events = []
       
@@ -335,70 +308,10 @@ export function useMentions() {
         }
       }).filter(Boolean)
       
-      console.log(`NIP-50 search found ${profiles.length} results`)
       return profiles
       
     } catch (error) {
       console.warn('NIP-50 search error:', error)
-      return []
-    }
-  }
-  
-  /**
-   * Fallback: Search profiles by fetching kind:0 events and filtering client-side
-   */
-  const searchProfiles = async (query, limit) => {
-    try {
-      console.log('Searching profiles (fallback) for:', query)
-      
-      const events = []
-      const q = query.toLowerCase()
-      
-      // Fetch recent profile events
-      const sub = nostrRelayManager.subscribeToEvents([{
-        kinds: [0], // Profile metadata
-        limit: 100 // Fetch more to filter client-side
-      }], {
-        onevent: (event) => {
-          try {
-            const metadata = JSON.parse(event.content)
-            const name = (metadata.name || '').toLowerCase()
-            const displayName = (metadata.display_name || '').toLowerCase()
-            const nip05 = (metadata.nip05 || '').toLowerCase()
-            
-            // Check if matches query
-            if (name.includes(q) || displayName.includes(q) || nip05.includes(q)) {
-              events.push({
-                pubkey: event.pubkey,
-                name: metadata.name || '',
-                displayName: metadata.display_name || metadata.name || '',
-                nip05: metadata.nip05 || '',
-                picture: metadata.picture || '',
-                about: metadata.about || ''
-              })
-            }
-          } catch (err) {
-            // Invalid JSON, skip
-          }
-        },
-        oneose: () => {
-          sub.close()
-        }
-      })
-      
-      // Wait for results with timeout
-      await new Promise((resolve) => {
-        setTimeout(() => {
-          sub.close()
-          resolve()
-        }, 3000) // 3 second timeout
-      })
-      
-      console.log(`Profile search found ${events.length} results`)
-      return events.slice(0, limit)
-      
-    } catch (error) {
-      console.warn('Profile search error:', error)
       return []
     }
   }
