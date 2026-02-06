@@ -580,6 +580,12 @@ class NostrRelayManager {
     }
   }
 
+  // Clear cached getEvent result for given filters
+  clearEventCache(filters) {
+    const cacheKey = JSON.stringify(filters)
+    this._eventCache.delete(cacheKey)
+  }
+
   // Start health check monitoring
   startHealthCheck() {
     if (this.healthCheckTimer) {

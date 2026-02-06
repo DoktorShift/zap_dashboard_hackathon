@@ -193,8 +193,7 @@ export function useAudience() {
 
           following.value = followingPubkeys
           
-          // Fetch profiles for all following users (use shared fetch + batch)
-          followingPubkeys.forEach(pk => fetchProfileSynced(pk).catch(() => {}))
+          // Fetch profiles for all following users in batch
           batchFetchProfiles(followingPubkeys)
 
           syncStatus.value = 'idle'
@@ -488,10 +487,12 @@ export function useAudience() {
   onUnmounted(() => { if (followingSubscription) followingSubscription.close(); if (followersSubscription) followersSubscription.close(); profileSubscriptions.forEach(sub => sub.close()) })
 
   return {
+    // Spread followLists first so our wrappers below override followEntirePack/followSelectedMembers
+    ...followLists,
     following, followers, profiles, isLoading, error, syncStatus,
     followUser, unfollowUser, searchProfiles, searchLists, refreshFollowing, refreshFollowers,
     getProfile, isFollowing, getMutualFollows, getFollowersCount, getFollowingCount,
     fetchProfile: fetchProfileSynced, generateAvatar,
-    ...followLists
+    followEntirePack, followSelectedMembers
   }
 }
