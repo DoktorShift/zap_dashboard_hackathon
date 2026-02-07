@@ -32,6 +32,7 @@ import { useNostrConnections } from './composables/core/useNostrConnections.js'
 import { useNotifications } from './composables/core/useNotifications.js'
 import { nostrRelayManager } from './utils/network/nostrRelayManager.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
+import { startRefreshCycle, stopRefreshCycle } from './utils/refreshCycle.js'
 import Calendar from './pages/Calendar.vue'
 import ContestResolver from './pages/ContestResolver.vue'
 import WelcomeModal from './components/modals/WelcomeModal.vue'
@@ -110,9 +111,9 @@ const { initializeZapTracking } = useContentZaps()
 // Use the user zaps composable for #p-based zap subscription
 const { userZaps } = useUserZaps()
 
-// Initialize notes and zaps tracking early
-const { notes, fetchUserNotes } = useNostrNotes()
-const { fetchUserLongFormContent } = useNostrLongForm()
+// Initialize notes tracking early (composable self-registers with refresh cycle)
+const { notes } = useNostrNotes()
+useNostrLongForm() // triggers composable initialization + refresh registration
 
 // Global state
 const zapData = ref([])
@@ -481,16 +482,20 @@ onMounted(async () => {
     showHelpModal.value = true
   }
 
+  // useNostrAuth handles primary relay initialization with user relays.
+  // Fallback: ensure relays are initialized even if auth init fails.
   try {
-    await nostrRelayManager.initialize()
-
-    if (isWalletConnected.value) {
-      setTimeout(() => {
-        initializeZapTracking()
-      }, 2000)
+    if (!nostrRelayManager.isInitialized) {
+      await nostrRelayManager.initialize()
     }
   } catch (error) {
     console.error('Failed to initialize relay manager:', error)
+  }
+
+  if (isWalletConnected.value) {
+    nostrRelayManager.ready().then(() => {
+      initializeZapTracking()
+    })
   }
 
   // Check URL parameters for page navigation
@@ -508,6 +513,7 @@ onMounted(async () => {
   }
 
   startPeriodicHealthCheck()
+  startRefreshCycle()
 })
 
 // Periodic health check and data refresh
@@ -538,14 +544,6 @@ const startPeriodicHealthCheck = () => {
         }
 
         initializeZapTracking()
-
-        fetchUserNotes().catch(err => {
-          console.error('Failed to fetch notes:', err)
-        })
-
-        fetchUserLongFormContent().catch(err => {
-          console.error('Failed to fetch long-form content:', err)
-        })
       }
     }
   }, 120000) // 2 minutes
@@ -556,6 +554,7 @@ onUnmounted(() => {
   if (healthCheckInterval) {
     clearInterval(healthCheckInterval)
   }
+  stopRefreshCycle()
 })
 
 // Watch for transaction notifications and auto-refresh

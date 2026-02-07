@@ -1,4 +1,4 @@
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { subscribe } from '../../utils/network/subscribe.js'
@@ -127,8 +127,6 @@ export function useUserZaps() {
     if (auth) startTracking()
     else stopTracking()
   }, { immediate: true })
-
-  onUnmounted(() => stopTracking())
 
   return {
     userZaps: computed(() => userZaps.value),

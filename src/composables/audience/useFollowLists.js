@@ -1,4 +1,4 @@
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
@@ -130,26 +130,13 @@ try {
 
 // Background refresh: once relay manager is initialized, refresh profiles for cached members
 const _startBackgroundRefresh = async () => {
-  // collect all member pubkeys from cached lists
   const memberPubkeys = new Set()
   myLists.value.forEach(list => (list.members || []).forEach(pk => pk && memberPubkeys.add(pk)))
   discoveredLists.value.forEach(list => (list.members || []).forEach(pk => pk && memberPubkeys.add(pk)))
   const pubkeys = Array.from(memberPubkeys)
   if (pubkeys.length === 0) return
 
-  // wait for relay manager init with timeout
-  const waitForInit = () => new Promise(resolve => {
-    if (nostrRelayManager.isInitialized) return resolve()
-    const check = setInterval(() => {
-      if (nostrRelayManager.isInitialized) {
-        clearInterval(check)
-        resolve()
-      }
-    }, 200)
-    setTimeout(() => { clearInterval(check); resolve() }, 15000)
-  })
-
-  await waitForInit()
+  await nostrRelayManager.ready()
   try {
     // batch fetch profiles in background
     batchFetchProfiles(pubkeys)
@@ -180,19 +167,7 @@ export function useFollowLists() {
       return
     }
 
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, waiting...')
-      await new Promise((resolve) => {
-        const checkInit = () => {
-          if (nostrRelayManager.isInitialized) {
-            resolve()
-          } else {
-            setTimeout(checkInit, 100)
-          }
-        }
-        checkInit()
-      })
-    }
+    await nostrRelayManager.ready()
 
     isLoading.value = true
     error.value = ''
@@ -283,10 +258,7 @@ export function useFollowLists() {
 
   // Discover public follow lists from the network
   const discoverLists = async (searchQuery = '', limit = 50) => {
-    if (!nostrRelayManager.isInitialized) {
-      console.log('Relay manager not initialized, cannot discover lists')
-      return
-    }
+    await nostrRelayManager.ready()
 
     isLoading.value = true
     error.value = ''
@@ -947,13 +919,6 @@ export function useFollowLists() {
       }
     }
   }, { immediate: true })
-
-  // Cleanup on unmount
-  onUnmounted(() => {
-    if (myListsSubscription) myListsSubscription.close()
-    if (discoveredListsSubscription) discoveredListsSubscription.close()
-    profileSubscriptions.forEach(sub => sub.close())
-  })
 
   return {
     // State

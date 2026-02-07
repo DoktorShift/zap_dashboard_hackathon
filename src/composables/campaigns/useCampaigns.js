@@ -1,6 +1,7 @@
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import { verifyEvent } from 'nostr-tools/pure'
 import { useNotifications } from '../core/useNotifications.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
@@ -836,9 +837,12 @@ export function useCampaigns() {
 
       await fetchUserCampaigns()
       await startCampaignZapAggregation()
+
+      registerRefresh('campaigns', () => fetchUserCampaigns())
     } else {
       userCampaigns.value = []
       stopCampaignZapAggregation()
+      unregisterRefresh('campaigns')
     }
   })
 
@@ -851,11 +855,6 @@ export function useCampaigns() {
 
   // Save campaigns to storage on changes
   watch(userCampaigns, saveCampaignsToStorage, { deep: true })
-
-  // Cleanup on unmount
-  onUnmounted(() => {
-    stopCampaignZapAggregation()
-  })
 
   return {
     // State

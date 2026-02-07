@@ -1,9 +1,10 @@
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { useNotifications } from '../core/useNotifications.js'
-import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 
 // NIP-52 Calendar Event Kinds
 const CALENDAR_EVENT_KINDS = {
@@ -177,10 +178,7 @@ export function useNostrCalendar() {
       return
     }
 
-    if (!nostrRelayManager.isInitialized) {
-      error.value = 'Relay manager not initialized'
-      return
-    }
+    await nostrRelayManager.ready()
 
     isLoading.value = true
     error.value = ''
@@ -687,9 +685,7 @@ export function useNostrCalendar() {
       return
     }
 
-    if (!nostrRelayManager.isInitialized) {
-      return
-    }
+    await nostrRelayManager.ready()
 
     try {
 
@@ -729,12 +725,20 @@ export function useNostrCalendar() {
         }
       }
 
+      // Close previous RSVP subscription before opening a new one
+      if (rsvpSubscription) {
+        rsvpSubscription.close()
+        rsvpSubscription = null
+      }
+
+      const rsvpPubkeysToFetch = new Set()
+
       rsvpSubscription = nostrRelayManager.subscribeToEvents(filters, {
         onevent: async (event) => {
           if (processedRsvpIds.has(event.id)) {
             return
           }
-          
+
           processedRsvpIds.add(event.id)
           
           // Parse RSVP data
@@ -768,24 +772,24 @@ export function useNostrCalendar() {
           if (aTag && statusValue) {
             const [eventKind, eventAuthor, eventId] = aTag[1].split(':')
 
-            // Fetch user profile for RSVP author
-            const profile = await fetchUserProfile(event.pubkey)
-            
+            // Queue pubkey for batch profile fetch after EOSE
+            rsvpPubkeysToFetch.add(event.pubkey)
+
             const rsvpData = {
               id: event.id,
               eventId,
               eventKind: parseInt(eventKind),
               eventAuthor,
               pubkey: event.pubkey,
-              name: profile?.name,
-              picture: profile?.picture,
-              nip05: profile?.nip05,
+              name: null,
+              picture: null,
+              nip05: null,
               status: statusValue,
               freebusy: freebusyValue,
               note: event.content,
               created_at: event.created_at
             }
-            
+
             const existingIndex = rsvps.value.findIndex(r => r.id === event.id)
             if (existingIndex === -1) {
               rsvps.value.push(rsvpData)
@@ -795,6 +799,21 @@ export function useNostrCalendar() {
           }
         },
         oneose: () => {
+          // Batch fetch all RSVP author profiles, then enrich
+          if (rsvpPubkeysToFetch.size > 0) {
+            const pubkeys = Array.from(rsvpPubkeysToFetch)
+            batchFetchProfiles(pubkeys).then(() => {
+              // Enrich RSVP entries with fetched profiles
+              rsvps.value.forEach((rsvp, i) => {
+                const cached = profileCache.get(rsvp.pubkey)
+                if (cached?.profile) {
+                  rsvps.value[i] = { ...rsvp, name: cached.profile.name, picture: cached.profile.picture, nip05: cached.profile.nip05 }
+                }
+              })
+            }).catch(() => {})
+          }
+          // Close subscription after grace period
+          setTimeout(() => { rsvpSubscription?.close() }, 3000)
         }
       })
 
@@ -863,19 +882,14 @@ export function useNostrCalendar() {
         }
         processedEventIds.clear()
         
-        const initializeEvents = () => {
-          if (nostrRelayManager.isInitialized) {
-            fetchCalendarEvents()
-          } else {
-            const handleInitialized = () => {
-              fetchCalendarEvents()
-              nostrRelayManager.removeEventListener('initialized', handleInitialized)
-            }
-            nostrRelayManager.addEventListener('initialized', handleInitialized)
-          }
-        }
-        
-        initializeEvents()
+        // fetchCalendarEvents already awaits ready() internally
+        fetchCalendarEvents()
+
+        registerRefresh('calendar', async () => {
+          if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
+          processedEventIds.clear()
+          await fetchCalendarEvents()
+        })
       }
     } else {
       if (currentSubscription) {
@@ -884,6 +898,7 @@ export function useNostrCalendar() {
       }
       processedEventIds.clear()
       events.value = []
+      unregisterRefresh('calendar')
     }
   }, { immediate: true })
 
@@ -892,11 +907,6 @@ export function useNostrCalendar() {
     if (isAuthenticated.value) {
       startEventMonitoring(() => events.value)
     }
-  })
-
-  // Stop event monitoring on unmount
-  onUnmounted(() => {
-    stopEventMonitoring()
   })
 
   // Watch authentication status to start/stop monitoring

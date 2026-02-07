@@ -1,4 +1,4 @@
-import { ref, reactive, computed, watch, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useNotifications } from '../core/useNotifications.js'
@@ -8,9 +8,14 @@ import { fetchProfile } from '../../utils/profile/profileFetcher.js'
 
 // Global state for content zaps
 const contentZaps = reactive(new Map()) // Map<eventId, zap[]>
-const activeSubscriptions = reactive(new Map()) // Map<eventId, subscription>
 const isTrackingZaps = ref(false)
-const allZapEvents = ref([]) // Store all zap events for reference
+
+// Batched subscription state (module-scoped)
+const trackedEventIds = new Set()
+let batchedSubscription = null
+let resubscribeTimer = null
+const RESUBSCRIBE_DEBOUNCE = 1000 // 1s debounce before resubscribing
+const CHUNK_SIZE = 50 // Max event IDs per filter
 
 // Create enriched zap data from a raw zap event using shared utilities
 const createZapData = async (zapEvent) => {
@@ -53,6 +58,82 @@ const createZapData = async (zapEvent) => {
   }
 }
 
+// Open a single batched subscription for all tracked event IDs
+const openBatchedSubscription = (getNotificationHandler) => {
+  // Close existing subscription
+  if (batchedSubscription) {
+    batchedSubscription.close()
+    batchedSubscription = null
+  }
+
+  if (trackedEventIds.size === 0) {
+    isTrackingZaps.value = false
+    return
+  }
+
+  const allIds = Array.from(trackedEventIds)
+
+  // Chunk event IDs into groups of CHUNK_SIZE to avoid oversized filters
+  const filters = []
+  for (let i = 0; i < allIds.length; i += CHUNK_SIZE) {
+    filters.push({
+      kinds: [9735],
+      '#e': allIds.slice(i, i + CHUNK_SIZE),
+      limit: 100
+    })
+  }
+
+  try {
+    batchedSubscription = nostrRelayManager.subscribeToEvents(filters, {
+      onevent: async (zapEvent) => {
+        const zapData = await createZapData(zapEvent)
+        if (!zapData || !zapData.eventId) return
+
+        // Route zap to the correct eventId bucket via the zap's #e tag
+        const eventId = zapData.eventId
+        if (!trackedEventIds.has(eventId)) return
+
+        if (!contentZaps.has(eventId)) {
+          contentZaps.set(eventId, [])
+        }
+
+        const existingZaps = contentZaps.get(eventId)
+        const exists = existingZaps.find(zap => zap.id === zapData.id)
+        if (!exists) {
+          existingZaps.unshift(zapData)
+          contentZaps.set(eventId, existingZaps)
+
+          // Trigger notification
+          try {
+            const handler = getNotificationHandler()
+            if (handler) handler(zapData)
+          } catch (err) {
+            console.warn('Failed to trigger notification:', err)
+          }
+        }
+      },
+      oneose: () => {},
+      onclose: () => {
+        batchedSubscription = null
+      }
+    })
+
+    isTrackingZaps.value = true
+    console.log(`[contentZaps] Batched subscription opened for ${allIds.length} event IDs`)
+  } catch (error) {
+    console.error('[contentZaps] Failed to open batched subscription:', error)
+  }
+}
+
+// Debounced resubscribe — coalesces rapid add/remove calls
+const scheduleResubscribe = (getNotificationHandler) => {
+  if (resubscribeTimer) clearTimeout(resubscribeTimer)
+  resubscribeTimer = setTimeout(() => {
+    resubscribeTimer = null
+    openBatchedSubscription(getNotificationHandler)
+  }, RESUBSCRIBE_DEBOUNCE)
+}
+
 export function useContentZaps() {
   const { isAuthenticated, currentUser } = useNostrAuth()
 
@@ -69,14 +150,11 @@ export function useContentZaps() {
   // Initialize zap tracking for all published content
   const initializeZapTracking = async () => {
     try {
-      // Get all content items from localStorage
       const contentStorageKey = 'user_content_items'
       const storedContent = localStorage.getItem(contentStorageKey)
 
       if (storedContent) {
         const contentItems = JSON.parse(storedContent)
-
-        // Filter for published content with Nostr event IDs
         const publishedContent = contentItems.filter(item =>
           item.status === 'published' && item.nostrEventId
         )
@@ -93,79 +171,34 @@ export function useContentZaps() {
 
   // Start tracking zaps for a specific content item
   const startZapTracking = async (eventId) => {
-    if (!eventId || activeSubscriptions.has(eventId)) {
-      return
+    if (!eventId || trackedEventIds.has(eventId)) return
+
+    if (!contentZaps.has(eventId)) {
+      contentZaps.set(eventId, [])
     }
 
-    try {
-      // Initialize zaps array for this content if not exists
-      if (!contentZaps.has(eventId)) {
-        contentZaps.set(eventId, [])
-      }
-
-      // Subscribe to zap receipts (kind 9735) for this specific event
-      const subscription = nostrRelayManager.subscribeToEvents([
-        {
-          kinds: [9735], // Zap receipts
-          "#e": [eventId], // Events that reference our content
-          limit: 100
-        }
-      ], {
-        onevent: async (zapEvent) => {
-          const zapData = await createZapData(zapEvent)
-          if (zapData) {
-            const existingZaps = contentZaps.get(eventId) || []
-
-            // Store the zap event for reference
-            allZapEvents.value.push(zapEvent)
-
-            // Check if we already have this zap (avoid duplicates)
-            const exists = existingZaps.find(zap => zap.id === zapData.id)
-            if (!exists) {
-              existingZaps.unshift(zapData) // Add to beginning (newest first)
-              contentZaps.set(eventId, existingZaps)
-
-              // Trigger notification for new zap receipt
-              try {
-                const handler = getNotificationHandler()
-                if (handler) {
-                  handler(zapData)
-                }
-              } catch (err) {
-                console.warn('Failed to trigger notification:', err)
-              }
-            }
-          }
-        },
-        oneose: () => {},
-        onclose: (reason) => {
-          activeSubscriptions.delete(eventId)
-        }
-      })
-
-      activeSubscriptions.set(eventId, subscription)
-      isTrackingZaps.value = true
-
-    } catch (error) {
-      console.error(`Failed to start zap tracking for ${eventId}:`, error)
-    }
+    trackedEventIds.add(eventId)
+    scheduleResubscribe(getNotificationHandler)
   }
 
   // Stop tracking zaps for a specific content item
   const stopZapTracking = (eventId) => {
-    const subscription = activeSubscriptions.get(eventId)
-    if (subscription) {
-      subscription.close()
-      activeSubscriptions.delete(eventId)
-    }
+    if (!trackedEventIds.has(eventId)) return
+    trackedEventIds.delete(eventId)
+    scheduleResubscribe(getNotificationHandler)
   }
 
   // Stop all zap tracking
   const stopAllZapTracking = () => {
-    activeSubscriptions.forEach((subscription, eventId) => {
-      subscription.close()
-    })
-    activeSubscriptions.clear()
+    if (resubscribeTimer) {
+      clearTimeout(resubscribeTimer)
+      resubscribeTimer = null
+    }
+    if (batchedSubscription) {
+      batchedSubscription.close()
+      batchedSubscription = null
+    }
+    trackedEventIds.clear()
     isTrackingZaps.value = false
   }
 
@@ -200,8 +233,18 @@ export function useContentZaps() {
 
   // Track zaps for multiple content items
   const trackMultipleContent = async (eventIds) => {
-    const promises = eventIds.map(eventId => startZapTracking(eventId))
-    await Promise.allSettled(promises)
+    let added = false
+    for (const eventId of eventIds) {
+      if (!eventId || trackedEventIds.has(eventId)) continue
+      if (!contentZaps.has(eventId)) {
+        contentZaps.set(eventId, [])
+      }
+      trackedEventIds.add(eventId)
+      added = true
+    }
+    if (added) {
+      scheduleResubscribe(getNotificationHandler)
+    }
   }
 
   // Clear zaps for a content item
@@ -210,17 +253,15 @@ export function useContentZaps() {
     stopZapTracking(eventId)
   }
 
-  // Cleanup on unmount
-  onUnmounted(() => {
-    stopAllZapTracking()
+  // Cleanup on auth change
+  watch(isAuthenticated, (auth) => {
+    if (!auth) stopAllZapTracking()
   })
 
   return {
     // State
     contentZaps: computed(() => contentZaps),
     isTrackingZaps,
-    activeSubscriptions: computed(() => activeSubscriptions),
-    allZapEvents: computed(() => allZapEvents.value),
 
     // Actions
     startZapTracking,

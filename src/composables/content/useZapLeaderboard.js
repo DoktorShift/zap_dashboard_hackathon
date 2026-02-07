@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
+import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { subscribe } from '../../utils/network/subscribe.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
 import { batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
