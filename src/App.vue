@@ -37,7 +37,29 @@ import Calendar from './pages/Calendar.vue'
 import ContestResolver from './pages/ContestResolver.vue'
 import WelcomeModal from './components/modals/WelcomeModal.vue'
 import HelpModal from './components/modals/HelpModal.vue'
+import AppLoader from './components/layout/AppLoader.vue'
 
+// App loading gate
+const appReady = ref(false)
+const loadingPhase = ref('session')
+
+// Read stored user for loading screen
+const storedUserRaw = localStorage.getItem('nostrUser')
+const hasStoredUser = !!storedUserRaw
+const storedUserName = ref('')
+const storedUserAvatar = ref('')
+if (storedUserRaw) {
+  try {
+    const parsed = JSON.parse(storedUserRaw)
+    storedUserName.value = parsed.profile?.display_name || parsed.profile?.name || ''
+    storedUserAvatar.value = parsed.profile?.picture || ''
+  } catch (e) { /* ignore parse errors */ }
+}
+
+// If no stored user, show app immediately (new user)
+if (!hasStoredUser) {
+  appReady.value = true
+}
 
 // UI state for dismissible banners
 const showLargeDatasetBanner = ref(true)
@@ -476,10 +498,38 @@ watch(activeConnection, async (newConnection, oldConnection) => {
 
 // Enhanced initialization
 onMounted(async () => {
+  // Hard timeout — always show app after 15s regardless of loading state
+  const hardTimeout = setTimeout(() => { appReady.value = true }, 15000)
+
+  // Check URL parameters for page navigation (do this early)
+  const urlParams = new URLSearchParams(window.location.search)
+  const pageParam = urlParams.get('page')
+  if (pageParam && components[pageParam]) {
+    currentPage.value = pageParam
+  }
+
+  // Standalone pages skip loading screen
+  if (isStandalonePage.value) {
+    appReady.value = true
+    clearTimeout(hardTimeout)
+  }
+
   // Check if this is first visit - show HelpModal
   const hasSeenHelp = localStorage.getItem('zaptracker_welcome_seen')
   if (!hasSeenHelp && !isAuthenticated.value) {
     showHelpModal.value = true
+  }
+
+  // --- Loading phases (only meaningful for returning users) ---
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'session'
+    // Small tick so the loader renders before we proceed
+    await nextTick()
+  }
+
+  // Phase 2: Relay init
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'relays'
   }
 
   // useNostrAuth handles primary relay initialization with user relays.
@@ -492,18 +542,44 @@ onMounted(async () => {
     console.error('Failed to initialize relay manager:', error)
   }
 
-  if (isWalletConnected.value) {
-    nostrRelayManager.ready().then(() => {
-      initializeZapTracking()
-    })
+  // Phase 3: Profile / auth
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'profile'
   }
 
-  // Check URL parameters for page navigation
-  const urlParams = new URLSearchParams(window.location.search)
-  const pageParam = urlParams.get('page')
+  // Wait briefly for relay manager ready — but never hang.
+  // initialize() above already connected; ready() can hang forever if init failed,
+  // so race it with a 5s timeout.
+  try {
+    await Promise.race([
+      nostrRelayManager.ready(),
+      new Promise(r => setTimeout(r, 5000))
+    ])
+  } catch (e) {
+    // continue regardless
+  }
 
-  if (pageParam && components[pageParam]) {
-    currentPage.value = pageParam
+  // Initialize content zap tracking for all authenticated users (not just wallet-connected)
+  if (isAuthenticated.value) {
+    initializeZapTracking()
+  } else if (isWalletConnected.value) {
+    initializeZapTracking()
+  }
+
+  // Phase 4: Syncing composables
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'syncing'
+    // Give composables + engagement background refresh time to initiate relay subscriptions
+    await new Promise(r => setTimeout(r, 2000))
+  }
+
+  // Phase 5: Ready
+  if (hasStoredUser && !appReady.value) {
+    loadingPhase.value = 'ready'
+    // Brief settle so the "ready" step is visible
+    await new Promise(r => setTimeout(r, 400))
+    appReady.value = true
+    clearTimeout(hardTimeout)
   }
 
   if (isWalletConnected.value) {
@@ -691,9 +767,50 @@ const showLoginError = (error) => {
   }
 }
 
+const runPostLoginLoader = async () => {
+  // Show loading screen through the init phases after login
+  appReady.value = false
+  const timeout = setTimeout(() => { appReady.value = true }, 15000)
+
+  loadingPhase.value = 'relays'
+  try {
+    await Promise.race([
+      nostrRelayManager.ready(),
+      new Promise(r => setTimeout(r, 5000))
+    ])
+  } catch (e) { /* continue */ }
+
+  loadingPhase.value = 'profile'
+  initializeZapTracking()
+  await new Promise(r => setTimeout(r, 800))
+
+  loadingPhase.value = 'syncing'
+  await new Promise(r => setTimeout(r, 2000))
+
+  loadingPhase.value = 'ready'
+  await new Promise(r => setTimeout(r, 400))
+
+  appReady.value = true
+  clearTimeout(timeout)
+}
+
 const handleTriggerLogin = async () => {
   try {
+    // Re-read stored user info for loader greeting (login() writes to localStorage)
+    loadingPhase.value = 'session'
     await login()
+
+    // After login, read the freshly stored user for the loader display
+    const raw = localStorage.getItem('nostrUser')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        storedUserName.value = parsed.profile?.display_name || parsed.profile?.name || ''
+        storedUserAvatar.value = parsed.profile?.picture || ''
+      } catch (e) { /* ignore */ }
+    }
+
+    await runPostLoginLoader()
   } catch (error) {
     showLoginError(error)
   }
@@ -708,11 +825,7 @@ const handleTriggerViewOnly = async () => {
 const handleChecklistTaskAction = async (action) => {
   switch (action) {
     case 'connect-nostr':
-      try {
-        await login()
-      } catch (error) {
-        showLoginError(error)
-      }
+      await handleTriggerLogin()
       break
     case 'setup-profile':
       changePage('settings', 'nostr')
@@ -731,17 +844,27 @@ const handleChecklistTaskAction = async (action) => {
 </script>
 
 <template>
+  <!-- Loading screen -->
+  <Transition name="loader-fade">
+    <AppLoader
+      v-if="!appReady"
+      :phase="loadingPhase"
+      :user-name="storedUserName"
+      :user-avatar="storedUserAvatar"
+    />
+  </Transition>
+
   <!-- Standalone Invoice Share Page -->
-  <div v-if="isStandalonePage" class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
-    <component 
-      :is="components[currentPage]" 
+  <div v-if="appReady && isStandalonePage" class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
+    <component
+      :is="components[currentPage]"
       :key="currentPage"
       @change-page="changePage"
     />
   </div>
 
   <!-- Main Application Layout -->
-  <div v-else :class="[
+  <div v-else-if="appReady" :class="[
     'h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25 flex overflow-hidden',
     isWritingMode ? 'writing-mode' : ''
   ]">
@@ -1027,5 +1150,14 @@ const handleChecklistTaskAction = async (action) => {
   .writing-mode {
     background: #fafafa !important;
   }
+}
+
+/* Loader fade-out transition */
+.loader-fade-leave-active {
+  transition: opacity 0.4s ease;
+}
+
+.loader-fade-leave-to {
+  opacity: 0;
 }
 </style>

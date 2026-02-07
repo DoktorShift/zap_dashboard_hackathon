@@ -550,10 +550,10 @@ export function useNostrNotes() {
   }
 
   // Watch for notes changes to track zaps on new notes
-  // Only start tracking for notes we haven't tracked yet (avoids re-calling on every reactive change)
-  watch(notes, (newNotes) => {
-    if (isAuthenticated.value && newNotes.length > 0) {
-      const untracked = newNotes.filter(note => !trackedZapNoteIds.has(note.id))
+  // Shallow watch on array length — only fires when notes are added/removed, not on deep property changes
+  watch(() => notes.value.length, () => {
+    if (isAuthenticated.value && notes.value.length > 0) {
+      const untracked = notes.value.filter(note => !trackedZapNoteIds.has(note.id))
       if (untracked.length > 0) {
         untracked.forEach(note => {
           trackedZapNoteIds.add(note.id)
@@ -561,7 +561,7 @@ export function useNostrNotes() {
         })
       }
     }
-  }, { deep: true })
+  })
 
   // Initialize notes when authenticated
   watch(isAuthenticated, (authenticated) => {

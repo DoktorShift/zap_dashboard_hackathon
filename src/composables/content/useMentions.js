@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import * as nip19 from 'nostr-tools/nip19'
+import { queryProfile, isNip05 } from 'nostr-tools/nip05'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
 
 // Cache for user search results
@@ -132,8 +133,9 @@ export function useMentions() {
       return cached.results
     }
     
-    // Debounce the search
+    // Debounce the search — set isSearching immediately to prevent flicker
     if (debounce > 0) {
+      isSearching.value = true
       return new Promise((resolve) => {
         clearTimeout(debounceTimer)
         debounceTimer = setTimeout(async () => {
@@ -239,17 +241,28 @@ export function useMentions() {
         pubkey = query.toLowerCase()
       }
       
-      // NIP-05 identifiers require HTTP verification (not yet implemented)
-      if (!pubkey && query.includes('@')) {
-        return null
+      // NIP-05 resolution via HTTP well-known
+      let isNip05Match = false
+      if (!pubkey && isNip05(query)) {
+        try {
+          const result = await Promise.race([
+            queryProfile(query),
+            new Promise((_, r) => setTimeout(() => r(new Error('NIP-05 timeout')), 5000))
+          ])
+          if (result?.pubkey) {
+            pubkey = result.pubkey
+            isNip05Match = true
+          }
+        } catch { /* timeout or fetch failure — silently continue */ }
       }
-      
+
       // If we found a pubkey, fetch the profile
       if (pubkey) {
         const profile = await fetchUserProfile(pubkey)
         return {
           ...profile,
-          isDirectMatch: true
+          isDirectMatch: true,
+          isNip05Match
         }
       }
       
