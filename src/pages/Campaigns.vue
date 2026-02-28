@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, inject, watch, toRefs } from 'vue'
+import { ref, computed, inject, watch } from 'vue'
 import { 
   IconTarget, 
   IconPlus, 
@@ -225,19 +225,7 @@ const getDaysRemaining = (closedAt) => {
   return days === 1 ? '1 day left' : `${days} days left`
 }
 
-// Initialize on mount
-onMounted(async () => {
-  if (isAuthenticated.value) {
-    await fetchUserCampaigns()
-  }
-})
-
-// Watch for authentication changes
-watch(isAuthenticated, async (isAuth) => {
-  if (isAuth) {
-    await fetchUserCampaigns()
-  }
-})
+// Campaign fetching is handled by the composable's watch(isAuthenticated, ..., { immediate: true })
 </script>
 
 <template>

@@ -520,13 +520,13 @@ const login = async () => {
           console.log('♻️ Using stored profile (complete):', userData.npub, '- picture:', userData.profile?.picture?.substring(0, 30) + '...')
           currentUser.value = userData
 
-          // Background tasks (don't block)
-          if (nostrRelayManager.isInitialized) {
+          // Background tasks (don't block — relay manager ready() is awaited internally)
+          nostrRelayManager.ready().then(() => {
             startUserEventListener(pubkey)
             updateRelaysFromNip65(pubkey).catch(() => {})
-          } else {
-            console.log('⏳ Relay manager not ready, will start listeners later')
-          }
+          }).catch(() => {
+            console.warn('⏳ Relay manager failed to become ready, skipping NIP-65 + listener')
+          })
           return userData
         } else if (userData.pubkey === pubkey) {
           console.log('⚠️ Stored profile incomplete (missing picture)')
