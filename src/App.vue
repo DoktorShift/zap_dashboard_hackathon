@@ -35,6 +35,7 @@ import { startRefreshCycle, stopRefreshCycle, setActiveGroup } from './utils/ref
 import { APP_HARD_TIMEOUT, RELAY_READY_TIMEOUT } from './utils/constants.js'
 import Calendar from './pages/Calendar.vue'
 import ContestResolver from './pages/ContestResolver.vue'
+import Media from './pages/Media.vue'
 import WelcomeModal from './components/modals/WelcomeModal.vue'
 import HelpModal from './components/modals/HelpModal.vue'
 import AppLoader from './components/layout/AppLoader.vue'
@@ -149,7 +150,7 @@ const selectedFilters = ref({
 })
 
 const currentPage = ref('dashboard')
-const activeSettingsTab = ref('nostr')
+const activeSettingsTab = ref('profile')
 const showConnectionModal = ref(false)
 const showWelcomeModal = ref(false)
 const showHelpModal = ref(false)
@@ -369,7 +370,8 @@ const components = {
   'invoice-share': InvoiceShare,
   notes: Notes,
   calendar: Calendar,
-  contest: ContestResolver
+  contest: ContestResolver,
+  media: Media
 }
 
 // Check if current page is standalone
@@ -557,6 +559,7 @@ onUnmounted(() => {
     clearInterval(healthCheckInterval)
   }
   stopRefreshCycle()
+  window.removeEventListener('popstate', handlePopState)
 })
 
 // Watch for transaction notifications and auto-refresh
@@ -590,6 +593,7 @@ const pageGroupMap = {
   'campaign-view': 'campaigns',
   audience: 'audience',
   calendar: 'calendar',
+  media: 'dashboard',
   settings: 'dashboard',
   notifications: 'dashboard'
 }
@@ -624,11 +628,11 @@ const changePage = async (page, tab = null) => {
     } else {
       url.searchParams.delete('page')
     }
-    window.history.pushState({}, '', url)
-    
+    window.history.pushState({ page }, '', url)
+
     // Give the component a moment to load
     await nextTick()
-    
+
   } catch (error) {
     console.error('Page change error:', error)
     pageLoadingError.value = `Failed to load page: ${error.message}`
@@ -636,6 +640,19 @@ const changePage = async (page, tab = null) => {
     isPageLoading.value = false
   }
 }
+
+// Browser back/forward button support
+const handlePopState = (event) => {
+  const page = event.state?.page
+    || new URLSearchParams(window.location.search).get('page')
+    || 'dashboard'
+  if (components[page] && page !== currentPage.value) {
+    currentPage.value = page
+    setActiveGroup(pageGroupMap[page] || 'dashboard')
+    isMobileMenuOpen.value = false
+  }
+}
+window.addEventListener('popstate', handlePopState)
 
 // Provide changePage function to child components
 provide('changePage', changePage)

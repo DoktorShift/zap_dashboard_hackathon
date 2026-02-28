@@ -88,7 +88,7 @@
               <p class="text-xs text-gray-600 line-clamp-2">{{ campaign.summary }}</p>
               <div class="flex items-center justify-between mt-2">
                 <span class="text-xs text-gray-500">Goal</span>
-                <span class="text-xs font-semibold text-orange-600">{{ formatAmount(campaign.goalAmount) }} sats</span>
+                <span class="text-xs font-semibold text-orange-600">{{ formatMsatsToSats(campaign.goalAmount) }} sats</span>
               </div>
             </div>
           </div>
@@ -188,6 +188,7 @@ const extractHashtags = (content) => {
 
 <script setup>
 import { ref, computed } from 'vue'
+import { formatMsatsToSats } from '../../utils/format.js'
 import {
   IconX,
   IconCopy,
@@ -425,11 +426,7 @@ const deleteSharedPost = async () => {
   }
 }
 
-const formatAmount = (amount) => {
-  if (!amount) return '0'
-  const sats = Math.floor(amount / 1000)
-  return sats ? sats.toLocaleString() : '0'
-}
+
 
 const handleBackdropClick = (e) => {
   if (e.target === e.currentTarget) {

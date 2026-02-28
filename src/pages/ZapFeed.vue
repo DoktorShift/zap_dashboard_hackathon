@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, ref, watch } from 'vue'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import { formatSatsShort } from '../utils/format.js'
 import {
   IconBolt,
   IconFileText,
@@ -433,15 +434,7 @@ const truncateNote = (note, maxLength = 120) => {
   return content.substring(0, maxLength) + '...'
 }
 
-// Format amount for display
-const formatAmount = (amount) => {
-  if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M`
-  } else if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(1)}k`
-  }
-  return amount.toLocaleString()
-}
+
 
 // Helper to check if we should show promo at this index (position 3 when there are 3+ items)
 const shouldShowPromoAtIndex = (index) => {
@@ -801,7 +794,7 @@ const showPromoAtTop = computed(() => {
               <div class="text-right flex-shrink-0">
                 <div class="inline-flex items-center space-x-1.5 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-2 rounded-2xl border border-orange-200/30 shadow-sm">
                   <IconBolt class="w-4 h-4 text-orange-600" />
-                  <span class="font-bold text-orange-700">{{ formatAmount(zap.amount) }}</span>
+                  <span class="font-bold text-orange-700">{{ formatSatsShort(zap.amount) }}</span>
                   <span class="text-xs text-orange-600">sats</span>
                 </div>
               </div>
@@ -856,7 +849,7 @@ const showPromoAtTop = computed(() => {
 
                       <div class="flex items-center space-x-1.5 bg-gradient-to-r from-orange-50 to-amber-50 px-3 py-1 rounded-xl border border-orange-200/30 shadow-sm flex-shrink-0">
                         <IconBolt class="w-3 h-3 text-orange-600" />
-                        <span class="font-bold text-orange-700 text-sm">{{ formatAmount(zap.amount) }}</span>
+                        <span class="font-bold text-orange-700 text-sm">{{ formatSatsShort(zap.amount) }}</span>
                       </div>
                     </div>
 

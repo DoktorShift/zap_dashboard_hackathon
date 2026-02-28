@@ -184,7 +184,6 @@ const formatRelayUrl = (url) => {
 
 // Get user avatar
 const getUserAvatar = () => {
-  console.log('userProfile:', userProfile.value)
   return userProfile.value?.picture ||
          userProfile.value?.avatar ||
          generateAvatar(currentUser.value?.pubkey)

@@ -3,6 +3,7 @@ import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import * as nip19 from 'nostr-tools/nip19'
+import { formatSatsShort } from '../utils/format.js'
 
 // Define props and emits for Vue 3
 const props = defineProps({
@@ -51,6 +52,8 @@ import ContentRenderer from '../components/content/ContentRenderer.vue'
 import MentionInput from '../components/content/MentionInput.vue'
 import MentionRenderer from '../components/content/MentionRenderer.vue'
 import ThreadsPromo from '../components/shared/ThreadsPromo.vue'
+import BadgeList from '../components/badges/BadgeList.vue'
+import BadgeDetailModal from '../components/badges/BadgeDetailModal.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -114,6 +117,14 @@ const selectedZapper = ref(null)
 const showSuccessModal = ref(false)
 const lastPublishResult = ref(null)
 const showPreview = ref(false)
+
+// Badge detail modal state
+const showBadgeDetailModal = ref(false)
+const selectedBadge = ref(null)
+const handleBadgeClick = (badge) => {
+  selectedBadge.value = badge
+  showBadgeDetailModal.value = true
+}
 
 // Debounced note stats — avoids recomputing on every single zap/engagement event
 const noteStats = ref({
@@ -307,15 +318,7 @@ const getNostrClientUrl = (client, noteId) => {
   }
 }
 
-// Format zap amount for display
-const formatZapAmount = (amount) => {
-  if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M`
-  } else if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(1)}k`
-  }
-  return amount.toString()
-}
+
 
 // Format zapper pubkey for display
 const formatZapperPubkey = (pubkey) => {
@@ -775,6 +778,16 @@ const handleMentionClick = ({ pubkey, profile }) => {
                   <!-- Header -->
                   <div class="flex items-center space-x-2 mb-2">
                     <span class="font-medium text-gray-900">{{ userProfile?.name || 'You' }}</span>
+                    <BadgeList
+                      v-if="currentUser?.pubkey"
+                      :pubkey="currentUser.pubkey"
+                      size="small"
+                      :max-display="3"
+                      :show-count="false"
+                      :show-view-all="false"
+                      layout="horizontal"
+                      @badge-click="handleBadgeClick"
+                    />
                     <span class="text-sm text-gray-500">{{ getTimeAgo(note.created_at) }}</span>
                     <span class="text-xs text-gray-400">•</span>
                     <span class="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">On Nostr</span>
@@ -833,7 +846,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                     <!-- Zap Revenue -->
                     <div v-if="getTotalZapAmount(note.id) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full">
                       <IconBolt class="w-4 h-4 text-orange-600" />
-                      <span class="font-bold text-orange-700 text-sm">{{ formatZapAmount(getTotalZapAmount(note.id)) }} sats</span>
+                      <span class="font-bold text-orange-700 text-sm">{{ formatSatsShort(getTotalZapAmount(note.id)) }} sats</span>
                     </div>
                   </div>
                   
@@ -1025,7 +1038,19 @@ const handleMentionClick = ({ pubkey, profile }) => {
                     />
                   </div>
                   <div>
-                    <h3 class="font-semibold text-gray-900">{{ userProfile?.name || 'Your Note' }}</h3>
+                    <div class="flex items-center space-x-2">
+                      <h3 class="font-semibold text-gray-900">{{ userProfile?.name || 'Your Note' }}</h3>
+                      <BadgeList
+                        v-if="currentUser?.pubkey"
+                        :pubkey="currentUser.pubkey"
+                        size="small"
+                        :max-display="3"
+                        :show-count="false"
+                        :show-view-all="false"
+                        layout="horizontal"
+                        @badge-click="handleBadgeClick"
+                      />
+                    </div>
                     <p class="text-sm text-gray-500">{{ enhancedSelectedNote.formattedDate }}</p>
                   </div>
                 </div>
@@ -1123,7 +1148,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                         <div class="text-xs text-gray-500">{{ formatZapTime(new Date(zap.timestamp).getTime() / 1000) }}</div>
                       </div>
                       <div class="text-sm font-bold text-orange-600">
-                        {{ formatZapAmount(zap.amount) }} sats
+                        {{ formatSatsShort(zap.amount) }} sats
                       </div>
                     </div>
                   </div>
@@ -1219,5 +1244,11 @@ const handleMentionClick = ({ pubkey, profile }) => {
     content-type="note"
     :publish-result="lastPublishResult"
     @close="closeSuccessModal"
+  />
+
+  <BadgeDetailModal
+    :show="showBadgeDetailModal"
+    :badge="selectedBadge"
+    @close="showBadgeDetailModal = false; selectedBadge = null"
   />
 </template>

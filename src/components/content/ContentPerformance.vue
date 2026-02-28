@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
-import { IconTrendingUp, IconBolt, IconFileText } from '@iconify-prerendered/vue-tabler'
+import { IconBolt, IconFileText } from '@iconify-prerendered/vue-tabler'
+import { CHART_COLORS, CHART_TOOLTIP_STYLE, chartAreaGradient } from '../../utils/constants.js'
 
 // Lazy load ECharts to prevent issues
 const VChart = ref(null)
@@ -74,14 +75,12 @@ const revenueChartOption = computed(() => {
   return {
     title: {
       text: 'Revenue Trend (Last 7 Days)',
-      textStyle: { color: '#7c2d12', fontSize: 14, fontWeight: 'bold' },
+      textStyle: { color: CHART_COLORS.titleText, fontSize: 14, fontWeight: 'bold' },
       left: 'center'
     },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#fff',
-      borderColor: '#f97316',
-      textStyle: { color: '#374151' },
+      ...CHART_TOOLTIP_STYLE,
       formatter: function(params) {
         const data = params[0]
         return `${data.name}: ${data.value.toLocaleString()} sats`
@@ -97,42 +96,33 @@ const revenueChartOption = computed(() => {
     xAxis: {
       type: 'category',
       data: last7Days.map(d => d.label),
-      axisLine: { lineStyle: { color: '#fed7aa' } },
-      axisTick: { lineStyle: { color: '#fed7aa' } },
-      axisLabel: { 
-        color: '#9a3412',
+      axisLine: { lineStyle: { color: CHART_COLORS.axisLine } },
+      axisTick: { lineStyle: { color: CHART_COLORS.axisLine } },
+      axisLabel: {
+        color: CHART_COLORS.axisLabel,
         fontSize: 10,
         rotate: window.innerWidth < 640 ? 45 : 0
       }
     },
     yAxis: {
       type: 'value',
-      axisLine: { lineStyle: { color: '#fed7aa' } },
-      axisTick: { lineStyle: { color: '#fed7aa' } },
-      axisLabel: { 
-        color: '#9a3412',
+      axisLine: { lineStyle: { color: CHART_COLORS.axisLine } },
+      axisTick: { lineStyle: { color: CHART_COLORS.axisLine } },
+      axisLabel: {
+        color: CHART_COLORS.axisLabel,
         fontSize: 10
       },
       splitLine: {
-        lineStyle: { color: '#f3f4f6', type: 'dashed' }
+        lineStyle: { color: CHART_COLORS.splitLine, type: 'dashed' }
       }
     },
     series: [{
       data: last7Days.map(d => d.revenue),
       type: 'line',
       smooth: true,
-      lineStyle: { color: '#f97316', width: 2 },
-      itemStyle: { color: '#f97316' },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(249, 115, 22, 0.3)' },
-            { offset: 1, color: 'rgba(249, 115, 22, 0.05)' }
-          ]
-        }
-      }
+      lineStyle: { color: CHART_COLORS.primary, width: 2 },
+      itemStyle: { color: CHART_COLORS.primary },
+      areaStyle: { color: chartAreaGradient() }
     }]
   }
 })
@@ -144,18 +134,21 @@ const performanceChartOption = computed(() => {
     .filter(item => item.zapAmount > 0) // Only show content with zaps
     .sort((a, b) => b.zapAmount - a.zapAmount)
     .slice(0, 5)
-    .map(item => ({
-      name: item.title.length > 15 ? item.title.substring(0, 15) + '...' : item.title,
-      revenue: item.zapAmount || 0,
-      zapCount: item.zapCount || 0
-    }))
+    .map(item => {
+      const title = item.title || 'Untitled'
+      return {
+        name: title.length > 15 ? title.substring(0, 15) + '...' : title,
+        revenue: item.zapAmount || 0,
+        zapCount: item.zapCount || 0
+      }
+    })
   
   // If no content with zaps, show empty state
   if (topContent.length === 0) {
     return {
       title: {
         text: 'Top Performing Content',
-        textStyle: { color: '#7c2d12', fontSize: 14, fontWeight: 'bold' },
+        textStyle: { color: CHART_COLORS.titleText, fontSize: 14, fontWeight: 'bold' },
         left: 'center'
       },
       tooltip: {
@@ -172,35 +165,33 @@ const performanceChartOption = computed(() => {
       xAxis: {
         type: 'category',
         data: ['No data'],
-        axisLine: { lineStyle: { color: '#fed7aa' } },
-        axisTick: { lineStyle: { color: '#fed7aa' } },
-        axisLabel: { color: '#9a3412', fontSize: 10 }
+        axisLine: { lineStyle: { color: CHART_COLORS.axisLine } },
+        axisTick: { lineStyle: { color: CHART_COLORS.axisLine } },
+        axisLabel: { color: CHART_COLORS.axisLabel, fontSize: 10 }
       },
       yAxis: {
         type: 'value',
-        axisLine: { lineStyle: { color: '#fed7aa' } },
-        axisTick: { lineStyle: { color: '#fed7aa' } },
-        axisLabel: { color: '#9a3412', fontSize: 10 }
+        axisLine: { lineStyle: { color: CHART_COLORS.axisLine } },
+        axisTick: { lineStyle: { color: CHART_COLORS.axisLine } },
+        axisLabel: { color: CHART_COLORS.axisLabel, fontSize: 10 }
       },
       series: [{
         data: [0],
         type: 'bar',
-        itemStyle: { color: '#e5e7eb' }
+        itemStyle: { color: CHART_COLORS.emptyBar }
       }]
     }
   }
-  
+
   return {
     title: {
       text: 'Top Performing Content',
-      textStyle: { color: '#7c2d12', fontSize: 14, fontWeight: 'bold' },
+      textStyle: { color: CHART_COLORS.titleText, fontSize: 14, fontWeight: 'bold' },
       left: 'center'
     },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#fff',
-      borderColor: '#f97316',
-      textStyle: { color: '#374151' },
+      ...CHART_TOOLTIP_STYLE,
       formatter: function(params) {
         const data = params[0]
         const zapData = params[1]
@@ -209,7 +200,7 @@ const performanceChartOption = computed(() => {
     },
     legend: {
       data: ['Revenue (sats)', 'Zap Count'],
-      textStyle: { color: '#7c2d12', fontSize: 10 },
+      textStyle: { color: CHART_COLORS.titleText, fontSize: 10 },
       top: '15%'
     },
     grid: {
@@ -222,10 +213,10 @@ const performanceChartOption = computed(() => {
     xAxis: {
       type: 'category',
       data: topContent.map(item => item.name),
-      axisLine: { lineStyle: { color: '#fed7aa' } },
-      axisTick: { lineStyle: { color: '#fed7aa' } },
-      axisLabel: { 
-        color: '#9a3412',
+      axisLine: { lineStyle: { color: CHART_COLORS.axisLine } },
+      axisTick: { lineStyle: { color: CHART_COLORS.axisLine } },
+      axisLabel: {
+        color: CHART_COLORS.axisLabel,
         fontSize: 9,
         rotate: window.innerWidth < 640 ? 45 : 0,
         interval: 0
@@ -235,21 +226,21 @@ const performanceChartOption = computed(() => {
       {
         type: 'value',
         name: 'Revenue',
-        nameTextStyle: { color: '#9a3412', fontSize: 10 },
+        nameTextStyle: { color: CHART_COLORS.axisLabel, fontSize: 10 },
         position: 'left',
-        axisLine: { lineStyle: { color: '#fed7aa' } },
-        axisTick: { lineStyle: { color: '#fed7aa' } },
-        axisLabel: { color: '#9a3412', fontSize: 10 },
-        splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
+        axisLine: { lineStyle: { color: CHART_COLORS.axisLine } },
+        axisTick: { lineStyle: { color: CHART_COLORS.axisLine } },
+        axisLabel: { color: CHART_COLORS.axisLabel, fontSize: 10 },
+        splitLine: { lineStyle: { color: CHART_COLORS.splitLine, type: 'dashed' } }
       },
       {
         type: 'value',
         name: 'Zaps',
-        nameTextStyle: { color: '#9a3412', fontSize: 10 },
+        nameTextStyle: { color: CHART_COLORS.axisLabel, fontSize: 10 },
         position: 'right',
-        axisLine: { lineStyle: { color: '#fed7aa' } },
-        axisTick: { lineStyle: { color: '#fed7aa' } },
-        axisLabel: { color: '#9a3412', fontSize: 10 }
+        axisLine: { lineStyle: { color: CHART_COLORS.axisLine } },
+        axisTick: { lineStyle: { color: CHART_COLORS.axisLine } },
+        axisLabel: { color: CHART_COLORS.axisLabel, fontSize: 10 }
       }
     ],
     series: [
@@ -258,8 +249,8 @@ const performanceChartOption = computed(() => {
         type: 'bar',
         yAxisIndex: 0,
         data: topContent.map(item => item.revenue),
-        itemStyle: { 
-          color: '#f97316',
+        itemStyle: {
+          color: CHART_COLORS.primary,
           borderRadius: [4, 4, 0, 0]
         }
       },
@@ -268,8 +259,8 @@ const performanceChartOption = computed(() => {
         type: 'line',
         yAxisIndex: 1,
         data: topContent.map(item => item.zapCount),
-        lineStyle: { color: '#10b981', width: 2 },
-        itemStyle: { color: '#10b981' },
+        lineStyle: { color: CHART_COLORS.emerald, width: 2 },
+        itemStyle: { color: CHART_COLORS.emerald },
         symbol: 'circle',
         symbolSize: 6
       }
@@ -329,35 +320,3 @@ const performanceChartOption = computed(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Ensure charts are responsive */
-.h-\[250px\] {
-  height: 250px;
-}
-
-.h-\[300px\] {
-  height: 300px;
-}
-
-/* Mobile optimizations */
-@media (max-width: 640px) {
-  .h-\[250px\] {
-    height: 200px;
-  }
-  
-  .h-\[300px\] {
-    height: 220px;
-  }
-}
-
-/* Loading spinner */
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-</style>

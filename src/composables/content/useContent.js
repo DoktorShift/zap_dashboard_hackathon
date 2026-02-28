@@ -389,7 +389,7 @@ export function useContent() {
           ['title', content.title], // Article title
           ['summary', content.description || ''], // Article summary
           ['published_at', Math.floor(new Date(content.createdAt).getTime() / 1000).toString()],
-          ...content.tags.map(tag => ['t', tag]), // Topic tags
+          ...(content.tags || []).map(tag => ['t', tag]), // Topic tags
           ...pTags // Add p tags for mentions (NIP-10)
         ],
         content: content.content // Main blog content

@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, inject, watch } from 'vue'
-import { 
-  IconTarget, 
+import { ref, computed } from 'vue'
+import { formatMsatsToSats } from '../utils/format.js'
+import {
+  IconTarget,
   IconPlus, 
   IconList, 
   IconChartBar, 
@@ -32,27 +33,22 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useCampaigns } from '../composables/campaigns/useCampaigns.js'
-import { useNotifications } from '../composables/core/useNotifications.js'
-import { formatDate } from '../utils/core/dateUtils.js'
 import CampaignCard from '../components/campaigns/CampaignCard.vue'
 import CampaignCreateModal from '../components/campaigns/CampaignCreateModal.vue'
 import CampaignDeleteModal from '../components/campaigns/CampaignDeleteModal.vue'
 import CampaignShareModal from '../components/campaigns/CampaignShareModal.vue'
 import SkeletonCard from '../components/shared/SkeletonCard.vue'
 
-// Get changePage function from parent
-const changePage = inject('changePage')
-
 // Use composables
 const auth = useNostrAuth()
-const { currentUser, login } = auth
+const { login } = auth
 const isAuthenticated = auth.isAuthenticated
 
-const { 
-  userCampaigns, 
-  isLoading, 
-  error, 
-  fetchUserCampaigns, 
+const {
+  userCampaigns,
+  isLoading,
+  error,
+  fetchUserCampaigns,
   editCampaign,
   deleteCampaign,
   publishCampaign,
@@ -60,7 +56,6 @@ const {
   isCampaignExpired,
   isCampaignCompleted
 } = useCampaigns()
-const { handleConnectionSuccess } = useNotifications()
 
 // UI state
 const showCreateModal = ref(false)
@@ -182,10 +177,8 @@ const handleEditCampaign = async (campaign) => {
 // Refresh campaigns
 const refreshCampaigns = async () => {
   isRefreshing.value = true
-  console.log('Refreshing campaigns...')
   try {
     await fetchUserCampaigns()
-    console.log(`Refreshed campaigns, found ${userCampaigns.value.length} campaigns`)
   } catch (error) {
     console.error('Failed to refresh campaigns:', error)
   } finally {
@@ -193,13 +186,7 @@ const refreshCampaigns = async () => {
   }
 }
 
-// Format amount in sats
-const formatAmount = (amount) => {
-  if (amount === undefined || amount === null) return '0'
-  // Convert from millisats to sats
-  const sats = Math.floor(amount / 1000)
-  return sats ? sats.toLocaleString() : '0'
-}
+
 
 // Format raised amount with smart units
 const formatRaisedAmount = (sats) => {
@@ -727,7 +714,7 @@ const getDaysRemaining = (closedAt) => {
                         <IconShare class="w-3.5 h-3.5" />
                       </button>
 
-                      <span class="font-medium text-orange-600">{{ formatAmount(campaign.goalAmount) }} sats</span>
+                      <span class="font-medium text-orange-600">{{ formatMsatsToSats(campaign.goalAmount) }} sats</span>
                     </div>
                   </div>
 

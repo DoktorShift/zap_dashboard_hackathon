@@ -230,7 +230,7 @@ const setActiveConnection = async (idOrNwcUrl) => {
     
     console.log('Initializing NWC client...')
     // Initialize NWC client
-    const client = initializeNWC(connection.nwcUrl)
+    const client = await initializeNWC(connection.nwcUrl)
     if (!client) {
       throw new Error('Failed to initialize NWC client')
     }

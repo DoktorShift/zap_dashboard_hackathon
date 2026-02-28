@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject, defineAsyncComponent, watch } from 'vue'
-import { 
-  IconWallet, 
+import { formatMsatsToSats } from '../utils/format.js'
+import {
+  IconWallet,
   IconBolt, 
   IconPlus, 
   IconSend, 
@@ -404,12 +405,7 @@ const onQrError = (error) => {
   qrScannerError.value = 'Camera error: ' + error.message
 }
 
-// Utility methods
-const formatAmount = (amount) => {
-  if (!amount) return '0'
-  const sats = Math.floor(amount / 1000)
-  return sats.toLocaleString()
-}
+
 
 const formatDate = (timestamp) => {
   if (!timestamp) return 'Unknown'
@@ -722,7 +718,7 @@ const extractTextFromArray = (noteArray) => {
                   'font-semibold',
                   getTransactionColor(transaction)
                 ]">
-                  {{ transaction.type === 'incoming' ? '+' : '-' }}{{ formatAmount(transaction.amount) }} sats
+                  {{ transaction.type === 'incoming' ? '+' : '-' }}{{ formatMsatsToSats(transaction.amount) }} sats
                 </p>
                 <p class="text-xs text-gray-500">
                   {{ transaction.state || 'settled' }}
@@ -786,7 +782,7 @@ const extractTextFromArray = (noteArray) => {
               <IconCheck class="w-8 h-8 text-green-600" />
             </div>
             <h4 class="text-lg font-semibold text-green-600 mb-2">Payment Received!</h4>
-            <p class="text-gray-600">{{ formatAmount(createdInvoice.amount) }} sats received</p>
+            <p class="text-gray-600">{{ formatMsatsToSats(createdInvoice.amount) }} sats received</p>
           </div>
           
           <div v-else class="text-center">
@@ -804,7 +800,7 @@ const extractTextFromArray = (noteArray) => {
             </div>
             
             <p class="text-sm text-gray-600 mb-4">
-              Amount: {{ formatAmount(createdInvoice.amount) }} sats
+              Amount: {{ formatMsatsToSats(createdInvoice.amount) }} sats
             </p>
             
             <!-- Invoice String -->

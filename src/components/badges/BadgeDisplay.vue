@@ -188,15 +188,4 @@ const handleMouseLeave = () => {
 .relative {
   z-index: 1;
 }
-
-/* Smooth transitions */
-.transition-all {
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Hover effects */
-.hover\:scale-105:hover {
-  transform: scale(1.05);
-}
 </style>

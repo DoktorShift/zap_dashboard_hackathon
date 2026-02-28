@@ -198,16 +198,8 @@ export function calculateZapMetrics(zaps) {
  * @returns {object} Object containing current and previous period metrics with percentage changes
  */
 export function getPeriodComparison(allZaps, timeRange) {
-  console.log('🔍 getPeriodComparison called with:', {
-    totalZaps: allZaps.length,
-    timeRange,
-    sampleZap: allZaps[0]
-  })
-  
   // Filter to only NIP-57 zaps (those with eventId)
   const nip57Zaps = allZaps.filter(zap => zap.eventId)
-  
-  console.log('📊 NIP-57 zaps found:', nip57Zaps.length)
   
   if (timeRange === 'all') {
     // For 'all' time, we can't calculate a meaningful percentage change
@@ -228,9 +220,7 @@ export function getPeriodComparison(allZaps, timeRange) {
   
   // Get current period zaps
   const currentPeriodZaps = getZapsForPeriod(nip57Zaps, timeRange, now)
-  
-  console.log('📈 Current period zaps:', currentPeriodZaps.length)
-  
+
   // Calculate previous period end date
   let periodDuration
   switch (timeRange) {
@@ -249,9 +239,7 @@ export function getPeriodComparison(allZaps, timeRange) {
   
   const previousPeriodEndDate = new Date(now.getTime() - periodDuration)
   const previousPeriodZaps = getZapsForPeriod(nip57Zaps, timeRange, previousPeriodEndDate)
-  
-  console.log('📉 Previous period zaps:', previousPeriodZaps.length)
-  
+
   // Calculate metrics for both periods
   const currentMetrics = calculateZapMetrics(currentPeriodZaps)
   const previousMetrics = calculateZapMetrics(previousPeriodZaps)
@@ -263,15 +251,6 @@ export function getPeriodComparison(allZaps, timeRange) {
     uniqueSupporters: calculatePercentageChange(currentMetrics.uniqueSupporters, previousMetrics.uniqueSupporters),
     avgZap: calculatePercentageChange(currentMetrics.avgZap, previousMetrics.avgZap)
   }
-  
-  console.log('📊 Period comparison result:', {
-    current: currentMetrics,
-    previous: previousMetrics,
-    changes,
-    timeRange,
-    currentPeriodCount: currentPeriodZaps.length,
-    previousPeriodCount: previousPeriodZaps.length
-  })
   
   const result = {
     current: currentMetrics,

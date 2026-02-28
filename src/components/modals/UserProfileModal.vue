@@ -1,18 +1,20 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { 
-  IconX, 
-  IconKey, 
-  IconBolt, 
+import {
+  IconX,
+  IconKey,
+  IconBolt,
   IconGlobe,
   IconUser,
   IconCheck,
   IconCopy,
-  IconExternalLink
+  IconExternalLink,
+  IconAward
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
 import * as nip19 from 'nostr-tools/nip19'
 import BadgeList from '../badges/BadgeList.vue'
+import { useBadges } from '../../composables/social/useBadges.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
 const props = defineProps({
@@ -32,6 +34,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'badge-click'])
+
+const { getUserBadgeCount } = useBadges()
+
+// Badge count for tab label
+const badgeCount = computed(() => {
+  return props.userProfileData?.pubkey ? getUserBadgeCount(props.userProfileData.pubkey) : 0
+})
 
 // Local state
 const activeTab = ref('publickey')
@@ -182,8 +191,8 @@ watch(() => props.show, (newValue) => {
                 ]"
               >
                 <div class="flex items-center justify-center space-x-2">
-                  <IconCheck class="w-4 h-4" />
-                  <span>Badges</span>
+                  <IconAward class="w-4 h-4" />
+                  <span>Badges{{ badgeCount > 0 ? ` (${badgeCount})` : '' }}</span>
                 </div>
               </button>
             </nav>
@@ -299,7 +308,6 @@ watch(() => props.show, (newValue) => {
                 v-if="userProfileData?.pubkey"
                 :pubkey="userProfileData.pubkey"
                 size="large"
-                :max-display="20"
                 :show-count="true"
                 :show-view-all="false"
                 layout="grid"
@@ -307,7 +315,7 @@ watch(() => props.show, (newValue) => {
               >
                 <template #empty>
                   <div class="text-center py-8">
-                    <IconCheck class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                    <IconAward class="w-12 h-12 mx-auto text-gray-300 mb-3" />
                     <h4 class="text-lg font-medium text-gray-900 mb-2">No Badges Yet</h4>
                     <p class="text-gray-600 text-sm">This user hasn't received any badges yet.</p>
                   </div>
@@ -317,7 +325,7 @@ watch(() => props.show, (newValue) => {
               <!-- Badge Info -->
               <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
                 <div class="flex items-start space-x-3">
-                  <IconCheck class="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                  <IconAward class="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <h4 class="font-medium text-orange-900 mb-1">About Badges</h4>
                     <p class="text-sm text-orange-800">

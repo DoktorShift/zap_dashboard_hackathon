@@ -20,7 +20,8 @@ import {
   IconSparkles,
   IconVideo,
   IconMessageCircle,
-  IconTrophy
+  IconTrophy,
+  IconPhoto
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -82,6 +83,7 @@ const menuItems = [
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt, requiresAuth: true },
   { id: 'wallet', label: 'Wallet', icon: IconWallet, requiresAuth: true },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar, requiresAuth: true },
+  { id: 'media', label: 'Media', icon: IconPhoto, requiresAuth: true },
   {
     id: 'studio',
     label: 'Studio',
@@ -90,7 +92,7 @@ const menuItems = [
     hasSubmenu: true,
     submenuKey: 'studio',
     submenuItems: [
-      { id: 'content', label: 'Content', icon: IconFileText },
+      { id: 'content', label: 'Articles', icon: IconFileText },
       { id: 'notes', label: 'Notes', icon: IconEdit },
       { id: 'campaigns', label: 'Campaigns', icon: IconTarget },
       { id: 'contest', label: 'Contest', icon: IconTrophy }

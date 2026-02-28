@@ -1,30 +1,23 @@
-import { nwc } from '@getalby/sdk'
+import { NWC } from 'nostr-core'
 
 // NWC Client singleton
 let nwcClient = null
 
-// List of reliable Nostr relays as fallbacks
-const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.snort.social',
-  'wss://relay.primal.net',
-  'wss://nostr.wine'
-]
-
-export function initializeNWC(nwcUrl) {
+export async function initializeNWC(nwcUrl) {
   // Clear existing client if no URL provided
   if (!nwcUrl) {
+    if (nwcClient) {
+      nwcClient.close()
+    }
     nwcClient = null
     return null
   }
-  
+
   try {
-    nwcClient = new nwc.NWCClient({
-      nostrWalletConnectUrl: nwcUrl,
-      relayUrls: DEFAULT_RELAYS
-    })
-    console.info('NWC Client initialized successfully with fallback relays')
+    nwcClient = new NWC(nwcUrl)
+    await nwcClient.connect()
+    nwcClient.replyTimeout = 30000
+    console.info('NWC Client initialized successfully')
     return nwcClient
   } catch (error) {
     console.error('Failed to initialize NWC Client:', error)
@@ -37,6 +30,13 @@ export function getNWCClient() {
   return nwcClient
 }
 
+export function closeNWC() {
+  if (nwcClient) {
+    nwcClient.close()
+    nwcClient = null
+  }
+}
+
 export async function fetchTransactions(retryCount = 3) {
   if (!nwcClient) {
     throw new Error('NWC Client not initialized')
@@ -47,28 +47,27 @@ export async function fetchTransactions(retryCount = 3) {
     try {
       console.log(`Fetching transactions (attempt ${attempt}/${retryCount})...`)
       const response = await nwcClient.listTransactions({
-        limit: 100,
-        timeout: 30000 // 30 seconds timeout
+        limit: 100
       })
-      
+
       console.log(`Successfully fetched ${response.transactions?.length || 0} transactions`)
       return response.transactions || []
     } catch (error) {
       console.warn(`Transaction fetch attempt ${attempt} failed:`, error.message)
       lastError = error
-      
+
       // Don't retry on the last attempt or for certain error types
       if (attempt === retryCount || error.message.includes('not initialized')) {
         break
       }
-      
+
       // Wait before retrying (exponential backoff)
       const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
       console.log(`Retrying in ${delay}ms...`)
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
-  
+
   console.error('Failed to fetch transactions after all retries:', lastError)
   throw lastError
 }
@@ -88,19 +87,19 @@ export async function getWalletInfo(retryCount = 3) {
     } catch (error) {
       console.warn(`Wallet info attempt ${attempt} failed:`, error.message)
       lastError = error
-      
+
       // Don't retry on the last attempt or for certain error types
       if (attempt === retryCount || error.message.includes('not initialized')) {
         break
       }
-      
+
       // Wait before retrying (exponential backoff)
       const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
       console.log(`Retrying in ${delay}ms...`)
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
-  
+
   console.error('Failed to get wallet info after all retries:', lastError)
   throw lastError
 }
@@ -120,19 +119,19 @@ export async function getBalance(retryCount = 3) {
     } catch (error) {
       console.warn(`Balance fetch attempt ${attempt} failed:`, error.message)
       lastError = error
-      
+
       // Don't retry on the last attempt or for certain error types
       if (attempt === retryCount || error.message.includes('not initialized')) {
         break
       }
-      
+
       // Wait before retrying (exponential backoff)
       const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
       console.log(`Retrying in ${delay}ms...`)
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
-  
+
   console.error('Failed to get balance after all retries:', lastError)
   throw lastError
 }
@@ -161,9 +160,7 @@ export async function payInvoice(params) {
   }
 
   try {
-    const payment = await nwcClient.payInvoice({
-      invoice: params.invoice
-    })
+    const payment = await nwcClient.payInvoice(params.invoice)
     return payment
   } catch (error) {
     console.error('Failed to pay invoice:', error)

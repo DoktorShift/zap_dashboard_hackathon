@@ -2,6 +2,7 @@
 import { ref, onMounted, watch, onUnmounted, computed, inject } from 'vue'
 import { neventEncode, naddrEncode } from 'nostr-tools/nip19'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
+import { formatSatsShort } from '../../utils/format.js'
 import {
   IconX,
   IconBolt,
@@ -463,15 +464,7 @@ const getEventHashtags = () => {
   return hashtags
 }
 
-// Format zap amount for display
-const formatZapAmount = (amount) => {
-  if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M`
-  } else if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(1)}k`
-  }
-  return amount.toLocaleString()
-}
+
 
 // Get sender name with fallback
 const getSenderName = (sender) => {
@@ -741,7 +734,7 @@ const formatZapperPubkey = (pubkey) => {
                   <div class="text-xs text-gray-600">{{ formatZapTime(specificZap.timestamp) }}</div>
                 </div>
                 <div class="text-right flex-shrink-0">
-                  <div class="font-bold text-orange-600 text-xl">{{ formatZapAmount(specificZap.amount) }}</div>
+                  <div class="font-bold text-orange-600 text-xl">{{ formatSatsShort(specificZap.amount) }}</div>
                   <div class="text-xs text-orange-700">sats</div>
                 </div>
               </div>
@@ -906,7 +899,7 @@ const formatZapperPubkey = (pubkey) => {
                           <div v-if="zap.message" class="text-sm text-gray-700 bg-gray-50 rounded-lg p-2 mt-2">{{ zap.message }}</div>
                         </div>
                         <div class="text-right flex-shrink-0">
-                          <div class="font-bold text-orange-600 text-lg">{{ formatZapAmount(zap.amount) }}</div>
+                          <div class="font-bold text-orange-600 text-lg">{{ formatSatsShort(zap.amount) }}</div>
                           <div class="text-xs text-orange-700">sats</div>
                         </div>
                       </div>

@@ -3,7 +3,7 @@ import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useNostrConnections } from '../core/useNostrConnections.js'
 import { useNotifications } from '../core/useNotifications.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { nip04 } from 'nostr-tools'
+import { nip04, nip44, hexToBytes } from 'nostr-core'
 import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
 import { payInvoice, makeInvoice } from '../../utils/wallet/nwcClient.js'
 import * as nip19 from 'nostr-tools/nip19'
@@ -21,6 +21,19 @@ const error = ref('')
 let chatSubscription = null
 let profileSubscriptions = new Map()
 const processedEventIds = new Set()
+
+// NIP-44 conversation key cache
+const conversationKeyCache = new Map()
+
+const getOrCreateConversationKey = (privkeyHex, pubkeyHex) => {
+  if (conversationKeyCache.has(pubkeyHex)) {
+    return conversationKeyCache.get(pubkeyHex)
+  }
+  const privkeyBytes = hexToBytes(privkeyHex)
+  const convKey = nip44.getConversationKey(privkeyBytes, pubkeyHex)
+  conversationKeyCache.set(pubkeyHex, convKey)
+  return convKey
+}
 
 // Message structure
 const createMessage = (event, decryptedContent, isOutgoing = false) => {
@@ -67,6 +80,51 @@ const fetchUserProfile = async (pubkey) => {
     profile.picture = generateAvatar(pubkey)
   }
   return profile
+}
+
+// Unified encrypt helper — prefers NIP-44, falls back to NIP-04
+const encryptMessage = async (content, recipientPubkey, currentUser) => {
+  // NIP-07 extension with NIP-44
+  if (window.nostr?.nip44?.encrypt) {
+    return await window.nostr.nip44.encrypt(recipientPubkey, content)
+  }
+  // Local privkey with NIP-44
+  if (currentUser.privkey) {
+    const convKey = getOrCreateConversationKey(currentUser.privkey, recipientPubkey)
+    return nip44.encrypt(content, convKey)
+  }
+  // NIP-07 extension NIP-04 fallback
+  if (window.nostr?.nip04?.encrypt) {
+    console.warn('Extension does not support NIP-44, falling back to NIP-04')
+    return await window.nostr.nip04.encrypt(recipientPubkey, content)
+  }
+  throw new Error('No encryption method available')
+}
+
+// Unified decrypt helper — tries NIP-44 first, falls back to NIP-04
+const decryptMessage = async (content, counterpartyPubkey, currentUser) => {
+  // NIP-07 extension with NIP-44
+  if (window.nostr?.nip44?.decrypt) {
+    try {
+      return await window.nostr.nip44.decrypt(counterpartyPubkey, content)
+    } catch (e) { /* NIP-44 failed, try NIP-04 */ }
+  }
+  // Local privkey with NIP-44
+  if (currentUser.privkey) {
+    try {
+      const convKey = getOrCreateConversationKey(currentUser.privkey, counterpartyPubkey)
+      return nip44.decrypt(content, convKey)
+    } catch (e) { /* NIP-44 failed, try NIP-04 */ }
+  }
+  // NIP-07 extension NIP-04 fallback
+  if (window.nostr?.nip04?.decrypt) {
+    return await window.nostr.nip04.decrypt(counterpartyPubkey, content)
+  }
+  // Local privkey NIP-04 fallback
+  if (currentUser.privkey) {
+    return nip04.decrypt(currentUser.privkey, counterpartyPubkey, content)
+  }
+  throw new Error('No decryption method available')
 }
 
 export function useNostrChat() {
@@ -174,44 +232,17 @@ export function useNostrChat() {
         return
       }
 
-      // Decrypt the message content
+      // Decrypt the message content (tries NIP-44 first, falls back to NIP-04)
       let decryptedContent
-      
-      // Check if content looks like encrypted data (base64 with ?iv=)
-      const isEncrypted = event.content.includes('?iv=') || event.content.includes('==')
-      
-      if (isEncrypted) {
-        try {
-          if (isOutgoing) {
-            // For outgoing messages, we need to decrypt with recipient's pubkey
-            const recipientPubkey = event.tags.find(tag => tag[0] === 'p')?.[1]
-            if (currentUser.value.privkey) {
-              decryptedContent = await nip04.decrypt(currentUser.value.privkey, recipientPubkey, event.content)
-            } else if (window.nostr?.nip04?.decrypt) {
-              decryptedContent = await window.nostr.nip04.decrypt(recipientPubkey, event.content)
-            } else {
-              throw new Error('No decryption method available')
-            }
-          } else {
-            // For incoming messages, we need to decrypt with sender's pubkey
-            if (currentUser.value.privkey) {
-              decryptedContent = await nip04.decrypt(currentUser.value.privkey, event.pubkey, event.content)
-            } else if (window.nostr?.nip04?.decrypt) {
-              decryptedContent = await window.nostr.nip04.decrypt(event.pubkey, event.content)
-            } else {
-              throw new Error('No decryption method available')
-            }
-          }
-          
-          console.log('🔓 Successfully decrypted message:', decryptedContent.substring(0, 50) + '...')
-        } catch (decryptError) {
-          console.warn('⚠️ Failed to decrypt message:', decryptError)
-          decryptedContent = '[Encrypted message - unable to decrypt]'
-        }
-      } else {
-        // Content is already plain text
-        decryptedContent = event.content
-        console.log('📝 Using plain text message:', decryptedContent.substring(0, 50) + '...')
+      const counterpartyPubkey = isOutgoing
+        ? event.tags.find(tag => tag[0] === 'p')?.[1]
+        : event.pubkey
+
+      try {
+        decryptedContent = await decryptMessage(event.content, counterpartyPubkey, currentUser.value)
+      } catch (decryptError) {
+        console.warn('Failed to decrypt message:', decryptError)
+        decryptedContent = '[Encrypted message - unable to decrypt]'
       }
 
       // Create message object
@@ -269,17 +300,8 @@ export function useNostrChat() {
     try {
       console.log('📤 Sending message to:', recipientPubkey.substring(0, 8) + '...')
       
-      // Encrypt the message
-      let encryptedContent
-      if (currentUser.value.privkey) {
-        // Use local private key
-        encryptedContent = await nip04.encrypt(currentUser.value.privkey, recipientPubkey, content)
-      } else if (window.nostr?.nip04?.encrypt) {
-        // Use browser extension
-        encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content)
-      } else {
-        throw new Error('No encryption method available')
-      }
+      // Encrypt the message (NIP-44 preferred, NIP-04 fallback)
+      const encryptedContent = await encryptMessage(content, recipientPubkey, currentUser.value)
 
       // Create DM event
       const eventTemplate = {
@@ -505,7 +527,8 @@ export function useNostrChat() {
     profileSubscriptions.clear()
     
     processedEventIds.clear()
-    console.log('🧹 Chat cleanup completed')
+    conversationKeyCache.clear()
+    console.log('Chat cleanup completed')
   }
 
   // Initialize when authenticated

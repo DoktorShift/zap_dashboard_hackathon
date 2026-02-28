@@ -1,17 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import {
-  IconUser,
   IconUserPlus,
-  IconUserCheck,
-  IconUserX,
   IconShield,
   IconBolt,
-  IconCopy,
-  IconExternalLink,
-  IconList,
   IconCheck,
-  IconChevronDown
+  IconAward
 } from '@iconify-prerendered/vue-tabler'
 import * as nip19 from 'nostr-tools/nip19'
 import BadgeList from '../badges/BadgeList.vue'
@@ -19,7 +13,7 @@ import { useBadges } from '../../composables/social/useBadges.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
 // Get badge update trigger for reactivity
-const { badgeUpdateTrigger } = useBadges()
+const { badgeUpdateTrigger, getUserBadgeCount } = useBadges()
 
 const props = defineProps({
   pubkey: {
@@ -49,10 +43,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['click', 'follow', 'unfollow', 'toggle-selection', 'badge-click'])
-
-// UI state
-const showDropdown = ref(false)
-const copySuccess = ref(false)
 
 // Computed properties
 const displayName = computed(() => {
@@ -85,6 +75,8 @@ const hasLightning = computed(() => {
   return !!props.profile?.lud16
 })
 
+const badgeCount = computed(() => getUserBadgeCount(props.pubkey))
+
 // Handle follow/unfollow
 const handleFollowToggle = () => {
   if (props.isFollowing) {
@@ -94,41 +86,8 @@ const handleFollowToggle = () => {
   }
 }
 
-// Copy npub to clipboard
-const copyNpub = async () => {
-  try {
-    const npub = nip19.npubEncode(props.pubkey)
-    await navigator.clipboard.writeText(npub)
-    copySuccess.value = true
-    setTimeout(() => {
-      copySuccess.value = false
-    }, 2000)
-  } catch (error) {
-    console.error('Failed to copy npub:', error)
-  }
-}
-
-// Get profile URL for different clients
-const getProfileUrl = (client) => {
-  try {
-    const npub = nip19.npubEncode(props.pubkey)
-    switch (client) {
-      case 'primal':
-        return `https://primal.net/p/${npub}`
-      case 'yakihonne':
-        return `https://yakihonne.com/${npub}`
-      default:
-        return `https://primal.net/p/${npub}`
-    }
-  } catch (error) {
-    return '#'
-  }
-}
-
 // Handle badge click
 const handleBadgeClick = (badge) => {
-  console.log('Badge clicked:', badge)
-  // Could emit an event or show badge details modal
   emit('badge-click', badge)
 }
 </script>
@@ -167,9 +126,15 @@ const handleBadgeClick = (badge) => {
           
           <!-- Verification Badge -->
           <IconShield v-if="hasVerification" class="w-4 h-4 text-blue-600" title="NIP-05 Verified" />
-          
+
           <!-- Lightning Badge -->
           <IconBolt v-if="hasLightning" class="w-4 h-4 text-yellow-500" title="Lightning Address" />
+
+          <!-- Badge Count -->
+          <span v-if="badgeCount > 0" class="flex items-center space-x-0.5 text-orange-600" :title="`${badgeCount} badges`">
+            <IconAward class="w-4 h-4" />
+            <span class="text-xs font-medium">{{ badgeCount }}</span>
+          </span>
         </div>
         
         <p class="text-sm text-gray-500 truncate">{{ shortHandle }}</p>
@@ -189,7 +154,6 @@ const handleBadgeClick = (badge) => {
             :key="`badges-${pubkey}-${badgeUpdateTrigger}`"
             :pubkey="pubkey"
             size="small"
-            :max-display="3"
             :show-count="false"
             :show-view-all="false"
             layout="horizontal"

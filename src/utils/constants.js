@@ -53,16 +53,23 @@ export const DEFAULT_RELAY_URLS = [
   'wss://nos.lol',
   'wss://relay.snort.social',
   'wss://relay.primal.net',
+  'wss://cache1.primal.net',
   'wss://nostr.wine',
   'wss://relay.nostr.band',
   'wss://nostr-01.yakihonne.com'
 ]
 
+const READ_ONLY_RELAYS = new Set([
+  'wss://cache1.primal.net',
+  'wss://relay.nostr.band',
+  'wss://nostr-01.yakihonne.com'
+])
+
 // Relay configs with read/write flags (used by relay manager)
 export const DEFAULT_RELAY_CONFIGS = DEFAULT_RELAY_URLS.map(url => ({
   url,
   read: true,
-  write: url !== 'wss://relay.nostr.band' && url !== 'wss://nostr-01.yakihonne.com'
+  write: !READ_ONLY_RELAYS.has(url)
 }))
 
 // Relay configs with status (used by useNostrAuth UI)
@@ -70,8 +77,57 @@ export const DEFAULT_RELAY_CONFIGS_WITH_STATUS = DEFAULT_RELAY_URLS.map(url => (
   url,
   status: 'disconnected',
   read: true,
-  write: url !== 'wss://relay.nostr.band' && url !== 'wss://nostr-01.yakihonne.com'
+  write: !READ_ONLY_RELAYS.has(url)
 }))
 
 // ── Subscription concurrency ──
 export const MAX_CONCURRENT_SUBS = 20
+
+// ── Chart theme colors ──
+// Orange brand palette (Tailwind orange-*)
+export const CHART_COLORS = {
+  // Primary brand
+  primary: '#f97316',        // orange-500
+  primaryLight: '#fb923c',   // orange-400
+  primaryLighter: '#fdba74', // orange-300
+  primaryPale: '#fed7aa',    // orange-200
+  primaryFaint: '#fff7ed',   // orange-50
+
+  // Accent / category colors
+  green: '#34d399',          // emerald-400
+  emerald: '#10b981',        // emerald-500
+  blue: '#60a5fa',           // blue-400
+  pink: '#f472b6',           // pink-400
+  purple: '#a78bfa',         // violet-400
+
+  // Text & axes
+  titleText: '#7c2d12',      // orange-900
+  axisLabel: '#9a3412',      // orange-800
+  tooltipText: '#374151',    // gray-700
+  axisLabelGray: '#9ca3af',  // gray-400
+
+  // Lines & backgrounds
+  splitLine: '#f3f4f6',      // gray-100
+  axisLine: '#fed7aa',       // orange-200 (same as primaryPale)
+  emptyBar: '#e5e7eb',       // gray-200
+  white: '#ffffff',
+}
+
+// Reusable ECharts tooltip style
+export const CHART_TOOLTIP_STYLE = {
+  backgroundColor: CHART_COLORS.white,
+  borderColor: CHART_COLORS.primary,
+  borderWidth: 1,
+  textStyle: { color: CHART_COLORS.tooltipText, fontSize: 12 },
+}
+
+// Reusable area gradient for orange line charts
+export function chartAreaGradient(opacity1 = 0.3, opacity2 = 0.02) {
+  return {
+    type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+    colorStops: [
+      { offset: 0, color: `rgba(249, 115, 22, ${opacity1})` },
+      { offset: 1, color: `rgba(249, 115, 22, ${opacity2})` },
+    ],
+  }
+}
