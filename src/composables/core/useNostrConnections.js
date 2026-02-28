@@ -1,4 +1,4 @@
-import { ref, reactive, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { initializeNWC, fetchTransactions, getWalletInfo, getBalance } from '../../utils/wallet/nwcClient.js'
 import { processTransactions } from '../../utils/core/dataMapper.js'
 
@@ -78,8 +78,13 @@ const saveConnections = () => {
   }
 }
 
-// Watch for changes and save to localStorage
-watch(connections, saveConnections, { deep: true })
+// Watch for changes and save to localStorage (debounced)
+let _connSaveTimer = null
+const debouncedSaveConnections = () => {
+  if (_connSaveTimer) clearTimeout(_connSaveTimer)
+  _connSaveTimer = setTimeout(saveConnections, 1000)
+}
+watch(() => connections.value.length, debouncedSaveConnections)
 watch(activeConnection, saveConnections)
 
 // Validate NWC URL format

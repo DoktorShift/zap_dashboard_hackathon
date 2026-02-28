@@ -2,7 +2,6 @@
 import { ref, provide, watch, onMounted, nextTick,computed, onUnmounted } from 'vue'
 import { IconAlertTriangle, IconX } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/layout/Sidebar.vue'
-import { IconTarget } from '@iconify-prerendered/vue-tabler'
 import { useContentZaps } from './composables/content/useContentZaps.js'
 import { generateAvatar } from './utils/profile/avatarGenerator.js'
 import { fetchProfile, batchFetchProfiles, profileCache as sharedProfileCache } from './utils/profile/profileFetcher.js'
@@ -32,7 +31,8 @@ import { useNostrConnections } from './composables/core/useNostrConnections.js'
 import { useNotifications } from './composables/core/useNotifications.js'
 import { nostrRelayManager } from './utils/network/nostrRelayManager.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
-import { startRefreshCycle, stopRefreshCycle } from './utils/refreshCycle.js'
+import { startRefreshCycle, stopRefreshCycle, setActiveGroup } from './utils/refreshCycle.js'
+import { APP_HARD_TIMEOUT, RELAY_READY_TIMEOUT } from './utils/constants.js'
 import Calendar from './pages/Calendar.vue'
 import ContestResolver from './pages/ContestResolver.vue'
 import WelcomeModal from './components/modals/WelcomeModal.vue'
@@ -42,6 +42,7 @@ import AppLoader from './components/layout/AppLoader.vue'
 // App loading gate
 const appReady = ref(false)
 const loadingPhase = ref('session')
+const loadingTimedOut = ref(false)
 
 // Read stored user for loading screen
 const storedUserRaw = localStorage.getItem('nostrUser')
@@ -127,8 +128,7 @@ const {
 // Use the content zaps composable to get NIP-57 zaps
 const { getAllContentZaps } = useContentZaps()
 
-// Initialize content zaps tracking
-const { initializeZapTracking } = useContentZaps()
+// Content zaps now self-initialize via watch(isAuthenticated)
 
 // Use the user zaps composable for #p-based zap subscription
 const { userZaps } = useUserZaps()
@@ -248,33 +248,25 @@ const fetchProfilesInBatches = async (pubkeys) => {
   dataLoadingProgress.value.currentStep = `Loading profiles (${loaded}/${totalProfiles})`
 }
 
-// Watch for new zaps and fetch profiles with batching
-watch(combinedZapData, async (newZaps) => {
-  const uniquePubkeys = new Set()
-  
-  newZaps.forEach(zap => {
-    const pubkey = zap.sender?.pubkey || zap.sender?.zapperPubkey
-    if (pubkey && !profileStore.value.has(pubkey)) {
-      uniquePubkeys.add(pubkey)
-    }
-  })
-  
-  if (uniquePubkeys.size > 0) {
-    // Only show profile loading progress if we're not already loading main data
-    if (!isRefreshingData.value) {
-      dataLoadingProgress.value.isLoading = true
-      dataLoadingProgress.value.totalItems = uniquePubkeys.size
-      dataLoadingProgress.value.currentStep = 'Preparing profile data...'
-    }
-    
-    await fetchProfilesInBatches(Array.from(uniquePubkeys))
+// Watch for new zaps and fetch profiles with batching (debounced to avoid relay spam)
+let _profileFetchTimer = null
+watch(() => combinedZapData.value.length, () => {
+  if (_profileFetchTimer) clearTimeout(_profileFetchTimer)
+  _profileFetchTimer = setTimeout(async () => {
+    const uniquePubkeys = new Set()
 
-    // Only clear profile loading if we're not loading main data
-    if (!isRefreshingData.value) {
-      dataLoadingProgress.value.isLoading = false
+    combinedZapData.value.forEach(zap => {
+      const pubkey = zap.sender?.pubkey || zap.sender?.zapperPubkey
+      if (pubkey && !profileStore.value.has(pubkey)) {
+        uniquePubkeys.add(pubkey)
+      }
+    })
+
+    if (uniquePubkeys.size > 0) {
+      await fetchProfilesInBatches(Array.from(uniquePubkeys))
     }
-  }
-}, { immediate: true })
+  }, 2000)
+})
 
 // Enhanced combined zap data with profile integration
 const enhancedCombinedZapData = computed(() => {
@@ -498,9 +490,6 @@ watch(activeConnection, async (newConnection, oldConnection) => {
 
 // Enhanced initialization
 onMounted(async () => {
-  // Hard timeout — always show app after 15s regardless of loading state
-  const hardTimeout = setTimeout(() => { appReady.value = true }, 15000)
-
   // Check URL parameters for page navigation (do this early)
   const urlParams = new URLSearchParams(window.location.search)
   const pageParam = urlParams.get('page')
@@ -511,7 +500,6 @@ onMounted(async () => {
   // Standalone pages skip loading screen
   if (isStandalonePage.value) {
     appReady.value = true
-    clearTimeout(hardTimeout)
   }
 
   // Check if this is first visit - show HelpModal
@@ -520,72 +508,14 @@ onMounted(async () => {
     showHelpModal.value = true
   }
 
-  // --- Loading phases (only meaningful for returning users) ---
+  // Wait for relay manager to be initialized (useNostrAuth.initAuthAndRelays handles init with user relays)
+  // Do NOT call initialize() here — it would steal the init with no user relays
+
+  // Run loading sequence for returning users
   if (hasStoredUser && !appReady.value) {
     loadingPhase.value = 'session'
-    // Small tick so the loader renders before we proceed
     await nextTick()
-  }
-
-  // Phase 2: Relay init
-  if (hasStoredUser && !appReady.value) {
-    loadingPhase.value = 'relays'
-  }
-
-  // useNostrAuth handles primary relay initialization with user relays.
-  // Fallback: ensure relays are initialized even if auth init fails.
-  try {
-    if (!nostrRelayManager.isInitialized) {
-      await nostrRelayManager.initialize()
-    }
-  } catch (error) {
-    console.error('Failed to initialize relay manager:', error)
-  }
-
-  // Phase 3: Profile / auth
-  if (hasStoredUser && !appReady.value) {
-    loadingPhase.value = 'profile'
-  }
-
-  // Wait briefly for relay manager ready — but never hang.
-  // initialize() above already connected; ready() can hang forever if init failed,
-  // so race it with a 5s timeout.
-  try {
-    await Promise.race([
-      nostrRelayManager.ready(),
-      new Promise(r => setTimeout(r, 5000))
-    ])
-  } catch (e) {
-    // continue regardless
-  }
-
-  // Initialize content zap tracking for all authenticated users (not just wallet-connected)
-  if (isAuthenticated.value) {
-    initializeZapTracking()
-  } else if (isWalletConnected.value) {
-    initializeZapTracking()
-  }
-
-  // Phase 4: Syncing composables
-  if (hasStoredUser && !appReady.value) {
-    loadingPhase.value = 'syncing'
-    // Give composables + engagement background refresh time to initiate relay subscriptions
-    await new Promise(r => setTimeout(r, 2000))
-  }
-
-  // Phase 5: Ready
-  if (hasStoredUser && !appReady.value) {
-    loadingPhase.value = 'ready'
-    // Brief settle so the "ready" step is visible
-    await new Promise(r => setTimeout(r, 400))
-    appReady.value = true
-    clearTimeout(hardTimeout)
-  }
-
-  if (isWalletConnected.value) {
-    setTimeout(() => {
-      refreshZapData(true)
-    }, 1000)
+    await runLoadingSequence()
   }
 
   startPeriodicHealthCheck()
@@ -600,17 +530,15 @@ const startPeriodicHealthCheck = () => {
     clearInterval(healthCheckInterval)
   }
   
-  // Check every 2 minutes
+  // Check every 5 minutes — only balance + reconnect (data refresh handled by refreshCycle)
   healthCheckInterval = setInterval(async () => {
     if (isWalletConnected.value && !isRefreshingData.value) {
       try {
         await getBalance()
-        await refreshZapData(true)
-
       } catch (error) {
         console.warn('Periodic health check failed:', error)
 
-        if (error.message.includes('not initialized') || error.message.includes('timeout')) {
+        if (error.message?.includes('not initialized') || error.message?.includes('timeout')) {
           try {
             await autoReconnect()
           } catch (reconnectError) {
@@ -618,11 +546,9 @@ const startPeriodicHealthCheck = () => {
             connectionError.value = 'Connection lost. Please reconnect your wallet.'
           }
         }
-
-        initializeZapTracking()
       }
     }
-  }, 120000) // 2 minutes
+  }, 300000) // 5 minutes
 }
 
 // Cleanup on unmount
@@ -634,24 +560,39 @@ onUnmounted(() => {
 })
 
 // Watch for transaction notifications and auto-refresh
-watch(notifications, (newNotifications, oldNotifications) => {
-  if (!newNotifications || !oldNotifications) return
-  
+watch(() => notifications.value?.length, (newLen, oldLen) => {
+  if (!newLen || !oldLen || newLen <= oldLen) return
+
   // Check if there are new payment-related notifications
-  const hasNewPaymentNotification = newNotifications.length > oldNotifications.length &&
-    newNotifications.some(notification => 
-      (notification.type === 'zap_received' || 
-       notification.type === 'payment_success' || 
-       notification.type === 'payment_error') &&
-      !notification.read
-    )
-  
+  const hasNewPaymentNotification = notifications.value.some(notification =>
+    (notification.type === 'zap_received_nwc' ||
+     notification.type === 'zap_received_nostr' ||
+     notification.type === 'payment_success' ||
+     notification.type === 'payment_error') &&
+    !notification.read
+  )
+
   if (hasNewPaymentNotification && isWalletConnected.value) {
     setTimeout(() => {
       refreshZapData(true)
     }, 2000) // Small delay to ensure transaction is fully processed
   }
-}, { deep: true })
+})
+
+// Map page names to refresh cycle groups
+// Pages without an explicit mapping default to 'dashboard' (global-only refresh)
+const pageGroupMap = {
+  dashboard: 'dashboard',
+  notes: 'notes',
+  content: 'content',
+  'content-unlock': 'content',
+  campaigns: 'campaigns',
+  'campaign-view': 'campaigns',
+  audience: 'audience',
+  calendar: 'calendar',
+  settings: 'dashboard',
+  notifications: 'dashboard'
+}
 
 // Enhanced page change function to handle tab navigation
 const changePage = async (page, tab = null) => {
@@ -660,10 +601,13 @@ const changePage = async (page, tab = null) => {
     pageLoadingError.value = `Page "${page}" not found`
     return
   }
-  
+
   isPageLoading.value = true
   pageLoadingError.value = ''
-  
+
+  // Set active refresh group for the new page (default to 'dashboard' = global-only)
+  setActiveGroup(pageGroupMap[page] || 'dashboard')
+
   try {
     currentPage.value = page
     isMobileMenuOpen.value = false
@@ -697,19 +641,15 @@ const changePage = async (page, tab = null) => {
 provide('changePage', changePage)
 
 // Enhanced connection success handler with notifications
-const handleConnectionSuccess = async () => {
+const handleConnectionSuccess = () => {
   showConnectionModal.value = false
-  
+
   // Notify about successful connection
   if (activeConnection.value) {
     notifyConnectionSuccess(activeConnection.value.name)
   }
-  
-  // Wait a moment for the connection to fully establish
-  await nextTick()
-  setTimeout(() => {
-    refreshZapData(true)
-  }, 500)
+
+  // refreshZapData is triggered by the activeConnection watcher — no duplicate call needed
 }
 
 // Enhanced connection error handler with notifications
@@ -767,32 +707,59 @@ const showLoginError = (error) => {
   }
 }
 
-const runPostLoginLoader = async () => {
-  // Show loading screen through the init phases after login
+/**
+ * Shared loading sequence used by both onMounted (boot) and post-login.
+ * Phases: relays → profile → syncing (waits for actual data) → ready.
+ */
+const runLoadingSequence = async () => {
   appReady.value = false
-  const timeout = setTimeout(() => { appReady.value = true }, 15000)
+  loadingTimedOut.value = false
+  const timeout = setTimeout(() => {
+    loadingTimedOut.value = true
+    appReady.value = true
+  }, APP_HARD_TIMEOUT)
 
+  // Phase: relays
   loadingPhase.value = 'relays'
   try {
     await Promise.race([
       nostrRelayManager.ready(),
-      new Promise(r => setTimeout(r, 5000))
+      new Promise(r => setTimeout(r, RELAY_READY_TIMEOUT))
     ])
   } catch (e) { /* continue */ }
 
+  // Phase: profile
   loadingPhase.value = 'profile'
-  initializeZapTracking()
   await new Promise(r => setTimeout(r, 800))
 
+  // Phase: syncing — wait for actual data instead of a fake sleep
   loadingPhase.value = 'syncing'
-  await new Promise(r => setTimeout(r, 2000))
+  await Promise.race([
+    new Promise(resolve => {
+      // Check if we already have data
+      if (notes.value.length > 0 || userZaps.value.length > 0) {
+        resolve()
+        return
+      }
+      // Watch for data to arrive
+      const unwatch = watch(
+        () => notes.value.length + userZaps.value.length,
+        (total) => { if (total > 0) { unwatch(); resolve() } }
+      )
+      // Also resolve after a short time if no data arrives (new user)
+    }),
+    new Promise(r => setTimeout(r, 3000))
+  ])
 
+  // Phase: ready
   loadingPhase.value = 'ready'
   await new Promise(r => setTimeout(r, 400))
 
   appReady.value = true
   clearTimeout(timeout)
 }
+
+const runPostLoginLoader = () => runLoadingSequence()
 
 const handleTriggerLogin = async () => {
   try {
@@ -851,6 +818,7 @@ const handleChecklistTaskAction = async (action) => {
       :phase="loadingPhase"
       :user-name="storedUserName"
       :user-avatar="storedUserAvatar"
+      :timed-out="loadingTimedOut"
     />
   </Transition>
 

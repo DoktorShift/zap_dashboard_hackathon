@@ -2,13 +2,13 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { useContentZaps } from './useContentZaps.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { verifyEvent } from 'nostr-tools/pure'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 
 // Global state for notes
 const notes = ref([])
 const isFetchingNotes = ref(false)
-const isLoading = ref(false)
+const isPublishing = ref(false)
 const error = ref('')
 let currentSubscription = null // Track current subscription
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
@@ -29,7 +29,7 @@ const editingNote = ref(null)
 
 export function useNostrNotes() {
   const { currentUser, isAuthenticated, writeRelays, readRelays } = useNostrAuth()
-  const { startZapTracking } = useContentZaps()
+  const { startZapTracking, clearZapsForContent } = useContentZaps()
 
   // Computed properties
   const userNotes = computed(() => {
@@ -81,7 +81,12 @@ export function useNostrNotes() {
       return
     }
 
-    await nostrRelayManager.ready()
+    try {
+      await nostrRelayManager.ready()
+    } catch (err) {
+      console.warn('[useNostrNotes] Relay manager not ready:', err.message)
+      return
+    }
 
     isFetchingNotes.value = true
     error.value = ''
@@ -185,11 +190,17 @@ export function useNostrNotes() {
           }
         },
         oneose: () => {
-          console.log('End of stored notes events')
+          console.log('End of stored notes events — closing subscription')
           isFetchingNotes.value = false
           if (fetchTimeout) {
             clearTimeout(fetchTimeout)
             fetchTimeout = null
+          }
+          // Close subscription after EOSE — this is a fetch, not a live sub.
+          // The refresh cycle will re-fetch periodically.
+          if (currentSubscription) {
+            currentSubscription.close()
+            currentSubscription = null
           }
         },
         onclose: (reason) => {
@@ -226,7 +237,7 @@ export function useNostrNotes() {
       throw new Error('Note content cannot be empty')
     }
 
-    isLoading.value = true
+    isPublishing.value = true
     error.value = ''
 
     try {
@@ -314,7 +325,7 @@ export function useNostrNotes() {
       console.error('❌ Note publishing error:', err)
       throw err
     } finally {
-      isLoading.value = false
+      isPublishing.value = false
     }
   }
 
@@ -331,7 +342,7 @@ export function useNostrNotes() {
       throw new Error('Note content cannot be empty')
     }
 
-    isLoading.value = true
+    isPublishing.value = true
     error.value = ''
 
     try {
@@ -458,7 +469,7 @@ export function useNostrNotes() {
       console.error('❌ Note update error:', err)
       throw err
     } finally {
-      isLoading.value = false
+      isPublishing.value = false
     }
   }
 
@@ -497,7 +508,9 @@ export function useNostrNotes() {
         if (index !== -1) {
           notes.value.splice(index, 1)
         }
-        
+        // Clean up zap tracking for deleted note
+        clearZapsForContent(noteId)
+
         console.log('✅ Note deletion published successfully')
       }
 
@@ -576,13 +589,13 @@ export function useNostrNotes() {
         processedEventIds.clear() // Clear processed event IDs
         
         // fetchUserNotes already awaits ready() internally
-        fetchUserNotes()
+        fetchUserNotes().catch(err => console.warn('[useNostrNotes] Initial fetch failed:', err.message))
 
         registerRefresh('notes', async () => {
           if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
           processedEventIds.clear()
           await fetchUserNotes()
-        })
+        }, 'notes')
 
         // Set up periodic cleanup of duplicate notes
         const cleanupInterval = setInterval(() => {
@@ -715,7 +728,8 @@ export function useNostrNotes() {
     currentView,
     selectedNote,
     editingNote,
-    isLoading,
+    isLoading: isPublishing,
+    isPublishing,
     isFetchingNotes,
     error,
 

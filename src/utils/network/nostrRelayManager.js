@@ -1,5 +1,12 @@
 import { SimplePool } from 'nostr-tools/pool'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { verifyEvent } from 'nostr-tools/pure'
+import {
+  RELAY_CONNECTION_TIMEOUT, RELAY_MAX_RETRIES, RELAY_RETRY_DELAY,
+  RELAY_HEALTH_CHECK_INTERVAL, RELAY_HEALTH_CHECK_TIMEOUT, RELAY_MAX_BACKOFF,
+  EVENT_CACHE_TTL, EVENT_CACHE_MAX, EVENT_CACHE_EVICT,
+  DEFERRED_SUB_TIMEOUT, PUBLISH_TIMEOUT,
+  DEFAULT_RELAY_CONFIGS, MAX_CONCURRENT_SUBS
+} from '../constants.js'
 
 // Relay connection manager following nostr-tools best practices
 class NostrRelayManager {
@@ -11,35 +18,34 @@ class NostrRelayManager {
     this.eventListeners = new Set()
     this.isInitialized = false
     this._createReadyGate()
-    
-    // Default reliable relays
-    this.defaultRelays = [
-      { url: 'wss://relay.damus.io', read: true, write: true },
-      { url: 'wss://nos.lol', read: true, write: true },
-      { url: 'wss://relay.snort.social', read: true, write: true },
-      { url: 'wss://relay.primal.net', read: true, write: true },
-      { url: 'wss://nostr.wine', read: true, write: true },
-      { url: 'wss://relay.nostr.band', read: true, write: false } // Read-only
-    ]
-    
+
+    // Default reliable relays (from constants)
+    this.defaultRelays = DEFAULT_RELAY_CONFIGS
+
     // Connection timeouts and retry logic
-    this.connectionTimeout = 10000 // 10 seconds
-    this.maxRetries = 3
-    this.retryDelay = 2000 // 2 seconds
-    this.healthCheckInterval = 300000 // 5 minutes
+    this.connectionTimeout = RELAY_CONNECTION_TIMEOUT
+    this.maxRetries = RELAY_MAX_RETRIES
+    this.retryDelay = RELAY_RETRY_DELAY
+    this.healthCheckInterval = RELAY_HEALTH_CHECK_INTERVAL
     this.healthCheckTimer = null
 
     // Memoization
     this._eventCache = new Map() // key: JSON.stringify(filters), value: {event, timestamp}
-    this._eventCacheTTL = 60 * 1000 // 1 minute default TTL
+    this._eventCacheTTL = EVENT_CACHE_TTL
     this._relayBackoff = new Map() // url -> {backoffMs, lastFail}
-    this._maxBackoff = 5 * 60 * 1000 // 5 min
+    this._maxBackoff = RELAY_MAX_BACKOFF
+
+    // Subscription concurrency control
+    this._activeSubscriptions = new Set()
+    this._subscriptionQueue = []
+    this._maxConcurrentSubs = MAX_CONCURRENT_SUBS
   }
 
   // Create the ready gate (Promise that resolves when initialized)
   _createReadyGate() {
-    this._readyPromise = new Promise((resolve) => {
+    this._readyPromise = new Promise((resolve, reject) => {
       this._readyResolve = resolve
+      this._readyReject = reject
     })
   }
 
@@ -81,6 +87,7 @@ class NostrRelayManager {
       
     } catch (error) {
       console.error('❌ Failed to initialize Nostr Relay Manager:', error)
+      this._readyReject(error)
       throw error
     }
   }
@@ -327,7 +334,7 @@ class NostrRelayManager {
 
       // Wait for at least one successful publish with timeout
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('publish timed out')), 10000)
+        setTimeout(() => reject(new Error('publish timed out')), PUBLISH_TIMEOUT)
       )
 
       // Use Promise.any to resolve as soon as one relay succeeds
@@ -447,11 +454,19 @@ class NostrRelayManager {
   // If called before initialization, defers until ready.
   subscribeToEvents(filters, options = {}) {
     if (!this.isInitialized) {
-      // Deferred subscription: queue until relay manager is ready
+      // Deferred subscription: queue until relay manager is ready (with timeout)
       let realSub = null
       let closed = false
 
+      const deferTimeout = setTimeout(() => {
+        if (!closed) {
+          closed = true
+          console.warn('Deferred subscription timed out after', DEFERRED_SUB_TIMEOUT, 'ms')
+        }
+      }, DEFERRED_SUB_TIMEOUT)
+
       this._readyPromise.then(() => {
+        clearTimeout(deferTimeout)
         if (!closed) {
           try {
             realSub = this.subscribeToEvents(filters, options)
@@ -459,9 +474,12 @@ class NostrRelayManager {
             console.warn('Deferred subscription failed:', e.message)
           }
         }
+      }).catch(() => {
+        clearTimeout(deferTimeout)
+        closed = true
       })
 
-      return { close: () => { closed = true; realSub?.close() } }
+      return { close: () => { closed = true; clearTimeout(deferTimeout); realSub?.close() } }
     }
     
     const validFilters = this._validateFilters(filters)
@@ -473,15 +491,48 @@ class NostrRelayManager {
         off: () => {}
       }
     }
-    
+
+    // Concurrency control: if at limit, queue the request
+    if (this._activeSubscriptions.size >= this._maxConcurrentSubs) {
+      let realSub = null
+      const proxy = {
+        close: () => { proxy._closed = true; realSub?.close() },
+        _closed: false
+      }
+      this._subscriptionQueue.push({ filters: validFilters, options, proxy, setReal: (s) => { realSub = s } })
+      return proxy
+    }
+
+    return this._openSubscription(validFilters, options)
+  }
+
+  // Internal: actually open a subscription (after concurrency check)
+  // filters here are already validated
+  _openSubscription(filters, options) {
+    const validFilters = filters
     const readRelays = this.getReadRelays().filter(r => !this._isRelayBackedOff(r.url))
     if (readRelays.length === 0) {
       throw new Error('No read-enabled relays available (all may be rate-limited or unhealthy)')
     }
     const relayUrls = readRelays.map(relay => relay.url)
-    // Wrap callbacks to handle relay failures
+
+    // Track this subscription
+    const subId = Symbol('sub')
+    this._activeSubscriptions.add(subId)
+
+    // Cleanup helper — idempotent, safe to call multiple times
+    let cleaned = false
+    const cleanupSub = () => {
+      if (cleaned) return
+      cleaned = true
+      this._activeSubscriptions.delete(subId)
+      this._drainQueue()
+    }
+
+    // Wrap callbacks to handle relay failures + cleanup
     const wrappedOptions = {...options}
     wrappedOptions.onclose = (reason) => {
+      cleanupSub()
       if (Array.isArray(reason)) {
         reason.forEach((r, i) => {
           if (r && r.toLowerCase().includes('rate')) {
@@ -504,7 +555,31 @@ class NostrRelayManager {
       ...wrappedOptions,
       maxWait: options.maxWait || 10000
     })
+
+    // Wrap close to ensure cleanup even if onclose doesn't fire
+    const originalClose = sub.close.bind(sub)
+    sub.close = () => {
+      cleanupSub()
+      originalClose()
+    }
+
     return sub
+  }
+
+  // Drain the subscription queue (FIFO)
+  _drainQueue() {
+    while (this._subscriptionQueue.length > 0 && this._activeSubscriptions.size < this._maxConcurrentSubs) {
+      const { filters, options, proxy, setReal } = this._subscriptionQueue.shift()
+      if (proxy._closed) continue // proxy was closed while queued
+      try {
+        const realSub = this._openSubscription(filters, options)
+        setReal(realSub)
+        // Rewire proxy close to delegate to real sub
+        proxy.close = () => { proxy._closed = true; realSub.close() }
+      } catch (e) {
+        console.warn('Queued subscription failed:', e.message)
+      }
+    }
   }
 
   // Memoized getEvent (in-memory, TTL)
@@ -536,6 +611,7 @@ class NostrRelayManager {
       const event = await this.pool.get(relayUrls, filters)
       if (event) {
         this._eventCache.set(cacheKey, {event, timestamp: Date.now()})
+        this._evictEventCache()
         // Reset backoff for all relays on success
         relayUrls.forEach(url => this._resetRelayBackoff(url))
       }
@@ -555,6 +631,15 @@ class NostrRelayManager {
   clearEventCache(filters) {
     const cacheKey = JSON.stringify(filters)
     this._eventCache.delete(cacheKey)
+  }
+
+  // Evict oldest entries when event cache exceeds max size
+  _evictEventCache() {
+    if (this._eventCache.size <= EVENT_CACHE_MAX) return
+    const entries = Array.from(this._eventCache.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    const toRemove = entries.slice(0, EVENT_CACHE_EVICT)
+    toRemove.forEach(([key]) => this._eventCache.delete(key))
   }
 
   // Start health check monitoring
@@ -586,7 +671,7 @@ class NostrRelayManager {
 
         // Check if relay is still responsive via WebSocket connection
         const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Health check timeout')), 5000)
+          setTimeout(() => reject(new Error('Health check timeout')), RELAY_HEALTH_CHECK_TIMEOUT)
         )
 
         await Promise.race([
@@ -719,7 +804,11 @@ class NostrRelayManager {
     this.relayStatuses.clear()
     this.connectionPromises.clear()
     this.eventListeners.clear()
-    
+    this._activeSubscriptions.clear()
+    this._subscriptionQueue.length = 0
+    this._eventCache.clear()
+    this._relayBackoff.clear()
+
     this.isInitialized = false
     this._createReadyGate() // Reset for next initialization cycle
     console.log('✅ Nostr Relay Manager cleanup complete')

@@ -4,7 +4,8 @@ import { computed } from 'vue'
 const props = defineProps({
   phase: { type: String, default: 'session' },
   userName: { type: String, default: '' },
-  userAvatar: { type: String, default: '' }
+  userAvatar: { type: String, default: '' },
+  timedOut: { type: Boolean, default: false }
 })
 
 const steps = [
@@ -63,8 +64,8 @@ const progressPercent = computed(() => {
 
       <!-- Current step label -->
       <div class="step-row">
-        <div class="step-spinner"></div>
-        <span class="step-label">{{ steps[currentIndex]?.label }}</span>
+        <div v-if="!timedOut" class="step-spinner"></div>
+        <span class="step-label">{{ timedOut ? 'Some data may still be loading' : steps[currentIndex]?.label }}</span>
       </div>
     </div>
   </div>

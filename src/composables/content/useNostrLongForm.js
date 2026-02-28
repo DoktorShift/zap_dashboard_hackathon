@@ -1,9 +1,7 @@
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import { contentService } from '../../utils/content/contentService.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 
 // Global state for long-form content
@@ -120,7 +118,12 @@ export function useNostrLongForm() {
       return
     }
 
-    await nostrRelayManager.ready()
+    try {
+      await nostrRelayManager.ready()
+    } catch (err) {
+      console.warn('[useNostrLongForm] Relay manager not ready:', err.message)
+      return
+    }
 
     isLoading.value = true
     error.value = ''
@@ -183,20 +186,20 @@ export function useNostrLongForm() {
               // Add to state
               longFormContent.value.push(contentItem)
               
-              // Also update local storage for backward compatibility
-              updateLocalStorage(contentItem)
+              // Also update local storage for backward compatibility (debounced)
+              debouncedUpdateLocalStorage(contentItem)
             } else {
               // Update existing content
               console.log('🔄 Updating existing long-form content in local state:', event.id.substring(0, 16) + '...')
-              
+
               // Process the event into our content format
               const contentItem = processLongFormEvent(event)
-              
+
               // Update state
               longFormContent.value[existingIndex] = contentItem
-              
-              // Also update local storage for backward compatibility
-              updateLocalStorage(contentItem)
+
+              // Also update local storage for backward compatibility (debounced)
+              debouncedUpdateLocalStorage(contentItem)
             }
           } else if (event.kind === 5) {
             // Handle deletion events
@@ -223,8 +226,14 @@ export function useNostrLongForm() {
           }
         },
         oneose: () => {
-          console.log('End of stored long-form content events')
+          console.log('End of stored long-form content events — closing subscription')
           isLoading.value = false
+          // Close subscription after EOSE — this is a fetch, not a live sub.
+          // The refresh cycle will re-fetch periodically.
+          if (currentSubscription) {
+            currentSubscription.close()
+            currentSubscription = null
+          }
         },
         onclose: (reason) => {
           console.log('Long-form content subscription closed:', reason)
@@ -281,6 +290,18 @@ export function useNostrLongForm() {
       created_at: event.created_at,
       rawEvent: event
     }
+  }
+
+  // Debounced wrapper to avoid localStorage thrashing during subscription events
+  let _lsUpdateTimer = null
+  const _lsPendingUpdates = new Map()
+  const debouncedUpdateLocalStorage = (contentItem) => {
+    _lsPendingUpdates.set(contentItem.id, contentItem)
+    if (_lsUpdateTimer) clearTimeout(_lsUpdateTimer)
+    _lsUpdateTimer = setTimeout(() => {
+      _lsPendingUpdates.forEach(item => updateLocalStorage(item))
+      _lsPendingUpdates.clear()
+    }, 2000)
   }
 
   // Update local storage for backward compatibility
@@ -466,13 +487,13 @@ export function useNostrLongForm() {
         processedEventIds.clear() // Clear processed event IDs
         
         // fetchUserLongFormContent already awaits ready() internally
-        fetchUserLongFormContent()
+        fetchUserLongFormContent().catch(err => console.warn('[useNostrLongForm] Initial fetch failed:', err.message))
 
         registerRefresh('longform', async () => {
           if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
           processedEventIds.clear()
           await fetchUserLongFormContent()
-        })
+        }, 'content')
       }
     } else {
       // Clean up subscription when not authenticated

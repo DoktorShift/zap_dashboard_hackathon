@@ -75,21 +75,27 @@ const saveContentToStorage = () => {
   }
 }
 
-// Watch for changes and save to storage
-watch(contentItems, saveContentToStorage, { deep: true })
+// Watch for changes and save to storage (debounced, length-based to avoid deep watching)
+let _contentSaveTimer = null
+const debouncedSaveContent = () => {
+  if (_contentSaveTimer) clearTimeout(_contentSaveTimer)
+  _contentSaveTimer = setTimeout(saveContentToStorage, 2000)
+}
+watch(() => contentItems.value.length, debouncedSaveContent)
 
 // Initialize content from storage
 loadContentFromStorage()
 
 export function useContent() {
   const { currentUser, isAuthenticated, userProfile } = useNostrAuth()
-  const { 
-    startZapTracking, 
-    getZapsForContent, 
+  const {
+    startZapTracking,
+    getZapsForContent,
     getTotalZapAmount,
     getZapCount,
     getAllContentZaps,
-    initializeZapTracking
+    initializeZapTracking,
+    clearZapsForContent
   } = useContentZaps()
   
   const { fetchUserLongFormContent, longFormContent } = useNostrLongForm()
@@ -299,7 +305,21 @@ export function useContent() {
         }
       }
 
+      // Clean up zap tracking for this content
+      if (contentToDelete.nostrEventId) {
+        clearZapsForContent(contentToDelete.nostrEventId)
+      }
+
       contentItems.value.splice(index, 1)
+
+      // Also remove from relay-fetched longFormContent to prevent ghost reappearance
+      const longFormIndex = longFormContent.value.findIndex(item =>
+        item.id === id || item.id === contentToDelete.nostrEventId
+      )
+      if (longFormIndex !== -1) {
+        longFormContent.value.splice(longFormIndex, 1)
+      }
+
       return true
     } catch (err) {
       error.value = 'Failed to delete content: ' + err.message
@@ -466,7 +486,16 @@ export function useContent() {
 
   const editContent = (content) => {
     editingContent.value = content
-    Object.assign(contentForm, content)
+    Object.assign(contentForm, {
+      title: content.title || '',
+      type: content.type || CONTENT_TYPES.ARTICLE,
+      content: content.content || '',
+      coverImage: content.coverImage || '',
+      description: content.description || '',
+      tags: content.tags ? [...content.tags] : [],
+      monetizationModel: content.monetizationModel || 'free',
+      price: content.price || 0
+    })
     currentView.value = 'edit'
   }
 
@@ -484,28 +513,19 @@ export function useContent() {
     currentView.value = 'preview'
   }
 
-  // Initialize when authenticated
-  if (isAuthenticated.value) {
-    initializeZapTracking()
-    
-    setTimeout(() => {
-      fetchUserLongFormContent().catch(err => {
-        console.error('Failed to fetch long-form content:', err)
-      })
-    }, 2000)
-  }
-
-  // Watch for authentication changes
+  // Watch for authentication changes (handles both init and re-login)
+  // Note: initializeZapTracking + fetchUserLongFormContent are handled by their own composable watchers
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
-      setTimeout(() => {
-        initializeZapTracking()
-        fetchUserLongFormContent().catch(err => {
-          console.error('Failed to fetch long-form content:', err)
-        })
-      }, 1000)
+      // Composables self-initialize — just ensure localStorage is saved after publish operations
+      setTimeout(() => saveContentToStorage(), 2000)
+    } else {
+      // Clear stale content state on logout
+      selectedContentId.value = null
+      currentView.value = 'list'
+      editingContent.value = null
     }
-  })
+  }, { immediate: true })
 
   return {
     // State

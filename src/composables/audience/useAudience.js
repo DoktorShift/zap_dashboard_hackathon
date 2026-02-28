@@ -1,10 +1,9 @@
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useFollowLists } from './useFollowLists.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { verifyEvent } from 'nostr-tools/pure'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
-import * as nip19 from 'nostr-tools/nip19'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
@@ -20,12 +19,7 @@ const syncStatus = ref('idle')
 // Subscriptions tracking
 let followingSubscription = null
 let followersSubscription = null
-let listsSubscription = null
-let profileSubscriptions = new Map()
 
-// Cache management
-const profileFetchPromises = new Map()
-// const profileCache = new Map() // replaced by shared profileCache import above
 const processedEventIds = new Set()
 
 // Storage keys
@@ -100,11 +94,11 @@ const _startAudienceBackgroundRefresh = async () => {
   ]))
   if (pubkeys.length === 0) return
 
-  await nostrRelayManager.ready()
   try {
+    await nostrRelayManager.ready()
     batchFetchProfiles(pubkeys)
   } catch (err) {
-    console.warn('Audience background batchFetchProfiles failed:', err)
+    console.warn('Audience background profile refresh failed:', err.message)
   }
 }
 
@@ -138,8 +132,14 @@ export function useAudience() {
       return
     }
 
-    await nostrRelayManager.ready()
+    try {
+      await nostrRelayManager.ready()
+    } catch (err) {
+      console.warn('[useAudience] Relay manager not ready:', err.message)
+      return
+    }
 
+    processedEventIds.clear()
     isLoading.value = true
     error.value = ''
     syncStatus.value = 'syncing'
@@ -174,10 +174,14 @@ export function useAudience() {
           syncStatus.value = 'idle'
         },
         oneose: () => {
-          console.log('End of stored following events')
+          console.log('End of stored following events — closing subscription')
           isLoading.value = false
           if (syncStatus.value === 'syncing') {
             syncStatus.value = 'idle'
+          }
+          if (followingSubscription) {
+            followingSubscription.close()
+            followingSubscription = null
           }
         },
         onclose: (reason) => {
@@ -216,6 +220,7 @@ export function useAudience() {
         followersSubscription.close()
       }
 
+      const newFollowerPubkeys = []
       followersSubscription = nostrRelayManager.subscribeToEvents([
         { kinds: [3], '#p': [currentUser.value.pubkey], limit: 500 }
       ], {
@@ -226,12 +231,26 @@ export function useAudience() {
           const pub = event.pubkey
           if (!followers.value.includes(pub)) {
             followers.value.push(pub)
-            fetchProfileSynced(pub).catch(() => {})
+            newFollowerPubkeys.push(pub)
           }
         },
         oneose: () => {
-          console.log('End of stored follower events')
+          console.log('End of stored follower events — closing subscription')
           isLoading.value = false
+          if (followersSubscription) {
+            followersSubscription.close()
+            followersSubscription = null
+          }
+          // Batch fetch all new follower profiles at once
+          if (newFollowerPubkeys.length > 0) {
+            batchFetchProfiles(newFollowerPubkeys).then(() => {
+              newFollowerPubkeys.forEach(pub => {
+                const cached = profileCache.get(pub)
+                if (cached?.profile) profiles.set(pub, cached.profile)
+              })
+              saveToStorage()
+            }).catch(() => {})
+          }
         },
         onclose: (reason) => {
           console.log('Followers subscription closed:', reason)
@@ -431,24 +450,31 @@ export function useAudience() {
   const searchProfiles = async (query) => { console.log('Searching profiles for:', query); return [] }
   const searchLists = async (query) => { console.log('Searching lists for:', query); return [] }
 
-  // Watch for data changes and save to storage
-  watch([following, followers], saveToStorage, { deep: true })
-  watch(profiles, saveToStorage, { deep: true })
+  // Watch for data changes and save to storage (debounced to avoid localStorage thrashing)
+  let _audienceSaveTimer = null
+  const debouncedSaveToStorage = () => {
+    if (_audienceSaveTimer) clearTimeout(_audienceSaveTimer)
+    _audienceSaveTimer = setTimeout(saveToStorage, 2000)
+  }
+  watch(() => following.value.length + followers.value.length + profiles.size, debouncedSaveToStorage)
 
   // Initialize when authenticated
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
       loadFromStorage()
-      setTimeout(() => { refreshFollowing() }, 1000)
+      setTimeout(() => { refreshFollowing().catch(err => console.warn('[useAudience] Refresh following failed:', err.message)) }, 1000)
       registerRefresh('audience', async () => {
         await refreshFollowing()
         await refreshFollowers()
-      })
+      }, 'audience')
     } else {
+      // Close active subscriptions
+      if (followingSubscription) { followingSubscription.close(); followingSubscription = null }
+      if (followersSubscription) { followersSubscription.close(); followersSubscription = null }
       following.value = []
       followers.value = []
       profiles.clear()
-      profileCache.clear()
+      processedEventIds.clear()
       unregisterRefresh('audience')
     }
   }, { immediate: true })

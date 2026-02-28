@@ -1,9 +1,8 @@
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import { verifyEvent } from 'nostr-tools/pure'
-import { useNotifications } from '../core/useNotifications.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { subscribe } from '../../utils/network/subscribe.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
@@ -114,7 +113,6 @@ export function useCampaigns() {
   const auth = useNostrAuth()
   const { currentUser } = auth
   const isAuthenticated = auth.isAuthenticated
-  const { handleZapReceived } = useNotifications()
 
   // ── Phase 1: Batch fetch linked notes ────────────────────────────────────
 
@@ -454,6 +452,7 @@ export function useCampaigns() {
       return
     }
 
+    processedEventIds.clear()
     isLoading.value = true
     error.value = ''
 
@@ -816,18 +815,12 @@ export function useCampaigns() {
 
   // ── Initialization ───────────────────────────────────────────────────────
 
-  onMounted(async () => {
-    loadCampaignAggregatedZaps()
-
-    if (auth.isAuthenticated.value) {
-      await fetchUserCampaigns()
-      await startCampaignZapAggregation()
-    }
-  })
-
   // Load cached campaigns immediately on composable initialization
   loadCampaignsFromStorage()
   loadCampaignAggregatedZaps()
+
+  // Guard to prevent double aggregation from auth watcher + signature watcher
+  let _aggregationRunning = false
 
   // Watch for authentication changes
   watch(auth.isAuthenticated, async (authenticated) => {
@@ -835,26 +828,41 @@ export function useCampaigns() {
       loadCampaignsFromStorage()
       loadCampaignAggregatedZaps()
 
-      await fetchUserCampaigns()
-      await startCampaignZapAggregation()
+      try {
+        _aggregationRunning = true
+        await fetchUserCampaigns()
+        await startCampaignZapAggregation()
+      } catch (err) {
+        console.warn('[useCampaigns] Init failed:', err.message)
+      } finally {
+        _aggregationRunning = false
+      }
 
-      registerRefresh('campaigns', () => fetchUserCampaigns())
+      registerRefresh('campaigns', () => fetchUserCampaigns(), 'campaigns')
     } else {
       userCampaigns.value = []
       stopCampaignZapAggregation()
+      processedEventIds.clear()
+      campaignAggregatedZaps.clear()
       unregisterRefresh('campaigns')
     }
-  })
+  }, { immediate: true })
 
   // Watch for campaign ID changes only (not deep) — restarts aggregation
   watch(campaignIdSignature, async (newSig, oldSig) => {
     if (!auth.isAuthenticated.value) return
     if (oldSig === undefined) return // skip initial
+    if (_aggregationRunning) return // already running from auth watcher
     await startCampaignZapAggregation()
   })
 
-  // Save campaigns to storage on changes
-  watch(userCampaigns, saveCampaignsToStorage, { deep: true })
+  // Save campaigns to storage on changes (debounced, shallow watch on length)
+  let _campaignSaveTimer = null
+  const debouncedSaveCampaigns = () => {
+    if (_campaignSaveTimer) clearTimeout(_campaignSaveTimer)
+    _campaignSaveTimer = setTimeout(saveCampaignsToStorage, 2000)
+  }
+  watch(() => userCampaigns.value.length, debouncedSaveCampaigns)
 
   return {
     // State

@@ -1,8 +1,7 @@
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import * as nip19 from 'nostr-tools/nip19'
+import { verifyEvent } from 'nostr-tools/pure'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { mergeFollowLists } from '../../utils/profile/followMergeUtils.js'
@@ -17,12 +16,7 @@ const syncStatus = ref('idle') // idle, syncing, error
 // Subscriptions tracking
 let myListsSubscription = null
 let discoveredListsSubscription = null
-let profileSubscriptions = new Map()
 const processedEventIds = new Set()
-
-// Profile cache for list members (re-export local reference to shared cache)
-// const profileCache = new Map() // replaced by shared profileCache imported
-const profileFetchPromises = new Map()
 
 // Storage keys
 const MY_LISTS_STORAGE_KEY = 'follow_lists_my'
@@ -73,10 +67,15 @@ const saveToStorage = () => {
     localStorage.setItem(MY_LISTS_STORAGE_KEY, JSON.stringify(myLists.value))
     localStorage.setItem(DISCOVERED_LISTS_STORAGE_KEY, JSON.stringify(discoveredLists.value))
     
-    // Convert profiles Map to object for storage
+    // Only save profiles that belong to list members (not entire shared cache)
+    const listPubkeys = new Set()
+    ;[...myLists.value, ...discoveredLists.value].forEach(list => {
+      (list.members || []).forEach(m => { if (m.pubkey) listPubkeys.add(m.pubkey) })
+    })
     const profilesObj = {}
-    profileCache.forEach((data, pubkey) => {
-      profilesObj[pubkey] = data.profile
+    listPubkeys.forEach(pubkey => {
+      const cached = profileCache.get(pubkey)
+      if (cached?.profile) profilesObj[pubkey] = cached.profile
     })
     localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(profilesObj))
   } catch (error) {
@@ -136,12 +135,11 @@ const _startBackgroundRefresh = async () => {
   const pubkeys = Array.from(memberPubkeys)
   if (pubkeys.length === 0) return
 
-  await nostrRelayManager.ready()
   try {
-    // batch fetch profiles in background
+    await nostrRelayManager.ready()
     batchFetchProfiles(pubkeys)
   } catch (err) {
-    console.warn('Background batchFetchProfiles failed:', err)
+    console.warn('Follow lists background profile refresh failed:', err.message)
   }
 }
 
@@ -167,8 +165,14 @@ export function useFollowLists() {
       return
     }
 
-    await nostrRelayManager.ready()
+    try {
+      await nostrRelayManager.ready()
+    } catch (err) {
+      console.warn('[useFollowLists] Relay manager not ready:', err.message)
+      return
+    }
 
+    processedEventIds.clear()
     isLoading.value = true
     error.value = ''
     syncStatus.value = 'syncing'
@@ -234,10 +238,14 @@ export function useFollowLists() {
           syncStatus.value = 'idle'
         },
         oneose: () => {
-          console.log('End of stored my lists events')
+          console.log('End of stored my lists events — closing subscription')
           isLoading.value = false
           if (syncStatus.value === 'syncing') {
             syncStatus.value = 'idle'
+          }
+          if (myListsSubscription) {
+            myListsSubscription.close()
+            myListsSubscription = null
           }
         },
         onclose: (reason) => {
@@ -258,7 +266,12 @@ export function useFollowLists() {
 
   // Discover public follow lists from the network
   const discoverLists = async (searchQuery = '', limit = 50) => {
-    await nostrRelayManager.ready()
+    try {
+      await nostrRelayManager.ready()
+    } catch (err) {
+      console.warn('[useFollowLists] Relay manager not ready:', err.message)
+      return
+    }
 
     isLoading.value = true
     error.value = ''
@@ -852,32 +865,43 @@ export function useFollowLists() {
            discoveredLists.value.find(l => l.id === listId)
   }
 
-  // Check if user is following a list member
+  // Cached follow set — refreshed once, reused for all isFollowingMember checks
+  let _cachedFollowSet = null
+  let _cachedFollowTimestamp = 0
+  const FOLLOW_CACHE_TTL = 30000 // 30 seconds
+
+  // Check if user is following a list member (uses cache to avoid relay spam)
   const isFollowingMember = async (pubkey) => {
     if (!isAuthenticated.value || !currentUser.value?.pubkey) {
       return false
     }
 
-    try {
-      const currentFollowingEvent = await nostrRelayManager.getEvent({
-        kinds: [3],
-        authors: [currentUser.value.pubkey],
-        limit: 1
-      })
+    const now = Date.now()
+    if (!_cachedFollowSet || now - _cachedFollowTimestamp > FOLLOW_CACHE_TTL) {
+      try {
+        const currentFollowingEvent = await nostrRelayManager.getEvent({
+          kinds: [3],
+          authors: [currentUser.value.pubkey],
+          limit: 1
+        })
 
-      if (currentFollowingEvent) {
-        const currentFollows = currentFollowingEvent.tags
-          .filter(tag => tag[0] === 'p' && tag[1])
-          .map(tag => tag[1])
-        
-        return currentFollows.includes(pubkey)
+        if (currentFollowingEvent) {
+          _cachedFollowSet = new Set(
+            currentFollowingEvent.tags
+              .filter(tag => tag[0] === 'p' && tag[1])
+              .map(tag => tag[1])
+          )
+        } else {
+          _cachedFollowSet = new Set()
+        }
+        _cachedFollowTimestamp = now
+      } catch (err) {
+        console.warn('Failed to fetch following list:', err)
+        return false
       }
-
-      return false
-    } catch (error) {
-      console.warn('Failed to check following status:', error)
-      return false
     }
+
+    return _cachedFollowSet.has(pubkey)
   }
 
   // Filter lists by search query
@@ -891,8 +915,13 @@ export function useFollowLists() {
     )
   }
 
-  // Watch for data changes and save to storage
-  watch([myLists, discoveredLists], saveToStorage, { deep: true })
+  // Watch for data changes and save to storage (debounced to avoid localStorage thrashing)
+  let _listsSaveTimer = null
+  const debouncedSaveToStorage = () => {
+    if (_listsSaveTimer) clearTimeout(_listsSaveTimer)
+    _listsSaveTimer = setTimeout(saveToStorage, 2000)
+  }
+  watch(() => myLists.value.length + discoveredLists.value.length, debouncedSaveToStorage)
 
   // Initialize when authenticated
   watch(isAuthenticated, (authenticated) => {
@@ -901,8 +930,8 @@ export function useFollowLists() {
       loadFromStorage()
       // Then fetch fresh data from relays
       setTimeout(() => {
-        fetchMyLists()
-        discoverLists()
+        fetchMyLists().catch(err => console.warn('[useFollowLists] Fetch lists failed:', err.message))
+        discoverLists().catch(err => console.warn('[useFollowLists] Discover lists failed:', err.message))
       }, 1000)
     } else {
       // NOTE: We intentionally DO NOT clear cached data on logout
@@ -917,6 +946,9 @@ export function useFollowLists() {
         discoveredListsSubscription.close()
         discoveredListsSubscription = null
       }
+      processedEventIds.clear()
+      _cachedFollowSet = null
+      _cachedFollowTimestamp = 0
     }
   }, { immediate: true })
 

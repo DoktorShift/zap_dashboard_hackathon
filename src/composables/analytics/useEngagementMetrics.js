@@ -30,14 +30,13 @@ try {
 const _startEngagementBackgroundRefresh = async () => {
   const eventIds = Array.from(engagementMetrics.keys())
   if (!eventIds.length) return
-  await nostrRelayManager.ready()
   try {
-    // Use batch fetch for all cached eventIds
+    await nostrRelayManager.ready()
     for (let i = 0; i < eventIds.length; i += MAX_BATCH_SIZE) {
       fetchEngagementMetricsBatch(eventIds.slice(i, i + MAX_BATCH_SIZE))
     }
   } catch (err) {
-    console.warn('Engagement background batch fetch failed:', err)
+    console.warn('Engagement background refresh failed:', err.message)
   }
 }
 setTimeout(() => { _startEngagementBackgroundRefresh().catch(err => console.warn('Engagement background refresh error:', err)) }, 0)
