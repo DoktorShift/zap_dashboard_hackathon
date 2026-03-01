@@ -51,6 +51,7 @@ import NoteSuccessModal from '../components/modals/NoteSuccessModal.vue'
 import MentionInput from '../components/content/MentionInput.vue'
 import NoteContentRenderer from '../components/content/NoteContentRenderer.vue'
 import ThreadsPromo from '../components/shared/ThreadsPromo.vue'
+import SkeletonNotes from '../components/shared/SkeletonNotes.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -532,6 +533,10 @@ const handleMentionClick = ({ pubkey, profile }) => {
 
       <!-- Notes List View -->
       <div v-if="currentView === 'list'">
+        <!-- Skeleton Loading State -->
+        <SkeletonNotes v-if="isFetchingNotes && notes.length === 0" />
+
+        <template v-else>
         <!-- Enhanced Stats Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <!-- Total Zap Revenue Card -->
@@ -600,15 +605,8 @@ const handleMentionClick = ({ pubkey, profile }) => {
 
         <!-- Notes List -->
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-          <!-- Loading State -->
-          <div v-if="isFetchingNotes && notes.length === 0" class="p-8 text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Loading your notes...</h3>
-            <p class="text-gray-600">Fetching notes from the Nostr network</p>
-          </div>
-
           <!-- Empty State -->
-          <div v-else-if="notes.length === 0" class="max-w-3xl mx-auto py-8 px-4">
+          <div v-if="notes.length === 0" class="max-w-3xl mx-auto py-8 px-4">
             <div class="text-center mb-8">
               <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-teal-500 rounded-3xl shadow-lg mb-6">
                 <IconFileText class="w-10 h-10 text-white" />
@@ -865,6 +863,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
             </div>
           </div>
         </div>
+        </template>
       </div>
 
       <!-- Create/Edit View -->

@@ -11,7 +11,9 @@ export default defineConfig({
             includeAssets: ['favicon.svg', 'robots.txt'],
             workbox: {
                 maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MB limit
-                globPatterns: ['**/*.{js,css,html,ico,png,svg,json,vue,txt,woff2}']
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,json,vue,txt,woff2}'],
+                skipWaiting: true,
+                clientsClaim: true
             },
             manifest: {
                 name: 'Zap Dashboard',

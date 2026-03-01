@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import {
-  IconBolt, IconBell, IconShield, IconUser, IconRefresh,
-  IconAward, IconGlobe, IconExternalLink, IconCheck, IconCopy
+  IconBolt, IconBell, IconUser, IconRefresh,
+  IconAward, IconExternalLink, IconCheck, IconCopy,
+  IconPlugConnected, IconShield, IconKey, IconGlobe,
+  IconEdit, IconLogout, IconLoader, IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
 import * as nip19 from 'nostr-tools/nip19'
 import SettingsConnections from '../components/settings/SettingsConnections.vue'
@@ -11,11 +13,21 @@ import NostrSettings from '../components/settings/NostrSettings.vue'
 import AccountReset from '../components/settings/AccountReset.vue'
 import BadgeList from '../components/badges/BadgeList.vue'
 import BadgeDetailModal from '../components/badges/BadgeDetailModal.vue'
+import NostrProfileEditor from '../components/profile/NostrProfileEditor.vue'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useBadges } from '../composables/social/useBadges.js'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 
-const { currentUser, userProfile } = useNostrAuth()
+const {
+  currentUser,
+  userProfile,
+  isLoading,
+  authError,
+  isAuthenticated,
+  login,
+  logout,
+  refreshUserProfile
+} = useNostrAuth()
 const { getUserBadgeCount, initUserBadges } = useBadges()
 
 // Define props to receive the initial tab from parent
@@ -34,6 +46,7 @@ const activeTab = ref('profile')
 const showBadgeDetailModal = ref(false)
 const selectedBadge = ref(null)
 const copySuccess = ref('')
+const showProfileEditor = ref(false)
 
 const handleBadgeClick = (badge) => {
   selectedBadge.value = badge
@@ -55,24 +68,61 @@ const userNpub = computed(() => {
   try { return nip19.npubEncode(currentUser.value.pubkey) } catch { return '' }
 })
 
+const shortNpub = computed(() => {
+  if (!userNpub.value) return ''
+  return userNpub.value.substring(0, 12) + '...' + userNpub.value.substring(userNpub.value.length - 4)
+})
+
 const userAvatar = computed(() => {
   return userProfile.value?.picture || generateAvatar(currentUser.value?.pubkey)
 })
 
-const copyNpub = async () => {
-  if (!userNpub.value) return
+const userBanner = computed(() => {
+  return userProfile.value?.banner || null
+})
+
+const copyToClipboard = async (text) => {
   try {
-    await navigator.clipboard.writeText(userNpub.value)
-    copySuccess.value = 'npub'
+    await navigator.clipboard.writeText(text)
+    copySuccess.value = text
     setTimeout(() => { copySuccess.value = '' }, 2000)
   } catch (e) {
     console.error('Copy failed:', e)
   }
 }
 
+// Login
+const handleLogin = async () => {
+  try {
+    await login()
+  } catch (error) {
+    console.error('Login failed:', error)
+    if (error.message.includes('No Nostr extension')) {
+      alert('No Nostr Extension Found\n\nPlease install a NIP-07 browser extension like:\n• Alby (getalby.com)\n• nos2x\n• Flamingo\n\nThen refresh this page.')
+    } else {
+      alert('Login failed: ' + error.message)
+    }
+  }
+}
+
+// Profile actions
+const handleRefreshProfile = async () => {
+  if (!isAuthenticated.value) return
+  try {
+    await refreshUserProfile()
+  } catch (error) {
+    console.error('Failed to refresh profile:', error)
+  }
+}
+
+const handleProfileUpdated = () => {
+  showProfileEditor.value = false
+  handleRefreshProfile()
+}
+
 const tabs = [
   { id: 'profile', label: 'Profile', icon: IconUser },
-  { id: 'nostr', label: 'Nostr', icon: IconGlobe },
+  { id: 'relays', label: 'Relays', icon: IconPlugConnected },
   { id: 'wallet', label: 'Wallet', icon: IconBolt },
   { id: 'alerts', label: 'Notifications', icon: IconBell },
   { id: 'reset', label: 'Reset', icon: IconRefresh }
@@ -124,115 +174,235 @@ watch(() => props.initialTab, (newTab) => {
       <!-- Tab Content -->
       <div class="p-6 sm:p-8">
         <!-- Profile Tab -->
-        <div v-if="activeTab === 'profile'" class="space-y-8">
-          <!-- Profile Header -->
-          <div class="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
-            <!-- Avatar -->
-            <div class="relative flex-shrink-0">
-              <div class="w-24 h-24 rounded-2xl overflow-hidden border-2 border-orange-200 shadow-lg">
-                <img
-                  :src="userAvatar"
-                  :alt="displayName"
-                  class="w-full h-full object-cover"
-                  @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
-                />
+        <div v-if="activeTab === 'profile'" class="space-y-5">
+          <!-- Not Authenticated -->
+          <div v-if="!isAuthenticated" class="max-w-md mx-auto">
+            <div class="bg-white rounded-3xl p-10 sm:p-12 text-center shadow-sm border border-gray-100">
+              <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 bg-gradient-to-br from-orange-100 to-orange-50">
+                <img src="/nostr-logo/nostr10.png" alt="Nostr Logo" class="w-12 h-12 object-contain" />
               </div>
-              <div v-if="badgeCount > 0" class="absolute -bottom-1 -right-1 bg-orange-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">
-                {{ badgeCount }}
-              </div>
-            </div>
-
-            <!-- Profile Info -->
-            <div class="flex-1 text-center sm:text-left">
-              <h2 class="text-2xl font-bold text-gray-900">{{ displayName }}</h2>
-              <p v-if="userProfile?.nip05" class="text-sm text-blue-600 flex items-center justify-center sm:justify-start space-x-1 mt-1">
-                <IconCheck class="w-4 h-4" />
-                <span>{{ userProfile.nip05 }}</span>
-              </p>
-              <p v-if="userProfile?.about" class="text-sm text-gray-600 mt-2 max-w-lg">{{ userProfile.about }}</p>
-
-              <!-- Npub -->
-              <div v-if="userNpub" class="flex items-center justify-center sm:justify-start space-x-2 mt-3">
-                <code class="text-xs text-gray-500 font-mono">{{ userNpub.substring(0, 20) }}...</code>
-                <button
-                  @click="copyNpub"
-                  class="p-1 text-gray-400 hover:text-orange-600 rounded transition-colors"
-                  title="Copy npub"
-                >
-                  <IconCheck v-if="copySuccess === 'npub'" class="w-3.5 h-3.5 text-green-600" />
-                  <IconCopy v-else class="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <!-- Quick Stats -->
-              <div class="flex items-center justify-center sm:justify-start space-x-4 mt-3">
-                <div v-if="userProfile?.lud16" class="flex items-center space-x-1 text-sm text-yellow-600">
-                  <IconBolt class="w-4 h-4" />
-                  <span class="text-xs">{{ userProfile.lud16 }}</span>
+              <h2 class="text-2xl font-semibold text-gray-900 mb-2">Connect Your Identity</h2>
+              <p class="text-gray-500 text-sm mb-6 leading-relaxed">Sign in with your Nostr identity to unlock social features.</p>
+              <button
+                @click="handleLogin"
+                :disabled="isLoading"
+                class="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-orange-500/20 transition-all duration-200 disabled:opacity-50"
+              >
+                <IconLoader v-if="isLoading" class="w-4 h-4 animate-spin" />
+                <IconUser v-else class="w-4 h-4" />
+                {{ isLoading ? 'Connecting...' : 'Connect with Nostr' }}
+              </button>
+              <div v-if="authError" class="mt-4 bg-red-50 border border-red-100 rounded-xl p-3">
+                <div class="flex items-center justify-center gap-2 text-sm text-red-600">
+                  <IconAlertCircle class="w-4 h-4 flex-shrink-0" />
+                  <span>{{ authError }}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Badges Section -->
-          <div class="space-y-4">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <IconAward class="w-5 h-5 text-orange-600" />
-                <h3 class="text-lg font-semibold text-gray-900">Badges</h3>
-                <span v-if="badgeCount > 0" class="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ badgeCount }}</span>
+          <!-- Authenticated Profile -->
+          <template v-else>
+            <!-- Profile Card -->
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <!-- Banner -->
+              <div class="h-32 sm:h-40 bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 relative overflow-hidden">
+                <img
+                  v-if="userBanner"
+                  :src="userBanner"
+                  alt="Profile banner"
+                  class="absolute inset-0 w-full h-full object-cover"
+                  @error="$event.target.style.display = 'none'"
+                />
               </div>
-            </div>
 
-            <div class="bg-gray-50 rounded-xl p-6">
-              <BadgeList
-                v-if="currentUser?.pubkey"
-                :pubkey="currentUser.pubkey"
-                size="large"
-                :show-count="false"
-                :show-view-all="false"
-                layout="grid"
-                @badge-click="handleBadgeClick"
-              >
-                <template #empty>
-                  <div class="text-center py-6">
-                    <IconAward class="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                    <h4 class="text-lg font-medium text-gray-900 mb-2">No Badges Yet</h4>
-                    <p class="text-gray-500 text-sm mb-4">Earn badges from the Nostr community to showcase here.</p>
+              <div class="px-5 sm:px-6 pb-6">
+                <!-- Avatar & Actions -->
+                <div class="flex items-end justify-between -mt-10 sm:-mt-12 mb-4">
+                  <div class="relative">
+                    <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-white">
+                      <img
+                        :src="userAvatar"
+                        :alt="displayName"
+                        class="w-full h-full object-cover"
+                        @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
+                      />
+                    </div>
+                    <div v-if="badgeCount > 0" class="absolute -bottom-1 -right-1 bg-orange-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">
+                      {{ badgeCount }}
+                    </div>
                   </div>
-                </template>
-              </BadgeList>
-            </div>
-          </div>
 
-          <!-- BadgeBox Info -->
-          <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-5">
-            <div class="flex items-start space-x-4">
-              <div class="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                <IconAward class="w-5 h-5 text-white" />
-              </div>
-              <div class="flex-1">
-                <h4 class="font-semibold text-gray-900 mb-1">BadgeBox — Nostr Badge Manager</h4>
-                <p class="text-sm text-gray-700 mb-3">
-                  BadgeBox is a PWA for managing NIP-58 badges on Nostr. Create, issue, and display badges
-                  to recognize community members and build reputation across the network.
-                </p>
-                <a
-                  href="https://badgebox.rinbal.de"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-flex items-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
-                >
-                  <IconExternalLink class="w-4 h-4" />
-                  <span>Open BadgeBox</span>
-                </a>
+                  <!-- Desktop Actions -->
+                  <div class="hidden sm:flex items-center gap-2">
+                    <button @click="showProfileEditor = true" class="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors">
+                      Edit Profile
+                    </button>
+                    <button @click="handleRefreshProfile" class="w-9 h-9 flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors" title="Refresh">
+                      <IconRefresh class="w-4 h-4" />
+                    </button>
+                    <button @click="logout" class="w-9 h-9 flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors" title="Logout">
+                      <IconLogout class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Name & About -->
+                <div class="mb-4">
+                  <h2 class="text-xl font-bold text-gray-900">{{ displayName }}</h2>
+                  <p class="text-gray-500 text-xs font-mono mt-0.5">{{ shortNpub }}</p>
+                  <p v-if="userProfile?.about" class="text-sm text-gray-600 mt-2 max-w-lg">{{ userProfile.about }}</p>
+                </div>
+
+                <!-- Status Badges -->
+                <div class="flex flex-wrap gap-2 mb-5">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+                    <div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                    Connected
+                  </span>
+                  <span v-if="userProfile?.nip05" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                    <IconShield class="w-3 h-3" />
+                    Verified
+                  </span>
+                  <span v-if="userProfile?.lud16" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">
+                    <IconBolt class="w-3 h-3" />
+                    Zap Ready
+                  </span>
+                </div>
+
+                <!-- Profile Details -->
+                <div class="space-y-2 mb-5">
+                  <!-- Public Key -->
+                  <div class="group flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <IconKey class="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <div class="flex-1 min-w-0">
+                        <p class="text-xs text-gray-500 mb-0.5">Public Key</p>
+                        <code class="text-xs text-gray-900 font-mono truncate block">{{ shortNpub }}</code>
+                      </div>
+                    </div>
+                    <button
+                      @click="copyToClipboard(userNpub)"
+                      class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-orange-600 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <IconCheck v-if="copySuccess === userNpub" class="w-4 h-4 text-green-600" />
+                      <IconCopy v-else class="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <!-- Lightning Address -->
+                  <div v-if="userProfile?.lud16" class="group flex items-center justify-between p-3 bg-orange-50 rounded-xl hover:bg-orange-100 transition-colors">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <IconBolt class="w-4 h-4 text-orange-600 flex-shrink-0" />
+                      <div class="flex-1 min-w-0">
+                        <p class="text-xs text-orange-900 mb-0.5">Lightning</p>
+                        <p class="text-xs text-orange-700 font-medium truncate">{{ userProfile.lud16 }}</p>
+                      </div>
+                    </div>
+                    <button
+                      @click="copyToClipboard(userProfile.lud16)"
+                      class="w-8 h-8 flex items-center justify-center text-orange-400 hover:text-orange-600 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <IconCopy class="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <!-- Website -->
+                  <div v-if="userProfile?.website" class="group flex items-center justify-between p-3 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <IconGlobe class="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      <div class="flex-1 min-w-0">
+                        <p class="text-xs text-blue-900 mb-0.5">Website</p>
+                        <p class="text-xs text-blue-700 truncate">{{ userProfile.website }}</p>
+                      </div>
+                    </div>
+                    <a
+                      :href="userProfile.website"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="w-8 h-8 flex items-center justify-center text-blue-400 hover:text-blue-600 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <IconExternalLink class="w-4 h-4" />
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Mobile Actions -->
+                <div class="flex sm:hidden gap-2">
+                  <button @click="showProfileEditor = true" class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors">
+                    <IconEdit class="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button @click="handleRefreshProfile" class="w-11 h-11 flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors">
+                    <IconRefresh class="w-4 h-4" />
+                  </button>
+                  <button @click="logout" class="w-11 h-11 flex items-center justify-center bg-gray-100 text-gray-700 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors">
+                    <IconLogout class="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+
+            <!-- Badges Section -->
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                  <IconAward class="w-5 h-5 text-orange-600" />
+                  <h3 class="text-lg font-semibold text-gray-900">Badges</h3>
+                  <span v-if="badgeCount > 0" class="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ badgeCount }}</span>
+                </div>
+              </div>
+
+              <div class="bg-gray-50 rounded-xl p-6">
+                <BadgeList
+                  v-if="currentUser?.pubkey"
+                  :pubkey="currentUser.pubkey"
+                  size="large"
+                  :show-count="false"
+                  :show-view-all="false"
+                  layout="grid"
+                  @badge-click="handleBadgeClick"
+                >
+                  <template #empty>
+                    <div class="text-center py-6">
+                      <IconAward class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                      <h4 class="text-lg font-medium text-gray-900 mb-2">No Badges Yet</h4>
+                      <p class="text-gray-500 text-sm mb-4">Earn badges from the Nostr community to showcase here.</p>
+                    </div>
+                  </template>
+                </BadgeList>
+              </div>
+            </div>
+
+            <!-- BadgeBox Info -->
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-5">
+              <div class="flex items-start space-x-4">
+                <div class="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <IconAward class="w-5 h-5 text-white" />
+                </div>
+                <div class="flex-1">
+                  <h4 class="font-semibold text-gray-900 mb-1">BadgeBox — Nostr Badge Manager</h4>
+                  <p class="text-sm text-gray-700 mb-3">
+                    BadgeBox is a PWA for managing NIP-58 badges on Nostr. Create, issue, and display badges
+                    to recognize community members and build reputation across the network.
+                  </p>
+                  <a
+                    href="https://badgebox.rinbal.de"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
+                  >
+                    <IconExternalLink class="w-4 h-4" />
+                    <span>Open BadgeBox</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
 
-        <!-- Nostr Settings -->
-        <div v-if="activeTab === 'nostr'">
+        <!-- Relay Settings -->
+        <div v-if="activeTab === 'relays'">
           <NostrSettings @change-page="emit('change-page', $event)" />
         </div>
 
@@ -251,23 +421,6 @@ watch(() => props.initialTab, (newTab) => {
           <AccountReset />
         </div>
 
-        <!-- Privacy Settings -->
-        <div v-if="activeTab === 'privacy'" class="space-y-6">
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Privacy & Security</h3>
-            <p class="text-gray-600 text-sm mb-4">Control your privacy settings and data sharing preferences</p>
-
-            <div class="bg-gray-50 rounded-lg p-8 text-center">
-              <IconShield class="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <h4 class="text-lg font-medium text-gray-900 mb-2">Privacy Controls</h4>
-              <p class="text-gray-600 mb-4">Manage data privacy, security settings, and sharing preferences.</p>
-              <button class="btn-primary">
-                <IconShield class="w-4 h-4" />
-                Privacy Settings
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -276,6 +429,12 @@ watch(() => props.initialTab, (newTab) => {
     :show="showBadgeDetailModal"
     :badge="selectedBadge"
     @close="showBadgeDetailModal = false; selectedBadge = null"
+  />
+
+  <NostrProfileEditor
+    :show="showProfileEditor"
+    @close-editor="showProfileEditor = false"
+    @profile-updated="handleProfileUpdated"
   />
 </template>
 

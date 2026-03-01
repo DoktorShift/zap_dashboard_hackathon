@@ -196,7 +196,7 @@ const handleProfileAction = (action) => {
   
   switch (action) {
     case 'profile':
-      emit('change-page', 'settings', 'nostr')
+      emit('change-page', 'settings', 'profile')
       break
     case 'settings':
       emit('change-page', 'settings', 'alerts')

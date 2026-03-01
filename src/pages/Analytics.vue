@@ -7,6 +7,7 @@ import UserProfileModal from '../components/modals/UserProfileModal.vue'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 import EngagementAnalytics from '../components/analytics/EngagementAnalytics.vue'
 import EmptyStateAnalytics from '../components/analytics/EmptyStateAnalytics.vue'
+import SkeletonAnalytics from '../components/shared/SkeletonAnalytics.vue'
 import { calculateSmartYAxisRange, applySplitAxisTransformation } from '../utils/chart/chartScaling.js'
 
 const emit = defineEmits(['show-help'])
@@ -65,6 +66,7 @@ const fetchAuthorProfile = inject('fetchAuthorProfile')
 const selectedTimeRange = inject('selectedTimeRange')
 const isWalletConnected = inject('isWalletConnected')
 const isAuthenticated = inject('isAuthenticated')
+const isPageLoading = inject('isPageLoading', ref(false))
 
 // State for user profile modal
 const showUserModal = ref(false)
@@ -498,13 +500,16 @@ const summaryStats = computed(() => {
 </script>
 
 <template>
-  <!-- Empty State - No Data -->
+  <!-- Empty State - Not Authenticated -->
   <EmptyStateAnalytics
-    v-if="analyticsData.length === 0 && !isAuthenticated"
+    v-if="!isAuthenticated"
     @connect-nostr="handleConnectNostr"
     @show-help="$emit('show-help')"
     @go-to-content="$emit('change-page', 'content')"
   />
+
+  <!-- Skeleton Loading -->
+  <SkeletonAnalytics v-else-if="isPageLoading && analyticsData.length === 0" />
 
   <div v-else class="space-y-6">
     <!-- Dynamic Summary Stats -->

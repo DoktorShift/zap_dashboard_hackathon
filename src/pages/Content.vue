@@ -42,6 +42,7 @@ import BlogEditor from '../components/content/BlogEditor.vue'
 import NoteSuccessModal from '../components/modals/NoteSuccessModal.vue'
 import BadgeList from '../components/badges/BadgeList.vue'
 import BadgeDetailModal from '../components/badges/BadgeDetailModal.vue'
+import SkeletonContent from '../components/shared/SkeletonContent.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -62,7 +63,7 @@ const handleBadgeClick = (badge) => {
 }
 
 // Use the long-form content composable
-const { fetchUserLongFormContent } = useNostrLongForm()
+const { fetchUserLongFormContent, isLoading: isLoadingArticles } = useNostrLongForm()
 
 const {
   // State
@@ -509,6 +510,10 @@ onUnmounted(() => {
 
       <!-- Main Content -->
       <div v-if="currentView === 'list'">
+        <!-- Skeleton Loading State -->
+        <SkeletonContent v-if="isLoadingArticles && contentItems.length === 0" />
+
+        <template v-else>
         <!-- Stats Overview -->
         <ContentStats :stats="contentStats" :items="contentItems" :engagement-total="engagementTotal" />
 
@@ -545,6 +550,7 @@ onUnmounted(() => {
             />
           </div>
         </div>
+        </template>
       </div>
 
       <!-- Create/Edit Content Form -->

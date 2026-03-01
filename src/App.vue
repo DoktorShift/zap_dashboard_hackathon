@@ -28,20 +28,43 @@ import { APP_HARD_TIMEOUT, RELAY_READY_TIMEOUT } from './utils/constants.js'
 import AppLoader from './components/layout/AppLoader.vue'
 import PwaInstallBanner from './components/pwa/PwaInstallBanner.vue'
 
-// Lazy-loaded pages (not needed for initial dashboard data)
-const ChatZaps = defineAsyncComponent(() => import('./pages/ChatZaps.vue'))
-const ContentUnlock = defineAsyncComponent(() => import('./pages/ContentUnlock.vue'))
-const CampaignView = defineAsyncComponent(() => import('./pages/CampaignView.vue'))
-const CampaignNotFound = defineAsyncComponent(() => import('./pages/CampaignNotFound.vue'))
-const Audience = defineAsyncComponent(() => import('./pages/Audience.vue'))
-const MiniPoS = defineAsyncComponent(() => import('./pages/MiniPoS.vue'))
-const Finances = defineAsyncComponent(() => import('./pages/Finances.vue'))
-const InvoiceShare = defineAsyncComponent(() => import('./pages/InvoiceShare.vue'))
-const Calendar = defineAsyncComponent(() => import('./pages/Calendar.vue'))
-const ContestResolver = defineAsyncComponent(() => import('./pages/ContestResolver.vue'))
-const Media = defineAsyncComponent(() => import('./pages/Media.vue'))
-const WelcomeModal = defineAsyncComponent(() => import('./components/modals/WelcomeModal.vue'))
-const HelpModal = defineAsyncComponent(() => import('./components/modals/HelpModal.vue'))
+// Lazy-loaded pages with chunk-load-failure recovery.
+// After a deploy, stale index.html may reference old chunk hashes.
+// Shows loading spinner while fetching, error UI with reload button on failure.
+import ChunkLoadError from './components/shared/ChunkLoadError.vue'
+import ChunkLoadSpinner from './components/shared/ChunkLoadSpinner.vue'
+
+function lazyLoad(loader) {
+  return defineAsyncComponent({
+    loader,
+    loadingComponent: ChunkLoadSpinner,
+    errorComponent: ChunkLoadError,
+    delay: 150,       // show spinner after 150ms (avoids flash for fast loads)
+    timeout: 30000,   // 30s before treating as error
+    onError(error, retry, fail, attempts) {
+      // Retry once silently for transient network issues
+      if (attempts <= 1) {
+        retry()
+      } else {
+        fail()  // show ChunkLoadError with reload button
+      }
+    }
+  })
+}
+
+const ChatZaps = lazyLoad(() => import('./pages/ChatZaps.vue'))
+const ContentUnlock = lazyLoad(() => import('./pages/ContentUnlock.vue'))
+const CampaignView = lazyLoad(() => import('./pages/CampaignView.vue'))
+const CampaignNotFound = lazyLoad(() => import('./pages/CampaignNotFound.vue'))
+const Audience = lazyLoad(() => import('./pages/Audience.vue'))
+const MiniPoS = lazyLoad(() => import('./pages/MiniPoS.vue'))
+const Finances = lazyLoad(() => import('./pages/Finances.vue'))
+const InvoiceShare = lazyLoad(() => import('./pages/InvoiceShare.vue'))
+const Calendar = lazyLoad(() => import('./pages/Calendar.vue'))
+const ContestResolver = lazyLoad(() => import('./pages/ContestResolver.vue'))
+const Media = lazyLoad(() => import('./pages/Media.vue'))
+const WelcomeModal = lazyLoad(() => import('./components/modals/WelcomeModal.vue'))
+const HelpModal = lazyLoad(() => import('./components/modals/HelpModal.vue'))
 
 // App loading gate
 const appReady = ref(false)
@@ -833,7 +856,7 @@ const handleChecklistTaskAction = async (action) => {
       await handleTriggerLogin()
       break
     case 'setup-profile':
-      changePage('settings', 'nostr')
+      changePage('settings', 'profile')
       break
     case 'connect-wallet':
       changePage('wallet')
