@@ -246,13 +246,6 @@ The campaign dashboard shows:
 
 The Analytics section provides detailed insights into your zap activity.
 
-### Time-Based Views
-
-Switch between:
-- **Daily** - Granular day-by-day breakdown
-- **Weekly** - Week-over-week trends
-- **Monthly** - Long-term patterns
-
 ### Engagement Metrics
 
 Understand your audience:
@@ -265,7 +258,6 @@ Understand your audience:
 1. **Identify top content** - What topics earn the most?
 2. **Find optimal posting times** - When does your audience engage?
 3. **Recognize loyal supporters** - Who consistently supports you?
-4. **Track campaign ROI** - Did your campaigns meet goals?
 
 ---
 
