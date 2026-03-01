@@ -26,7 +26,7 @@ The platform serves as a central hub for Lightning Network payment management, o
 ### Getting Started
 A modern, real-time dashboard for managing and analyzing Lightning Network zaps (tips) with Nostr Wallet Connect integration.
 
-![ÅDashboard](https://storage.googleapis.com/geyser-images-distribution-prod-us/1d9cc125-120f-4c5c-b103-694fc61721ee_Dashboard_new/image_large.webp)
+Dashboard Overview<img width="1458" height="753" alt="Bildschirmfoto 2026-03-01 um 16 28 06" src="https://github.com/user-attachments/assets/218795c2-5c5e-41ea-b45d-9e6d38373501" />
 
 > **🔒 Privacy First**: We don't store any of your data on our servers. All data is stored locally in your browser's local storage, ensuring your privacy and data sovereignty.
 
@@ -87,13 +87,6 @@ npm run preview
 
 ![Connect_NWC](https://storage.googleapis.com/geyser-images-distribution-prod-us/7effb1e8-904b-4d1d-9234-4c13c646fce5_nwc-connect-preview/image_large.webp)
 
-### Connect Nostr
-- Click "Settings"
-- Click "Connect Nostr"
-- Choose your Nostr Account 
-
-![Connect_Nostr](https://storage.googleapis.com/geyser-images-distribution-prod-us/75fb28c3-c1b4-4601-bb3e-d260ef368def_nostr-login_new/image_large.webp)
-
 ### Main Dashboard
 - **Total Zaps**: Real-time count of received zaps
 - **Total Sats**: Cumulative zap amount in satoshis
@@ -102,21 +95,25 @@ npm run preview
 - **Wallet Balance**: Current Lightning wallet balance
 - **Activity Chart**: 30-day zap activity visualization
 
-![Dashboard Overview](https://storage.googleapis.com/geyser-images-distribution-prod-us/1d9cc125-120f-4c5c-b103-694fc61721ee_Dashboard_new/image_large.webp)
+Dashboard Overview<img width="1458" height="753" alt="Bildschirmfoto 2026-03-01 um 16 28 06" src="https://github.com/user-attachments/assets/218795c2-5c5e-41ea-b45d-9e6d38373501" />
 
 ### Zap Feed
 - Real-time zap notifications
 - Content performance tracking
 - Supporter analytics
 
-![Zap Feed](https://github.com/user-attachments/assets/2d4001fd-f9ea-4a7a-ba7a-7abf42ecbfaa)
+Zap Feed
+<img width="1403" height="754" alt="Bildschirmfoto 2026-03-01 um 16 54 55" src="https://github.com/user-attachments/assets/aafc43de-8a2c-4815-aaae-c3842d972579" />
 
 
 ### Chat
 - Interactive chat
 - Community connection
+- Request Payments
 
-![Chat Interface](https://github.com/user-attachments/assets/21352e1d-3a1d-4160-96d2-88f7a467b4fe)
+Chat Interface
+<img width="886" height="617" alt="Bildschirmfoto 2026-03-01 um 15 55 05" src="https://github.com/user-attachments/assets/5284b287-ae75-49e1-aad5-0798dc14311f" />
+
 
 ### Wallet
 - Nostr Wallet Connect (NWC) integration
@@ -127,7 +124,6 @@ npm run preview
 
 > Learn more about [wallet operations](GUIDE.md#wallet-operations) or see [merchant use cases](use_cases.md#merchants--freelancers).
 
-![Wallet-NWC](https://github.com/user-attachments/assets/02f5c67e-6e5d-4c29-bcff-7aff2e60ef5f)
 
 ### Content Management
 - Create and manage content posts
@@ -150,6 +146,9 @@ npm run preview
 
 > See [GUIDE.md - Media Management](GUIDE.md#media-management) for details.
 
+<img width="1403" height="754" alt="Bildschirmfoto 2026-03-01 um 16 54 30" src="https://github.com/user-attachments/assets/10a9f4e4-a5e6-41f6-9f4b-70f6f8edfbfd" />
+
+
 ### Analytics
 - Live zap tracking and statistics
 - Interactive charts and visualizations
@@ -158,8 +157,8 @@ npm run preview
 
 > Dive deeper into [analytics interpretation](GUIDE.md#analytics-deep-dive) for actionable insights.
 
-![Analytics Dashboard](https://storage.googleapis.com/geyser-images-distribution-prod-us/5508d59f-4a20-466f-87a4-5a6c38063a5f_Analytics_new/image_large.webp)
-
+Analytics Dashboard
+<img width="1405" height="756" alt="Bildschirmfoto 2026-03-01 um 16 55 13" src="https://github.com/user-attachments/assets/b5b821d9-663d-4b33-8347-1f8fd6ec1ef6" />
 
 ### Audience
 - Build your community with [Follow Packs](https://github.com/callebtc/following.space)
