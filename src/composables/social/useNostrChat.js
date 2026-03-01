@@ -67,6 +67,21 @@ let chatSubscription = null
 const processedEventIds = new Set()
 const MAX_PROCESSED_IDS = 2000
 
+// Returns true if the event was already processed (should skip)
+const trackEventId = (id) => {
+  if (processedEventIds.has(id)) return true
+  processedEventIds.add(id)
+  if (processedEventIds.size > MAX_PROCESSED_IDS) {
+    const toDelete = processedEventIds.size - Math.floor(MAX_PROCESSED_IDS / 2)
+    let count = 0
+    for (const evId of processedEventIds) {
+      if (count++ >= toDelete) break
+      processedEventIds.delete(evId)
+    }
+  }
+  return false
+}
+
 // NIP-44 conversation key cache
 const conversationKeyCache = new Map()
 
@@ -143,10 +158,18 @@ const encryptMessage = async (content, recipientPubkey, currentUser) => {
     }
   }
   if (window.nostr?.nip04?.encrypt) {
-    return await window.nostr.nip04.encrypt(recipientPubkey, content)
+    try {
+      return await window.nostr.nip04.encrypt(recipientPubkey, content)
+    } catch (e) {
+      console.warn('NIP-04 extension encrypt failed:', e.message)
+    }
   }
   if (currentUser.privkey) {
-    return nip04.encrypt(currentUser.privkey, recipientPubkey, content)
+    try {
+      return nip04.encrypt(currentUser.privkey, recipientPubkey, content)
+    } catch (e) {
+      console.warn('NIP-04 local encrypt failed:', e.message)
+    }
   }
   throw new Error('No encryption method available')
 }
@@ -212,6 +235,46 @@ const decryptMessage = async (content, counterpartyPubkey, currentUser) => {
   if (nip04Result !== null) return nip04Result
 
   throw new Error('No decryption method available')
+}
+
+// Unwrap a NIP-17 gift wrap (kind 1059) → seal (kind 13) → rumor (kind 14)
+// Returns { senderPubkey, content, timestamp } or null on failure
+const unwrapGiftWrap = async (event, currentUser) => {
+  try {
+    // Layer 1: Decrypt the gift wrap to get the seal
+    // The gift wrap pubkey is a random throwaway key
+    const sealJson = await decryptNip44(event.content, event.pubkey, currentUser)
+    if (!sealJson) return null
+
+    const seal = JSON.parse(sealJson)
+    if (!seal || seal.kind !== 13) {
+      console.warn('Gift wrap inner event is not a seal (kind 13):', seal?.kind)
+      return null
+    }
+
+    // Layer 2: Decrypt the seal to get the rumor (actual message)
+    // The seal pubkey is the real sender
+    const rumorJson = await decryptNip44(seal.content, seal.pubkey, currentUser)
+    if (!rumorJson) return null
+
+    const rumor = JSON.parse(rumorJson)
+    if (!rumor || rumor.kind !== 14) {
+      console.warn('Seal inner event is not a DM (kind 14):', rumor?.kind)
+      return null
+    }
+
+    return {
+      senderPubkey: seal.pubkey,
+      content: rumor.content,
+      timestamp: rumor.created_at,
+      tags: rumor.tags || [],
+      // Use the gift wrap event ID for dedup since rumor has no signature
+      id: event.id
+    }
+  } catch (e) {
+    console.warn('Failed to unwrap gift wrap:', e.message)
+    return null
+  }
 }
 
 // Helper to add a message to a conversation (with reactivity fix)
@@ -280,10 +343,19 @@ export function useNostrChat() {
           kinds: [4],
           authors: [currentUser.value.pubkey],
           limit: 100
+        },
+        {
+          kinds: [1059],
+          '#p': [currentUser.value.pubkey],
+          limit: 100
         }
       ], {
         onevent: (event) => {
-          handleIncomingMessage(event)
+          if (event.kind === 1059) {
+            handleGiftWrap(event)
+          } else {
+            handleIncomingMessage(event)
+          }
         },
         oneose: () => {
           console.log('End of stored DM events')
@@ -300,17 +372,7 @@ export function useNostrChat() {
 
   // Handle incoming message events
   const handleIncomingMessage = async (event) => {
-    if (processedEventIds.has(event.id)) return
-    processedEventIds.add(event.id)
-    if (processedEventIds.size > MAX_PROCESSED_IDS) {
-      // Keep newest half by deleting oldest entries (Set iterates in insertion order)
-      const toDelete = processedEventIds.size - Math.floor(MAX_PROCESSED_IDS / 2)
-      let count = 0
-      for (const id of processedEventIds) {
-        if (count++ >= toDelete) break
-        processedEventIds.delete(id)
-      }
-    }
+    if (trackEventId(event.id)) return
 
     try {
       const isOutgoing = event.pubkey === currentUser.value.pubkey
@@ -362,6 +424,66 @@ export function useNostrChat() {
       }
     } catch (error) {
       console.error('Failed to process incoming message:', error)
+    }
+  }
+
+  // Handle NIP-17 gift wrap events (kind 1059)
+  const handleGiftWrap = async (event) => {
+    if (trackEventId(event.id)) return
+
+    try {
+      const unwrapped = await unwrapGiftWrap(event, currentUser.value)
+      if (!unwrapped) return
+
+      const isOutgoing = unwrapped.senderPubkey === currentUser.value.pubkey
+      const otherPartyPubkey = isOutgoing
+        ? unwrapped.tags.find(tag => tag[0] === 'p')?.[1]
+        : unwrapped.senderPubkey
+
+      if (!otherPartyPubkey) return
+
+      const message = {
+        id: unwrapped.id,
+        content: unwrapped.content,
+        timestamp: unwrapped.timestamp * 1000,
+        isOutgoing,
+        sender: unwrapped.senderPubkey,
+        recipient: isOutgoing ? otherPartyPubkey : currentUser.value.pubkey,
+        rawEvent: event,
+        status: 'sent',
+        zap: null
+      }
+
+      // Get or create conversation
+      let conversation = conversations.value.get(otherPartyPubkey)
+      if (!conversation) {
+        conversation = createConversation(otherPartyPubkey)
+        conversations.value.set(otherPartyPubkey, conversation)
+        fetchUserProfile(otherPartyPubkey).then(profile => {
+          if (profile && conversations.value.has(otherPartyPubkey)) {
+            const conv = conversations.value.get(otherPartyPubkey)
+            conv.profile = profile
+            conversations.value.set(otherPartyPubkey, { ...conv })
+            triggerUpdate()
+          }
+        })
+      }
+
+      // Add message
+      const added = addMessageToConversation(otherPartyPubkey, message)
+      if (added) {
+        conversation.lastMessage = message.content
+        conversation.lastMessageTime = message.timestamp
+
+        if (!isOutgoing && activeConversation.value?.id !== otherPartyPubkey) {
+          conversation.unreadCount = (conversation.unreadCount || 0) + 1
+        }
+
+        conversations.value.set(otherPartyPubkey, { ...conversation })
+        triggerUpdate()
+      }
+    } catch (error) {
+      console.error('Failed to process gift wrap:', error)
     }
   }
 

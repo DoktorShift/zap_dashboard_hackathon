@@ -177,7 +177,9 @@ export async function lookupInvoice(params) {
     throw new Error('NWC Client not initialized')
   }
 
-  return await nwcClient.lookupInvoice({
-    payment_hash: params.payment_hash
-  })
+  const lookupParams = {}
+  if (params.payment_hash) lookupParams.payment_hash = params.payment_hash
+  if (params.invoice) lookupParams.invoice = params.invoice
+
+  return await nwcClient.lookupInvoice(lookupParams)
 }
