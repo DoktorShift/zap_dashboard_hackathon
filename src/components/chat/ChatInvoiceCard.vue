@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { IconBolt, IconLoader2, IconCheck, IconChevronDown, IconChevronUp, IconCopy, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
 import { parseInvoiceBasic, formatInvoiceAmount, truncateInvoice } from '../../utils/wallet/invoiceUtils.js'
-import { payInvoice, getUserFriendlyError } from '../../utils/wallet/nwcClient.js'
+import { payInvoice, lookupInvoice, getUserFriendlyError } from '../../utils/wallet/nwcClient.js'
 
 const props = defineProps({
   invoice: { type: String, required: true },
@@ -16,6 +16,7 @@ const emit = defineEmits(['paid'])
 const showQR = ref(false)
 const isPaying = ref(false)
 const isPaid = ref(false)
+const isChecking = ref(false)
 const payError = ref('')
 const copied = ref(false)
 
@@ -24,6 +25,30 @@ const amountDisplay = computed(() => {
   if (!parsed.value?.amount) return 'Unknown amount'
   return formatInvoiceAmount(parsed.value.amount)
 })
+
+// Check payment status for outgoing invoices
+const checkPaymentStatus = async () => {
+  if (!props.walletConnected || isPaid.value) return
+  isChecking.value = true
+  try {
+    const result = await lookupInvoice({ invoice: props.invoice })
+    if (result && (result.settled_at || result.preimage)) {
+      isPaid.value = true
+      emit('paid', props.invoice)
+    }
+  } catch {
+    // Silently fail — invoice may not be found or wallet doesn't support lookup
+  } finally {
+    isChecking.value = false
+  }
+}
+
+onMounted(() => {
+  if (props.isOutgoing && props.walletConnected) {
+    checkPaymentStatus()
+  }
+})
+
 const handlePay = async () => {
   if (isPaying.value || isPaid.value || !props.walletConnected) return
   isPaying.value = true
@@ -101,10 +126,15 @@ const copyInvoice = async () => {
         <!-- Sent invoice status -->
         <div v-if="isOutgoing && !isPaid" class="flex-1 py-1.5 text-center">
           <p class="text-[11px] text-gray-500">
-            Awaiting payment
+            {{ isChecking ? 'Checking status...' : 'Awaiting payment' }}
           </p>
-          <p class="text-[10px] leading-snug text-gray-400">
-            Share QR code so they can pay
+          <p v-if="!isChecking" class="text-[10px] leading-snug text-gray-400">
+            <button
+              v-if="walletConnected"
+              @click.stop="checkPaymentStatus"
+              class="text-orange-500 hover:text-orange-600 underline"
+            >Check status</button>
+            <span v-else>Share QR code so they can pay</span>
           </p>
         </div>
 

@@ -167,7 +167,23 @@ export function useNostrContent() {
         data: { url, ...mediaType }
       })
     }
-    
+
+    // Find all plain URLs (not already matched as media or nostr)
+    const urlRegex = new RegExp(URL_REGEX.source, 'gi')
+    while ((match = urlRegex.exec(content)) !== null) {
+      const url = match[0]
+      // Skip if this position is already covered by a nostr or media match
+      const overlaps = allMatches.some(m => match.index >= m.index && match.index < m.index + m.match.length)
+      if (!overlaps) {
+        allMatches.push({
+          type: 'url',
+          match: url,
+          index: match.index,
+          data: { url }
+        })
+      }
+    }
+
     // Sort matches by index
     allMatches.sort((a, b) => a.index - b.index)
     

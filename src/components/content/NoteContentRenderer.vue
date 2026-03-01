@@ -179,6 +179,15 @@ onUnmounted(() => {
             />
             {{ getMentionDisplay(seg.data.pubkey) }}
           </span>
+
+          <!-- Plain URL: clickable link -->
+          <a
+            v-else-if="seg.type === 'url'"
+            :href="seg.data.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-blue-600 hover:text-blue-700 hover:underline break-all"
+          >{{ seg.data.url }}</a>
         </template>
       </span>
 
