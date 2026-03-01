@@ -48,9 +48,8 @@ import { useMentions } from '../composables/content/useMentions.js'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 import EngagementMetrics from '../components/analytics/EngagementMetrics.vue'
 import NoteSuccessModal from '../components/modals/NoteSuccessModal.vue'
-import ContentRenderer from '../components/content/ContentRenderer.vue'
 import MentionInput from '../components/content/MentionInput.vue'
-import MentionRenderer from '../components/content/MentionRenderer.vue'
+import NoteContentRenderer from '../components/content/NoteContentRenderer.vue'
 import ThreadsPromo from '../components/shared/ThreadsPromo.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
@@ -779,19 +778,12 @@ const handleMentionClick = ({ pubkey, profile }) => {
                   
                   <!-- Note Preview -->
                   <div class="mb-3">
-                    <MentionRenderer
+                    <NoteContentRenderer
                       :content="note.content"
                       :show-profile-on-click="true"
-                      mention-class="text-orange-600 hover:text-orange-700 font-medium cursor-pointer hover:underline"
+                      :compact="true"
                       class="text-gray-800 leading-relaxed line-clamp-3"
                     />
-<!--                    <div class="text-gray-800 leading-relaxed line-clamp-3">-->
-<!--                      <ContentRenderer -->
-<!--                        :content="note.content" -->
-<!--                        :preferred-client="'primal'"-->
-<!--                        :show-debug-info="false"-->
-<!--                      />-->
-<!--                    </div>-->
                   </div>
                   
                   <!-- Hashtags -->
@@ -932,11 +924,11 @@ const handleMentionClick = ({ pubkey, profile }) => {
 
                 <!-- Preview Mode -->
                 <div v-else class="min-h-[120px] max-h-[400px] overflow-y-auto">
-                  <MentionRenderer
+                  <NoteContentRenderer
                     :content="noteForm.content"
                     :show-profile-on-click="true"
                     @mention-click="handleMentionClick"
-                    class="text-xl text-gray-800 leading-relaxed whitespace-pre-wrap"
+                    class="text-xl text-gray-800 leading-relaxed"
                   />
                 </div>
                 
@@ -1043,19 +1035,12 @@ const handleMentionClick = ({ pubkey, profile }) => {
                 <!-- Note Content -->
                 <div class="mb-6">
                   <div class="prose prose-lg max-w-none">
-                    <MentionRenderer
+                    <NoteContentRenderer
                       :content="enhancedSelectedNote.content"
                       :show-profile-on-click="true"
                       @mention-click="handleMentionClick"
-                      class="text-gray-800 leading-relaxed whitespace-pre-wrap"
+                      class="text-gray-800 leading-relaxed"
                     />
-<!--                    <div class="text-gray-800 leading-relaxed">-->
-<!--                      <ContentRenderer -->
-<!--                        :content="enhancedSelectedNote.content" -->
-<!--                        :preferred-client="'primal'"-->
-<!--                        :show-debug-info="false"-->
-<!--                      />-->
-<!--                    </div>-->
                   </div>
                 </div>
 

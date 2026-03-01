@@ -176,34 +176,28 @@ export function useNostrContent() {
     allMatches.forEach(match => {
       // Add text before this match
       if (match.index > lastIndex) {
-        const textSegment = content.substring(lastIndex, match.index)
-        if (textSegment.trim()) {
-          segments.push({
-            type: 'text',
-            content: textSegment
-          })
-        }
+        segments.push({
+          type: 'text',
+          content: content.substring(lastIndex, match.index)
+        })
       }
-      
+
       // Add the match segment
       segments.push({
         type: match.type,
         content: match.match,
         data: match.data
       })
-      
+
       lastIndex = match.index + match.match.length
     })
-    
+
     // Add remaining text
     if (lastIndex < content.length) {
-      const textSegment = content.substring(lastIndex)
-      if (textSegment.trim()) {
-        segments.push({
-          type: 'text',
-          content: textSegment
-        })
-      }
+      segments.push({
+        type: 'text',
+        content: content.substring(lastIndex)
+      })
     }
     
     // If no matches found, return the entire content as text
