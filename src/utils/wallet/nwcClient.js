@@ -1,33 +1,100 @@
-import { nwc } from '@getalby/sdk'
+import {
+  NWC,
+  NWCWalletError,
+  NWCTimeoutError,
+  NWCPublishTimeoutError,
+  NWCReplyTimeoutError,
+  NWCConnectionError,
+  NWCDecryptionError,
+  LightningAddressError,
+  validateLightningAddress
+} from 'nostr-core'
 
 // NWC Client singleton
 let nwcClient = null
 
-// List of reliable Nostr relays as fallbacks
-const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.snort.social',
-  'wss://relay.primal.net',
-  'wss://nostr.wine'
-]
+/**
+ * Map NWC error types to user-friendly messages.
+ * Returns a descriptive string suitable for UI display.
+ */
+export function getUserFriendlyError(error) {
+  if (error instanceof NWCWalletError) {
+    switch (error.code) {
+      case 'INSUFFICIENT_BALANCE':
+        return 'Insufficient balance. Please top up your wallet.'
+      case 'QUOTA_EXCEEDED':
+        return 'Spending quota exceeded. Check your wallet limits.'
+      case 'NOT_FOUND':
+        return 'Invoice or payment not found.'
+      case 'PAYMENT_FAILED':
+        return 'Payment failed. The invoice may have expired or the recipient is unreachable.'
+      case 'RATE_LIMITED':
+        return 'Too many requests. Please wait a moment and try again.'
+      case 'NOT_IMPLEMENTED':
+        return 'This operation is not supported by your wallet.'
+      case 'UNAUTHORIZED':
+        return 'Wallet authorization failed. Please reconnect your wallet.'
+      case 'INTERNAL':
+        return 'Wallet encountered an internal error. Please try again.'
+      default:
+        return error.message || 'Wallet operation failed.'
+    }
+  }
 
-export function initializeNWC(nwcUrl) {
-  // Clear existing client if no URL provided
+  if (error instanceof NWCPublishTimeoutError) {
+    return 'Could not reach your wallet. Check your internet connection.'
+  }
+
+  if (error instanceof NWCReplyTimeoutError) {
+    return 'Your wallet did not respond in time. It may be offline or overloaded.'
+  }
+
+  if (error instanceof NWCTimeoutError) {
+    return 'Request timed out. Your wallet may be offline.'
+  }
+
+  if (error instanceof NWCConnectionError) {
+    return 'Failed to connect to wallet relay. Please check your connection string.'
+  }
+
+  if (error instanceof NWCDecryptionError) {
+    return 'Failed to decrypt wallet response. Your connection string may be invalid.'
+  }
+
+  if (error instanceof LightningAddressError) {
+    return error.message || 'Failed to resolve Lightning Address.'
+  }
+
+  return error.message || 'An unknown error occurred.'
+}
+
+/**
+ * Check if an error is retryable (timeouts, connection issues — not wallet rejections).
+ */
+function isRetryable(error) {
+  if (error instanceof NWCWalletError) return false
+  if (error instanceof NWCDecryptionError) return false
+  if (error instanceof NWCTimeoutError) return true
+  if (error instanceof NWCConnectionError) return true
+  if (error.message?.includes('not initialized')) return false
+  return true
+}
+
+export async function initializeNWC(nwcUrl) {
   if (!nwcUrl) {
+    if (nwcClient) {
+      nwcClient.close()
+    }
     nwcClient = null
     return null
   }
-  
+
   try {
-    nwcClient = new nwc.NWCClient({
-      nostrWalletConnectUrl: nwcUrl,
-      relayUrls: DEFAULT_RELAYS
-    })
-    console.info('NWC Client initialized successfully with fallback relays')
+    nwcClient = new NWC(nwcUrl)
+    await nwcClient.connect()
+    nwcClient.replyTimeout = 30000
     return nwcClient
   } catch (error) {
-    console.error('Failed to initialize NWC Client:', error)
     nwcClient = null
     throw error
   }
@@ -37,7 +104,18 @@ export function getNWCClient() {
   return nwcClient
 }
 
-export async function fetchTransactions(retryCount = 3) {
+export function closeNWC() {
+  if (nwcClient) {
+    nwcClient.close()
+    nwcClient = null
+  }
+}
+
+/**
+ * Generic retry wrapper for NWC operations.
+ * Only retries on transient errors (timeouts, connection issues).
+ */
+async function withRetry(fn, retryCount = 3) {
   if (!nwcClient) {
     throw new Error('NWC Client not initialized')
   }
@@ -45,96 +123,39 @@ export async function fetchTransactions(retryCount = 3) {
   let lastError
   for (let attempt = 1; attempt <= retryCount; attempt++) {
     try {
-      console.log(`Fetching transactions (attempt ${attempt}/${retryCount})...`)
-      const response = await nwcClient.listTransactions({
-        limit: 100,
-        timeout: 30000 // 30 seconds timeout
-      })
-      
-      console.log(`Successfully fetched ${response.transactions?.length || 0} transactions`)
-      return response.transactions || []
+      return await fn()
     } catch (error) {
-      console.warn(`Transaction fetch attempt ${attempt} failed:`, error.message)
       lastError = error
-      
-      // Don't retry on the last attempt or for certain error types
-      if (attempt === retryCount || error.message.includes('not initialized')) {
+
+      if (attempt === retryCount || !isRetryable(error)) {
         break
       }
-      
-      // Wait before retrying (exponential backoff)
+
       const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-      console.log(`Retrying in ${delay}ms...`)
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
-  
-  console.error('Failed to fetch transactions after all retries:', lastError)
+
   throw lastError
+}
+
+export async function fetchTransactions(retryCount = 3) {
+  return withRetry(async () => {
+    const response = await nwcClient.listTransactions({ limit: 100 })
+    return response.transactions || []
+  }, retryCount)
 }
 
 export async function getWalletInfo(retryCount = 3) {
-  if (!nwcClient) {
-    throw new Error('NWC Client not initialized')
-  }
-
-  let lastError
-  for (let attempt = 1; attempt <= retryCount; attempt++) {
-    try {
-      console.log(`Getting wallet info (attempt ${attempt}/${retryCount})...`)
-      const info = await nwcClient.getInfo()
-      console.log('Successfully retrieved wallet info')
-      return info
-    } catch (error) {
-      console.warn(`Wallet info attempt ${attempt} failed:`, error.message)
-      lastError = error
-      
-      // Don't retry on the last attempt or for certain error types
-      if (attempt === retryCount || error.message.includes('not initialized')) {
-        break
-      }
-      
-      // Wait before retrying (exponential backoff)
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-      console.log(`Retrying in ${delay}ms...`)
-      await new Promise(resolve => setTimeout(resolve, delay))
-    }
-  }
-  
-  console.error('Failed to get wallet info after all retries:', lastError)
-  throw lastError
+  return withRetry(async () => {
+    return await nwcClient.getInfo()
+  }, retryCount)
 }
 
 export async function getBalance(retryCount = 3) {
-  if (!nwcClient) {
-    throw new Error('NWC Client not initialized')
-  }
-
-  let lastError
-  for (let attempt = 1; attempt <= retryCount; attempt++) {
-    try {
-      console.log(`Getting balance (attempt ${attempt}/${retryCount})...`)
-      const balance = await nwcClient.getBalance()
-      console.log('Successfully retrieved balance')
-      return balance
-    } catch (error) {
-      console.warn(`Balance fetch attempt ${attempt} failed:`, error.message)
-      lastError = error
-      
-      // Don't retry on the last attempt or for certain error types
-      if (attempt === retryCount || error.message.includes('not initialized')) {
-        break
-      }
-      
-      // Wait before retrying (exponential backoff)
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-      console.log(`Retrying in ${delay}ms...`)
-      await new Promise(resolve => setTimeout(resolve, delay))
-    }
-  }
-  
-  console.error('Failed to get balance after all retries:', lastError)
-  throw lastError
+  return withRetry(async () => {
+    return await nwcClient.getBalance()
+  }, retryCount)
 }
 
 export async function makeInvoice(params) {
@@ -142,17 +163,11 @@ export async function makeInvoice(params) {
     throw new Error('NWC Client not initialized')
   }
 
-  try {
-    const invoice = await nwcClient.makeInvoice({
-      amount: params.amount, // Amount in millisats
-      description: params.description || '',
-      expiry: params.expiry || 3600 // Default 1 hour expiry
-    })
-    return invoice
-  } catch (error) {
-    console.error('Failed to create invoice:', error)
-    throw error
-  }
+  return await nwcClient.makeInvoice({
+    amount: params.amount,
+    description: params.description || '',
+    expiry: params.expiry || 3600
+  })
 }
 
 export async function payInvoice(params) {
@@ -160,15 +175,7 @@ export async function payInvoice(params) {
     throw new Error('NWC Client not initialized')
   }
 
-  try {
-    const payment = await nwcClient.payInvoice({
-      invoice: params.invoice
-    })
-    return payment
-  } catch (error) {
-    console.error('Failed to pay invoice:', error)
-    throw error
-  }
+  return await nwcClient.payInvoice(params.invoice)
 }
 
 export async function lookupInvoice(params) {
@@ -176,13 +183,39 @@ export async function lookupInvoice(params) {
     throw new Error('NWC Client not initialized')
   }
 
-  try {
-    const invoice = await nwcClient.lookupInvoice({
-      payment_hash: params.payment_hash
-    })
-    return invoice
-  } catch (error) {
-    console.error('Failed to lookup invoice:', error)
-    throw error
+  const lookupParams = {}
+  if (params.payment_hash) lookupParams.payment_hash = params.payment_hash
+  if (params.invoice) lookupParams.invoice = params.invoice
+
+  return await nwcClient.lookupInvoice(lookupParams)
+}
+
+/**
+ * Check if a string is a valid Lightning Address (user@domain).
+ */
+export function isLightningAddress(input) {
+  return validateLightningAddress(input)
+}
+
+/**
+ * Strip lightning: or LIGHTNING: URI prefix from input.
+ * Returns the cleaned string.
+ */
+export function stripLightningPrefix(input) {
+  if (input.toLowerCase().startsWith('lightning:')) {
+    return input.substring(10)
   }
+  return input
+}
+
+/**
+ * Pay a Lightning Address by resolving it to a BOLT-11 invoice first.
+ * Uses nostr-core's built-in payLightningAddress which handles LNURL-pay resolution.
+ */
+export async function payLightningAddress(address, amountSats) {
+  if (!nwcClient) {
+    throw new Error('NWC Client not initialized')
+  }
+
+  return await nwcClient.payLightningAddress(address, amountSats)
 }

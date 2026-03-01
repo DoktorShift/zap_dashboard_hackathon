@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, onUnmounted, watch } from 'vue'
 import * as nip19 from 'nostr-tools/nip19'
+import { formatSatsShort } from '../utils/format.js'
 import {
   IconFileText,
   IconPlus,
@@ -32,9 +33,16 @@ import ContentStats from '../components/content/ContentStats.vue'
 import ContentList from '../components/content/ContentList.vue'
 import ContentForm from '../components/content/ContentForm.vue'
 import ContentPerformance from '../components/content/ContentPerformance.vue'
+import ContentEngagementChart from '../components/content/ContentEngagementChart.vue'
+import ContentTopSupporters from '../components/content/ContentTopSupporters.vue'
+import ContentTagPerformance from '../components/content/ContentTagPerformance.vue'
+import ContentPublishingActivity from '../components/content/ContentPublishingActivity.vue'
 import EngagementMetrics from '../components/analytics/EngagementMetrics.vue'
 import BlogEditor from '../components/content/BlogEditor.vue'
 import NoteSuccessModal from '../components/modals/NoteSuccessModal.vue'
+import BadgeList from '../components/badges/BadgeList.vue'
+import BadgeDetailModal from '../components/badges/BadgeDetailModal.vue'
+import SkeletonContent from '../components/shared/SkeletonContent.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -46,8 +54,16 @@ const dropdownRef = ref(null)
 const showSuccessModal = ref(false)
 const lastPublishResult = ref(null)
 
+// Badge detail modal state
+const showBadgeDetailModal = ref(false)
+const selectedBadge = ref(null)
+const handleBadgeClick = (badge) => {
+  selectedBadge.value = badge
+  showBadgeDetailModal.value = true
+}
+
 // Use the long-form content composable
-const { fetchUserLongFormContent } = useNostrLongForm()
+const { fetchUserLongFormContent, isLoading: isLoadingArticles } = useNostrLongForm()
 
 const {
   // State
@@ -70,8 +86,6 @@ const {
   createContent,
   updateContent,
   deleteContent,
-  publishContent,
-  unpublishContent,
   duplicateContent,
   publishToNostr,
 
@@ -89,6 +103,16 @@ if (!contentForm.description) {
 const { getAllContentZaps, startZapTracking } = useContentZaps()
 
 const { getEngagementCounts, startEngagementTracking, startLongFormContentTracking } = useEngagementMetrics()
+
+// Total engagement across all published content (for stat cards)
+const engagementTotal = computed(() => {
+  return contentItems.value
+    .filter(item => item.status === 'published' && item.nostrEventId)
+    .reduce((sum, item) => {
+      const counts = getEngagementCounts(item.nostrEventId)
+      return sum + (counts?.totalEngagement || 0)
+    }, 0)
+})
 
 // Track zaps + engagement when a different content item is selected
 watch(() => selectedContent.value?.nostrEventId, (eventId) => {
@@ -287,15 +311,7 @@ const setActiveTab = (tab) => {
   }
 }
 
-// Format zap amount for display
-const formatZapAmount = (amount) => {
-  if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M`
-  } else if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(1)}k`
-  }
-  return amount.toString()
-}
+
 
 // Format zapper pubkey for display
 const formatZapperPubkey = (pubkey) => {
@@ -494,8 +510,12 @@ onUnmounted(() => {
 
       <!-- Main Content -->
       <div v-if="currentView === 'list'">
+        <!-- Skeleton Loading State -->
+        <SkeletonContent v-if="isLoadingArticles && contentItems.length === 0" />
+
+        <template v-else>
         <!-- Stats Overview -->
-        <ContentStats :stats="contentStats" />
+        <ContentStats :stats="contentStats" :items="contentItems" :engagement-total="engagementTotal" />
 
         <!-- Content Tabs -->
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden mt-6">
@@ -530,6 +550,7 @@ onUnmounted(() => {
             />
           </div>
         </div>
+        </template>
       </div>
 
       <!-- Create/Edit Content Form -->
@@ -639,7 +660,7 @@ onUnmounted(() => {
                   <span v-if="selectedContent.nostrEventId && (selectedContent.zapAmount || 0) > 0"
                         class="px-3 py-1.5 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 rounded-full text-sm font-medium flex items-center space-x-1">
                     <IconBolt class="w-4 h-4" />
-                    <span>{{ formatZapAmount(selectedContent.zapAmount) }} sats</span>
+                    <span>{{ formatSatsShort(selectedContent.zapAmount) }} sats</span>
                     <span class="text-orange-500">({{ selectedContent.zapCount || 0 }})</span>
                   </span>
                 </div>
@@ -649,16 +670,15 @@ onUnmounted(() => {
                   {{ selectedContent.title }}
                 </h1>
                 
-                <!-- Hashtags (moved after title) -->
-                <div v-if="selectedContent.tags && selectedContent.tags.length > 0" class="mb-6">
-                  <div class="flex flex-wrap gap-2">
+                <!-- Hashtags -->
+                <div v-if="selectedContent.tags && selectedContent.tags.length > 0" class="mb-5">
+                  <div class="flex flex-wrap gap-1.5">
                     <span
                       v-for="tag in selectedContent.tags"
                       :key="tag"
-                      class="inline-flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 text-orange-700 px-3 py-2 rounded-full text-sm font-medium hover:from-orange-200 hover:to-amber-200 transition-all duration-200 cursor-pointer"
+                      class="inline-flex items-center text-[11px] text-orange-600/80 bg-orange-50 px-2 py-0.5 rounded-md font-medium"
                     >
-                      <IconHash class="w-3 h-3" />
-                      <span>{{ tag }}</span>
+                      #{{ tag }}
                     </span>
                   </div>
                 </div>
@@ -690,6 +710,16 @@ onUnmounted(() => {
                           <IconCheck class="w-3 h-3 mr-1" />
                           Verified
                         </span>
+                        <BadgeList
+                          v-if="currentUser?.pubkey"
+                          :pubkey="currentUser.pubkey"
+                          size="small"
+                          :max-display="3"
+                          :show-count="false"
+                          :show-view-all="false"
+                          layout="horizontal"
+                          @badge-click="handleBadgeClick"
+                        />
                       </div>
                       <div class="flex items-center space-x-3 text-sm text-gray-500">
                         <span>{{ new Date(selectedContent.publishedAt || selectedContent.createdAt).toLocaleDateString('en-US', { 
@@ -826,7 +856,7 @@ onUnmounted(() => {
                   </div>
                 </h3>
                 <div class="text-right">
-                  <div class="text-lg font-bold text-orange-600">{{ formatZapAmount(selectedContent.zapAmount || 0) }}</div>
+                  <div class="text-lg font-bold text-orange-600">{{ formatSatsShort(selectedContent.zapAmount || 0) }}</div>
                   <div class="text-xs text-gray-500">{{ selectedContent.zapCount || 0 }} zaps</div>
                 </div>
               </div>
@@ -856,7 +886,7 @@ onUnmounted(() => {
                     <div class="text-xs text-gray-500">{{ formatZapTime(zap.timestamp) }}</div>
                   </div>
                   <div class="text-xs font-bold text-orange-600">
-                    {{ formatZapAmount(zap.amount) }}
+                    {{ formatSatsShort(zap.amount) }}
                   </div>
                 </div>
 
@@ -893,8 +923,23 @@ onUnmounted(() => {
       </div>
 
       <!-- Performance View -->
-      <div v-else-if="currentView === 'performance'">
+      <div v-else-if="currentView === 'performance'" class="space-y-6">
+        <!-- Stats Overview -->
+        <ContentStats :stats="contentStats" :items="contentItems" :engagement-total="engagementTotal" />
+
+        <!-- Existing Charts -->
         <ContentPerformance :content-items="contentItems" />
+
+        <!-- New Analytics Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          <ContentEngagementChart :content-items="contentItems" :get-engagement-counts="getEngagementCounts" />
+          <ContentPublishingActivity :content-items="contentItems" />
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          <ContentTopSupporters :content-items="contentItems" />
+          <ContentTagPerformance :content-items="contentItems" :get-engagement-counts="getEngagementCounts" />
+        </div>
       </div>
     </div>
   </div>
@@ -907,5 +952,11 @@ onUnmounted(() => {
     content-type="article"
     :publish-result="lastPublishResult"
     @close="closeSuccessModal"
+  />
+
+  <BadgeDetailModal
+    :show="showBadgeDetailModal"
+    :badge="selectedBadge"
+    @close="showBadgeDetailModal = false; selectedBadge = null"
   />
 </template>

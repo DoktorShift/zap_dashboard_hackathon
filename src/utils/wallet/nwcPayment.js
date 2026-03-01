@@ -1,4 +1,4 @@
-import { LN, SATS } from '@getalby/sdk'
+import { NWC } from 'nostr-core'
 import { SimplePool } from 'nostr-tools/pool'
 import { makeZapRequest, getZapEndpoint } from 'nostr-tools/nip57'
 import { LongFormArticle } from 'nostr-tools/kinds'
@@ -9,17 +9,18 @@ const RELAYS = ['wss://relay.damus.io', 'wss://nostr.mom', 'wss://nos.lol']
 export class NWCPaymentHandler {
   constructor() {
     this.pool = new SimplePool()
-    this.albyClient = null
+    this.nwcClient = null
   }
 
-  // Initialize Alby client with NWC URL
+  // Initialize NWC client with NWC URL
   async initialize(nwcUrl) {
     try {
-      this.albyClient = new LN(nwcUrl)
-      console.log('✅ NWC client initialized')
+      this.nwcClient = new NWC(nwcUrl)
+      await this.nwcClient.connect()
+      console.log('NWC client initialized')
       return true
     } catch (error) {
-      console.error('❌ Failed to initialize NWC client:', error)
+      console.error('Failed to initialize NWC client:', error)
       throw error
     }
   }
@@ -28,10 +29,10 @@ export class NWCPaymentHandler {
   async getZapEndpoint(publisherPubkey) {
     try {
       // Fetch publisher's profile metadata
-      const metadata = await this.pool.get(RELAYS, { 
-        kinds: [0], 
+      const metadata = await this.pool.get(RELAYS, {
+        kinds: [0],
         authors: [publisherPubkey],
-        limit: 1 
+        limit: 1
       })
 
       if (!metadata) {
@@ -55,7 +56,7 @@ export class NWCPaymentHandler {
   createZapRequest(articleEvent, amountSats, comment = '') {
     try {
       const publisherPubkey = articleEvent.pubkey
-      
+
       const zapRequest = makeZapRequest({
         profile: publisherPubkey,
         event: articleEvent,
@@ -89,7 +90,7 @@ export class NWCPaymentHandler {
       }
 
       const data = await response.json()
-      
+
       if (!data.pr) {
         throw new Error('No payment request in response')
       }
@@ -106,40 +107,17 @@ export class NWCPaymentHandler {
   }
 
   // Pay invoice using NWC
-  async payInvoice(invoice, description) {
-    if (!this.albyClient) {
+  async payInvoice(invoice) {
+    if (!this.nwcClient) {
       throw new Error('NWC client not initialized')
     }
 
     try {
-      const request = await this.albyClient.requestPayment(
-        SATS(0), // Amount is already in the invoice
-        {
-          description: description,
-          metadata: {
-            comment: `Payment for content unlock: ${description}`,
-          }
-        }
-      )
-
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Payment timeout'))
-        }, 300000) // 5 minutes timeout
-
-        request
-          .onPaid(() => {
-            clearTimeout(timeout)
-            resolve({
-              success: true,
-              preimage: request.preimage
-            })
-          })
-          .onTimeout(300, () => {
-            clearTimeout(timeout)
-            reject(new Error('Payment timed out'))
-          })
-      })
+      const result = await this.nwcClient.payInvoice(invoice)
+      return {
+        success: true,
+        preimage: result.preimage
+      }
     } catch (error) {
       console.error('Failed to pay invoice:', error)
       throw error
@@ -162,7 +140,7 @@ export class NWCPaymentHandler {
       const invoiceData = await this.requestInvoice(zapEndpoint, zapRequest)
 
       // Pay the invoice
-      const paymentResult = await this.payInvoice(invoiceData.invoice, invoiceData.description)
+      const paymentResult = await this.payInvoice(invoiceData.invoice)
 
       return {
         success: true,
@@ -175,22 +153,19 @@ export class NWCPaymentHandler {
       throw error
     } finally {
       // Clean up
-      if (this.albyClient) {
-        this.albyClient.close()
-        this.albyClient = null
-      }
+      this.close()
     }
   }
 
   // Close connections
   close() {
-    if (this.albyClient) {
-      this.albyClient.close()
-      this.albyClient = null
+    if (this.nwcClient) {
+      this.nwcClient.close()
+      this.nwcClient = null
     }
     this.pool.close(RELAYS)
   }
 }
 
 // Export singleton instance
-export const nwcPaymentHandler = new NWCPaymentHandler() 
+export const nwcPaymentHandler = new NWCPaymentHandler()

@@ -5,6 +5,11 @@ import { useNotifications } from '../core/useNotifications.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import {
+  CONTENT_ZAP_CHUNK_SIZE,
+  CONTENT_ZAP_RESUBSCRIBE_DEBOUNCE,
+  TRACKED_EVENT_IDS_MAX
+} from '../../utils/constants.js'
 
 // Global state for content zaps
 const contentZaps = reactive(new Map()) // Map<eventId, zap[]>
@@ -14,8 +19,6 @@ const isTrackingZaps = ref(false)
 const trackedEventIds = new Set()
 let batchedSubscription = null
 let resubscribeTimer = null
-const RESUBSCRIBE_DEBOUNCE = 1000 // 1s debounce before resubscribing
-const CHUNK_SIZE = 50 // Max event IDs per filter
 
 // Create enriched zap data from a raw zap event using shared utilities
 const createZapData = async (zapEvent) => {
@@ -73,12 +76,12 @@ const openBatchedSubscription = (getNotificationHandler) => {
 
   const allIds = Array.from(trackedEventIds)
 
-  // Chunk event IDs into groups of CHUNK_SIZE to avoid oversized filters
+  // Chunk event IDs into groups of CONTENT_ZAP_CHUNK_SIZE to avoid oversized filters
   const filters = []
-  for (let i = 0; i < allIds.length; i += CHUNK_SIZE) {
+  for (let i = 0; i < allIds.length; i += CONTENT_ZAP_CHUNK_SIZE) {
     filters.push({
       kinds: [9735],
-      '#e': allIds.slice(i, i + CHUNK_SIZE),
+      '#e': allIds.slice(i, i + CONTENT_ZAP_CHUNK_SIZE),
       limit: 100
     })
   }
@@ -131,7 +134,7 @@ const scheduleResubscribe = (getNotificationHandler) => {
   resubscribeTimer = setTimeout(() => {
     resubscribeTimer = null
     openBatchedSubscription(getNotificationHandler)
-  }, RESUBSCRIBE_DEBOUNCE)
+  }, CONTENT_ZAP_RESUBSCRIBE_DEBOUNCE)
 }
 
 export function useContentZaps() {
@@ -173,6 +176,14 @@ export function useContentZaps() {
   const startZapTracking = async (eventId) => {
     if (!eventId || trackedEventIds.has(eventId)) return
 
+    // Cap tracked IDs — remove oldest (first-added) entries when full
+    if (trackedEventIds.size >= TRACKED_EVENT_IDS_MAX) {
+      const iter = trackedEventIds.values()
+      const oldest = iter.next().value
+      trackedEventIds.delete(oldest)
+      contentZaps.delete(oldest) // also free zap data for evicted ID
+    }
+
     if (!contentZaps.has(eventId)) {
       contentZaps.set(eventId, [])
     }
@@ -199,6 +210,7 @@ export function useContentZaps() {
       batchedSubscription = null
     }
     trackedEventIds.clear()
+    contentZaps.clear()
     isTrackingZaps.value = false
   }
 
@@ -253,9 +265,13 @@ export function useContentZaps() {
     stopZapTracking(eventId)
   }
 
-  // Cleanup on auth change
+  // Self-initialize on login, cleanup on logout
   watch(isAuthenticated, (auth) => {
-    if (!auth) stopAllZapTracking()
+    if (auth) {
+      initializeZapTracking().catch(err => console.warn('[useContentZaps] Init tracking failed:', err.message))
+    } else {
+      stopAllZapTracking()
+    }
   })
 
   return {

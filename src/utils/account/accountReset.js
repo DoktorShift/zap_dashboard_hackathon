@@ -116,7 +116,7 @@ export const initializeNewNWCSession = async (nwcUrl, name = 'My Lightning Walle
     localStorage.setItem('active_connection_id', connection.id)
     
     // Initialize NWC client
-    const client = initializeNWC(nwcUrl)
+    const client = await initializeNWC(nwcUrl)
     if (!client) {
       throw new Error('Failed to initialize NWC client')
     }

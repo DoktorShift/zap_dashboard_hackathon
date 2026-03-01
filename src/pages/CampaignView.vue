@@ -295,7 +295,7 @@
                     <div class="text-xs text-gray-500">{{ zap.timeAgo }}</div>
                   </div>
                 </div>
-                <div class="text-sm font-semibold text-orange-600">{{ formatZapAmount(zap.amount) }}</div>
+                <div class="text-sm font-semibold text-orange-600">{{ formatSatsShort(zap.amount) }}</div>
               </div>
               <button
                 v-if="recentZaps.length > 5"
@@ -889,6 +889,7 @@
 <script setup>
 import { ref, computed, onMounted, watch, inject, nextTick } from 'vue'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import { formatSatsShort } from '../utils/format.js'
 import {
   IconBolt,
   IconShare,
@@ -1426,15 +1427,7 @@ async function getZapEndpoint(metadata) {
   }
 }
 
-// Format zap amount for display
-const formatZapAmount = (amount) => {
-  if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M`
-  } else if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(1)}k`
-  }
-  return amount.toString()
-}
+
 
 // Get sender name with fallback
 const getSenderName = (zap) => {

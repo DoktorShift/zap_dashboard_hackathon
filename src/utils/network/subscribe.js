@@ -1,4 +1,5 @@
 import { nostrRelayManager } from './nostrRelayManager.js'
+import { SUBSCRIBE_TIMEOUT, SUBSCRIBE_EOSE_GRACE } from '../constants.js'
 
 let subNonce = 0
 
@@ -10,7 +11,7 @@ let subNonce = 0
  * @param {Object} opts - { timeout, eoseGrace }
  * @returns {Promise<Array>} collected events
  */
-export const subscribe = async (filters, { timeout = 25000, eoseGrace = 3000 } = {}) => {
+export const subscribe = async (filters, { timeout = SUBSCRIBE_TIMEOUT, eoseGrace = SUBSCRIBE_EOSE_GRACE } = {}) => {
   await nostrRelayManager.ready()
 
   return new Promise((resolve) => {

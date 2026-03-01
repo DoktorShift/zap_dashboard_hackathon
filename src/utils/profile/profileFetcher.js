@@ -1,9 +1,22 @@
 import { nostrRelayManager } from '../network/nostrRelayManager.js'
 import { subscribe } from '../network/subscribe.js'
+import {
+  PROFILE_CACHE_MAX, PROFILE_CACHE_EVICT,
+  PROFILE_FETCH_TIMEOUT, PROFILE_EOSE_GRACE, PROFILE_BATCH_SIZE
+} from '../constants.js'
 
 // Shared profile cache and in-flight promises
 export const profileCache = new Map()
 const profileFetchPromises = new Map()
+
+// Evict oldest entries when profile cache exceeds max size
+const _evictProfileCache = () => {
+  if (profileCache.size <= PROFILE_CACHE_MAX) return
+  const entries = Array.from(profileCache.entries())
+    .sort((a, b) => a[1].timestamp - b[1].timestamp)
+  const toRemove = entries.slice(0, PROFILE_CACHE_EVICT)
+  toRemove.forEach(([key]) => profileCache.delete(key))
+}
 
 // Normalize fetched profile according to schema
 export const normalizeProfileData = (pubkey, profileData) => {
@@ -67,6 +80,7 @@ export const fetchProfile = async (pubkey, { ttl = 24 * 60 * 60 * 1000 } = {}) =
     }
 
     profileCache.set(pubkey, { profile, timestamp: Date.now() })
+    _evictProfileCache()
     return profile
   } catch (err) {
     console.error('fetchProfile error for', pubkey.substring(0, 16), '-', err.message)
@@ -110,7 +124,7 @@ const _fetchProfileFromRelays = async (pubkey) => {
 
 // Batch fetch profiles for many pubkeys using subscribe helper.
 // Updates profileCache as results arrive.
-export const batchFetchProfiles = async (pubkeys = [], { batchSize = 50, timeoutMs = 15000 } = {}) => {
+export const batchFetchProfiles = async (pubkeys = [], { batchSize = PROFILE_BATCH_SIZE, timeoutMs = PROFILE_FETCH_TIMEOUT } = {}) => {
   const validPubkeys = pubkeys.filter(pk => pk && typeof pk === 'string' && pk.length === 64)
   const missing = validPubkeys.filter(pk => !profileCache.has(pk))
 
@@ -122,7 +136,7 @@ export const batchFetchProfiles = async (pubkeys = [], { batchSize = 50, timeout
 
     const events = await subscribe(
       [{ kinds: [0], authors: batch, limit: batch.length }],
-      { timeout: timeoutMs, eoseGrace: 1500 }
+      { timeout: timeoutMs, eoseGrace: PROFILE_EOSE_GRACE }
     )
 
     for (const event of events) {
@@ -130,6 +144,7 @@ export const batchFetchProfiles = async (pubkeys = [], { batchSize = 50, timeout
         const data = JSON.parse(event.content || '{}')
         const profile = normalizeProfileData(event.pubkey, data)
         profileCache.set(event.pubkey, { profile, timestamp: Date.now() })
+        _evictProfileCache()
       } catch {
         // skip invalid profiles
       }

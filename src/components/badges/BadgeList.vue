@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useBadges } from '../../composables/social/useBadges.js'
 import BadgeDisplay from './BadgeDisplay.vue'
 import { IconAward, IconChevronRight, IconLoader } from '@iconify-prerendered/vue-tabler'
@@ -16,7 +16,7 @@ const props = defineProps({
   },
   maxDisplay: {
     type: Number,
-    default: 5
+    default: 0 // 0 = show all badges
   },
   showCount: {
     type: Boolean,
@@ -52,10 +52,12 @@ const badges = computed(() => {
 })
 
 const displayBadges = computed(() => {
+  if (props.maxDisplay <= 0) return badges.value // 0 = show all
   return badges.value.slice(0, props.maxDisplay)
 })
 
 const remainingCount = computed(() => {
+  if (props.maxDisplay <= 0) return 0
   const total = badges.value.length
   return total > props.maxDisplay ? total - props.maxDisplay : 0
 })
@@ -124,7 +126,6 @@ const handleViewAll = (event) => {
 
 // Watch for pubkey changes and load badges immediately
 // Using immediate: true to load badges as soon as component is created
-import { watch } from 'vue'
 watch(() => props.pubkey, (newPubkey, oldPubkey) => {
   if (newPubkey) {
     // Only load if pubkey changed or this is the first load
@@ -205,22 +206,3 @@ watch(() => props.pubkey, (newPubkey, oldPubkey) => {
   </div>
 </template>
 
-<style scoped>
-/* Animation for loading spinner */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Smooth transitions */
-.transition-colors {
-  transition-property: color, border-color, background-color;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-</style>

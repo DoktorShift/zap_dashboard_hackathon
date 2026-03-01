@@ -167,7 +167,23 @@ export function useNostrContent() {
         data: { url, ...mediaType }
       })
     }
-    
+
+    // Find all plain URLs (not already matched as media or nostr)
+    const urlRegex = new RegExp(URL_REGEX.source, 'gi')
+    while ((match = urlRegex.exec(content)) !== null) {
+      const url = match[0]
+      // Skip if this position is already covered by a nostr or media match
+      const overlaps = allMatches.some(m => match.index >= m.index && match.index < m.index + m.match.length)
+      if (!overlaps) {
+        allMatches.push({
+          type: 'url',
+          match: url,
+          index: match.index,
+          data: { url }
+        })
+      }
+    }
+
     // Sort matches by index
     allMatches.sort((a, b) => a.index - b.index)
     
@@ -176,34 +192,28 @@ export function useNostrContent() {
     allMatches.forEach(match => {
       // Add text before this match
       if (match.index > lastIndex) {
-        const textSegment = content.substring(lastIndex, match.index)
-        if (textSegment.trim()) {
-          segments.push({
-            type: 'text',
-            content: textSegment
-          })
-        }
+        segments.push({
+          type: 'text',
+          content: content.substring(lastIndex, match.index)
+        })
       }
-      
+
       // Add the match segment
       segments.push({
         type: match.type,
         content: match.match,
         data: match.data
       })
-      
+
       lastIndex = match.index + match.match.length
     })
-    
+
     // Add remaining text
     if (lastIndex < content.length) {
-      const textSegment = content.substring(lastIndex)
-      if (textSegment.trim()) {
-        segments.push({
-          type: 'text',
-          content: textSegment
-        })
-      }
+      segments.push({
+        type: 'text',
+        content: content.substring(lastIndex)
+      })
     }
     
     // If no matches found, return the entire content as text

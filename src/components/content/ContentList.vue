@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { 
-  IconFileText, 
+import { formatSatsShort } from '../../utils/format.js'
+import {
+  IconFileText,
   IconMail, 
   IconMicrophone, 
   IconVideo, 
@@ -119,15 +120,7 @@ const formatDate = (dateString) => {
   })
 }
 
-// Format zap amount for display
-const formatZapAmount = (amount) => {
-  if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M`
-  } else if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(1)}k`
-  }
-  return amount.toString()
-}
+
 
 // Get total revenue for display
 const getTotalRevenue = (item) => {
@@ -274,7 +267,7 @@ const getTotalRevenue = (item) => {
                 ]" />
                 <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
                 <div class="tooltip">
-                  {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatZapAmount(item.zapAmount || 0) }} sats total)
+                  {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatSatsShort(item.zapAmount || 0) }} sats total)
                 </div>
               </button>
               
@@ -294,7 +287,7 @@ const getTotalRevenue = (item) => {
             <!-- Zap Amount Badge -->
             <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container cursor-help">
               <IconBolt class="w-3 h-3 text-orange-600" />
-              <span class="text-xs font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
+              <span class="text-xs font-bold text-orange-700">{{ formatSatsShort(item.zapAmount || 0) }} sats</span>
               <div class="tooltip">
                 Total amount received from Lightning zaps and paid content access.
               </div>
@@ -406,7 +399,7 @@ const getTotalRevenue = (item) => {
                 ]" />
                 <span class="text-sm font-medium">{{ item.zapCount || 0 }}</span>
                 <div class="tooltip">
-                  {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatZapAmount(item.zapAmount || 0) }} sats total)
+                  {{ item.zapCount || 0 }} Lightning {{ (item.zapCount || 0) === 1 ? 'zap' : 'zaps' }} ({{ formatSatsShort(item.zapAmount || 0) }} sats total)
                 </div>
               </button>
               
@@ -426,7 +419,7 @@ const getTotalRevenue = (item) => {
             <!-- Revenue Badge -->
             <div v-if="(item.zapAmount || 0) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full relative tooltip-container cursor-help">
               <IconBolt class="w-4 h-4 text-orange-600" />
-              <span class="text-sm font-bold text-orange-700">{{ formatZapAmount(item.zapAmount || 0) }} sats</span>
+              <span class="text-sm font-bold text-orange-700">{{ formatSatsShort(item.zapAmount || 0) }} sats</span>
               <div class="tooltip">
                 Total amount received from Lightning zaps and paid content access.
               </div>

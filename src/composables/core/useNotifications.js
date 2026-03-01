@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useNostrConnections } from './useNostrConnections.js'
 import { fetchTransactions, getBalance } from '../../utils/wallet/nwcClient.js'
 
@@ -101,8 +101,11 @@ const saveNotificationSettings = () => {
   }
 }
 
-// Watch for settings changes and save
-watch(notificationSettings, saveNotificationSettings, { deep: true })
+// Watch specific settings properties (avoid deep watch)
+watch(
+  () => JSON.stringify(notificationSettings.value),
+  saveNotificationSettings
+)
 
 // Debounced watch for notification changes (2s delay)
 let saveTimeout = null
@@ -110,7 +113,7 @@ const debouncedSave = () => {
   clearTimeout(saveTimeout)
   saveTimeout = setTimeout(saveNotifications, 2000)
 }
-watch(notifications, debouncedSave, { deep: true })
+watch(() => notifications.value.length, debouncedSave)
 
 // Create notification object
 const createNotification = (type, title, message, data = {}) => {
@@ -650,16 +653,8 @@ export function useNotifications() {
     }
   }, { immediate: true })
 
-  // Initialize on mount
-  onMounted(() => {
-    initializeNotifications()
-  })
-
-  // Cleanup on unmount
-  onUnmounted(() => {
-    stopTransactionMonitoring()
-    stopEventMonitoring()
-  })
+  // Initialize immediately (module-scoped singleton — no lifecycle hooks)
+  initializeNotifications()
 
   return {
     // State

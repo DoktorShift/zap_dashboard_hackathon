@@ -8,16 +8,19 @@ import {
   IconFileText,
   IconEdit,
   IconTrendingUp,
-  IconEye,
   IconChevronRight
 } from '@iconify-prerendered/vue-tabler'
 import { useEngagementMetrics } from '../../composables/analytics/useEngagementMetrics.js'
 import { filterZapsByTimeRange } from '../../utils/core/timeFilter.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import ZapEventModal from '../modals/ZapEventModal.vue'
 
 const combinedZapData = inject('combinedZapData')
 const selectedTimeRange = inject('selectedTimeRange')
-const changePage = inject('changePage')
+
+// Modal state for content preview
+const showEventModal = ref(false)
+const selectedEventId = ref(null)
 
 const { getEngagementCounts } = useEngagementMetrics()
 
@@ -34,8 +37,6 @@ const fetchNoteContent = async (eventId) => {
   fetchingNotes.value.add(eventId)
 
   try {
-    console.log('Fetching note content for:', eventId.substring(0, 8) + '...')
-    
     const noteEvent = await nostrRelayManager.getEvent({
       ids: [eventId],
       kinds: [1] // Text notes
@@ -49,7 +50,6 @@ const fetchNoteContent = async (eventId) => {
       }
       
       noteContentCache.value.set(eventId, content)
-      console.log('✅ Fetched note content:', content.text.substring(0, 50) + '...')
       return content
     } else {
       console.warn('No note content found for:', eventId)
@@ -63,58 +63,49 @@ const fetchNoteContent = async (eventId) => {
   }
 }
 
-// Separate notes and long-form content
-const topPerformingNotes = computed(() => {
+// Helper function to create note title from content
+const createNoteTitle = (text) => {
+  if (!text || typeof text !== 'string') return 'Note'
+  const firstLine = text.split('\n')[0].trim()
+  if (firstLine.length === 0) return 'Note'
+  return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine
+}
+
+// Shared logic for building content performance map from zaps
+const buildContentPerformance = (typeFilter) => {
   const nip57Zaps = combinedZapData.value.filter(zap => zap.eventId)
   const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
-  
+
   if (filteredZaps.length === 0) return []
 
-  // Group by eventId and calculate performance for notes
   const contentPerformance = new Map()
-  
+
   filteredZaps.forEach(zap => {
     const eventId = zap.eventId
     if (!contentPerformance.has(eventId)) {
       const engagement = getEngagementCounts(eventId)
-      
-      // Get cached content if available
       const cachedContent = noteContentCache.value.get(eventId)
-      
+
       contentPerformance.set(eventId, {
         eventId,
-        type: 'note', // Assume note for now, will be updated if we find long-form data
+        type: 'note',
         title: cachedContent?.title || 'Loading...',
-        content: cachedContent?.text || '',
-        noteText: cachedContent?.text || 'Loading note content...', // Default loading text
         coverImage: null,
         zaps: 0,
         zapAmount: 0,
         likes: engagement.likes,
         reposts: engagement.reposts,
-        bookmarks: engagement.bookmarks,
-        totalScore: 0
+        bookmarks: engagement.bookmarks
       })
-      
-      // Fetch actual note content asynchronously
-      if (!cachedContent) {
+
+      // For notes: fetch content asynchronously if not cached
+      if (typeFilter === 'note' && !cachedContent) {
         fetchNoteContent(eventId).then(noteContent => {
-          if (noteContent && noteContent.text) {
-            // Update the cache with fetched content
-            noteContentCache.value.set(eventId, {
-              text: noteContent.text,
-              title: createNoteTitle(noteContent.text)
-            })
-          } else {
-            // Update the cache with unavailable content
-            noteContentCache.value.set(eventId, {
-              text: 'Unable to load note content',
-              title: 'Note (content unavailable)'
-            })
-          }
-        }).catch(error => {
-          console.warn('Failed to fetch note content for analytics:', error)
-          // Update the cache with error state
+          const cacheEntry = noteContent?.text
+            ? { text: noteContent.text, title: createNoteTitle(noteContent.text) }
+            : { text: 'Unable to load note content', title: 'Note (content unavailable)' }
+          noteContentCache.value.set(eventId, cacheEntry)
+        }).catch(() => {
           noteContentCache.value.set(eventId, {
             text: 'Unable to load note content',
             title: 'Note (content unavailable)'
@@ -122,18 +113,17 @@ const topPerformingNotes = computed(() => {
         })
       }
     }
-    
+
     const content = contentPerformance.get(eventId)
     content.zaps += 1
     content.zapAmount += zap.amount
   })
 
-  // Try to get content details from localStorage to identify long-form vs notes
+  // Identify long-form content from localStorage
   try {
     const storedContent = localStorage.getItem('user_content_items')
     if (storedContent) {
       const contentItems = JSON.parse(storedContent)
-      
       contentPerformance.forEach((content, eventId) => {
         const contentItem = contentItems.find(item => item.nostrEventId === eventId)
         if (contentItem) {
@@ -147,135 +137,22 @@ const topPerformingNotes = computed(() => {
     console.warn('Failed to load content details from storage:', error)
   }
 
-  // Filter for notes only and calculate scores
-  const notesArray = Array.from(contentPerformance.values())
-    .filter(content => content.type === 'note')
-  
-  notesArray.forEach(content => {
-    content.totalScore = (content.zaps * 10) + (content.reposts * 3) + (content.likes * 1) + (content.bookmarks * 2)
-  })
-
-  return notesArray
+  // Filter by type, calculate scores, sort and return top 3
+  return Array.from(contentPerformance.values())
+    .filter(content => content.type === typeFilter)
+    .map(content => ({
+      ...content,
+      totalScore: (content.zaps * 10) + (content.reposts * 3) + (content.likes * 1) + (content.bookmarks * 2)
+    }))
     .filter(content => content.totalScore > 0)
     .sort((a, b) => b.totalScore - a.totalScore)
     .slice(0, 3)
-})
-
-// Helper function to create note title from content
-const createNoteTitle = (content) => {
-  if (!content || typeof content !== 'string') return 'Note'
-  
-  // Get first line or first 50 characters
-  const firstLine = content.split('\n')[0].trim()
-  if (firstLine.length === 0) return 'Note'
-  
-  return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine
 }
 
-const topPerformingLongForm = computed(() => {
-  const nip57Zaps = combinedZapData.value.filter(zap => zap.eventId)
-  const filteredZaps = filterZapsByTimeRange(nip57Zaps, selectedTimeRange.value)
-  
-  if (filteredZaps.length === 0) return []
+const topPerformingNotes = computed(() => buildContentPerformance('note'))
+const topPerformingLongForm = computed(() => buildContentPerformance('longform'))
 
-  // Group by content and calculate performance for long-form
-  const contentPerformance = new Map()
-  
-  filteredZaps.forEach(zap => {
-    const eventId = zap.eventId
-    if (!contentPerformance.has(eventId)) {
-      const engagement = getEngagementCounts(eventId)
-      contentPerformance.set(eventId, {
-        eventId,
-        type: 'note',
-        title: '',
-        content: '',
-        coverImage: null,
-        zaps: 0,
-        zapAmount: 0,
-        likes: engagement.likes,
-        reposts: engagement.reposts,
-        bookmarks: engagement.bookmarks,
-        totalScore: 0
-      })
-    }
-    
-    const content = contentPerformance.get(eventId)
-    content.zaps += 1
-    content.zapAmount += zap.amount
-  })
-
-  // Get content details from localStorage
-  try {
-    const storedContent = localStorage.getItem('user_content_items')
-    if (storedContent) {
-      const contentItems = JSON.parse(storedContent)
-      
-      contentPerformance.forEach((content, eventId) => {
-        const contentItem = contentItems.find(item => item.nostrEventId === eventId)
-        if (contentItem) {
-          content.type = 'longform'
-          content.title = contentItem.title || 'Untitled Article'
-          content.coverImage = contentItem.coverImage || null
-        }
-      })
-    }
-  } catch (error) {
-    console.warn('Failed to load content details from storage:', error)
-  }
-
-  // Filter for long-form only and calculate scores
-  const longFormArray = Array.from(contentPerformance.values())
-    .filter(content => content.type === 'longform')
-  
-  longFormArray.forEach(content => {
-    content.totalScore = (content.zaps * 10) + (content.reposts * 3) + (content.likes * 1) + (content.bookmarks * 2)
-  })
-
-  return longFormArray
-    .filter(content => content.totalScore > 0)
-    .sort((a, b) => b.totalScore - a.totalScore)
-    .slice(0, 3)
-})
-
-// Generate fallback image
-const generateContentFallbackImage = () => {
-  return '/new_logo3.png'
-}
-
-// Get content title for display
-const getNoteTitle = (content) => {
-  // Use the title from the content object, which is now reactive
-  if (content.title === 'Loading...' || !content.title) {
-    return 'Loading...'
-  }
-  
-  if (content.title === 'Note (content unavailable)') {
-    return 'Note (content unavailable)'
-  }
-  
-  return content.title
-}
-
-// Get note preview text for display
-const getNotePreview = (content) => {
-  if (!content.noteText || content.noteText === 'Loading note content...' || content.noteText === 'Loading...') {
-    return 'Loading note content...'
-  }
-  
-  if (content.noteText === 'Unable to load note content') {
-    return 'Content unavailable'
-  }
-  
-  // Get first 80 characters for preview
-  const preview = content.noteText.replace(/\n+/g, ' ').trim()
-  return preview.length > 80 ? preview.substring(0, 80) + '...' : preview
-}
-
-const getLongFormTitle = (content) => {
-  const title = content.title || 'Untitled Article'
-  return title.length > 40 ? title.substring(0, 40) + '...' : title
-}
+const FALLBACK_IMAGE = '/new_logo3.png'
 
 // Format numbers
 const formatNumber = (num) => {
@@ -287,31 +164,9 @@ const formatNumber = (num) => {
   return num.toString()
 }
 
-// Handle content clicks
-const handleNoteClick = (note) => {
-  // Navigate to notes page and show the specific note
-  changePage('notes')
-  
-  // Use a small delay to ensure the notes page loads, then trigger note view
-  setTimeout(() => {
-    // Dispatch a custom event to tell the Notes page to show this specific note
-    document.dispatchEvent(new CustomEvent('show-note-details', { 
-      detail: { eventId: note.eventId } 
-    }))
-  }, 100)
-}
-
-const handleLongFormClick = (article) => {
-  // Navigate to content page and show the specific article
-  changePage('content')
-  
-  // Use a small delay to ensure the content page loads, then trigger article preview
-  setTimeout(() => {
-    // Dispatch a custom event to tell the Content page to show this specific article
-    document.dispatchEvent(new CustomEvent('show-content-preview', { 
-      detail: { eventId: article.eventId } 
-    }))
-  }, 100)
+const handleContentClick = (content) => {
+  selectedEventId.value = content.eventId
+  showEventModal.value = true
 }
 
 // Check if we have any content to show
@@ -359,7 +214,7 @@ const hasContent = computed(() => {
             <div
               v-for="(note, index) in topPerformingNotes"
               :key="note.eventId"
-              @click="handleNoteClick(note)"
+              @click="handleContentClick(note)"
               class="group bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer"
             >
               <!-- Note Header -->
@@ -377,7 +232,7 @@ const hasContent = computed(() => {
                 <!-- Note Thumbnail -->
                 <div class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 bg-gray-50">
                   <img
-                    :src="generateContentFallbackImage()"
+                    :src="FALLBACK_IMAGE"
                     alt="Note"
                     class="w-full h-full object-cover opacity-60"
                   />
@@ -386,7 +241,7 @@ const hasContent = computed(() => {
                 <!-- Note Preview -->
                 <div class="flex-1 min-w-0">
                   <h5 class="font-medium text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
-                    {{ getNoteTitle(note) }}
+                    {{ note.title }}
                   </h5>
                 </div>
                 
@@ -444,7 +299,7 @@ const hasContent = computed(() => {
             <div
               v-for="(article, index) in topPerformingLongForm"
               :key="article.eventId"
-              @click="handleLongFormClick(article)"
+              @click="handleContentClick(article)"
               class="group bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer"
             >
               <!-- Article Header -->
@@ -462,17 +317,17 @@ const hasContent = computed(() => {
                 <!-- Article Thumbnail -->
                 <div class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200 bg-gray-50">
                   <img
-                    :src="article.coverImage || generateContentFallbackImage()"
+                    :src="article.coverImage || FALLBACK_IMAGE"
                     :alt="article.title"
                     class="w-full h-full object-cover"
-                    @error="$event.target.src = generateContentFallbackImage()"
+                    @error="$event.target.src = FALLBACK_IMAGE"
                   />
                 </div>
                 
                 <!-- Article Info -->
                 <div class="flex-1 min-w-0">
                   <h5 class="font-medium text-gray-900 text-sm leading-tight mb-1 line-clamp-2">
-                    {{ getLongFormTitle(article) }}
+                    {{ article.title }}
                   </h5>
                 </div>
                 
@@ -512,69 +367,20 @@ const hasContent = computed(() => {
       </div>
     </div>
   </div>
+
+  <!-- Content Preview Modal -->
+  <ZapEventModal
+    :event-id="selectedEventId"
+    :show="showEventModal"
+    @close="showEventModal = false; selectedEventId = null"
+  />
 </template>
 
 <style scoped>
-/* Line clamp utility */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.line-clamp-1 {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Clean transitions */
-.transition-all {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.transition-colors {
-  transition: color 0.15s ease;
-}
-
-/* Hover states */
-.group:hover .group-hover\:text-orange-500 {
-  color: #f97316;
-}
-
-/* Focus states for accessibility */
-.group:focus-visible {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
-}
-
-/* Mobile optimizations */
-@media (max-width: 1024px) {
-  .grid-cols-1 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-}
-
-/* Ensure proper touch targets on mobile */
-@media (max-width: 640px) {
-  .group {
-    min-height: 44px;
-  }
-  
-  .cursor-pointer {
-    cursor: pointer;
-  }
-}
-
-/* Clean card shadows */
-.hover\:shadow-md:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-/* Subtle border hover */
-.hover\:border-gray-300:hover {
-  border-color: #d1d5db;
 }
 </style>

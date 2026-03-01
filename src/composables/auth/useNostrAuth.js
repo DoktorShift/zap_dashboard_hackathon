@@ -1,9 +1,9 @@
-import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { SimplePool } from 'nostr-tools/pool'
+import { ref, computed, watch, onMounted } from 'vue'
 import * as nip19 from 'nostr-tools/nip19'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { initializeNWC } from '../../utils/wallet/nwcClient.js'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
+import { DEFAULT_RELAY_CONFIGS_WITH_STATUS } from '../../utils/constants.js'
 
 // Global state for Nostr authentication
 const currentUser = ref(null)
@@ -19,20 +19,11 @@ const NOSTR_RELAYS_KEY = 'nostrRelays'
 // Initialization guard to prevent multiple setups
 let isInitialized = false
 
-// Default relays with proper configuration
-const DEFAULT_RELAYS = [
-  { url: 'wss://relay.damus.io', status: 'disconnected', read: true, write: true },
-  { url: 'wss://nos.lol', status: 'disconnected', read: true, write: true },
-  { url: 'wss://relay.snort.social', status: 'disconnected', read: true, write: true },
-  { url: 'wss://relay.primal.net', status: 'disconnected', read: true, write: true },
-  { url: 'wss://nostr.wine', status: 'disconnected', read: true, write: true },
-  { url: 'wss://relay.nostr.band', status: 'disconnected', read: true, write: false },
-  { url: 'wss://nostr-01.yakihonne.com', status: 'disconnected', read: true, write: false },
-]
+// Module-scoped subscription for user event listener
+let userEventSub = null
 
-// Connection timeout settings
-const CONNECTION_TIMEOUT = 10000 // 10 seconds
-const QUERY_TIMEOUT = 15000 // 15 seconds
+// Default relays (from shared constants)
+const DEFAULT_RELAYS = DEFAULT_RELAY_CONFIGS_WITH_STATUS
 
 // Load user from localStorage
 const loadUserFromStorage = () => {
@@ -41,7 +32,6 @@ const loadUserFromStorage = () => {
     if (stored) {
       const userData = JSON.parse(stored)
       currentUser.value = userData
-      console.log('Loaded user from storage:', userData.npub)
       return true
     }
   } catch (error) {
@@ -55,7 +45,6 @@ const loadUserFromStorage = () => {
 const saveUserToStorage = (userData) => {
   try {
     localStorage.setItem(NOSTR_USER_KEY, JSON.stringify(userData))
-    console.log('Saved user to storage:', userData.npub)
   } catch (error) {
     console.error('Failed to save user to storage:', error)
   }
@@ -68,7 +57,6 @@ const loadRelaysFromStorage = () => {
     if (stored) {
       const relayData = JSON.parse(stored)
       userRelays.value = relayData
-      console.log('Loaded relays from storage:', relayData.length, 'relays')
       return true
     }
   } catch (error) {
@@ -82,7 +70,6 @@ const loadRelaysFromStorage = () => {
 const saveRelaysToStorage = (relayData) => {
   try {
     localStorage.setItem(NOSTR_RELAYS_KEY, JSON.stringify(relayData))
-    console.log('Saved relays to storage:', relayData.length, 'relays')
   } catch (error) {
     console.error('Failed to save relays to storage:', error)
   }
@@ -135,8 +122,6 @@ const fetchAndStoreProfile = async (pubkey) => {
   isLoading.value = true
   authError.value = ''
 
-  console.log('🔍 fetchAndStoreProfile: Starting fetch for', pubkey.substring(0, 16) + '...')
-
   // First, check what we have stored (so we don't overwrite good data with bad)
   let existingProfile = null
   const existingUser = localStorage.getItem(NOSTR_USER_KEY)
@@ -145,7 +130,6 @@ const fetchAndStoreProfile = async (pubkey) => {
       const existing = JSON.parse(existingUser)
       if (existing.pubkey === pubkey && existing.profile?.picture) {
         existingProfile = existing
-        console.log('📦 fetchAndStoreProfile: Have existing profile with picture')
       }
     } catch (e) {
       // ignore parse error
@@ -155,15 +139,8 @@ const fetchAndStoreProfile = async (pubkey) => {
   try {
     const profile = await fetchProfile(pubkey)
 
-    console.log('📥 fetchAndStoreProfile: Got profile response:', {
-      name: profile?.name,
-      picture: profile?.picture ? profile.picture.substring(0, 50) + '...' : 'NULL',
-      nip05: profile?.nip05
-    })
-
     // If fetched profile has no picture but we have existing with picture, keep existing
     if (!profile?.picture && existingProfile) {
-      console.log('♻️ fetchAndStoreProfile: Fetched profile has no picture, keeping existing')
       currentUser.value = existingProfile
       return existingProfile
     }
@@ -178,16 +155,13 @@ const fetchAndStoreProfile = async (pubkey) => {
     }
     currentUser.value = userData
     saveUserToStorage(userData)
-
-    console.log('✅ fetchAndStoreProfile: Profile stored successfully')
     return userData
   } catch (error) {
-    console.error('❌ fetchAndStoreProfile: Error -', error.message)
+    console.error('fetchAndStoreProfile failed:', error.message)
     authError.value = `Failed to fetch profile: ${error.message}`
 
     // If we have a profile with picture, keep it
     if (existingProfile) {
-      console.log('♻️ fetchAndStoreProfile: Keeping existing profile with picture (fetch failed)')
       currentUser.value = existingProfile
       return existingProfile
     }
@@ -213,38 +187,10 @@ const fetchAndStoreProfile = async (pubkey) => {
     }
     currentUser.value = userData
     saveUserToStorage(userData)
-    console.log('⚠️ fetchAndStoreProfile: Using fallback profile (no picture)')
     return userData
   } finally {
     isLoading.value = false
   }
-}
-
-// Create minimal user data when no profile is found
-const createMinimalUserData = (pubkey) => {
-  const npub = nip19.npubEncode(pubkey)
-  
-  const userData = {
-    pubkey,
-    npub,
-    profile: {
-      name: `User ${pubkey.substring(0, 8)}`,
-      display_name: null,
-      about: 'Nostr user',
-      picture: null,
-      nip05: null,
-      lud16: null,
-      lud06: null,
-      website: null,
-      banner: null
-    },
-    lastUpdated: new Date().toISOString(),
-    profileEvent: null
-  }
-
-  currentUser.value = userData
-  saveUserToStorage(userData)
-  return userData
 }
 
 // Check relay status using relay manager
@@ -264,18 +210,16 @@ const checkRelayStatus = async (url) => {
 
 // Check all relay statuses
 const checkAllRelayStatuses = async () => {
-  console.log('Checking all relay statuses using relay manager...')
   relayError.value = ''
-  
+
   try {
     // Initialize relay manager with current relays
     await nostrRelayManager.initialize(userRelays.value)
-    
+
     // Sync statuses back to our state
     syncRelayStatuses()
-    
+
     const stats = nostrRelayManager.getConnectionStats()
-    console.log('Relay status check completed:', stats)
     
     if (stats.connected === 0) {
       relayError.value = 'No relays are currently reachable'
@@ -342,7 +286,6 @@ const addRelay = async (url, options = { read: true, write: true }) => {
     throw error
   }
   
-  console.log('Added relay:', url)
   return newRelay
 }
 
@@ -359,7 +302,6 @@ const removeRelay = (url) => {
   // Remove from relay manager
   nostrRelayManager.removeRelay(url)
   
-  console.log('Removed relay:', url)
   return true
 }
 
@@ -368,8 +310,6 @@ const fetchUserRelayList = async (pubkey) => {
   if (!pubkey) return null
 
   try {
-    console.log('Fetching NIP-65 relay list for user:', pubkey.substring(0, 16) + '...')
-    
     // Query for kind 10002 (NIP-65 relay list) from the user
     const relayListEvent = await nostrRelayManager.getEvent({
       kinds: [10002],
@@ -378,11 +318,8 @@ const fetchUserRelayList = async (pubkey) => {
     })
 
     if (!relayListEvent) {
-      console.log('No NIP-65 relay list found for user')
       return null
     }
-
-    console.log('Found NIP-65 relay list event:', relayListEvent.id.substring(0, 16) + '...')
 
     // Parse relay list from tags
     // Format: ["r", "wss://relay.example.com", "read"] or ["r", "wss://relay.example.com", "write"] or ["r", "wss://relay.example.com"]
@@ -401,7 +338,6 @@ const fetchUserRelayList = async (pubkey) => {
       }
     }
 
-    console.log(`Parsed ${relays.length} relays from NIP-65 list:`, relays.map(r => r.url))
     return relays
   } catch (error) {
     console.error('Failed to fetch NIP-65 relay list:', error)
@@ -414,8 +350,6 @@ const updateRelaysFromNip65 = async (pubkey) => {
   const nip65Relays = await fetchUserRelayList(pubkey)
   
   if (nip65Relays && nip65Relays.length > 0) {
-    console.log('Updating relay manager with user\'s NIP-65 relays...')
-    
     // Merge NIP-65 relays with existing relays (NIP-65 takes priority)
     const existingUrls = new Set(userRelays.value.map(r => r.url))
     const newRelays = []
@@ -439,16 +373,14 @@ const updateRelaysFromNip65 = async (pubkey) => {
     // Add new relays from NIP-65
     if (newRelays.length > 0) {
       userRelays.value = [...userRelays.value, ...newRelays]
-      console.log(`Added ${newRelays.length} new relays from NIP-65 list`)
     }
-    
+
     // Save updated relays
     saveRelaysToStorage(userRelays.value)
-    
+
     // Update relay manager with new relays (don't re-initialize, just add new ones)
     try {
       await nostrRelayManager.updateRelays(nip65Relays)
-      console.log('Relay manager updated with user relays')
     } catch (error) {
       console.warn('Failed to update relay manager:', error)
     }
@@ -462,6 +394,12 @@ const updateRelaysFromNip65 = async (pubkey) => {
 // Start listening for user events using relay manager
 const startUserEventListener = (pubkey) => {
   if (!pubkey) return
+
+  // Close any existing user event subscription first
+  if (userEventSub) {
+    userEventSub.close()
+    userEventSub = null
+  }
 
   try {
     // Subscribe to user's events using relay manager
@@ -482,15 +420,11 @@ const startUserEventListener = (pubkey) => {
         // Emit custom event for other parts of the app
         document.dispatchEvent(new CustomEvent('nostr:event', { detail: event }))
       },
-      oneose: () => {
-        console.log('End of stored events for user:', pubkey)
-      },
-      onclose: (reasons) => {
-        console.log('User event subscription closed:', reasons)
-      }
+      oneose: () => {},
+      onclose: () => {}
     })
 
-    console.log('Started listening for events for user:', pubkey)
+    userEventSub = sub
     return sub
   } catch (error) {
     console.error('Failed to start user event listener:', error)
@@ -515,18 +449,14 @@ const waitForRelayManager = async (timeoutMs = 5000) => {
 
 // Login function - NIP-07 browser extension only
 const login = async () => {
-  console.log('🚀 Login with NIP-07 extension')
-
   // Check if user is already logged in with complete profile
   if (isAuthenticated.value && currentUser.value && isProfileComplete(currentUser.value)) {
-    console.log('✅ User already logged in with complete profile:', currentUser.value.npub)
     return currentUser.value
   }
 
   // Check for NIP-07 extension
   if (!window.nostr) {
     const error = 'No Nostr extension found. Please install Alby, nos2x, or another NIP-07 browser extension.'
-    console.error('❌', error)
     authError.value = error
     throw new Error(error)
   }
@@ -536,9 +466,7 @@ const login = async () => {
 
   try {
     // Get public key from extension
-    console.log('🔑 Requesting public key from extension...')
     const pubkey = await window.nostr.getPublicKey()
-    console.log('✅ Got pubkey:', pubkey.substring(0, 16) + '...')
 
     // Check if this user is already stored with complete profile
     const existingUser = localStorage.getItem(NOSTR_USER_KEY)
@@ -546,19 +474,19 @@ const login = async () => {
       try {
         const userData = JSON.parse(existingUser)
         if (userData.pubkey === pubkey && isProfileComplete(userData)) {
-          console.log('♻️ Using stored profile (complete):', userData.npub, '- picture:', userData.profile?.picture?.substring(0, 30) + '...')
           currentUser.value = userData
 
-          // Background tasks (don't block)
-          if (nostrRelayManager.isInitialized) {
+          // Background tasks (don't block — relay manager ready() is awaited internally)
+          nostrRelayManager.ready().then(() => {
             startUserEventListener(pubkey)
-            updateRelaysFromNip65(pubkey).catch(() => {})
-          } else {
-            console.log('⏳ Relay manager not ready, will start listeners later')
-          }
+            updateRelaysFromNip65(pubkey).catch(e => {
+              console.warn('NIP-65 relay update failed:', e.message)
+            })
+          }).catch(() => {
+            console.warn('Relay manager failed to become ready, skipping NIP-65 + listener')
+          })
           return userData
         } else if (userData.pubkey === pubkey) {
-          console.log('⚠️ Stored profile incomplete (missing picture)')
           // Set the incomplete profile for now so UI shows something
           currentUser.value = userData
         }
@@ -569,14 +497,10 @@ const login = async () => {
 
     // Check if relay manager is ready before fetching
     if (!nostrRelayManager.isInitialized) {
-      console.log('⏳ Waiting for relay manager to be ready...')
       const ready = await waitForRelayManager(5000)
       if (!ready) {
-        console.warn('⚠️ Relay manager not ready, using stored/fallback profile')
         // If we have a stored user (even incomplete), return it
         if (currentUser.value) {
-          console.log('♻️ Returning stored profile (relay timeout)')
-          // Schedule background refresh when relays are ready
           scheduleProfileRefresh(pubkey)
           return currentUser.value
         }
@@ -599,17 +523,17 @@ const login = async () => {
     }
 
     // Fetch profile from relays (fresh fetch)
-    console.log('📥 Fetching profile from relays...')
     const userData = await fetchAndStoreProfile(pubkey)
-    console.log('✅ Login complete:', userData.profile?.name || userData.npub, '- picture:', userData.profile?.picture ? 'YES' : 'NO')
 
     // Background tasks
     startUserEventListener(pubkey)
-    updateRelaysFromNip65(pubkey).catch(() => {})
+    updateRelaysFromNip65(pubkey).catch(e => {
+      console.warn('NIP-65 relay update failed:', e.message)
+    })
 
     return userData
   } catch (error) {
-    console.error('❌ Login error:', error)
+    console.error('Login error:', error)
     authError.value = error.message || 'Login failed'
     throw error
   } finally {
@@ -619,19 +543,17 @@ const login = async () => {
 
 // Schedule a profile refresh when relay manager becomes ready
 const scheduleProfileRefresh = async (pubkey) => {
-  await nostrRelayManager.ready()
   try {
+    await nostrRelayManager.ready()
     await fetchAndStoreProfile(pubkey)
   } catch (e) {
-    console.warn('Failed scheduled profile refresh:', e)
+    console.warn('Failed scheduled profile refresh:', e.message)
   }
 }
 
 // Logout function
 const logout = () => {
   try {
-    console.log('👋 Logging out...')
-
     // Clear state (but preserve relays)
     currentUser.value = null
     authError.value = ''
@@ -673,15 +595,18 @@ const logout = () => {
       localStorage.removeItem(key)
     })
     
+    // Close user event listener subscription
+    if (userEventSub) {
+      userEventSub.close()
+      userEventSub = null
+    }
+
     // Clean up NWC client and relay manager
     initializeNWC(null)
     nostrRelayManager.cleanup()
 
     // Reset initialization flag for clean re-initialization after reload
     isInitialized = false
-
-    console.log('User logged out successfully')
-    console.log('Preserved data: relays, campaigns, follow packs (will be restored on re-login)')
 
     // Reload the page to reset all components
     window.location.reload()
@@ -694,88 +619,17 @@ const logout = () => {
   }
 }
 
-// Helper function to restore session from window.nostr
-const restoreSessionFromWindowNostr = async () => {
-  if (!window.nostr || !window.nostr.getPublicKey) {
-    return false
-  }
-
-  try {
-    console.log('🔑 Attempting to restore session from window.nostr...')
-    const pubkey = await window.nostr.getPublicKey()
-    console.log('Got pubkey from nostr:', pubkey.substring(0, 16) + '...')
-
-    // Check if this user is already stored
-    const existingUser = localStorage.getItem(NOSTR_USER_KEY)
-    if (existingUser) {
-      try {
-        const userData = JSON.parse(existingUser)
-        if (userData.pubkey === pubkey) {
-          console.log('♻️ Restoring user from stored data:', userData.npub)
-          currentUser.value = userData
-
-          // Fetch and update user's NIP-65 relay list
-          console.log('Fetching user\'s NIP-65 relay list...')
-          await updateRelaysFromNip65(pubkey)
-
-          // Start listening for user events
-          startUserEventListener(pubkey)
-
-          console.log('Session restored successfully!')
-          return true
-        } else {
-          console.log('Different user detected, fetching new profile...')
-        }
-      } catch (error) {
-        console.warn('Failed to parse existing user data:', error)
-      }
-    }
-
-    // Fetch and store profile for new/different user
-    console.log('Fetching user profile...')
-    const userData = await fetchAndStoreProfile(pubkey)
-    console.log('Profile fetched successfully:', userData.npub)
-
-    // Fetch and update user's NIP-65 relay list
-    console.log('Fetching user\'s NIP-65 relay list...')
-    await updateRelaysFromNip65(pubkey)
-
-    // Start listening for user events
-    startUserEventListener(pubkey)
-
-    console.log('Session restored successfully!')
-    return true
-  } catch (error) {
-    console.warn('Failed to restore session from window.nostr:', error)
-    return false
-  }
-}
-
 // Initialize auth and relays - simplified for NIP-07 only
 const initAuthAndRelays = async () => {
-  if (isInitialized) {
-    console.log('Auth already initialized, skipping...')
-    return
-  }
+  if (isInitialized) return
   isInitialized = true
-  console.log('🚀 Initializing Nostr auth and relays...')
 
   try {
     // Load user from storage first
     const hasUser = loadUserFromStorage()
 
-    // Log what we loaded
-    if (hasUser) {
-      console.log('📦 Loaded user from storage:', {
-        npub: currentUser.value?.npub,
-        name: currentUser.value?.profile?.name,
-        hasPicture: !!currentUser.value?.profile?.picture
-      })
-    }
-
     // Load or initialize relays
     if (!loadRelaysFromStorage()) {
-      console.log('No saved relays found, using defaults')
       userRelays.value = [...DEFAULT_RELAYS]
       saveRelaysToStorage(userRelays.value)
     }
@@ -796,54 +650,40 @@ const initAuthAndRelays = async () => {
 
     // If user is stored and extension is available, verify/restore session
     if (hasUser && window.nostr?.getPublicKey) {
-      console.log('🔑 Extension available, verifying session...')
       try {
         const pubkey = await window.nostr.getPublicKey()
         if (currentUser.value?.pubkey === pubkey) {
-          console.log('✅ Session verified for:', currentUser.value.npub)
-
           // Check if profile is complete (has picture)
           if (!isProfileComplete(currentUser.value)) {
-            console.log('⚠️ Profile incomplete (missing picture), fetching fresh profile...')
-            // Fetch fresh profile - this will update currentUser and save to storage
             try {
               await fetchAndStoreProfile(pubkey)
-              console.log('✅ Profile refreshed:', {
-                name: currentUser.value?.profile?.name,
-                hasPicture: !!currentUser.value?.profile?.picture
-              })
             } catch (e) {
               console.warn('Failed to refresh profile:', e)
             }
-          } else {
-            console.log('✅ Profile complete with picture')
           }
 
           startUserEventListener(pubkey)
-          updateRelaysFromNip65(pubkey).catch(() => {})
+          updateRelaysFromNip65(pubkey).catch(e => {
+            console.warn('NIP-65 relay update failed:', e.message)
+          })
         } else {
-          console.log('🔄 Different user in extension, clearing stored user')
           currentUser.value = null
           localStorage.removeItem(NOSTR_USER_KEY)
         }
       } catch (e) {
-        console.log('ℹ️ Could not verify session (extension may need unlock)')
+        // Extension may need unlock — keep stored profile for display
       }
     } else if (hasUser) {
       // User stored but no extension - keep for display, login required for actions
-      console.log('ℹ️ User loaded from storage (extension needed for signing)')
-
-      // Even without extension, try to refresh profile if incomplete
       if (!isProfileComplete(currentUser.value) && currentUser.value?.pubkey) {
-        console.log('⚠️ Profile incomplete, attempting background refresh...')
-        fetchAndStoreProfile(currentUser.value.pubkey).catch((e) => {
-          console.warn('Background profile refresh failed:', e)
+        fetchAndStoreProfile(currentUser.value.pubkey).catch(e => {
+          console.warn('Background profile fetch failed:', e.message)
         })
       }
     }
 
-    // Start event listener if user exists
-    if (currentUser.value) {
+    // Start event listener for stored-only user (no extension verified above)
+    if (currentUser.value && !window.nostr?.getPublicKey) {
       setTimeout(() => {
         startUserEventListener(currentUser.value.pubkey)
       }, 2000)
@@ -855,16 +695,6 @@ const initAuthAndRelays = async () => {
   }
 }
 
-// Refresh user profile
-const refreshUserProfile = async () => {
-  if (!currentUser.value) {
-    throw new Error('No user logged in')
-  }
-  
-  console.log('Refreshing user profile...')
-  return await fetchAndStoreProfile(currentUser.value.pubkey)
-}
-
 // Computed properties
 const isAuthenticated = computed(() => !!currentUser.value)
 const userProfile = computed(() => currentUser.value?.profile || null)
@@ -872,21 +702,27 @@ const connectedRelays = computed(() => userRelays.value.filter(relay => relay.st
 const readRelays = computed(() => userRelays.value.filter(relay => relay.read && relay.status === 'connected'))
 const writeRelays = computed(() => userRelays.value.filter(relay => relay.write && relay.status === 'connected'))
 
-// Watch for changes and save to storage
-watch(currentUser, (newUser) => {
-  if (newUser) {
-    saveUserToStorage(newUser)
-  }
-}, { deep: true })
+// Watch for changes and save to storage (debounced to avoid localStorage thrashing)
+let _authSaveTimer = null
+const debouncedSaveUser = () => {
+  if (_authSaveTimer) clearTimeout(_authSaveTimer)
+  _authSaveTimer = setTimeout(() => {
+    if (currentUser.value) saveUserToStorage(currentUser.value)
+  }, 2000)
+}
+// Watch specific user properties that matter for storage (avoid deep watch on entire user object)
+watch(
+  () => currentUser.value && `${currentUser.value.pubkey}|${currentUser.value.profile?.name}|${currentUser.value.profile?.picture}|${currentUser.value.profile?.nip05}|${currentUser.value.profile?.about}|${currentUser.value.profile?.display_name}`,
+  debouncedSaveUser
+)
 
-watch(userRelays, (newRelays) => {
-  saveRelaysToStorage(newRelays)
-}, { deep: true })
+watch(() => userRelays.value.length, () => {
+  saveRelaysToStorage(userRelays.value)
+})
 
 export function useNostrAuth() {
   // Initialize auth and relays when the composable is first used
   onMounted(async () => {
-    console.log('🚀 useNostrAuth: Initializing auth and relays on mount...')
     await initAuthAndRelays()
   })
 

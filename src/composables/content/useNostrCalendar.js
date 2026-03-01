@@ -1,8 +1,8 @@
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { verifyEvent } from 'nostr-tools/pure'
 import { useNotifications } from '../core/useNotifications.js'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 
@@ -48,7 +48,7 @@ const selectedEvent = ref(null)
 const editingEvent = ref(null)
 
 export function useNostrCalendar() {
-  const { currentUser, isAuthenticated, writeRelays, readRelays } = useNostrAuth()
+  const { currentUser, isAuthenticated } = useNostrAuth()
   const { handleCalendarInvite, startEventMonitoring, stopEventMonitoring } = useNotifications()
 
   // Computed properties
@@ -178,7 +178,12 @@ export function useNostrCalendar() {
       return
     }
 
-    await nostrRelayManager.ready()
+    try {
+      await nostrRelayManager.ready()
+    } catch (err) {
+      console.warn('[useNostrCalendar] Relay manager not ready:', err.message)
+      return
+    }
 
     isLoading.value = true
     error.value = ''
@@ -272,10 +277,18 @@ export function useNostrCalendar() {
         oneose: () => {
           clearTimeout(loadingTimeout)
           isLoading.value = false
+          // Close subscription after EOSE — refresh cycle will re-fetch
+          setTimeout(() => {
+            if (currentSubscription) {
+              currentSubscription.close()
+              currentSubscription = null
+            }
+          }, 3000)
         },
         onclose: () => {
           clearTimeout(loadingTimeout)
           isLoading.value = false
+          currentSubscription = null
         }
       })
 
@@ -685,7 +698,12 @@ export function useNostrCalendar() {
       return
     }
 
-    await nostrRelayManager.ready()
+    try {
+      await nostrRelayManager.ready()
+    } catch (err) {
+      console.warn('[useNostrCalendar] Relay manager not ready for RSVPs:', err.message)
+      return
+    }
 
     try {
 
@@ -810,10 +828,12 @@ export function useNostrCalendar() {
                   rsvps.value[i] = { ...rsvp, name: cached.profile.name, picture: cached.profile.picture, nip05: cached.profile.nip05 }
                 }
               })
-            }).catch(() => {})
+            }).catch(e => {
+              console.warn('RSVP profile batch fetch failed:', e.message)
+            })
           }
           // Close subscription after grace period
-          setTimeout(() => { rsvpSubscription?.close() }, 3000)
+          setTimeout(() => { if (rsvpSubscription) { rsvpSubscription.close(); rsvpSubscription = null } }, 3000)
         }
       })
 
@@ -875,39 +895,36 @@ export function useNostrCalendar() {
   // Initialize events when authenticated
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
-      if (events.value.length === 0) {
-        if (currentSubscription) {
-          currentSubscription.close()
-          currentSubscription = null
-        }
-        processedEventIds.clear()
-        
-        // fetchCalendarEvents already awaits ready() internally
-        fetchCalendarEvents()
-
-        registerRefresh('calendar', async () => {
-          if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
-          processedEventIds.clear()
-          await fetchCalendarEvents()
-        })
-      }
-    } else {
       if (currentSubscription) {
         currentSubscription.close()
         currentSubscription = null
       }
       processedEventIds.clear()
+
+      // fetchCalendarEvents already awaits ready() internally
+      fetchCalendarEvents().catch(err => console.warn('[useNostrCalendar] Initial fetch failed:', err.message))
+
+      registerRefresh('calendar', async () => {
+        if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
+        processedEventIds.clear()
+        await fetchCalendarEvents()
+      }, 'calendar')
+    } else {
+      if (currentSubscription) {
+        currentSubscription.close()
+        currentSubscription = null
+      }
+      if (rsvpSubscription) {
+        rsvpSubscription.close()
+        rsvpSubscription = null
+      }
+      processedEventIds.clear()
+      processedRsvpIds.clear()
+      rsvps.value = []
       events.value = []
       unregisterRefresh('calendar')
     }
   }, { immediate: true })
-
-  // Start event monitoring when authenticated
-  onMounted(() => {
-    if (isAuthenticated.value) {
-      startEventMonitoring(() => events.value)
-    }
-  })
 
   // Watch authentication status to start/stop monitoring
   watch(isAuthenticated, (authenticated) => {
@@ -916,7 +933,7 @@ export function useNostrCalendar() {
     } else {
       stopEventMonitoring()
     }
-  })
+  }, { immediate: true })
 
   return {
     // State

@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, inject, defineAsyncComponent, watch } from 'vue'
-import { 
-  IconWallet, 
+import { formatMsatsToSats } from '../utils/format.js'
+import {
+  IconWallet,
   IconBolt, 
   IconPlus, 
   IconSend, 
@@ -30,7 +31,11 @@ import {
   fetchTransactions,
   makeInvoice,
   payInvoice,
-  lookupInvoice
+  payLightningAddress,
+  lookupInvoice,
+  getUserFriendlyError,
+  isLightningAddress,
+  stripLightningPrefix
 } from '../utils/wallet/nwcClient.js'
 import { QrcodeStream } from 'vue-qrcode-reader'
 const { isWalletConnected, activeConnection } = useNostrConnections()
@@ -64,10 +69,12 @@ const copySuccess = ref(false)
 
 // Payment sending
 const paymentForm = ref({
-  invoice: ''
+  invoice: '',
+  amount: ''
 })
 const paymentStatus = ref('') // success, error, pending
 const paymentResult = ref(null)
+const isResolvingAddress = ref(false)
 
 // QR Scanner state
 const qrScannerError = ref('')
@@ -97,7 +104,25 @@ const isInvoiceFormValid = computed(() => {
          invoiceForm.value.description.trim()
 })
 
+// Detect input type: 'invoice', 'lightning-address', or 'unknown'
+const paymentInputType = computed(() => {
+  const raw = paymentForm.value.invoice.trim()
+  if (!raw) return 'empty'
+  const cleaned = stripLightningPrefix(raw)
+  if (cleaned.toLowerCase().startsWith('lnbc') || cleaned.toLowerCase().startsWith('lntb')) {
+    return 'invoice'
+  }
+  if (isLightningAddress(cleaned)) {
+    return 'lightning-address'
+  }
+  return 'unknown'
+})
+
 const isPaymentFormValid = computed(() => {
+  if (paymentInputType.value === 'invoice') return true
+  if (paymentInputType.value === 'lightning-address') {
+    return parseInt(paymentForm.value.amount) > 0
+  }
   return paymentForm.value.invoice.trim().length > 0
 })
 
@@ -109,24 +134,21 @@ onMounted(() => {
   checkCameraPermission()
 })
 
-// Watch for new payment notifications and refresh wallet data
-watch(notifications, (newNotifications, oldNotifications) => {
-  if (!isWalletConnected.value) return
-  
-  // Check if there are new payment-related notifications
-  const hasNewPaymentNotification = newNotifications.length > (oldNotifications?.length || 0) &&
-    newNotifications.some(notification => 
-      (notification.type === 'zap_received' || notification.type === 'payment_success') &&
-      !notification.read
-    )
-  
+// Watch for new payment notifications and refresh wallet data (track length, not deep)
+watch(() => notifications.value.length, (newLen, oldLen) => {
+  if (!isWalletConnected.value || !newLen || newLen <= (oldLen || 0)) return
+
+  const hasNewPaymentNotification = notifications.value.some(notification =>
+    (notification.type === 'zap_received' || notification.type === 'payment_success') &&
+    !notification.read
+  )
+
   if (hasNewPaymentNotification) {
-    console.log('New payment notification detected, refreshing wallet data...')
     setTimeout(() => {
       refreshData()
-    }, 1000) // Small delay to ensure transaction is fully processed
+    }, 1000)
   }
-}, { deep: true })
+})
 
 onUnmounted(() => {
   if (invoicePolling.value) {
@@ -156,26 +178,39 @@ const loadWalletData = async () => {
   error.value = ''
   
   try {
-    const [balanceData, infoData, transactionData] = await Promise.all([
+    const [balanceResult, infoResult, transactionResult] = await Promise.allSettled([
       getBalance(),
       getWalletInfo(),
       fetchTransactions()
     ])
-    
-    if (balanceData) {
-      balance.value = balanceData.balance || 0
+
+    if (balanceResult.status === 'fulfilled' && balanceResult.value) {
+      balance.value = balanceResult.value.balance || 0
+    } else if (balanceResult.status === 'rejected') {
+      console.warn('Balance fetch failed:', balanceResult.reason?.message)
     }
-    
-    if (infoData) {
-      walletInfo.value = infoData
+
+    if (infoResult.status === 'fulfilled' && infoResult.value) {
+      walletInfo.value = infoResult.value
+    } else if (infoResult.status === 'rejected') {
+      console.warn('Wallet info fetch failed:', infoResult.reason?.message)
     }
-    
-    if (transactionData) {
-      transactions.value = transactionData
+
+    if (transactionResult.status === 'fulfilled' && transactionResult.value) {
+      transactions.value = transactionResult.value
+    } else if (transactionResult.status === 'rejected') {
+      console.warn('Transaction fetch failed:', transactionResult.reason?.message)
+    }
+
+    // Show error only if all requests failed
+    const failures = [balanceResult, infoResult, transactionResult].filter(r => r.status === 'rejected')
+    if (failures.length === 3) {
+      error.value = getUserFriendlyError(failures[0].reason)
+    } else if (failures.length > 0) {
+      error.value = `Some data unavailable. ${getUserFriendlyError(failures[0].reason)}`
     }
   } catch (err) {
-    error.value = 'Failed to load wallet data: ' + err.message
-    console.error('Wallet data loading error:', err)
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }
@@ -223,8 +258,7 @@ const createInvoice = async () => {
     startInvoicePolling(invoice.payment_hash)
     
   } catch (err) {
-    error.value = 'Failed to create invoice: ' + err.message
-    console.error('Invoice creation error:', err)
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }
@@ -291,9 +325,10 @@ const shareInvoice = () => {
 // Payment sending methods
 const openSendPayment = () => {
   showSendPayment.value = true
-  paymentForm.value = { invoice: '' }
+  paymentForm.value = { invoice: '', amount: '' }
   paymentStatus.value = ''
   paymentResult.value = null
+  isResolvingAddress.value = false
 }
 
 const closeSendPayment = () => {
@@ -303,48 +338,56 @@ const closeSendPayment = () => {
 
 const sendPayment = async () => {
   if (!isPaymentFormValid.value) return
-  
+
   isLoading.value = true
   paymentStatus.value = 'pending'
   error.value = ''
-  
+
   try {
-    const result = await payInvoice({
-      invoice: paymentForm.value.invoice.trim()
-    })
-    
+    const raw = paymentForm.value.invoice.trim()
+    const cleaned = stripLightningPrefix(raw)
+    let result
+    let paidAmountSats = null
+
+    if (isLightningAddress(cleaned)) {
+      // Lightning address flow: resolve to invoice then pay
+      const amountSats = parseInt(paymentForm.value.amount)
+      isResolvingAddress.value = true
+      try {
+        result = await payLightningAddress(cleaned, amountSats)
+      } finally {
+        isResolvingAddress.value = false
+      }
+      paidAmountSats = amountSats
+    } else {
+      // Direct BOLT-11 invoice flow
+      const invoice = cleaned
+      result = await payInvoice({ invoice })
+      paidAmountSats = extractAmountFromInvoice(invoice)
+    }
+
     paymentResult.value = result
     paymentStatus.value = 'success'
-    
-    // Notify about successful payment
+
     handlePaymentSuccess(result)
-    
-    // Also trigger zap sent notification if we can extract amount
-    try {
-      // Try to decode invoice to get amount (simplified)
-      const invoiceAmount = extractAmountFromInvoice(paymentForm.value.invoice)
-      if (invoiceAmount) {
-        handleZapSent({ amount: invoiceAmount })
-      }
-    } catch (err) {
-      console.warn('Could not extract amount from invoice:', err)
+
+    if (paidAmountSats) {
+      handleZapSent({ amount: paidAmountSats * 1000 }) // msats
     }
-    
-    // Refresh wallet data to show new balance
+
     await refreshData()
-    
-    // Auto-close modal after 3 seconds
+
     setTimeout(() => {
       closeSendPayment()
     }, 3000)
-    
+
   } catch (err) {
-    error.value = 'Payment failed: ' + err.message
+    error.value = getUserFriendlyError(err)
     paymentStatus.value = 'error'
     handlePaymentError(err)
-    console.error('Payment error:', err)
   } finally {
     isLoading.value = false
+    isResolvingAddress.value = false
   }
 }
 
@@ -378,21 +421,29 @@ const decodeQR = (results) => {
   if (!results || !results.length) return
   const decodedString = results[0].rawValue || results[0].text || ''
   try {
-    let invoice = decodedString
-    if (decodedString.toLowerCase().startsWith('lightning:')) {
-      invoice = decodedString.substring(10)
+    let value = decodedString
+    // Strip lightning: prefix
+    if (value.toLowerCase().startsWith('lightning:')) {
+      value = value.substring(10)
     }
+    // Extract from bitcoin: unified QR
     if (decodedString.toLowerCase().startsWith('bitcoin:') && decodedString.includes('lightning=')) {
       const lightningMatch = decodedString.match(/lightning=([^&]+)/)
       if (lightningMatch) {
-        invoice = lightningMatch[1]
+        value = lightningMatch[1]
       }
     }
-    if (invoice.toLowerCase().startsWith('lnbc') || invoice.toLowerCase().startsWith('lntb')) {
-      paymentForm.value.invoice = invoice
+    // Accept BOLT-11 invoices
+    if (value.toLowerCase().startsWith('lnbc') || value.toLowerCase().startsWith('lntb')) {
+      paymentForm.value.invoice = value
+      closeQrScanner()
+    }
+    // Accept lightning addresses
+    else if (isLightningAddress(value)) {
+      paymentForm.value.invoice = value
       closeQrScanner()
     } else {
-      qrScannerError.value = 'Invalid Lightning invoice QR code'
+      qrScannerError.value = 'Not a Lightning invoice or address'
     }
   } catch (err) {
     qrScannerError.value = 'Failed to process QR code: ' + err.message
@@ -404,12 +455,7 @@ const onQrError = (error) => {
   qrScannerError.value = 'Camera error: ' + error.message
 }
 
-// Utility methods
-const formatAmount = (amount) => {
-  if (!amount) return '0'
-  const sats = Math.floor(amount / 1000)
-  return sats.toLocaleString()
-}
+
 
 const formatDate = (timestamp) => {
   if (!timestamp) return 'Unknown'
@@ -722,7 +768,7 @@ const extractTextFromArray = (noteArray) => {
                   'font-semibold',
                   getTransactionColor(transaction)
                 ]">
-                  {{ transaction.type === 'incoming' ? '+' : '-' }}{{ formatAmount(transaction.amount) }} sats
+                  {{ transaction.type === 'incoming' ? '+' : '-' }}{{ formatMsatsToSats(transaction.amount) }} sats
                 </p>
                 <p class="text-xs text-gray-500">
                   {{ transaction.state || 'settled' }}
@@ -786,7 +832,7 @@ const extractTextFromArray = (noteArray) => {
               <IconCheck class="w-8 h-8 text-green-600" />
             </div>
             <h4 class="text-lg font-semibold text-green-600 mb-2">Payment Received!</h4>
-            <p class="text-gray-600">{{ formatAmount(createdInvoice.amount) }} sats received</p>
+            <p class="text-gray-600">{{ formatMsatsToSats(createdInvoice.amount) }} sats received</p>
           </div>
           
           <div v-else class="text-center">
@@ -804,7 +850,7 @@ const extractTextFromArray = (noteArray) => {
             </div>
             
             <p class="text-sm text-gray-600 mb-4">
-              Amount: {{ formatAmount(createdInvoice.amount) }} sats
+              Amount: {{ formatMsatsToSats(createdInvoice.amount) }} sats
             </p>
             
             <!-- Invoice String -->
@@ -868,12 +914,12 @@ const extractTextFromArray = (noteArray) => {
         
         <div v-else class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Lightning Invoice</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Invoice or Lightning Address</label>
             <div class="relative">
               <textarea
                 v-model="paymentForm.invoice"
-                placeholder="lnbc1... or scan QR code"
-                rows="4"
+                placeholder="lnbc1... or user@domain.com"
+                rows="3"
                 class="w-full px-3 py-3 pr-12 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base font-mono text-sm"
               ></textarea>
               <button
@@ -885,19 +931,39 @@ const extractTextFromArray = (noteArray) => {
               </button>
             </div>
             <p class="text-xs text-gray-500 mt-1">
-              Paste the Lightning invoice or scan QR code
+              Paste a Lightning invoice, address, or scan QR code
             </p>
+
+            <!-- Input type indicator -->
+            <div v-if="paymentInputType === 'lightning-address'" class="mt-2 flex items-center gap-1.5 text-xs text-orange-600">
+              <IconBolt class="w-3.5 h-3.5" />
+              <span>Lightning Address detected</span>
+            </div>
           </div>
-          
+
+          <!-- Amount field for lightning addresses -->
+          <div v-if="paymentInputType === 'lightning-address'">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Amount (sats)</label>
+            <input
+              v-model="paymentForm.amount"
+              type="number"
+              min="1"
+              placeholder="Enter amount in sats"
+              class="w-full px-3 py-3 border border-orange-200/50 rounded-lg focus:ring-2 focus:ring-orange-300 focus:border-orange-400 text-base"
+            />
+          </div>
+
           <button
             @click="sendPayment"
             :disabled="!isPaymentFormValid || isLoading"
             class="btn-primary w-full"
           >
             <IconSend class="w-4 h-4" />
-            {{ isLoading ? 'Sending...' : 'Send Payment' }}
+            <template v-if="isResolvingAddress">Resolving address...</template>
+            <template v-else-if="isLoading">Sending...</template>
+            <template v-else>Send Payment</template>
           </button>
-          
+
           <div v-if="paymentStatus === 'error'" class="bg-red-50 border border-red-200 rounded-lg p-3">
             <p class="text-sm text-red-600">{{ error }}</p>
           </div>

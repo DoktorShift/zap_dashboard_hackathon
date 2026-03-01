@@ -3,6 +3,7 @@ import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import * as nip19 from 'nostr-tools/nip19'
+import { formatSatsShort } from '../utils/format.js'
 
 // Define props and emits for Vue 3
 const props = defineProps({
@@ -47,10 +48,10 @@ import { useMentions } from '../composables/content/useMentions.js'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
 import EngagementMetrics from '../components/analytics/EngagementMetrics.vue'
 import NoteSuccessModal from '../components/modals/NoteSuccessModal.vue'
-import ContentRenderer from '../components/content/ContentRenderer.vue'
 import MentionInput from '../components/content/MentionInput.vue'
-import MentionRenderer from '../components/content/MentionRenderer.vue'
+import NoteContentRenderer from '../components/content/NoteContentRenderer.vue'
 import ThreadsPromo from '../components/shared/ThreadsPromo.vue'
+import SkeletonNotes from '../components/shared/SkeletonNotes.vue'
 
 const { isAuthenticated, currentUser, userProfile, login } = useNostrAuth()
 
@@ -78,11 +79,12 @@ const {
 } = useNostrNotes()
 
 // Use content zaps composable to track zaps on notes
-const { 
-  startZapTracking, 
-  getZapsForContent, 
+const {
+  startZapTracking,
+  getZapsForContent,
   getTotalZapAmount,
-  getZapCount
+  getZapCount,
+  contentZaps
 } = useContentZaps()
 
 const {
@@ -114,6 +116,7 @@ const selectedZapper = ref(null)
 const showSuccessModal = ref(false)
 const lastPublishResult = ref(null)
 const showPreview = ref(false)
+
 
 // Debounced note stats — avoids recomputing on every single zap/engagement event
 const noteStats = ref({
@@ -147,8 +150,9 @@ function recalcNoteStats() {
   }, 2000)
 }
 
-// Recalc stats when notes list changes (not deep)
+// Recalc stats when notes list changes or zaps arrive
 watch(() => notes.value.length, recalcNoteStats, { immediate: true })
+watch(contentZaps, recalcNoteStats)
 
 // Calculate total zap revenue in USD
 const revenueInUSD = computed(() => {
@@ -307,15 +311,7 @@ const getNostrClientUrl = (client, noteId) => {
   }
 }
 
-// Format zap amount for display
-const formatZapAmount = (amount) => {
-  if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M`
-  } else if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(1)}k`
-  }
-  return amount.toString()
-}
+
 
 // Format zapper pubkey for display
 const formatZapperPubkey = (pubkey) => {
@@ -537,6 +533,10 @@ const handleMentionClick = ({ pubkey, profile }) => {
 
       <!-- Notes List View -->
       <div v-if="currentView === 'list'">
+        <!-- Skeleton Loading State -->
+        <SkeletonNotes v-if="isFetchingNotes && notes.length === 0" />
+
+        <template v-else>
         <!-- Enhanced Stats Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <!-- Total Zap Revenue Card -->
@@ -605,15 +605,8 @@ const handleMentionClick = ({ pubkey, profile }) => {
 
         <!-- Notes List -->
         <div class="bg-white/90 backdrop-blur-sm rounded-xl border border-orange-100/50 shadow-sm overflow-hidden">
-          <!-- Loading State -->
-          <div v-if="isFetchingNotes && notes.length === 0" class="p-8 text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Loading your notes...</h3>
-            <p class="text-gray-600">Fetching notes from the Nostr network</p>
-          </div>
-
           <!-- Empty State -->
-          <div v-else-if="notes.length === 0" class="max-w-3xl mx-auto py-8 px-4">
+          <div v-if="notes.length === 0" class="max-w-3xl mx-auto py-8 px-4">
             <div class="text-center mb-8">
               <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-teal-500 rounded-3xl shadow-lg mb-6">
                 <IconFileText class="w-10 h-10 text-white" />
@@ -763,13 +756,14 @@ const handleMentionClick = ({ pubkey, profile }) => {
               <div class="flex items-start space-x-4">
                 <!-- User Avatar -->
                 <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
-                  <img 
-                    :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
+                  <img
+                    :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)"
                     :alt="userProfile?.name || 'You'"
                     class="w-full h-full object-cover"
+                    @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                   />
                 </div>
-                
+
                 <!-- Note Content -->
                 <div class="flex-1 min-w-0">
                   <!-- Header -->
@@ -782,19 +776,12 @@ const handleMentionClick = ({ pubkey, profile }) => {
                   
                   <!-- Note Preview -->
                   <div class="mb-3">
-                    <MentionRenderer
+                    <NoteContentRenderer
                       :content="note.content"
                       :show-profile-on-click="true"
-                      mention-class="text-orange-600 hover:text-orange-700 font-medium cursor-pointer hover:underline"
+                      :compact="true"
                       class="text-gray-800 leading-relaxed line-clamp-3"
                     />
-<!--                    <div class="text-gray-800 leading-relaxed line-clamp-3">-->
-<!--                      <ContentRenderer -->
-<!--                        :content="note.content" -->
-<!--                        :preferred-client="'primal'"-->
-<!--                        :show-debug-info="false"-->
-<!--                      />-->
-<!--                    </div>-->
                   </div>
                   
                   <!-- Hashtags -->
@@ -833,7 +820,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                     <!-- Zap Revenue -->
                     <div v-if="getTotalZapAmount(note.id) > 0" class="flex items-center space-x-1 bg-gradient-to-r from-orange-100 to-amber-100 px-3 py-1 rounded-full">
                       <IconBolt class="w-4 h-4 text-orange-600" />
-                      <span class="font-bold text-orange-700 text-sm">{{ formatZapAmount(getTotalZapAmount(note.id)) }} sats</span>
+                      <span class="font-bold text-orange-700 text-sm">{{ formatSatsShort(getTotalZapAmount(note.id)) }} sats</span>
                     </div>
                   </div>
                   
@@ -876,6 +863,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
             </div>
           </div>
         </div>
+        </template>
       </div>
 
       <!-- Create/Edit View -->
@@ -911,13 +899,14 @@ const handleMentionClick = ({ pubkey, profile }) => {
             <div class="flex space-x-3">
               <!-- User Avatar -->
               <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
-                <img 
-                  :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
+                <img
+                  :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)"
                   :alt="userProfile?.name || 'You'"
                   class="w-full h-full object-cover"
+                  @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                 />
               </div>
-              
+
               <!-- Text Input Area -->
               <div class="flex-1">
                 <!-- Edit Mode -->
@@ -934,11 +923,11 @@ const handleMentionClick = ({ pubkey, profile }) => {
 
                 <!-- Preview Mode -->
                 <div v-else class="min-h-[120px] max-h-[400px] overflow-y-auto">
-                  <MentionRenderer
+                  <NoteContentRenderer
                     :content="noteForm.content"
                     :show-profile-on-click="true"
                     @mention-click="handleMentionClick"
-                    class="text-xl text-gray-800 leading-relaxed whitespace-pre-wrap"
+                    class="text-xl text-gray-800 leading-relaxed"
                   />
                 </div>
                 
@@ -1018,14 +1007,17 @@ const handleMentionClick = ({ pubkey, profile }) => {
               <div class="flex items-center justify-between p-6 border-b border-gray-200">
                 <div class="flex items-center space-x-3">
                   <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-orange-200">
-                    <img 
-                      :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)" 
+                    <img
+                      :src="userProfile?.picture || generateAvatar(currentUser?.pubkey)"
                       :alt="userProfile?.name || 'You'"
                       class="w-full h-full object-cover"
+                      @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                     />
                   </div>
                   <div>
-                    <h3 class="font-semibold text-gray-900">{{ userProfile?.name || 'Your Note' }}</h3>
+                    <div class="flex items-center space-x-2">
+                      <h3 class="font-semibold text-gray-900">{{ userProfile?.name || 'Your Note' }}</h3>
+                    </div>
                     <p class="text-sm text-gray-500">{{ enhancedSelectedNote.formattedDate }}</p>
                   </div>
                 </div>
@@ -1042,19 +1034,12 @@ const handleMentionClick = ({ pubkey, profile }) => {
                 <!-- Note Content -->
                 <div class="mb-6">
                   <div class="prose prose-lg max-w-none">
-                    <MentionRenderer
+                    <NoteContentRenderer
                       :content="enhancedSelectedNote.content"
                       :show-profile-on-click="true"
                       @mention-click="handleMentionClick"
-                      class="text-gray-800 leading-relaxed whitespace-pre-wrap"
+                      class="text-gray-800 leading-relaxed"
                     />
-<!--                    <div class="text-gray-800 leading-relaxed">-->
-<!--                      <ContentRenderer -->
-<!--                        :content="enhancedSelectedNote.content" -->
-<!--                        :preferred-client="'primal'"-->
-<!--                        :show-debug-info="false"-->
-<!--                      />-->
-<!--                    </div>-->
                   </div>
                 </div>
 
@@ -1123,7 +1108,7 @@ const handleMentionClick = ({ pubkey, profile }) => {
                         <div class="text-xs text-gray-500">{{ formatZapTime(new Date(zap.timestamp).getTime() / 1000) }}</div>
                       </div>
                       <div class="text-sm font-bold text-orange-600">
-                        {{ formatZapAmount(zap.amount) }} sats
+                        {{ formatSatsShort(zap.amount) }} sats
                       </div>
                     </div>
                   </div>
@@ -1220,4 +1205,5 @@ const handleMentionClick = ({ pubkey, profile }) => {
     :publish-result="lastPublishResult"
     @close="closeSuccessModal"
   />
+
 </template>

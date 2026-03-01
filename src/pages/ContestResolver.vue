@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { formatSatsShort } from '../utils/format.js'
 import {
   IconTrophy,
   IconSearch,
@@ -151,12 +152,7 @@ const copyPubkey = async (pubkey) => {
   } catch { /* ignore clipboard errors */ }
 }
 
-// Format sats with locale grouping
-const formatSats = (amount) => {
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`
-  if (amount >= 10_000) return `${(amount / 1_000).toFixed(1)}k`
-  return amount.toLocaleString()
-}
+
 
 // Format timestamp relative
 const formatTime = (timestamp) => {
@@ -268,7 +264,7 @@ const hasAttempted = computed(() => rootEvent.value !== null || error.value !== 
               <IconBolt class="w-4 h-4 text-white" />
             </div>
           </div>
-          <div class="text-2xl font-bold text-gray-900">{{ formatSats(totalSats) }}</div>
+          <div class="text-2xl font-bold text-gray-900">{{ formatSatsShort(totalSats) }}</div>
           <div class="text-xs text-gray-500">Total sats</div>
         </div>
         <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
@@ -392,7 +388,7 @@ const hasAttempted = computed(() => rootEvent.value !== null || error.value !== 
 
               <!-- Amount -->
               <div class="text-right flex-shrink-0">
-                <div class="font-bold text-orange-600">{{ formatSats(entry.totalSats) }}</div>
+                <div class="font-bold text-orange-600">{{ formatSatsShort(entry.totalSats) }}</div>
                 <div class="text-xs text-gray-400">{{ getPercentage(entry.totalSats) }}%</div>
               </div>
 
@@ -430,7 +426,7 @@ const hasAttempted = computed(() => rootEvent.value !== null || error.value !== 
                 >
                   <div class="flex items-center gap-2 min-w-0">
                     <IconBolt class="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
-                    <span class="text-gray-700 font-medium">{{ formatSats(zap.amount) }} sats</span>
+                    <span class="text-gray-700 font-medium">{{ formatSatsShort(zap.amount) }} sats</span>
                     <span v-if="zap.message" class="text-gray-400 truncate text-xs max-w-[200px]">{{ zap.message }}</span>
                   </div>
                   <span class="text-xs text-gray-400 flex-shrink-0 ml-2">{{ formatTime(zap.timestamp) }}</span>

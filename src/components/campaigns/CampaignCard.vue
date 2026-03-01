@@ -1,7 +1,8 @@
 <script setup>
 import { computed } from 'vue'
-import { 
-  IconTarget, 
+import { formatMsatsToSats } from '../../utils/format.js'
+import {
+  IconTarget,
   IconBolt, 
   IconCalendar, 
   IconUsers, 
@@ -36,33 +37,7 @@ const progress = computed(() => {
   return getCampaignProgress(props.campaign.id)
 })
 
-// Format amount in sats
-const formatAmount = (amount) => {
-  if (amount === undefined || amount === null) return '0'
-  
-  try {
-    // Convert from millisats to sats
-    const sats = Math.floor(amount / 1000)
-    return sats ? sats.toLocaleString() : '0'
-  } catch (error) {
-    console.error('Error formatting amount:', error, amount)
-    return '0'
-  }
-}
 
-// Format amount safely
-const formatAmountSafe = (amount) => {
-  if (amount === undefined || amount === null) return '0'
-  
-  try {
-    // Convert from millisats to sats
-    const sats = Math.floor(amount / 1000)
-    return sats ? sats.toLocaleString() : '0'
-  } catch (error) {
-    console.error('Error formatting amount:', error, amount)
-    return '0'
-  }
-}
 
 // Get campaign ID for display
 const getCampaignId = (campaign) => {
@@ -198,7 +173,7 @@ const formatDate = (timestamp) => {
         </div>
         <div class="flex items-center justify-between mt-1.5">
           <span class="text-xs text-gray-500">{{ progress.current.toLocaleString() }} sats raised</span>
-          <span class="text-xs text-gray-500">Goal: {{ formatAmountSafe(campaign.goalAmount) }} sats</span>
+          <span class="text-xs text-gray-500">Goal: {{ formatMsatsToSats(campaign.goalAmount) }} sats</span>
         </div>
       </div>
       

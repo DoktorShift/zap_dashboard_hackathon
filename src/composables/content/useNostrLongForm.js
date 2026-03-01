@@ -1,9 +1,7 @@
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useContentZaps } from './useContentZaps.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import { contentService } from '../../utils/content/contentService.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 
 // Global state for long-form content
@@ -19,6 +17,8 @@ const longFormContent = ref([])
 const isLoading = ref(false)
 const error = ref('')
 let currentSubscription = null // Track current subscription
+let isFetching = false // Concurrency guard
+let isInitialized = false // Prevent duplicate watcher initialization
 const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
 
 // UI state
@@ -115,26 +115,34 @@ export function useNostrLongForm() {
 
   // Fetch user's long-form content from Nostr relays
   const fetchUserLongFormContent = async () => {
-    if (!isAuthenticated.value || !currentUser.value?.pubkey) {
-      console.log('Not authenticated, cannot fetch long-form content')
+    if (!isAuthenticated.value || !currentUser.value?.pubkey) return
+    if (isFetching) return // Prevent concurrent fetches
+    isFetching = true
+
+    try {
+      await nostrRelayManager.ready()
+    } catch (err) {
+      console.warn('[useNostrLongForm] Relay manager not ready:', err.message)
+      isFetching = false
       return
     }
 
-    await nostrRelayManager.ready()
+    // Close any existing subscription before starting a new one
+    if (currentSubscription) {
+      currentSubscription.close()
+      currentSubscription = null
+    }
 
     isLoading.value = true
     error.value = ''
 
     try {
-      console.log('Fetching long-form content for user:', currentUser.value.pubkey.substring(0, 8) + '...')
-
-      // Subscribe to user's kind:30023 events (long-form content) and kind:5 deletion events
-      // Increased limit for users with many long-form content
-      currentSubscription = nostrRelayManager.subscribeToEvents([
+      // Capture subscription in local variable to avoid closure bug
+      const sub = nostrRelayManager.subscribeToEvents([
         {
           kinds: [30023], // Long-form content
           authors: [currentUser.value.pubkey],
-          limit: 200 // Increased from 100 to handle large datasets
+          limit: 200
         },
         {
           kinds: [5], // Deletion events
@@ -143,102 +151,66 @@ export function useNostrLongForm() {
         }
       ], {
         onevent: (event) => {
-          console.log('Received event:', event.kind === 30023 ? 'long-form content' : 'deletion', event.id.substring(0, 16) + '...', 'at', new Date().toISOString())
-          
           // Check if we've already processed this event ID
-          if (processedEventIds.has(event.id)) {
-            console.log('⚠️ Event already processed, skipping:', event.id.substring(0, 16) + '...')
-            return
-          }
-          
-          // Mark this event as processed
+          if (processedEventIds.has(event.id)) return
           processedEventIds.add(event.id)
-          
+
           if (event.kind === 30023) {
-            // Handle long-form content events
-            // Check if we already have this content by ID
             const existingIndex = longFormContent.value.findIndex(content => content.id === event.id)
-            
+
             if (existingIndex === -1) {
-              // Also check for duplicate content (in case of race conditions)
-              const duplicateContentIndex = longFormContent.value.findIndex(content => 
-                content.content === event.content && 
-                Math.abs(content.created_at - event.created_at) < 5 // Within 5 seconds
+              // Check for duplicate content
+              const duplicateContentIndex = longFormContent.value.findIndex(content =>
+                content.content === event.content &&
+                Math.abs(content.created_at - event.created_at) < 5
               )
-              
-              if (duplicateContentIndex !== -1) {
-                console.log('⚠️ Found duplicate content, skipping:', event.id.substring(0, 16) + '...')
-                return
-              }
-              
-              // Add new content
-              console.log('✅ Adding new long-form content to local state:', event.id.substring(0, 16) + '...')
-              
-              // Process the event into our content format
+              if (duplicateContentIndex !== -1) return
+
               const contentItem = processLongFormEvent(event)
-              
-              // Start tracking zaps for this content
               startZapTracking(event.id)
-              
-              // Add to state
               longFormContent.value.push(contentItem)
-              
-              // Also update local storage for backward compatibility
-              updateLocalStorage(contentItem)
+              debouncedUpdateLocalStorage(contentItem)
             } else {
-              // Update existing content
-              console.log('🔄 Updating existing long-form content in local state:', event.id.substring(0, 16) + '...')
-              
-              // Process the event into our content format
               const contentItem = processLongFormEvent(event)
-              
-              // Update state
               longFormContent.value[existingIndex] = contentItem
-              
-              // Also update local storage for backward compatibility
-              updateLocalStorage(contentItem)
+              debouncedUpdateLocalStorage(contentItem)
             }
           } else if (event.kind === 5) {
-            // Handle deletion events
-            console.log('🗑️ Processing deletion event:', event.id.substring(0, 16) + '...')
-            
-            // Extract the event IDs being deleted from the tags
             const deletedEventIds = event.tags
               .filter(tag => tag[0] === 'e')
               .map(tag => tag[1])
-            
-            console.log('Deletion event targets:', deletedEventIds.map(id => id.substring(0, 16) + '...'))
-            
-            // Remove the deleted content from local state
+
             deletedEventIds.forEach(deletedId => {
               const index = longFormContent.value.findIndex(content => content.id === deletedId)
               if (index !== -1) {
-                console.log('🗑️ Removing deleted content from local state:', deletedId.substring(0, 16) + '...')
                 longFormContent.value.splice(index, 1)
-                
-                // Also remove from local storage
                 removeFromLocalStorage(deletedId)
               }
             })
           }
         },
         oneose: () => {
-          console.log('End of stored long-form content events')
           isLoading.value = false
+          isFetching = false
+          // Close THIS specific subscription — not the module-scoped currentSubscription
+          // which may have been overwritten by a concurrent call
+          sub.close()
+          if (currentSubscription === sub) currentSubscription = null
         },
-        onclose: (reason) => {
-          console.log('Long-form content subscription closed:', reason)
+        onclose: () => {
           isLoading.value = false
+          isFetching = false
         }
       })
 
-      // Store subscription for cleanup
-      return currentSubscription
+      currentSubscription = sub
+      return sub
 
     } catch (err) {
-      console.error('Failed to fetch long-form content:', err)
-      error.value = 'Failed to fetch long-form content: ' + err.message
+      console.warn('[useNostrLongForm] Fetch failed:', err.message)
+      error.value = 'Failed to fetch articles. Will retry automatically.'
       isLoading.value = false
+      isFetching = false
     }
   }
 
@@ -281,6 +253,18 @@ export function useNostrLongForm() {
       created_at: event.created_at,
       rawEvent: event
     }
+  }
+
+  // Debounced wrapper to avoid localStorage thrashing during subscription events
+  let _lsUpdateTimer = null
+  const _lsPendingUpdates = new Map()
+  const debouncedUpdateLocalStorage = (contentItem) => {
+    _lsPendingUpdates.set(contentItem.id, contentItem)
+    if (_lsUpdateTimer) clearTimeout(_lsUpdateTimer)
+    _lsUpdateTimer = setTimeout(() => {
+      _lsPendingUpdates.forEach(item => updateLocalStorage(item))
+      _lsPendingUpdates.clear()
+    }, 2000)
   }
 
   // Update local storage for backward compatibility
@@ -450,41 +434,37 @@ export function useNostrLongForm() {
       currentSubscription.close()
       currentSubscription = null
     }
-    processedEventIds.clear() // Clear processed event IDs
+    processedEventIds.clear()
+    isFetching = false
   }
 
-  // Initialize content when authenticated
-  watch(isAuthenticated, (authenticated) => {
-    if (authenticated) {
-      // Only fetch if we don't already have content
-      if (longFormContent.value.length === 0) {
-        // Clean up any existing subscription
+  // Initialize content when authenticated — only register once across all useNostrLongForm() calls
+  if (!isInitialized) {
+    isInitialized = true
+    watch(isAuthenticated, (authenticated) => {
+      if (authenticated) {
+        if (longFormContent.value.length === 0 && !isFetching) {
+          processedEventIds.clear()
+          fetchUserLongFormContent().catch(err => console.warn('[useNostrLongForm] Initial fetch failed:', err.message))
+        }
+
+        registerRefresh('longform', async () => {
+          processedEventIds.clear()
+          isFetching = false // Allow refresh to override stale guard
+          await fetchUserLongFormContent()
+        }, 'global')
+      } else {
         if (currentSubscription) {
           currentSubscription.close()
           currentSubscription = null
         }
-        processedEventIds.clear() // Clear processed event IDs
-        
-        // fetchUserLongFormContent already awaits ready() internally
-        fetchUserLongFormContent()
-
-        registerRefresh('longform', async () => {
-          if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
-          processedEventIds.clear()
-          await fetchUserLongFormContent()
-        })
+        processedEventIds.clear()
+        isFetching = false
+        longFormContent.value = []
+        unregisterRefresh('longform')
       }
-    } else {
-      // Clean up subscription when not authenticated
-      if (currentSubscription) {
-        currentSubscription.close()
-        currentSubscription = null
-      }
-      processedEventIds.clear() // Clear processed event IDs
-      longFormContent.value = []
-      unregisterRefresh('longform')
-    }
-  }, { immediate: true })
+    }, { immediate: true })
+  }
 
   return {
     // State

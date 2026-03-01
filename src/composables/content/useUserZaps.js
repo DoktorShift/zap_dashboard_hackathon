@@ -62,6 +62,13 @@ export function useUserZaps() {
         }
       }
 
+      // Cap seenZapIds to prevent unbounded growth (keep most recent 1000)
+      if (seenZapIds.size > 1000) {
+        const entries = [...seenZapIds]
+        seenZapIds.clear()
+        entries.slice(-1000).forEach(id => seenZapIds.add(id))
+      }
+
       // Phase 3: Batch fetch profiles for all unique zappers
       const uniquePubkeys = [...new Set(parsedZaps.map(z => z.zapperPubkey))]
       await batchFetchProfiles(uniquePubkeys)
@@ -124,7 +131,7 @@ export function useUserZaps() {
 
   // Auto-start when authenticated
   watch(isAuthenticated, (auth) => {
-    if (auth) startTracking()
+    if (auth) startTracking().catch(err => console.warn('[useUserZaps] Start tracking failed:', err.message))
     else stopTracking()
   }, { immediate: true })
 

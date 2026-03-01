@@ -50,6 +50,7 @@ const selectedIndex = ref(0)
 const searchQuery = ref('')
 const cursorPosition = ref(0)
 const mentionActive = ref(false) // tracks whether we're in a mention context
+const lastRequestId = ref(0) // cancel stale search requests
 
 // Auto-resize functionality
 const autoResize = () => {
@@ -114,9 +115,11 @@ const checkForMention = async (content, cursor) => {
         mentionActive.value = true
 
         if (query.length >= 1) {
-          // Show dropdown immediately — isSearching set by useMentions debounce
           showSuggestions.value = true
-          await searchUsers(query, { debounce: 300 })
+          const currentRequestId = ++lastRequestId.value
+          await searchUsers(query, { debounce: 200 })
+          // Only apply results if this is still the latest request
+          if (currentRequestId !== lastRequestId.value) return
           selectedIndex.value = 0
         } else {
           if (contactList.value.length === 0) {
@@ -234,6 +237,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  lastRequestId.value++ // cancel any pending searches
 })
 
 // Watch for external value changes
@@ -369,10 +373,15 @@ const getSuggestionsPosition = () => {
           </div>
         </div>
 
-        <!-- Loading (no results yet) -->
-        <div v-else-if="isSearching" class="px-4 py-3 flex items-center space-x-3">
-          <IconLoader class="w-4 h-4 animate-spin text-orange-500 flex-shrink-0" />
-          <span class="text-sm text-gray-500">Searching for "{{ searchQuery }}"...</span>
+        <!-- Skeleton Loading (no results yet) -->
+        <div v-else-if="isSearching" class="p-2">
+          <div v-for="i in 3" :key="i" class="flex items-center space-x-3 px-3 py-2.5 animate-pulse">
+            <div class="w-9 h-9 rounded-full bg-gray-200 flex-shrink-0"></div>
+            <div class="flex-1">
+              <div class="h-3.5 bg-gray-200 rounded w-3/4 mb-1.5"></div>
+              <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </div>
         </div>
 
         <!-- No Results -->

@@ -1,9 +1,8 @@
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import { verifyEvent } from 'nostr-tools/pure'
-import { useNotifications } from '../core/useNotifications.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { subscribe } from '../../utils/network/subscribe.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
@@ -11,7 +10,6 @@ import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/prof
 
 // Global state for campaigns
 const userCampaigns = ref([])
-const publicCampaigns = ref([])
 const isLoading = ref(false)
 const error = ref('')
 
@@ -114,7 +112,6 @@ export function useCampaigns() {
   const auth = useNostrAuth()
   const { currentUser } = auth
   const isAuthenticated = auth.isAuthenticated
-  const { handleZapReceived } = useNotifications()
 
   // ── Phase 1: Batch fetch linked notes ────────────────────────────────────
 
@@ -254,13 +251,16 @@ export function useCampaigns() {
       return
     }
 
-    const campaignIds = userCampaigns.value.map(c => c.id)
+    // Only aggregate active campaigns — expired/completed ones serve from cached localStorage
+    const activeCampaigns = userCampaigns.value.filter(c => !isCampaignExpired(c) && !isCampaignCompleted(c.id))
+    const campaignIds = activeCampaigns.map(c => c.id)
+
+    // Abort any previous run before checking empty (cleans up stale live subscriptions)
+    stopCampaignZapAggregation()
+
     if (campaignIds.length === 0) {
       return
     }
-
-    // Abort any previous run
-    stopCampaignZapAggregation()
 
     const controller = new AbortController()
     aggregationAbortController = controller
@@ -334,8 +334,7 @@ export function useCampaigns() {
             message: zap.message,
             bolt11: zap.bolt11,
             campaignId,
-            zappedEventId: zap.zappedEventId,
-            rawZapEvent: zap.rawZapEvent
+            zappedEventId: zap.zappedEventId
           })
         }
 
@@ -423,8 +422,7 @@ export function useCampaigns() {
             message: parsed.message,
             bolt11: parsed.bolt11,
             campaignId,
-            zappedEventId: parsed.zappedEventId,
-            rawZapEvent: parsed.rawZapEvent
+            zappedEventId: parsed.zappedEventId
           }
 
           // Add to reactive map
@@ -454,6 +452,7 @@ export function useCampaigns() {
       return
     }
 
+    processedEventIds.clear()
     isLoading.value = true
     error.value = ''
 
@@ -613,8 +612,6 @@ export function useCampaigns() {
     isLoading.value = true
     error.value = ''
 
-    const clientId = `campaign_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-
     try {
       const tags = [
         ['amount', campaignData.goalAmount.toString()],
@@ -670,26 +667,16 @@ export function useCampaigns() {
         throw new Error('Failed to publish to any relays')
       }
 
-      try {
-        const verificationEvent = await nostrRelayManager.getEvent({
-          ids: [signedEvent.id],
-          kinds: [CAMPAIGN_KIND]
-        })
-        if (!verificationEvent) {
-          console.warn('Event not found on relays after publication - may take time to propagate')
-        }
-      } catch (verifyError) {
-        console.warn('Could not verify event publication:', verifyError)
-      }
+      const campaign = processCampaignEvent(signedEvent)
 
-      const existingCampaign = userCampaigns.value.find(c => c.id === signedEvent.id)
-      if (!existingCampaign) {
-        const campaign = processCampaignEvent(signedEvent)
+      const existingIndex = userCampaigns.value.findIndex(c => c.id === signedEvent.id)
+      if (existingIndex === -1) {
         userCampaigns.value.push(campaign)
+      } else {
+        userCampaigns.value[existingIndex] = campaign
       }
 
-      const campaignObject = processCampaignEvent(signedEvent)
-      return campaignObject
+      return campaign
     } catch (err) {
       console.error('Failed to publish campaign:', err)
       error.value = 'Failed to publish campaign: ' + err.message
@@ -710,8 +697,17 @@ export function useCampaigns() {
     try {
       const newCampaign = await publishCampaign(updatedCampaignData)
 
+      // Migrate zap data from old campaign ID to new campaign ID
+      const oldZaps = campaignAggregatedZaps.get(campaignId)
+      if (oldZaps && oldZaps.length > 0) {
+        campaignAggregatedZaps.set(newCampaign.id, oldZaps.map(z => ({
+          ...z,
+          campaignId: newCampaign.id
+        })))
+      }
+
       try {
-        await deleteCampaign(campaignId)
+        await deleteCampaign(campaignId) // also cleans up old zap data
       } catch (deleteError) {
         console.warn('Failed to delete old campaign, but new campaign was created:', deleteError)
       }
@@ -760,6 +756,12 @@ export function useCampaigns() {
         userCampaigns.value.splice(index, 1)
       }
 
+      // Clean up orphaned zap aggregation data
+      if (campaignAggregatedZaps.has(campaignId)) {
+        campaignAggregatedZaps.delete(campaignId)
+        saveCampaignAggregatedZaps()
+      }
+
       return true
     } catch (err) {
       console.error('Failed to delete campaign:', err)
@@ -773,8 +775,7 @@ export function useCampaigns() {
   // ── Campaign helpers (unchanged) ─────────────────────────────────────────
 
   const getCampaignProgress = (campaignId) => {
-    const campaign = userCampaigns.value.find(c => c.id === campaignId) ||
-                    publicCampaigns.value.find(c => c.id === campaignId)
+    const campaign = userCampaigns.value.find(c => c.id === campaignId)
 
     if (!campaign) return { current: 0, goal: 0, percentage: 0 }
 
@@ -810,24 +811,21 @@ export function useCampaigns() {
 
   // ── campaignIdSignature computed (replaces deep watcher) ─────────────────
 
+  // Only track active (non-expired) campaign IDs — avoid isCampaignCompleted here
+  // because it reads campaignAggregatedZaps (reactive Map), which would recompute
+  // this signature on every zap change. Completed filtering happens in startCampaignZapAggregation.
   const campaignIdSignature = computed(() =>
-    userCampaigns.value.map(c => c.id).sort().join(',')
+    userCampaigns.value.filter(c => !isCampaignExpired(c)).map(c => c.id).sort().join(',')
   )
 
   // ── Initialization ───────────────────────────────────────────────────────
 
-  onMounted(async () => {
-    loadCampaignAggregatedZaps()
-
-    if (auth.isAuthenticated.value) {
-      await fetchUserCampaigns()
-      await startCampaignZapAggregation()
-    }
-  })
-
   // Load cached campaigns immediately on composable initialization
   loadCampaignsFromStorage()
   loadCampaignAggregatedZaps()
+
+  // Guard to prevent double aggregation from auth watcher + signature watcher
+  let _aggregationRunning = false
 
   // Watch for authentication changes
   watch(auth.isAuthenticated, async (authenticated) => {
@@ -835,31 +833,45 @@ export function useCampaigns() {
       loadCampaignsFromStorage()
       loadCampaignAggregatedZaps()
 
-      await fetchUserCampaigns()
-      await startCampaignZapAggregation()
+      try {
+        _aggregationRunning = true
+        await fetchUserCampaigns()
+        await startCampaignZapAggregation()
+      } catch (err) {
+        console.warn('[useCampaigns] Init failed:', err.message)
+      } finally {
+        _aggregationRunning = false
+      }
 
-      registerRefresh('campaigns', () => fetchUserCampaigns())
+      registerRefresh('campaigns', () => fetchUserCampaigns(), 'campaigns')
     } else {
       userCampaigns.value = []
       stopCampaignZapAggregation()
+      processedEventIds.clear()
+      campaignAggregatedZaps.clear()
       unregisterRefresh('campaigns')
     }
-  })
+  }, { immediate: true })
 
   // Watch for campaign ID changes only (not deep) — restarts aggregation
   watch(campaignIdSignature, async (newSig, oldSig) => {
     if (!auth.isAuthenticated.value) return
     if (oldSig === undefined) return // skip initial
+    if (_aggregationRunning) return // already running from auth watcher
     await startCampaignZapAggregation()
   })
 
-  // Save campaigns to storage on changes
-  watch(userCampaigns, saveCampaignsToStorage, { deep: true })
+  // Save campaigns to storage on changes (debounced, shallow watch on length)
+  let _campaignSaveTimer = null
+  const debouncedSaveCampaigns = () => {
+    if (_campaignSaveTimer) clearTimeout(_campaignSaveTimer)
+    _campaignSaveTimer = setTimeout(saveCampaignsToStorage, 2000)
+  }
+  watch(() => userCampaigns.value.length, debouncedSaveCampaigns)
 
   return {
     // State
     userCampaigns,
-    publicCampaigns,
     isLoading,
     error,
 

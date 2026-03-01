@@ -1,7 +1,14 @@
 <script setup>
 import { computed, inject, ref, onMounted } from 'vue'
-import { IconClock, IconBook, IconChartLine, IconRefresh, IconUsers, IconTrendingUp, IconAlertCircle, IconBolt } from '@iconify-prerendered/vue-tabler'
+import { IconClock, IconUsers, IconTrendingUp, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
+import UserProfileModal from '../components/modals/UserProfileModal.vue'
+import { generateAvatar } from '../utils/profile/avatarGenerator.js'
+import EngagementAnalytics from '../components/analytics/EngagementAnalytics.vue'
+import EmptyStateAnalytics from '../components/analytics/EmptyStateAnalytics.vue'
+import SkeletonAnalytics from '../components/shared/SkeletonAnalytics.vue'
+import { calculateSmartYAxisRange, applySplitAxisTransformation } from '../utils/chart/chartScaling.js'
 
 const emit = defineEmits(['show-help'])
 
@@ -19,17 +26,8 @@ const handleConnectNostr = async () => {
     }
   }
 }
-import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
-import * as nip19 from 'nostr-tools/nip19'
-import UserProfileModal from '../components/modals/UserProfileModal.vue'
-import { generateAvatar } from '../utils/profile/avatarGenerator.js'
-import EngagementAnalytics from '../components/analytics/EngagementAnalytics.vue'
-import EmptyStateAnalytics from '../components/analytics/EmptyStateAnalytics.vue'
-import { IconExternalLink, IconHeart, IconRepeat, IconBookmark } from '@iconify-prerendered/vue-tabler'
-import { calculateSmartYAxisRange, applySplitAxisTransformation } from '../utils/chart/chartScaling.js'
 
-// Lazy load ECharts to prevent issues
-// Lazy load ECharts to prevent issues
+// Lazy load ECharts
 const VChart = ref(null)
 const echartsError = ref(null)
 const isEchartsLoaded = ref(false)
@@ -40,21 +38,17 @@ onMounted(async () => {
     const { CanvasRenderer } = await import('echarts/renderers')
     const { LineChart, BarChart, PieChart } = await import('echarts/charts')
     const {
-      TitleComponent,
       TooltipComponent,
-      LegendComponent,
       GridComponent
     } = await import('echarts/components')
     const { default: VChartComponent } = await import('vue-echarts')
-    
+
     use([
       CanvasRenderer,
       LineChart,
       BarChart,
       PieChart,
-      TitleComponent,
       TooltipComponent,
-      LegendComponent,
       GridComponent
     ])
     
@@ -66,13 +60,13 @@ onMounted(async () => {
   }
 })
 
-const zapData = inject('zapData')
 const combinedZapData = inject('combinedZapData')
 const profileStore = inject('profileStore')
 const fetchAuthorProfile = inject('fetchAuthorProfile')
 const selectedTimeRange = inject('selectedTimeRange')
 const isWalletConnected = inject('isWalletConnected')
 const isAuthenticated = inject('isAuthenticated')
+const isPageLoading = inject('isPageLoading', ref(false))
 
 // State for user profile modal
 const showUserModal = ref(false)
@@ -81,20 +75,19 @@ const selectedUser = ref(null)
 // Computed property for connection-aware data filtering
 const analyticsData = computed(() => {
   const allZaps = combinedZapData.value
-  let zaps = allZaps
-  
-  // Determine which data to use based on connection status
-  if (isAuthenticated.value) {
-    // Both connected: use all data (NWC + NIP-57)
-    zaps = zaps.filter(zap => zap.source === 'nip57')
-  } else  if (connectionStatus.value.type === 'nostr-only') {
-    // Only Nostr connected: show only Nostr zaps
-    zaps = zaps.filter(zap => zap.source === 'nip57')
-  } else if (connectionStatus.value.type === 'none') {
-    // No connections: show nothing
-    zaps = []
+
+  switch (connectionStatus.value.type) {
+    case 'both':
+      return allZaps
+    case 'nostr-only':
+      return allZaps.filter(zap => zap.source === 'nip57')
+    case 'nwc-only':
+      return allZaps.filter(zap => zap.source === 'nwc')
+    case 'none':
+      return []
+    default:
+      return allZaps
   }
-  return zaps
 })
 
 // Connection status for messaging
@@ -129,73 +122,36 @@ const connectionStatus = computed(() => {
   }
 })
 
+// Determine number of days for daily activity based on selected time range
+const activityDayCount = computed(() => {
+  switch (selectedTimeRange.value) {
+    case '24h': return 1
+    case '7d': return 7
+    case '30d': return 30
+    case 'all': return 30
+    default: return 7
+  }
+})
+
+const activityTimeLabel = computed(() => {
+  switch (selectedTimeRange.value) {
+    case '24h': return 'Last 24 Hours'
+    case '7d': return 'Last 7 Days'
+    case '30d': return 'Last 30 Days'
+    case 'all': return 'All Time (30 Days)'
+    default: return 'Last 7 Days'
+  }
+})
+
 // Process real zap data for daily activity
 const dailyActivityOption = computed(() => {
   const zaps = analyticsData.value
+  const dayCount = activityDayCount.value
 
-  if (zaps.length === 0) {
-    // Show empty state with sample structure
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date()
-      date.setDate(date.getDate() - (6 - i))
-      return {
-        label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        value: 0
-      }
-    })
-
-    return {
-      title: {
-        text: `Daily ${connectionStatus.value.dataLabel} Activity (Last 7 Days)`,
-        textStyle: { color: '#7c2d12', fontSize: 16, fontWeight: 'bold' }
-      },
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: '#fff',
-        borderColor: '#f97316',
-        textStyle: { color: '#374151' },
-        formatter: function(params) {
-          const data = params[0]
-          return `${data.name}: ${data.value} sats`
-        }
-      },
-      xAxis: {
-        type: 'category',
-        data: last7Days.map(d => d.label),
-        axisLine: { lineStyle: { color: '#fed7aa' } },
-        axisTick: { lineStyle: { color: '#fed7aa' } },
-        axisLabel: { color: '#9a3412' }
-      },
-      yAxis: {
-        type: 'value',
-        axisLine: { lineStyle: { color: '#fed7aa' } },
-        axisTick: { lineStyle: { color: '#fed7aa' } },
-        axisLabel: { color: '#9a3412' }
-      },
-      series: [{
-        data: last7Days.map(d => d.value),
-        type: 'line',
-        smooth: true,
-        lineStyle: { color: '#f97316', width: 3 },
-        itemStyle: { color: '#f97316' },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(249, 115, 22, 0.3)' },
-              { offset: 1, color: 'rgba(249, 115, 22, 0.05)' }
-            ]
-          }
-        }
-      }]
-    }
-  }
-
-  // Process real data - group by day for last 7 days
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
+  // Build date buckets
+  const days = Array.from({ length: dayCount }, (_, i) => {
     const date = new Date()
-    date.setDate(date.getDate() - (6 - i))
+    date.setDate(date.getDate() - (dayCount - 1 - i))
     return {
       date: date.toDateString(),
       label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -206,33 +162,36 @@ const dailyActivityOption = computed(() => {
   // Aggregate zaps by day
   zaps.forEach(zap => {
     const zapDate = new Date(zap.timestamp).toDateString()
-    const dayData = last7Days.find(day => day.date === zapDate)
+    const dayData = days.find(day => day.date === zapDate)
     if (dayData) {
       dayData.value += zap.amount
     }
   })
 
   // Calculate smart Y-axis range with split-axis detection
-  const scalingResult = calculateSmartYAxisRange(last7Days)
+  const scalingResult = calculateSmartYAxisRange(days)
 
-  // Base chart configuration
   const baseConfig = {
-    title: {
-      text: `Daily ${connectionStatus.value.dataLabel} Activity (Last 7 Days)`,
-      textStyle: { color: '#7c2d12', fontSize: 16, fontWeight: 'bold' }
-    },
     tooltip: {
       trigger: 'axis',
       backgroundColor: '#fff',
       borderColor: '#f97316',
-      textStyle: { color: '#374151' }
+      textStyle: { color: '#374151' },
+      formatter: function(params) {
+        const data = params[0]
+        return `${data.name}: ${data.value.toLocaleString()} sats`
+      }
     },
     xAxis: {
       type: 'category',
-      data: last7Days.map(d => d.label),
+      data: days.map(d => d.label),
       axisLine: { lineStyle: { color: '#fed7aa' } },
       axisTick: { lineStyle: { color: '#fed7aa' } },
-      axisLabel: { color: '#9a3412' }
+      axisLabel: {
+        color: '#9a3412',
+        rotate: dayCount > 14 ? 45 : 0,
+        interval: dayCount > 14 ? Math.floor(dayCount / 10) : 0
+      }
     },
     yAxis: {
       type: 'value',
@@ -241,7 +200,7 @@ const dailyActivityOption = computed(() => {
       axisLabel: { color: '#9a3412' }
     },
     series: [{
-      data: last7Days.map(d => d.value),
+      data: days.map(d => d.value),
       type: 'line',
       smooth: true,
       lineStyle: { color: '#f97316', width: 3 },
@@ -259,7 +218,6 @@ const dailyActivityOption = computed(() => {
     }]
   }
 
-  // Apply split-axis transformation while keeping original styling
   return applySplitAxisTransformation(baseConfig, scalingResult)
 })
 
@@ -269,10 +227,6 @@ const topSupportersOption = computed(() => {
   
   if (zaps.length === 0) {
     return {
-      title: {
-        text: 'Top Supporters',
-        textStyle: { color: '#7c2d12', fontSize: 16, fontWeight: 'bold' }
-      },
       tooltip: {
         trigger: 'item',
         formatter: 'No data available',
@@ -305,10 +259,6 @@ const topSupportersOption = computed(() => {
     .slice(0, 5) // Top 5 supporters
   
   return {
-    title: {
-      text: 'Top Supporters',
-      textStyle: { color: '#7c2d12', fontSize: 16, fontWeight: 'bold' }
-    },
     tooltip: {
       trigger: 'item',
       formatter: '{a} <br/>{b}: {c} sats ({d}%)',
@@ -330,13 +280,6 @@ const topSupportersOption = computed(() => {
         borderColor: '#fff',
         borderWidth: 2
       },
-      // emphasis: {
-      //   label: {
-      //     show: true,
-      //     fontSize: '18',
-      //     fontWeight: 'bold'
-      //   }
-      // },
       labelLine: {
         show: false
       },
@@ -368,10 +311,6 @@ const amountDistributionOption = computed(() => {
   })
   
   return {
-    title: {
-      text: `${connectionStatus.value.dataLabel} Amount Distribution`,
-      textStyle: { color: '#7c2d12', fontSize: 16, fontWeight: 'bold' }
-    },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -491,32 +430,7 @@ const insights = computed(() => {
   const zaps = analyticsData.value
   
   if (zaps.length === 0) {
-    return [
-      {
-        title: 'Connect Account',
-        value: 'No Data',
-        description: connectionStatus.value.emptyMessage,
-        icon: IconClock
-      },
-      {
-        title: `Total ${connectionStatus.value.type === 'nwc-only' ? 'Payments' : 'Zaps'}`,
-        value: '0',
-        description: `No ${connectionStatus.value.dataLabel} yet`,
-        icon: IconBook
-      },
-      {
-        title: 'Average Amount',
-        value: '0 sats',
-        description: `No ${connectionStatus.value.dataLabel} to calculate average`,
-        icon: IconChartLine
-      },
-      {
-        title: 'Unique Supporters',
-        value: '0',
-        description: 'No supporters yet',
-        icon: IconUsers
-      }
-    ]
+    return []
   }
   
   // Calculate peak zap time with more detail
@@ -536,29 +450,13 @@ const insights = computed(() => {
   const peakTimeFormatted = `${peakHour}:00 - ${(peakHour + 1) % 24}:00`;
   const peakHourCount = hourCounts[peakHour];
   const peakHourAmount = hourAmounts[peakHour];
-  
-  // Calculate best performing content type
-  const noteTypeCounts = {}
-  zaps.forEach(zap => {
-    const type = zap.noteType || 'unknown'
-    noteTypeCounts[type] = (noteTypeCounts[type] || 0) + zap.amount
-  })
-  const bestType = Object.entries(noteTypeCounts)
-    .sort(([,a], [,b]) => b - a)[0]?.[0] || 'N/A'
-  
-  // Calculate engagement rate (mock calculation)
-  // COMMENTED OUT - No reliable data to calculate engagement rate
-  // const totalNotes = zaps.length * 2 // Assume 2x more notes than zaps
-  // const engagementRate = totalNotes > 0 ? ((zaps.length / totalNotes) * 100).toFixed(1) : '0.0'
-  
+
   // Calculate repeat supporters
   const supporterCounts = new Map();
-  const supporterAmounts = new Map();
-  
+
   filteredZaps.forEach(zap => {
     const senderKey = zap.sender?.pubkey || zap.zapperPubkey || 'anonymous';
     supporterCounts.set(senderKey, (supporterCounts.get(senderKey) || 0) + 1);
-    supporterAmounts.set(senderKey, (supporterAmounts.get(senderKey) || 0) + zap.amount);
   });
   
   // Get repeat supporters (sent more than one zap)
@@ -568,19 +466,7 @@ const insights = computed(() => {
   
   const totalSupporters = supporterCounts.size;
   const repeatPercentage = totalSupporters > 0 ? Math.round((repeatSupporters / totalSupporters) * 100) : 0;
-  
-  // Get top supporter by amount
-  let topSupporter = { pubkey: 'anonymous', amount: 0, count: 0 };
-  supporterAmounts.forEach((amount, pubkey) => {
-    if (amount > topSupporter.amount) {
-      topSupporter = { 
-        pubkey, 
-        amount, 
-        count: supporterCounts.get(pubkey) || 0 
-      };
-    }
-  });
-  
+
   return [
     {
       title: 'Peak Zap Time',
@@ -588,13 +474,6 @@ const insights = computed(() => {
       description: `${peakHourCount} zaps (${peakHourAmount.toLocaleString()} sats)`,
       icon: IconClock
     },
-    // COMMENTED OUT - Engagement Rate insight removed due to lack of reliable data
-    // {
-    //   title: 'Engagement Rate',
-    //   value: `${engagementRate}%`,
-    //   description: 'Percentage of content that gets zapped',
-    //   icon: IconChartLine
-    // },
     {
       title: 'Repeat Supporters',
       value: `${repeatPercentage}%`,
@@ -610,53 +489,27 @@ const summaryStats = computed(() => {
   const totalAmount = zaps.reduce((sum, zap) => sum + zap.amount, 0)
   const avgAmount = zaps.length > 0 ? Math.round(totalAmount / zaps.length) : 0
   const uniqueSupporters = new Set(zaps.map(zap => zap.sender?.pubkey || 'anonymous')).size
-  
-  // Calculate engagement metrics from all content
-  let totalLikes = 0
-  let totalReposts = 0
-  let totalBookmarks = 0
-  let totalZapCount = zaps.length
-  
-  // This would need to be enhanced with actual engagement data
-  // For now, using placeholder values based on zap activity
-  if (zaps.length > 0) {
-    totalLikes = Math.floor(zaps.length * 1.5) // Estimate likes based on zaps
-    totalReposts = Math.floor(zaps.length * 0.3) // Estimate reposts
-    totalBookmarks = Math.floor(zaps.length * 0.2) // Estimate bookmarks
-  }
-  
+
   return {
     totalZaps: zaps.length,
     totalAmount,
     avgAmount,
-    uniqueSupporters,
-    totalLikes,
-    totalReposts,
-    totalBookmarks,
-    totalZapCount,
-    totalEngagement: totalLikes + totalReposts + totalBookmarks
+    uniqueSupporters
   }
 })
-
-// Format engagement numbers for better readability
-const formatEngagementNumber = (num) => {
-  if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(1)}M`
-  } else if (num >= 1000) {
-    return `${(num / 1000).toFixed(1)}k`
-  }
-  return num.toString()
-}
 </script>
 
 <template>
-  <!-- Empty State - No Data -->
+  <!-- Empty State - Not Authenticated -->
   <EmptyStateAnalytics
-    v-if="analyticsData.length === 0 && !isAuthenticated"
+    v-if="!isAuthenticated"
     @connect-nostr="handleConnectNostr"
     @show-help="$emit('show-help')"
     @go-to-content="$emit('change-page', 'content')"
   />
+
+  <!-- Skeleton Loading -->
+  <SkeletonAnalytics v-else-if="isPageLoading && analyticsData.length === 0" />
 
   <div v-else class="space-y-6">
     <!-- Dynamic Summary Stats -->
@@ -693,17 +546,20 @@ const formatEngagementNumber = (num) => {
     <div v-else-if="isEchartsLoaded && VChart" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Daily Activity Chart -->
       <div class="card p-6">
-        <VChart :autoresize="true" :option="dailyActivityOption" style="height: 300px;" />
+        <h4 class="text-sm font-semibold text-gray-700 mb-3">Daily Activity - {{ activityTimeLabel }}</h4>
+        <VChart :autoresize="true" :option="dailyActivityOption" style="height: 280px;" />
       </div>
       
       <!-- Top Supporters Chart -->
       <div class="card p-6">
-        <VChart :autoresize="true" :option="topSupportersOption" style="height: 300px;" />
+        <h4 class="text-sm font-semibold text-gray-700 mb-3">Top Supporters</h4>
+        <VChart :autoresize="true" :option="topSupportersOption" style="height: 280px;" />
       </div>
-      
+
       <!-- Amount Distribution Chart -->
       <div class="card p-6 lg:col-span-2">
-        <VChart :autoresize="true" :option="amountDistributionOption" style="height: 300px;" />
+        <h4 class="text-sm font-semibold text-gray-700 mb-3">Amount Distribution</h4>
+        <VChart :autoresize="true" :option="amountDistributionOption" style="height: 280px;" />
       </div>
     </div>
 
@@ -731,66 +587,47 @@ const formatEngagementNumber = (num) => {
       <!-- Engagement Analytics Component -->
       <EngagementAnalytics />
       
-      <!-- Real-Time Insights -->
-      <div>
+      <!-- Content Insights -->
+      <div v-if="insights.length > 0 || topSupporters.length > 0">
         <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
           <IconTrendingUp class="w-5 h-5 text-orange-600" />
           <span>Content Insights</span>
-          <span v-if="zapData.length > 0" class="text-sm text-green-600 bg-green-100 px-2 py-1 rounded-full">
-            Live Data
-          </span>
-          <span v-else class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-            No Data
-          </span>
         </h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div
-          v-for="insight in insights"
-          :key="insight.title"
-          class="card p-4 text-center hover:shadow-lg transition-all duration-200"
-        >
-          <div class="text-3xl mb-2">
-            <component :is="insight.icon" class="w-8 h-8 mx-auto text-orange-600" />
+          <div
+            v-for="insight in insights"
+            :key="insight.title"
+            class="card p-4 text-center hover:shadow-lg transition-all duration-200"
+          >
+            <div class="text-3xl mb-2">
+              <component :is="insight.icon" class="w-8 h-8 mx-auto text-orange-600" />
+            </div>
+            <h4 class="font-medium text-gray-900 mb-1">{{ insight.title }}</h4>
+            <p class="text-lg font-bold text-orange-600 mb-2">{{ insight.value }}</p>
+            <p class="text-xs text-gray-600">{{ insight.description }}</p>
           </div>
-          <h4 class="font-medium text-gray-900 mb-1">{{ insight.title }}</h4>
-          <p class="text-lg font-bold text-orange-600 mb-2">{{ insight.value }}</p>
-          <p class="text-xs text-gray-600">{{ insight.description }}</p>
-        </div>
-        
-        <!-- Top Supporters Card -->
-        <div class="card p-4 text-center hover:shadow-lg transition-all duration-200">
-          <div class="text-3xl mb-2">
-            <IconUsers class="w-8 h-8 mx-auto text-orange-600" />
-          </div>
-          <h4 class="font-medium text-gray-900 mb-3">Top Supporter</h4>
-          
-          <!-- Loading State -->
-          <div v-if="combinedZapData.filter(zap => zap.eventId).length === 0" class="text-center py-2">
-            <p class="text-sm text-gray-500">Connect to see top supporters</p>
-          </div>
-          
-          <!-- Supporters List -->
-          <div v-else-if="topSupporters.length > 0">
-            <div v-if="topSupporters[0]" @click="openUserProfile(topSupporters[0])" class="flex items-center justify-between p-1 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer">
-              <!-- Avatar -->
+
+          <!-- Top Supporter Card -->
+          <div v-if="topSupporters.length > 0" class="card p-4 text-center hover:shadow-lg transition-all duration-200">
+            <div class="text-3xl mb-2">
+              <IconUsers class="w-8 h-8 mx-auto text-orange-600" />
+            </div>
+            <h4 class="font-medium text-gray-900 mb-3">Top Supporter</h4>
+            <div @click="openUserProfile(topSupporters[0])" class="flex items-center justify-between p-1 rounded-lg hover:bg-orange-50 transition-colors cursor-pointer">
               <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-orange-200 flex-shrink-0">
-                <img 
-                  :src="topSupporters[0].profile?.picture || generateAvatar(topSupporters[0].pubkey)" 
+                <img
+                  :src="topSupporters[0].profile?.picture || generateAvatar(topSupporters[0].pubkey)"
                   :alt="topSupporters[0].profile?.name || 'Supporter'"
                   class="w-full h-full object-cover"
                   @error="$event.target.src = generateAvatar(topSupporters[0].pubkey)"
                 />
               </div>
-              
-              <!-- Name -->
               <div class="flex-1 min-w-0 mx-2">
                 <p class="font-medium text-gray-900 truncate text-xs">{{ topSupporters[0].profile?.name || topSupporters[0].pubkey.substring(0, 8) + '...' }}</p>
                 <p v-if="topSupporters[0].profile?.lud16" class="text-xs text-blue-600 truncate leading-tight">
                   {{ topSupporters[0].profile.lud16 }}
                 </p>
               </div>
-              
-              <!-- Amount -->
               <div class="text-right flex-shrink-0">
                 <p class="text-xs font-bold text-orange-600">{{ topSupporters[0].totalAmount.toLocaleString() }}</p>
                 <p class="text-xs text-gray-500 leading-tight">{{ topSupporters[0].zapCount }} zap{{ topSupporters[0].zapCount !== 1 ? 's' : '' }}</p>
@@ -798,23 +635,6 @@ const formatEngagementNumber = (num) => {
             </div>
           </div>
         </div>
-      </div>
-      </div>
-    </div>
-
-    <!-- Data Status Indicator -->
-    <div class="text-center py-4">
-      <div v-if="connectionStatus.type === 'none'" class="text-gray-500 text-sm">
-        <IconRefresh class="w-4 h-4 inline mr-2" />
-        {{ connectionStatus.emptyMessage }}
-      </div>
-      <div v-else-if="analyticsData.length > 0" class="text-green-600 text-sm">
-        <IconBolt class="w-4 h-4 inline mr-2" />
-        Analytics updated with {{ analyticsData.length }} {{ connectionStatus.dataLabel }}
-      </div>
-      <div v-else class="text-amber-600 text-sm">
-        <IconTrendingUp class="w-4 h-4 inline mr-2" />
-        {{ connectionStatus.emptyMessage }}
       </div>
     </div>
 
