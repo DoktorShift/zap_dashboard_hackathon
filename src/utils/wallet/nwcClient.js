@@ -5,7 +5,9 @@ import {
   NWCPublishTimeoutError,
   NWCReplyTimeoutError,
   NWCConnectionError,
-  NWCDecryptionError
+  NWCDecryptionError,
+  LightningAddressError,
+  validateLightningAddress
 } from 'nostr-core'
 
 // NWC Client singleton
@@ -57,6 +59,10 @@ export function getUserFriendlyError(error) {
 
   if (error instanceof NWCDecryptionError) {
     return 'Failed to decrypt wallet response. Your connection string may be invalid.'
+  }
+
+  if (error instanceof LightningAddressError) {
+    return error.message || 'Failed to resolve Lightning Address.'
   }
 
   return error.message || 'An unknown error occurred.'
@@ -182,4 +188,34 @@ export async function lookupInvoice(params) {
   if (params.invoice) lookupParams.invoice = params.invoice
 
   return await nwcClient.lookupInvoice(lookupParams)
+}
+
+/**
+ * Check if a string is a valid Lightning Address (user@domain).
+ */
+export function isLightningAddress(input) {
+  return validateLightningAddress(input)
+}
+
+/**
+ * Strip lightning: or LIGHTNING: URI prefix from input.
+ * Returns the cleaned string.
+ */
+export function stripLightningPrefix(input) {
+  if (input.toLowerCase().startsWith('lightning:')) {
+    return input.substring(10)
+  }
+  return input
+}
+
+/**
+ * Pay a Lightning Address by resolving it to a BOLT-11 invoice first.
+ * Uses nostr-core's built-in payLightningAddress which handles LNURL-pay resolution.
+ */
+export async function payLightningAddress(address, amountSats) {
+  if (!nwcClient) {
+    throw new Error('NWC Client not initialized')
+  }
+
+  return await nwcClient.payLightningAddress(address, amountSats)
 }
