@@ -42,7 +42,6 @@ defineProps({
 })
 
 const emit = defineEmits(['upload'])
-
 const fileInput = ref(null)
 const isDragging = ref(false)
 
@@ -75,31 +74,34 @@ function onFileSelect(e) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  border: 2px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem;
+  gap: 0.375rem;
+  border: 1.5px dashed rgba(0, 0, 0, 0.12);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.25rem;
   cursor: pointer;
-  transition: all var(--transition-normal);
-  background: var(--color-surface);
-  position: relative;
+  transition: all 0.2s ease;
+  background: #fafafa;
 }
 
 .upload-zone:hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
+  border-color: #f97316;
+  background: #fff7ed;
+}
+
+.upload-zone:hover .upload-icon {
+  color: #f97316;
+  transform: translateY(-1px);
 }
 
 .upload-zone--active {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
+  border-color: #f97316;
+  background: #fff7ed;
   border-style: solid;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 
-.upload-zone:hover .upload-icon,
 .upload-zone--active .upload-icon {
-  color: var(--color-primary);
+  color: #f97316;
   transform: translateY(-1px);
 }
 
@@ -115,21 +117,26 @@ function onFileSelect(e) {
 }
 
 .upload-icon {
-  color: var(--color-text-muted);
+  color: #9ca3af;
   flex-shrink: 0;
-  width: 1.25rem;
-  height: 1.25rem;
-  transition: all var(--transition-fast);
+  width: 1.125rem;
+  height: 1.125rem;
+  transition: all 0.15s ease;
 }
 
 .upload-text {
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
+  color: #6b7280;
+  font-size: 0.8125rem;
   white-space: nowrap;
 }
 
 .upload-link {
-  color: var(--color-primary);
+  color: #f97316;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.upload-link:hover {
   text-decoration: underline;
 }
 
@@ -141,20 +148,20 @@ function onFileSelect(e) {
 .upload-hint {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.1875rem;
   font-size: 0.6875rem;
-  color: var(--color-text-subtle);
+  color: #b0b0b0;
 }
 
 .upload-hint-icon {
-  width: 0.75rem;
-  height: 0.75rem;
-  opacity: 0.6;
+  width: 0.6875rem;
+  height: 0.6875rem;
+  opacity: 0.5;
 }
 
 @media (max-width: 768px) {
   .upload-zone {
-    padding: 1rem;
+    padding: 0.75rem;
   }
 }
 </style>

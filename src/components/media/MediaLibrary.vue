@@ -1,16 +1,17 @@
 <template>
   <div class="media-library">
 
-    <!-- ===== Top section: two-column on desktop, stacked on mobile ===== -->
-    <div class="library-header">
-      <!-- Left: filters + actions -->
-      <div class="header-left">
+    <!-- ===== Toolbar card ===== -->
+    <div class="toolbar-card">
+      <!-- Row 1: Filters + Actions -->
+      <div class="toolbar-row">
         <MediaFilters />
-        <div class="header-actions">
-          <button v-if="mediaState.selectedCount.value > 0" class="btn-sm btn-sm--danger" @click="onDeleteSelected">
-            <IconTrash class="btn-sm-icon" />
-            <span>Delete {{ mediaState.selectedCount.value }}</span>
+        <div class="toolbar-actions">
+          <button v-if="mediaState.selectedCount.value > 0" class="toolbar-btn toolbar-btn--danger" @click="onDeleteSelected">
+            <IconTrash class="toolbar-btn-icon" />
+            <span class="toolbar-btn-label">Delete {{ mediaState.selectedCount.value }}</span>
           </button>
+          <div class="toolbar-divider" v-if="mediaState.selectedCount.value > 0"></div>
           <div class="view-toggle">
             <button
               class="view-toggle-btn"
@@ -18,7 +19,7 @@
               title="Grid view"
               @click="viewMode = 'grid'"
             >
-              <IconLayoutGrid class="btn-sm-icon" />
+              <IconLayoutGrid class="toolbar-btn-icon" />
             </button>
             <button
               class="view-toggle-btn"
@@ -26,25 +27,29 @@
               title="List view"
               @click="viewMode = 'list'"
             >
-              <IconList class="btn-sm-icon" />
+              <IconList class="toolbar-btn-icon" />
             </button>
           </div>
-          <button class="btn-sm" title="Refresh" @click="blossom.refresh()">
-            <IconRefresh class="btn-sm-icon" />
+          <button class="toolbar-btn" title="Refresh" @click="blossom.refresh()">
+            <IconRefresh class="toolbar-btn-icon" />
           </button>
         </div>
       </div>
 
-      <!-- Right: compact upload + server indicator -->
-      <div class="header-right">
-        <MediaUploader :disabled="isUploading" @upload="onUpload" />
+      <!-- Row 2: Upload drop zone -->
+      <MediaUploader :disabled="isUploading" @upload="onUpload" />
+
+      <!-- Row 3: Summary + Server indicator -->
+      <div v-if="mediaState.fileCount.value > 0" class="toolbar-meta">
+        <span class="toolbar-summary">
+          {{ formatSize(mediaState.totalSize.value) }} across {{ mediaState.fileCount.value }} file{{ mediaState.fileCount.value !== 1 ? 's' : '' }}
+        </span>
         <ServerIndicator />
       </div>
-    </div>
-
-    <!-- ===== Total size summary ===== -->
-    <div v-if="mediaState.fileCount.value > 0" class="size-summary">
-      {{ formatSize(mediaState.totalSize.value) }} across {{ mediaState.fileCount.value }} file{{ mediaState.fileCount.value !== 1 ? 's' : '' }}
+      <div v-else class="toolbar-meta">
+        <span class="toolbar-summary"></span>
+        <ServerIndicator />
+      </div>
     </div>
 
     <!-- ===== Upload progress ===== -->
@@ -202,6 +207,7 @@ function onUpload(files) {
   blossom.uploadFiles(files)
 }
 
+
 function onPreview(file) {
   previewFile.value = file
 }
@@ -324,124 +330,140 @@ function formatSize(bytes) {
 }
 
 /* ===================================================================
-   Header: two-column layout
+   Toolbar card
    =================================================================== */
-.library-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.header-left {
+.toolbar-card {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
-  flex: 1;
-  min-width: 0;
+  gap: 0.75rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.header-actions {
+
+.toolbar-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.header-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.625rem;
-  flex-shrink: 0;
-  width: 280px;
-}
-
-/* ===================================================================
-   Small buttons
-   =================================================================== */
-.btn-sm {
+.toolbar-actions {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.375rem 0.625rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 1.25rem;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 0 0.125rem;
+}
+
+.toolbar-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.toolbar-summary {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* Toolbar buttons */
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.375rem;
+  color: #6b7280;
   font-size: 0.8125rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
 }
 
-.btn-sm:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
+.toolbar-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
 }
 
-.btn-sm-icon {
+.toolbar-btn--danger {
+  color: #ef4444;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 0.3125rem 0.625rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+}
+
+.toolbar-btn--danger:hover {
+  background: #fee2e2;
+}
+
+.toolbar-btn-icon {
   width: 1rem;
   height: 1rem;
 }
 
-/* ===================================================================
-   View toggle
-   =================================================================== */
+.toolbar-btn-label {
+  white-space: nowrap;
+}
+
+/* View toggle */
 .view-toggle {
   display: flex;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  background: #f3f4f6;
+  border-radius: 0.375rem;
+  padding: 0.125rem;
+  gap: 0.125rem;
 }
 
 .view-toggle-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.375rem 0.5rem;
-  background: var(--color-surface);
-  color: var(--color-text-subtle);
+  padding: 0.3125rem 0.4375rem;
+  background: transparent;
+  color: #9ca3af;
   border: none;
+  border-radius: 0.25rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.view-toggle-btn:first-child {
-  border-right: 1px solid var(--color-border);
+  transition: all 0.15s ease;
 }
 
 .view-toggle-btn:hover {
-  color: var(--color-text);
-  background: var(--color-surface-hover);
+  color: #6b7280;
 }
 
 .view-toggle-btn--active {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+  background: white;
+  color: #f97316;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .view-toggle-btn--active:hover {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+  background: white;
+  color: #f97316;
 }
 
-.btn-sm--danger {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.btn-sm--danger:hover {
-  background: var(--color-danger-soft);
-}
-
-/* ===================================================================
-   Size summary
-   =================================================================== */
-.size-summary {
-  font-size: 0.8125rem;
-  color: var(--color-text-subtle);
-  font-variant-numeric: tabular-nums;
-}
 
 /* ===================================================================
    Upload progress
@@ -742,21 +764,35 @@ function formatSize(bytes) {
 }
 
 /* ===================================================================
-   Responsive: mobile stacked layout
+   Responsive
    =================================================================== */
 @media (max-width: 768px) {
-  .library-header {
+  .toolbar-row {
     flex-direction: column;
+    align-items: stretch;
+    gap: 0.625rem;
   }
 
-  .header-right {
-    width: 100%;
-    align-items: stretch;
-    flex-direction: column-reverse;
+  .toolbar-actions {
+    justify-content: flex-end;
+  }
+
+  .toolbar-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 }
 
 @media (max-width: 480px) {
+  .toolbar-card {
+    padding: 0.75rem;
+  }
+
+  .toolbar-btn-label {
+    display: none;
+  }
+
   .progress-name {
     max-width: 100px;
   }

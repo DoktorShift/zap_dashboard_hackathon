@@ -1,21 +1,21 @@
 <template>
   <div class="media-filters">
-    <!-- Stat chips that double as type filters -->
-    <div class="stat-chips">
+    <!-- Type filter chips -->
+    <div class="filter-chips">
       <button
         v-for="chip in chips"
         :key="chip.value"
-        class="stat-chip"
-        :class="{ 'stat-chip--active': mediaState.filterType.value === chip.value }"
+        class="filter-chip"
+        :class="{ 'filter-chip--active': mediaState.filterType.value === chip.value }"
         @click="mediaState.filterType.value = chip.value"
       >
-        <component :is="chip.icon" class="stat-chip-icon" />
-        <span class="stat-chip-count">{{ chip.count }}</span>
-        <span class="stat-chip-label">{{ chip.label }}</span>
+        <component :is="chip.icon" class="filter-chip-icon" />
+        <span class="filter-chip-count">{{ chip.count }}</span>
+        <span class="filter-chip-label">{{ chip.label }}</span>
       </button>
     </div>
 
-    <!-- Sort dropdown -->
+    <!-- Sort control -->
     <div class="sort-control">
       <IconSortDescending class="sort-icon" />
       <select v-model="mediaState.sortBy.value" class="sort-select">
@@ -53,103 +53,106 @@ const chips = computed(() => [
 .media-filters {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.625rem;
   flex-wrap: wrap;
 }
 
-.stat-chips {
+.filter-chips {
   display: flex;
-  gap: 0.375rem;
-  flex-wrap: wrap;
+  gap: 0.25rem;
 }
 
-.stat-chip {
+.filter-chip {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.625rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  color: var(--color-text-muted);
+  gap: 0.3125rem;
+  padding: 0.3125rem 0.625rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  color: #9ca3af;
   font-size: 0.8125rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
   white-space: nowrap;
 }
 
-.stat-chip:hover {
-  border-color: var(--color-border-hover);
-  color: var(--color-text);
+.filter-chip:hover {
+  color: #6b7280;
+  background: #f9fafb;
 }
 
-.stat-chip--active {
-  background: var(--color-primary-soft);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+.filter-chip--active {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #ea580c;
 }
 
-.stat-chip-icon {
+.filter-chip--active:hover {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.filter-chip-icon {
   width: 0.875rem;
   height: 0.875rem;
+  flex-shrink: 0;
 }
 
-.stat-chip-count {
+.filter-chip-count {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.stat-chip-label {
+.filter-chip-label {
   display: inline;
 }
 
+/* Sort */
 .sort-control {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  gap: 0.25rem;
   padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  color: #9ca3af;
+  transition: all 0.15s ease;
+}
+
+.sort-control:hover {
+  background: #f9fafb;
 }
 
 .sort-icon {
-  color: var(--color-text-muted);
   flex-shrink: 0;
-  width: 1rem;
-  height: 1rem;
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .sort-select {
   background: transparent;
   border: none;
-  color: var(--color-text);
+  color: #6b7280;
   font-size: 0.8125rem;
   cursor: pointer;
   outline: none;
-  padding: 0.25rem 0;
+  padding: 0.1875rem 0;
 }
 
 .sort-select option {
-  background: var(--color-surface-elevated);
-  color: var(--color-text);
+  background: white;
+  color: #111827;
 }
 
-/* Mobile: hide labels, show only counts, ensure touch targets */
+/* Mobile */
 @media (max-width: 480px) {
-  .stat-chip-label {
+  .filter-chip-label {
     display: none;
   }
 
-  .stat-chip {
-    padding: 0.5rem 0.625rem;
-    min-height: 2.25rem;
-  }
-
-  .sort-control {
+  .filter-chip {
     padding: 0.375rem 0.5rem;
-    min-height: 2.25rem;
+    min-height: 2rem;
   }
 }
 </style>

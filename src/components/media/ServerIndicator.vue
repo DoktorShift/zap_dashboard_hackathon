@@ -126,31 +126,33 @@ function removeServer(idx) {
 .indicator-trigger {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.625rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  color: var(--color-text-muted);
-  font-size: 0.8125rem;
+  gap: 0.3125rem;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 0.375rem;
+  color: #9ca3af;
+  font-size: 0.75rem;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
   white-space: nowrap;
 }
 
 .indicator-trigger:hover {
-  border-color: var(--color-border-hover);
-  color: var(--color-text);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #6b7280;
+  background: #f9fafb;
 }
 
 .indicator-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .indicator-chevron {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: 0.625rem;
+  height: 0.625rem;
+  opacity: 0.6;
 }
 
 .indicator-text {
