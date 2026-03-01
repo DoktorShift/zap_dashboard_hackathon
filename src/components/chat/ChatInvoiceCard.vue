@@ -52,28 +52,17 @@ const copyInvoice = async () => {
 <template>
   <div class="w-full max-w-[280px]">
     <!-- Invoice card -->
-    <div :class="[
-      'rounded-2xl overflow-hidden border',
-      isOutgoing
-        ? 'bg-white/15 border-white/20'
-        : 'bg-gradient-to-br from-amber-50 to-orange-50 border-orange-200/60'
-    ]">
+    <div class="rounded-2xl overflow-hidden border bg-gradient-to-br from-amber-50 to-orange-50 border-orange-200/60">
       <!-- Header -->
-      <div :class="[
-        'px-3.5 py-2.5 flex items-center gap-2',
-        isOutgoing ? 'border-b border-white/15' : 'border-b border-orange-200/40'
-      ]">
-        <div :class="[
-          'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0',
-          isOutgoing ? 'bg-white/20' : 'bg-orange-400'
-        ]">
-          <IconBolt :class="['w-3.5 h-3.5', isOutgoing ? 'text-white' : 'text-white']" />
+      <div class="px-3.5 py-2.5 flex items-center gap-2 border-b border-orange-200/40">
+        <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-orange-400">
+          <IconBolt class="w-3.5 h-3.5 text-white" />
         </div>
         <div class="flex-1 min-w-0">
-          <div :class="['text-[11px] font-medium leading-none', isOutgoing ? 'text-white/70' : 'text-orange-600/70']">
+          <div class="text-[11px] font-medium leading-none text-orange-600/70">
             Lightning Invoice
           </div>
-          <div :class="['text-[15px] font-bold leading-tight mt-0.5', isOutgoing ? 'text-white' : 'text-gray-900']">
+          <div class="text-[15px] font-bold leading-tight mt-0.5 text-gray-900">
             {{ amountDisplay }}
           </div>
         </div>
@@ -111,10 +100,10 @@ const copyInvoice = async () => {
 
         <!-- Sent invoice status -->
         <div v-if="isOutgoing && !isPaid" class="flex-1 py-1.5 text-center">
-          <p :class="['text-[11px]', isOutgoing ? 'text-white/60' : 'text-gray-400']">
+          <p class="text-[11px] text-gray-500">
             Awaiting payment
           </p>
-          <p :class="['text-[10px] leading-snug', isOutgoing ? 'text-white/40' : 'text-gray-300']">
+          <p class="text-[10px] leading-snug text-gray-400">
             Share QR code so they can pay
           </p>
         </div>
@@ -122,12 +111,7 @@ const copyInvoice = async () => {
         <!-- QR toggle -->
         <button
           @click.stop="showQR = !showQR"
-          :class="[
-            'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors',
-            isOutgoing
-              ? 'hover:bg-white/15 text-white/70 hover:text-white'
-              : 'hover:bg-orange-100 text-orange-500 hover:text-orange-600'
-          ]"
+          class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors hover:bg-orange-100 text-orange-500 hover:text-orange-600"
           title="Show QR code"
         >
           <IconChevronUp v-if="showQR" class="w-4 h-4" />
@@ -137,12 +121,7 @@ const copyInvoice = async () => {
         <!-- Copy button -->
         <button
           @click.stop="copyInvoice"
-          :class="[
-            'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors',
-            isOutgoing
-              ? 'hover:bg-white/15 text-white/70 hover:text-white'
-              : 'hover:bg-orange-100 text-orange-500 hover:text-orange-600'
-          ]"
+          class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors hover:bg-orange-100 text-orange-500 hover:text-orange-600"
           :title="copied ? 'Copied!' : 'Copy invoice'"
         >
           <IconCheck v-if="copied" class="w-4 h-4 text-green-500" />
@@ -159,10 +138,7 @@ const copyInvoice = async () => {
       </div>
 
       <!-- QR Code (expandable) -->
-      <div v-if="showQR" :class="[
-        'px-3 pb-3 pt-1 border-t',
-        isOutgoing ? 'border-white/15' : 'border-orange-200/40'
-      ]">
+      <div v-if="showQR" class="px-3 pb-3 pt-1 border-t border-orange-200/40">
         <div class="bg-white rounded-xl p-3 flex flex-col items-center">
           <QRCodeVue3
             :value="invoice"

@@ -151,13 +151,37 @@ const encryptMessage = async (content, recipientPubkey, currentUser) => {
   throw new Error('No encryption method available')
 }
 
-// Unified decrypt helper — tries NIP-44 first, falls back to NIP-04
-const decryptMessage = async (content, counterpartyPubkey, currentUser) => {
+// Detect NIP-04 content format: <base64>?iv=<base64>
+const isNip04Content = (content) => {
+  return typeof content === 'string' && content.includes('?iv=')
+}
+
+// NIP-04 only decrypt chain (extension → local)
+const decryptNip04 = async (content, counterpartyPubkey, currentUser) => {
+  if (window.nostr?.nip04?.decrypt) {
+    try {
+      return await window.nostr.nip04.decrypt(counterpartyPubkey, content)
+    } catch (e) {
+      console.warn('NIP-04 extension decrypt failed:', e.message)
+    }
+  }
+  if (currentUser.privkey) {
+    try {
+      return nip04.decrypt(currentUser.privkey, counterpartyPubkey, content)
+    } catch (e) {
+      console.warn('NIP-04 local decrypt failed:', e.message)
+    }
+  }
+  return null
+}
+
+// NIP-44 only decrypt chain (extension → local)
+const decryptNip44 = async (content, counterpartyPubkey, currentUser) => {
   if (window.nostr?.nip44?.decrypt) {
     try {
       return await window.nostr.nip44.decrypt(counterpartyPubkey, content)
     } catch (e) {
-      console.warn('NIP-44 extension decrypt failed, trying fallback:', e.message)
+      console.warn('NIP-44 extension decrypt failed:', e.message)
     }
   }
   if (currentUser.privkey) {
@@ -165,15 +189,28 @@ const decryptMessage = async (content, counterpartyPubkey, currentUser) => {
       const convKey = getOrCreateConversationKey(currentUser.privkey, counterpartyPubkey)
       return nip44.decrypt(content, convKey)
     } catch (e) {
-      console.warn('NIP-44 local decrypt failed, trying NIP-04:', e.message)
+      console.warn('NIP-44 local decrypt failed:', e.message)
     }
   }
-  if (window.nostr?.nip04?.decrypt) {
-    return await window.nostr.nip04.decrypt(counterpartyPubkey, content)
+  return null
+}
+
+// Unified decrypt helper — detects format, tries appropriate chain first
+const decryptMessage = async (content, counterpartyPubkey, currentUser) => {
+  // NIP-04 format detected — skip NIP-44 attempts entirely
+  if (isNip04Content(content)) {
+    const result = await decryptNip04(content, counterpartyPubkey, currentUser)
+    if (result !== null) return result
+    throw new Error('No decryption method available for NIP-04 content')
   }
-  if (currentUser.privkey) {
-    return nip04.decrypt(currentUser.privkey, counterpartyPubkey, content)
-  }
+
+  // Unknown format — try NIP-44 first, then fall back to NIP-04
+  const nip44Result = await decryptNip44(content, counterpartyPubkey, currentUser)
+  if (nip44Result !== null) return nip44Result
+
+  const nip04Result = await decryptNip04(content, counterpartyPubkey, currentUser)
+  if (nip04Result !== null) return nip04Result
+
   throw new Error('No decryption method available')
 }
 
