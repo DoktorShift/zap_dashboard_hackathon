@@ -6,7 +6,7 @@ import {
   IconPlugConnected, IconShield, IconKey, IconGlobe,
   IconEdit, IconLogout, IconLoader, IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../services/nostr/nostrImports.js'
 import SettingsConnections from '../components/settings/SettingsConnections.vue'
 import NotificationSettings from '../components/settings/NotificationSettings.vue'
 import NostrSettings from '../components/settings/NostrSettings.vue'

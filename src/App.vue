@@ -21,7 +21,7 @@ import NWCConnection from './components/wallet/NWCConnection.vue'
 import ErrorBoundary from './components/shared/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/core/useNostrConnections.js'
 import { useNotifications } from './composables/core/useNotifications.js'
-import { nostrRelayManager } from './utils/network/nostrRelayManager.js'
+import { nostrService } from './services/nostr/NostrService.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
 import { startRefreshCycle, stopRefreshCycle, setActiveGroup } from './utils/refreshCycle.js'
 import { APP_HARD_TIMEOUT, RELAY_READY_TIMEOUT } from './utils/constants.js'
@@ -766,7 +766,7 @@ const runLoadingSequence = async () => {
   loadingPhase.value = 'relays'
   try {
     await Promise.race([
-      nostrRelayManager.ready(),
+      nostrService.ready(),
       new Promise(r => setTimeout(r, RELAY_READY_TIMEOUT))
     ])
   } catch (e) { /* continue */ }

@@ -1,7 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useContentZaps } from './useContentZaps.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 
 // Global state for long-form content
@@ -19,7 +19,8 @@ const error = ref('')
 let currentSubscription = null // Track current subscription
 let isFetching = false // Concurrency guard
 let isInitialized = false // Prevent duplicate watcher initialization
-const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
+const processedEventIds = new Set()
+const PROCESSED_IDS_MAX = 1000
 
 // UI state
 const currentView = ref('list') // list, create, edit, view, preview
@@ -120,7 +121,7 @@ export function useNostrLongForm() {
     isFetching = true
 
     try {
-      await nostrRelayManager.ready()
+      await nostrService.ready()
     } catch (err) {
       console.warn('[useNostrLongForm] Relay manager not ready:', err.message)
       isFetching = false
@@ -138,7 +139,7 @@ export function useNostrLongForm() {
 
     try {
       // Capture subscription in local variable to avoid closure bug
-      const sub = nostrRelayManager.subscribeToEvents([
+      const sub = nostrService.subscribe([
         {
           kinds: [30023], // Long-form content
           authors: [currentUser.value.pubkey],
@@ -154,6 +155,10 @@ export function useNostrLongForm() {
           // Check if we've already processed this event ID
           if (processedEventIds.has(event.id)) return
           processedEventIds.add(event.id)
+          if (processedEventIds.size > PROCESSED_IDS_MAX) {
+            const toEvict = Array.from(processedEventIds).slice(0, 200)
+            toEvict.forEach(id => processedEventIds.delete(id))
+          }
 
           if (event.kind === 30023) {
             const existingIndex = longFormContent.value.findIndex(content => content.id === event.id)
@@ -363,7 +368,7 @@ export function useNostrLongForm() {
       }
       
       // If not in state, fetch from relays
-      const event = await nostrRelayManager.getEvent({
+      const event = await nostrService.queryOne({
         ids: [contentId],
         kinds: [30023]
       })

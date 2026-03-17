@@ -202,9 +202,10 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { useMentions } from '../../composables/content/useMentions.js'
-import { verifyEvent } from 'nostr-tools/pure'
-import * as nip19 from 'nostr-tools/nip19'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { verifyEvent } from '../../services/nostr/nostrImports.js'
+import { nip19 } from '../../services/nostr/nostrImports.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
 import MentionInput from '../content/MentionInput.vue'
 
 const props = defineProps({
@@ -266,7 +267,7 @@ const timeAgoText = computed(() => {
 const viewUrl = computed(() => {
   if (!publishedEventId.value) return ''
   try {
-    const relays = nostrRelayManager.getReadRelays().map(r => r.url).slice(0, 3)
+    const relays = nostrService.getReadRelays().map(r => r.url).slice(0, 3)
     const nevent = nip19.neventEncode({ id: publishedEventId.value, relays })
     return `https://njump.me/${nevent}`
   } catch {
@@ -353,8 +354,8 @@ const shareOnNostr = async () => {
     }
 
     let signedEvent
-    if (window.nostr?.signEvent) {
-      signedEvent = await window.nostr.signEvent(eventTemplate)
+    if (signerService.isExtensionAvailable()) {
+      signedEvent = await signerService.signEvent(eventTemplate)
     } else {
       throw new Error('Nostr signer not available')
     }
@@ -364,7 +365,7 @@ const shareOnNostr = async () => {
       throw new Error('Event signature verification failed')
     }
 
-    const result = await nostrRelayManager.publishEvent(signedEvent)
+    const result = await nostrService.publish(signedEvent)
 
     if (result.successful === 0) {
       throw new Error('Failed to publish to any relay')
@@ -402,14 +403,14 @@ const deleteSharedPost = async () => {
       content: ''
     }
 
-    const signedEvent = await window.nostr.signEvent(eventTemplate)
+    const signedEvent = await signerService.signEvent(eventTemplate)
 
     const isValid = verifyEvent(signedEvent)
     if (!isValid) {
       throw new Error('Signature verification failed')
     }
 
-    const result = await nostrRelayManager.publishEvent(signedEvent)
+    const result = await nostrService.publish(signedEvent)
 
     if (result.successful === 0) {
       throw new Error('Failed to publish deletion')

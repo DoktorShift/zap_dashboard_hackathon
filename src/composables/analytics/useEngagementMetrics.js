@@ -1,6 +1,6 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 
 const engagementMetrics = reactive(new Map()) 
 const activeSubscriptions = reactive(new Map())
@@ -31,7 +31,7 @@ const _startEngagementBackgroundRefresh = async () => {
   const eventIds = Array.from(engagementMetrics.keys())
   if (!eventIds.length) return
   try {
-    await nostrRelayManager.ready()
+    await nostrService.ready()
     for (let i = 0; i < eventIds.length; i += MAX_BATCH_SIZE) {
       fetchEngagementMetricsBatch(eventIds.slice(i, i + MAX_BATCH_SIZE))
     }
@@ -232,7 +232,7 @@ export function useEngagementMetrics() {
       // Rely on relay manager for deduplication
       const subscriptionId = `engagement-batch-${Date.now()}`
 
-      const subscription = nostrRelayManager.subscribeToEvents(filters, {
+      const subscription = nostrService.subscribe(filters, {
         onevent: (event) => {
           processEngagementEvent(event)
         },
@@ -431,7 +431,7 @@ export function useEngagementMetrics() {
         }
       ]
 
-      const subscription = nostrRelayManager.subscribeToEvents(aTagFilters, {
+      const subscription = nostrService.subscribe(aTagFilters, {
         onevent: (event) => {
           processEngagementEvent(event, eventId)
         },

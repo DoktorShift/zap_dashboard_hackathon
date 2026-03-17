@@ -60,8 +60,15 @@ async function fetchPrice() {
 }
 
 function startAutoRefresh() {
-  if (refreshInterval) return // already running
+  if (refreshInterval) return
   refreshInterval = setInterval(fetchPrice, REFRESH_INTERVAL)
+}
+
+function stopAutoRefresh() {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
+  }
 }
 
 function satsToUSD(sats) {
@@ -92,6 +99,7 @@ export function useBtcPrice() {
     isLoading,
     error,
     fetchPrice,
+    stopAutoRefresh,
     satsToUSD,
     formatUSD
   }

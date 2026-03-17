@@ -1,8 +1,9 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
-import { verifyEvent } from 'nostr-tools/pure'
+import { verifyEvent } from '../../services/nostr/nostrImports.js'
 import { useNotifications } from '../core/useNotifications.js'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 
@@ -179,7 +180,7 @@ export function useNostrCalendar() {
     }
 
     try {
-      await nostrRelayManager.ready()
+      await nostrService.ready()
     } catch (err) {
       console.warn('[useNostrCalendar] Relay manager not ready:', err.message)
       return
@@ -197,7 +198,7 @@ export function useNostrCalendar() {
 
     try {
       // Subscribe to calendar events (both time-based and date-based)
-      currentSubscription = nostrRelayManager.subscribeToEvents([
+      currentSubscription = nostrService.subscribe([
         {
           // Events created by the user
           kinds: [CALENDAR_EVENT_KINDS.TIME_BASED, CALENDAR_EVENT_KINDS.DATE_BASED],
@@ -304,7 +305,7 @@ export function useNostrCalendar() {
 
   // Create calendar event
   const createEvent = async (eventData) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -414,7 +415,7 @@ export function useNostrCalendar() {
       }
 
       // Sign the event using the browser extension
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      const signedEvent = await signerService.signEvent(eventTemplate)
       
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
@@ -423,7 +424,7 @@ export function useNostrCalendar() {
       }
 
       // Publish to Nostr relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
 
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
@@ -474,7 +475,7 @@ export function useNostrCalendar() {
 
   // Update calendar event (creates new event and deletes old one)
   const updateEvent = async (eventId, newEventData) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -494,7 +495,7 @@ export function useNostrCalendar() {
 
   // Delete calendar event
   const deleteEvent = async (eventId) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -508,7 +509,7 @@ export function useNostrCalendar() {
       }
 
       // Sign the deletion event
-      const signedEvent = await window.nostr.signEvent(deletionEvent)
+      const signedEvent = await signerService.signEvent(deletionEvent)
       
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
@@ -517,7 +518,7 @@ export function useNostrCalendar() {
       }
 
       // Publish to Nostr relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
 
       if (result.successful > 0) {
         // Remove from local state
@@ -604,7 +605,7 @@ export function useNostrCalendar() {
 
   // Create RSVP for a calendar event
   const createRSVP = async (eventId, eventKind, eventAuthor, status, freebusy, note = '') => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -643,7 +644,7 @@ export function useNostrCalendar() {
       }
 
       // Sign the event
-      const signedEvent = await window.nostr.signEvent(rsvpEvent)
+      const signedEvent = await signerService.signEvent(rsvpEvent)
       
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
@@ -652,7 +653,7 @@ export function useNostrCalendar() {
       }
 
       // Publish to Nostr relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
 
       if (result.successful === 0) {
         throw new Error('Failed to publish RSVP to any relays')
@@ -699,7 +700,7 @@ export function useNostrCalendar() {
     }
 
     try {
-      await nostrRelayManager.ready()
+      await nostrService.ready()
     } catch (err) {
       console.warn('[useNostrCalendar] Relay manager not ready for RSVPs:', err.message)
       return
@@ -751,7 +752,7 @@ export function useNostrCalendar() {
 
       const rsvpPubkeysToFetch = new Set()
 
-      rsvpSubscription = nostrRelayManager.subscribeToEvents(filters, {
+      rsvpSubscription = nostrService.subscribe(filters, {
         onevent: async (event) => {
           if (processedRsvpIds.has(event.id)) {
             return

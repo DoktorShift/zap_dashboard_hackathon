@@ -38,7 +38,7 @@ import {
 import { useMentions } from '../../composables/content/useMentions.js'
 import MentionInput from './MentionInput.vue'
 import MentionRenderer from './MentionRenderer.vue'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
 
 const props = defineProps({

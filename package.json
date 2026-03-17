@@ -19,8 +19,8 @@
     "@fullcalendar/vue3": "^6.1.18",
     "@iconify-prerendered/vue-tabler": "^0.28.1749100890",
     "echarts": "^5.4.3",
-    "nostr-core": "^0.2.0",
-    "nostr-tools": "^2.15.0",
+    "nostr-core": "file:../nostr-core",
+
     "qrcode-vue3": "^1.6.8",
     "vue": "^3.4.38",
     "vue-echarts": "^6.6.1",

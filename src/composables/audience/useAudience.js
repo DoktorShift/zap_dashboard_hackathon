@@ -1,8 +1,9 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useFollowLists } from './useFollowLists.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { verifyEvent } from 'nostr-tools/pure'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
+import { verifyEvent } from '../../services/nostr/nostrImports.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
@@ -95,7 +96,7 @@ const _startAudienceBackgroundRefresh = async () => {
   if (pubkeys.length === 0) return
 
   try {
-    await nostrRelayManager.ready()
+    await nostrService.ready()
     batchFetchProfiles(pubkeys)
   } catch (err) {
     console.warn('Audience background profile refresh failed:', err.message)
@@ -133,7 +134,7 @@ export function useAudience() {
     }
 
     try {
-      await nostrRelayManager.ready()
+      await nostrService.ready()
     } catch (err) {
       console.warn('[useAudience] Relay manager not ready:', err.message)
       return
@@ -152,7 +153,7 @@ export function useAudience() {
         followingSubscription.close()
       }
 
-      followingSubscription = nostrRelayManager.subscribeToEvents([
+      followingSubscription = nostrService.subscribe([
         { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
       ], {
         onevent: (event) => {
@@ -207,7 +208,7 @@ export function useAudience() {
       return
     }
 
-    await nostrRelayManager.ready()
+    await nostrService.ready()
 
     isLoading.value = true
     error.value = ''
@@ -221,7 +222,7 @@ export function useAudience() {
       }
 
       const newFollowerPubkeys = []
-      followersSubscription = nostrRelayManager.subscribeToEvents([
+      followersSubscription = nostrService.subscribe([
         { kinds: [3], '#p': [currentUser.value.pubkey], limit: 500 }
       ], {
         onevent: (event) => {
@@ -271,7 +272,7 @@ export function useAudience() {
 
   // Follow a user
   const followUser = async (pubkey) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -327,12 +328,12 @@ export function useAudience() {
         content: ''
       }
 
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      const signedEvent = await signerService.signEvent(eventTemplate)
       if (!verifyEvent(signedEvent)) {
         throw new Error('Event signature verification failed')
       }
 
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
       }
@@ -367,7 +368,7 @@ export function useAudience() {
 
   // Unfollow a user
   const unfollowUser = async (pubkey) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -385,7 +386,7 @@ export function useAudience() {
       const contactTags = following.value.map(pk => ['p', pk])
       const eventTemplate = { kind: 3, created_at: Math.floor(Date.now()/1000), tags: contactTags, content: '' }
 
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      const signedEvent = await signerService.signEvent(eventTemplate)
       if (!verifyEvent(signedEvent)) {
         throw new Error('Event signature verification failed')
       }
@@ -395,7 +396,7 @@ export function useAudience() {
       let publishError = null
       
       try {
-        result = await nostrRelayManager.publishEvent(signedEvent)
+        result = await nostrService.publish(signedEvent)
         
         if (result.successful === 0) {
           publishError = new Error('Failed to publish to any relays')

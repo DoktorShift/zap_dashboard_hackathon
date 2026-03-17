@@ -319,9 +319,9 @@ import {
   IconShield
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-
+import { finalizeEvent, verifyEvent } from '../../services/nostr/nostrImports.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
 // Props
 const props = defineProps({
   show: {
@@ -533,11 +533,11 @@ const saveProfile = async () => {
     };
     
     // Sign the event
-    if (!window.nostr?.signEvent) {
+    if (!signerService.isExtensionAvailable()) {
       throw new Error('Nostr extension not available for signing');
     }
     
-    const signedEvent = await window.nostr.signEvent(eventTemplate);
+    const signedEvent = await signerService.signEvent(eventTemplate);
     
     // Verify the signed event
     const isValid = verifyEvent(signedEvent);
@@ -546,7 +546,7 @@ const saveProfile = async () => {
     }
     
     // Publish to relays
-    const result = await nostrRelayManager.publishEvent(signedEvent);
+    const result = await nostrService.publish(signedEvent);
     
     if (result.successful === 0) {
       throw new Error('Failed to publish to any relays');

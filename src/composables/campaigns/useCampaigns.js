@@ -1,10 +1,10 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
-import { verifyEvent } from 'nostr-tools/pure'
+import { verifyEvent } from '../../services/nostr/nostrImports.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
-import { subscribe } from '../../utils/network/subscribe.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
 import { fetchProfile, batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 
@@ -14,6 +14,7 @@ const isLoading = ref(false)
 const error = ref('')
 
 const processedEventIds = new Set()
+const PROCESSED_IDS_MAX = 1000
 
 // Campaign-specific zap aggregation state
 const campaignAggregatedZaps = reactive(new Map()) // Map<campaignId, zap[]>
@@ -129,7 +130,7 @@ export function useCampaigns() {
     }
 
     try {
-      const noteEvents = await subscribe(
+      const noteEvents = await nostrService.query(
         [{
           kinds: [1],
           authors: [currentUser.value.pubkey],
@@ -176,7 +177,7 @@ export function useCampaigns() {
       // Strategy A: Zaps by #e tag — chunked in batches of 50
       for (let i = 0; i < allEventIds.length; i += 50) {
         const chunk = allEventIds.slice(i, i + 50)
-        const events = await subscribe(
+        const events = await nostrService.query(
           [{ kinds: [9735], '#e': chunk, limit: 2000 }],
           { timeout: 25000, eoseGrace: 3000 }
         )
@@ -185,7 +186,7 @@ export function useCampaigns() {
 
       // Strategy B: Zaps by #goal tag — catches zaps that only have a goal tag
       if (campaignIds.length > 0) {
-        const goalEvents = await subscribe(
+        const goalEvents = await nostrService.query(
           [{ kinds: [9735], '#goal': campaignIds, limit: 2000 }],
           { timeout: 20000, eoseGrace: 3000 }
         )
@@ -370,7 +371,7 @@ export function useCampaigns() {
       }
 
       const nonce = ++subNonce
-      liveZapSubscription = nostrRelayManager.subscribeToEvents(liveFilters, {
+      liveZapSubscription = nostrService.subscribe(liveFilters, {
         _nonce: nonce,
         onevent: async (zapEvent) => {
           // Parse the live zap
@@ -457,7 +458,7 @@ export function useCampaigns() {
     error.value = ''
 
     try {
-      const events = await subscribe(
+      const events = await nostrService.query(
         [
           {
             kinds: [CAMPAIGN_KIND],
@@ -503,7 +504,7 @@ export function useCampaigns() {
       }
 
       // If not in state, fetch from relays
-      const event = await nostrRelayManager.getEvent({
+      const event = await nostrService.queryOne({
         ids: [eventId],
         kinds: [CAMPAIGN_KIND]
       })
@@ -530,7 +531,10 @@ export function useCampaigns() {
   const handleCampaignEvent = (event) => {
     if (processedEventIds.has(event.id)) return
     processedEventIds.add(event.id)
-
+    if (processedEventIds.size > PROCESSED_IDS_MAX) {
+      const toEvict = Array.from(processedEventIds).slice(0, 200)
+      toEvict.forEach(id => processedEventIds.delete(id))
+    }
     try {
       if (event.kind === CAMPAIGN_KIND) {
         const campaign = processCampaignEvent(event)
@@ -605,7 +609,7 @@ export function useCampaigns() {
   // ── CRUD operations (unchanged) ──────────────────────────────────────────
 
   const publishCampaign = async (campaignData) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -632,7 +636,7 @@ export function useCampaigns() {
         tags.push(['closed_at', closedAtStr])
       }
 
-      const relayUrls = nostrRelayManager.getReadRelays().map(relay => relay.url)
+      const relayUrls = nostrService.getReadRelays().map(relay => relay.url)
       let relaysTag = ['relays']
       if (relayUrls.length > 0) {
         relaysTag.push(...relayUrls)
@@ -648,20 +652,20 @@ export function useCampaigns() {
         content: campaignData.title
       }
 
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      const signedEvent = await signerService.signEvent(eventTemplate)
 
       const isValid = verifyEvent(signedEvent)
       if (!isValid) {
         throw new Error('Event signature verification failed. Please try again.')
       }
 
-      const relayStats = nostrRelayManager.getConnectionStats()
+      const relayStats = nostrService.getConnectionStats()
 
       if (relayStats.writeEnabled === 0) {
         throw new Error('No write-enabled relays available for publishing')
       }
 
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
 
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
@@ -687,7 +691,7 @@ export function useCampaigns() {
   }
 
   const editCampaign = async (campaignId, updatedCampaignData) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -723,7 +727,7 @@ export function useCampaigns() {
   }
 
   const deleteCampaign = async (campaignId) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -738,14 +742,14 @@ export function useCampaigns() {
         content: 'Deleting campaign'
       }
 
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      const signedEvent = await signerService.signEvent(eventTemplate)
 
       const isValid = verifyEvent(signedEvent)
       if (!isValid) {
         throw new Error('Event signature verification failed')
       }
 
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
 
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
@@ -847,6 +851,7 @@ export function useCampaigns() {
     } else {
       userCampaigns.value = []
       stopCampaignZapAggregation()
+      if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null }
       processedEventIds.clear()
       campaignAggregatedZaps.clear()
       unregisterRefresh('campaigns')

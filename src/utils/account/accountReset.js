@@ -2,8 +2,8 @@
 // Handles atomic clearing and re-initialization of NWC and Nostr account data
 
 import { initializeNWC } from '../wallet/nwcClient.js'
-import { nostrRelayManager } from '../network/nostrRelayManager.js'
-import { npubEncode } from 'nostr-tools/nip19'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { npubEncode } from '../../services/nostr/nostrImports.js'
 
 // Default reliable relays for fresh initialization
 const DEFAULT_RELAYS = [
@@ -66,7 +66,7 @@ export const clearNostrData = () => {
     ]
     
     // Close all relay connections
-    nostrRelayManager.cleanup()
+    nostrService.cleanup()
     
     // Remove all Nostr related keys
     nostrKeys.forEach(key => {
@@ -172,7 +172,7 @@ export const initializeNostrAccount = async (pubkey, customRelays = null) => {
     localStorage.setItem('nostrRelays', JSON.stringify(relays))
     
     // Initialize relay manager with the relays
-    await nostrRelayManager.initialize(relays)
+    await nostrService.initialize(relays)
     
     console.log('✅ Nostr account initialized successfully')
     return { success: true, userData, relays }
@@ -237,7 +237,7 @@ export const performCompleteReset = async () => {
     
     // Clean up relay manager
     try {
-      nostrRelayManager.cleanup()
+      nostrService.cleanup()
       console.log('✅ Cleaned up relay manager')
     } catch (err) {
       console.warn('⚠️ Failed to clean up relay manager:', err)
@@ -301,7 +301,7 @@ export const verifyConnectionStatus = async () => {
     }
     
     // Check relay manager status
-    const relayStats = nostrRelayManager.getConnectionStats()
+    const relayStats = nostrService.getConnectionStats()
     
     return {
       nwc: {
@@ -316,7 +316,7 @@ export const verifyConnectionStatus = async () => {
         relays: nostrRelays.length
       },
       relayManager: {
-        initialized: nostrRelayManager.isInitialized,
+        initialized: nostrService.isInitialized,
         connectedRelays: relayStats.connected,
         totalRelays: relayStats.total,
         writeEnabled: relayStats.writeEnabled,

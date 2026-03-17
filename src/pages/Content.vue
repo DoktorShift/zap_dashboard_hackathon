@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, onUnmounted, watch } from 'vue'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../services/nostr/nostrImports.js'
 import { formatSatsShort } from '../utils/format.js'
 import {
   IconFileText,

@@ -1,8 +1,9 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
 import { useContentZaps } from './useContentZaps.js'
-import { verifyEvent } from 'nostr-tools/pure'
+import { verifyEvent } from '../../services/nostr/nostrImports.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 
 // Global state for notes
@@ -11,7 +12,8 @@ const isFetchingNotes = ref(false)
 const isPublishing = ref(false)
 const error = ref('')
 let currentSubscription = null // Track current subscription
-const processedEventIds = new Set() // Track processed event IDs to prevent duplicates
+const processedEventIds = new Set()
+const PROCESSED_IDS_MAX = 1000
 let fetchTimeout = null // Track fetch timeout
 let notesCleanupInterval = null // Track cleanup interval (module-scoped, not window)
 const trackedZapNoteIds = new Set() // Track which notes already have zap tracking started
@@ -82,7 +84,7 @@ export function useNostrNotes() {
     }
 
     try {
-      await nostrRelayManager.ready()
+      await nostrService.ready()
     } catch (err) {
       console.warn('[useNostrNotes] Relay manager not ready:', err.message)
       return
@@ -109,7 +111,7 @@ export function useNostrNotes() {
 
       // Subscribe to user's kind:1 events (notes) and kind:5 deletion events
       // Increased limit for users with many notes
-      currentSubscription = nostrRelayManager.subscribeToEvents([
+      currentSubscription = nostrService.subscribe([
         {
           kinds: [1], // Text notes
           authors: [currentUser.value.pubkey],
@@ -130,9 +132,12 @@ export function useNostrNotes() {
             return
           }
           
-          // Mark this event as processed
           processedEventIds.add(event.id)
-          
+          if (processedEventIds.size > PROCESSED_IDS_MAX) {
+            const toEvict = Array.from(processedEventIds).slice(0, 200)
+            toEvict.forEach(id => processedEventIds.delete(id))
+          }
+
           if (event.kind === 1) {
             // Handle text note events
             // Check if we already have this note by ID
@@ -229,7 +234,7 @@ export function useNostrNotes() {
 
   // Publish note to Nostr
   const publishNote = async (content, tags = [], pTags = []) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -266,7 +271,7 @@ export function useNostrNotes() {
       console.log('Signing note event...')
       
       // Sign the event using the browser extension
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      const signedEvent = await signerService.signEvent(eventTemplate)
       
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
@@ -277,7 +282,7 @@ export function useNostrNotes() {
       console.log('Publishing note to relays...')
 
       // Publish to Nostr relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
 
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
@@ -334,7 +339,7 @@ export function useNostrNotes() {
     // In Nostr, we can't actually update events, so we publish a new one
     // and mark the old one as deleted with a kind:5 event
     
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -371,7 +376,7 @@ export function useNostrNotes() {
       console.log('Signing updated note event...')
       
       // Sign the event using the browser extension
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      const signedEvent = await signerService.signEvent(eventTemplate)
       
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
@@ -382,7 +387,7 @@ export function useNostrNotes() {
       console.log('Publishing updated note to relays...')
 
       // Publish to Nostr relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
 
       if (result.successful === 0) {
         throw new Error('Failed to publish to any relays')
@@ -409,7 +414,7 @@ export function useNostrNotes() {
       }
 
       // Sign the deletion event
-      const signedDeletionEvent = await window.nostr.signEvent(deletionEvent)
+      const signedDeletionEvent = await signerService.signEvent(deletionEvent)
       
       // Verify the signed deletion event
       const isDeletionValid = verifyEvent(signedDeletionEvent)
@@ -418,7 +423,7 @@ export function useNostrNotes() {
       }
 
       // Publish deletion event to Nostr relays
-      const deletionResult = await nostrRelayManager.publishEvent(signedDeletionEvent)
+      const deletionResult = await nostrService.publish(signedDeletionEvent)
       
       if (deletionResult.successful > 0) {
         console.log('✅ Deletion event published successfully for old note')
@@ -475,7 +480,7 @@ export function useNostrNotes() {
 
   // Delete note (publish kind:5 deletion event)
   const deleteNote = async (noteId) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -491,7 +496,7 @@ export function useNostrNotes() {
       }
 
       // Sign the deletion event
-      const signedEvent = await window.nostr.signEvent(deletionEvent)
+      const signedEvent = await signerService.signEvent(deletionEvent)
       
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
@@ -500,7 +505,7 @@ export function useNostrNotes() {
       }
 
       // Publish to Nostr relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
 
       if (result.successful > 0) {
         // Remove from local state

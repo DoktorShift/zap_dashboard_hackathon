@@ -939,11 +939,10 @@ import { useCampaigns } from '../composables/campaigns/useCampaigns.js'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useNostrConnections } from '../composables/core/useNostrConnections.js'
 import { useNotifications } from '../composables/core/useNotifications.js'
-import { nostrRelayManager } from '../utils/network/nostrRelayManager.js'
-import { makeZapRequest } from 'nostr-tools/nip57'
+import { nostrService } from '../services/nostr/NostrService.js'
+import { signerService } from '../services/nostr/SignerService.js'
+import { makeZapRequest, decodeLnurl, nip19 } from '../services/nostr/nostrImports.js'
 import { payInvoice } from '../utils/wallet/nwcClient.js'
-import { bech32 } from '@scure/base'
-import * as nip19 from 'nostr-tools/nip19'
 import CampaignShareModal from '../components/campaigns/CampaignShareModal.vue'
 import UserProfileModal from '../components/modals/UserProfileModal.vue'
 
@@ -1027,7 +1026,7 @@ const loadCampaign = async () => {
 // Fetch author profile
 const fetchAuthorProfile = async (pubkey) => {
   try {
-    const authorEvent = await nostrRelayManager.getEvent({
+    const authorEvent = await nostrService.queryOne({
       kinds: [0],
       authors: [pubkey],
       limit: 1
@@ -1277,7 +1276,7 @@ const generateInvoice = async () => {
       }
     } else {
       // Fallback: fetch from relay only if no cached lightning data
-      profileEvent = await nostrRelayManager.getEvent({
+      profileEvent = await nostrService.queryOne({
         kinds: [0],
         authors: [campaignAuthor.value.pubkey],
         limit: 1
@@ -1323,10 +1322,10 @@ const generateInvoice = async () => {
     zapRequest.tags.push(['e', campaign.value.id])
 
     // NIP-57 requires the zap request to be signed before sending
-    if (!window.nostr) {
+    if (!signerService.isExtensionAvailable()) {
       throw new Error('No Nostr signer available. Please install a NIP-07 extension.')
     }
-    const signedZapRequest = await window.nostr.signEvent(zapRequest)
+    const signedZapRequest = await signerService.signEvent(zapRequest)
 
     // Get invoice from zap endpoint
     const zapRequestString = JSON.stringify(signedZapRequest)
@@ -1421,9 +1420,7 @@ async function getZapEndpoint(metadata) {
     if (lud06) {
       // Decode bech32 lud06 to get LNURL
       try {
-        const { words } = bech32.decode(lud06, 1000)
-        const data = bech32.fromWords(words)
-        lnurl = new TextDecoder().decode(new Uint8Array(data))
+        lnurl = decodeLnurl(lud06)
       } catch (decodeError) {
         console.error('Failed to decode lud06:', decodeError)
         throw new Error('Invalid lud06 format')

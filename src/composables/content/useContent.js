@@ -1,9 +1,10 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useContentZaps } from './useContentZaps.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
 import { useNostrLongForm } from './useNostrLongForm.js'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
+import { finalizeEvent, verifyEvent } from '../../services/nostr/nostrImports.js'
 import { useMentions } from './useMentions.js'
 
 // Content types
@@ -271,7 +272,7 @@ export function useContent() {
       const contentToDelete = contentItems.value[index]
       
       // If content was published to Nostr, publish a deletion request
-      if (contentToDelete.nostrEventId && window.nostr) {
+      if (contentToDelete.nostrEventId && signerService.isExtensionAvailable()) {
         try {
           console.log('Publishing deletion request for content:', contentToDelete.nostrEventId)
           
@@ -284,7 +285,7 @@ export function useContent() {
           }
 
           // Sign the deletion event
-          const signedDeletionEvent = await window.nostr.signEvent(deletionEvent)
+          const signedDeletionEvent = await signerService.signEvent(deletionEvent)
           
           // Verify the signed deletion event
           const isDeletionValid = verifyEvent(signedDeletionEvent)
@@ -292,7 +293,7 @@ export function useContent() {
             console.warn('Deletion event signature verification failed, but continuing with local deletion...')
           } else {
             // Publish deletion event to Nostr relays
-            const deletionResult = await nostrRelayManager.publishEvent(signedDeletionEvent)
+            const deletionResult = await nostrService.publish(signedDeletionEvent)
             
             if (deletionResult.successful > 0) {
               console.log('✅ Deletion request published successfully to', deletionResult.successful, 'relays')
@@ -356,7 +357,7 @@ export function useContent() {
 
   // Enhanced Nostr publishing functionality
   const publishToNostr = async (contentId) => {
-    if (!isAuthenticated.value || !window.nostr) {
+    if (!isAuthenticated.value || !signerService.isExtensionAvailable()) {
       throw new Error('Nostr authentication required')
     }
 
@@ -371,7 +372,7 @@ export function useContent() {
       publishingProgress.value = 25
 
       // Check relay connections
-      const stats = nostrRelayManager.getConnectionStats()
+      const stats = nostrService.getConnectionStats()
       if (stats.writeEnabled === 0) {
         throw new Error('No write-enabled relays available. Please check your relay configuration.')
       }
@@ -407,7 +408,7 @@ export function useContent() {
       publishingProgress.value = 50
 
       // Sign the event
-      const signedEvent = await window.nostr.signEvent(eventTemplate)
+      const signedEvent = await signerService.signEvent(eventTemplate)
       
       // Verify the signed event
       const isValid = verifyEvent(signedEvent)
@@ -419,7 +420,7 @@ export function useContent() {
       publishingProgress.value = 75
 
       // Publish to relays
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
       
       publishingProgress.value = 100
 

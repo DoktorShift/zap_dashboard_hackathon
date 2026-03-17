@@ -32,8 +32,9 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useAudience } from '../composables/audience/useAudience.js'
-import { nostrRelayManager } from '../utils/network/nostrRelayManager.js'
-import { verifyEvent } from 'nostr-tools/pure'
+import { nostrService } from '../services/nostr/NostrService.js'
+import { signerService } from '../services/nostr/SignerService.js'
+import { verifyEvent } from '../services/nostr/nostrImports.js'
 import ProfileCard from '../components/profile/ProfileCard.vue'
 import ProfileModal from '../components/modals/ProfileModal.vue'
 import FollowListModal from '../components/audience/FollowListModal.vue'
@@ -208,7 +209,7 @@ const handleBulkFollow = async () => {
     console.log('Starting bulk follow operation for', selectedUsers.value.size, 'users')
     
     const kind3Filters = { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
-    const currentFollowingEvent = await nostrRelayManager.getEvent(kind3Filters)
+    const currentFollowingEvent = await nostrService.queryOne(kind3Filters)
 
     // Extract current follows and preserve relay config in content field
     let currentFollows = []
@@ -240,20 +241,20 @@ const handleBulkFollow = async () => {
     }
 
     // Sign and publish the event
-    const signedEvent = await window.nostr.signEvent(eventTemplate)
+    const signedEvent = await signerService.signEvent(eventTemplate)
     
     if (!verifyEvent(signedEvent)) {
       throw new Error('Event signature verification failed')
     }
 
-    const result = await nostrRelayManager.publishEvent(signedEvent)
+    const result = await nostrService.publish(signedEvent)
     
     if (result.successful === 0) {
       throw new Error('Failed to publish to any relays')
     }
 
     // Invalidate cached kind 3 so subsequent operations see updated list
-    nostrRelayManager.clearEventCache(kind3Filters)
+    nostrService.clearEventCache(kind3Filters)
 
     // Update local state
     following.value = mergedFollows

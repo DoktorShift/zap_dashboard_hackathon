@@ -1,8 +1,8 @@
 import { ref, computed } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import * as nip19 from 'nostr-tools/nip19'
-import { queryProfile, isNip05 } from 'nostr-tools/nip05'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { nip19 } from '../../services/nostr/nostrImports.js'
+import { queryProfile, isNip05 } from '../../services/nostr/nostrImports.js'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
 
 // Cache for user search results
@@ -41,7 +41,7 @@ export function useMentions() {
     
     try {
       
-      const contactEvent = await nostrRelayManager.getEvent({
+      const contactEvent = await nostrService.queryOne({
         kinds: [3], // Contact list (NIP-02)
         authors: [currentUser.value.pubkey],
         limit: 1
@@ -282,7 +282,7 @@ export function useMentions() {
       const events = []
       
       // Subscribe with NIP-50 search filter
-      const sub = nostrRelayManager.subscribeToEvents([{
+      const sub = nostrService.subscribe([{
         kinds: [0], // Profile metadata
         search: query, // NIP-50 search field
         limit: limit

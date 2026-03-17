@@ -18,7 +18,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useFollowLists } from '../../composables/audience/useFollowLists.js'
 import { useAudience } from '../../composables/audience/useAudience.js'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
 const props = defineProps({

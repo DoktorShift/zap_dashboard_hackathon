@@ -1,9 +1,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
-import * as nip19 from 'nostr-tools/nip19'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nip19 } from '../../services/nostr/nostrImports.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { signerService } from '../../services/nostr/SignerService.js'
 import { initializeNWC } from '../../utils/wallet/nwcClient.js'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
 import { DEFAULT_RELAY_CONFIGS_WITH_STATUS } from '../../utils/constants.js'
+import { stopRefreshCycle } from '../../utils/refreshCycle.js'
 
 // Global state for Nostr authentication
 const currentUser = ref(null)
@@ -77,7 +79,7 @@ const saveRelaysToStorage = (relayData) => {
 
 // Sync relay statuses from relay manager
 const syncRelayStatuses = () => {
-  const managerStatuses = nostrRelayManager.getRelayStatuses()
+  const managerStatuses = nostrService.getRelayStatuses()
   
   // Update userRelays with current statuses
   userRelays.value = userRelays.value.map(relay => {
@@ -200,7 +202,7 @@ const checkRelayStatus = async (url) => {
 
   try {
     // The relay manager handles connection checking
-    await nostrRelayManager.addRelay(url, { read: relay.read, write: relay.write })
+    await nostrService.addRelay(url, { read: relay.read, write: relay.write })
     return true
   } catch (error) {
     console.error(`Failed to check relay ${url}:`, error.message || error)
@@ -214,12 +216,12 @@ const checkAllRelayStatuses = async () => {
 
   try {
     // Initialize relay manager with current relays
-    await nostrRelayManager.initialize(userRelays.value)
+    await nostrService.initialize(userRelays.value)
 
     // Sync statuses back to our state
     syncRelayStatuses()
 
-    const stats = nostrRelayManager.getConnectionStats()
+    const stats = nostrService.getConnectionStats()
     
     if (stats.connected === 0) {
       relayError.value = 'No relays are currently reachable'
@@ -274,7 +276,7 @@ const addRelay = async (url, options = { read: true, write: true }) => {
   
   // Add to relay manager
   try {
-    await nostrRelayManager.addRelay(url, options)
+    await nostrService.addRelay(url, options)
     syncRelayStatuses()
   } catch (error) {
     // Remove from userRelays if failed to add to manager
@@ -300,7 +302,7 @@ const removeRelay = (url) => {
   saveRelaysToStorage(userRelays.value)
   
   // Remove from relay manager
-  nostrRelayManager.removeRelay(url)
+  nostrService.removeRelay(url)
   
   return true
 }
@@ -311,7 +313,7 @@ const fetchUserRelayList = async (pubkey) => {
 
   try {
     // Query for kind 10002 (NIP-65 relay list) from the user
-    const relayListEvent = await nostrRelayManager.getEvent({
+    const relayListEvent = await nostrService.queryOne({
       kinds: [10002],
       authors: [pubkey],
       limit: 1
@@ -380,7 +382,7 @@ const updateRelaysFromNip65 = async (pubkey) => {
 
     // Update relay manager with new relays (don't re-initialize, just add new ones)
     try {
-      await nostrRelayManager.updateRelays(nip65Relays)
+      await nostrService.updateRelays(nip65Relays)
     } catch (error) {
       console.warn('Failed to update relay manager:', error)
     }
@@ -403,7 +405,7 @@ const startUserEventListener = (pubkey) => {
 
   try {
     // Subscribe to user's events using relay manager
-    const sub = nostrRelayManager.subscribeToEvents([
+    const sub = nostrService.subscribe([
       {
         kinds: [1, 6, 7], // Notes, reposts, reactions
         authors: [pubkey],
@@ -440,7 +442,7 @@ const isProfileComplete = (userData) => {
 // Wait for relay manager to be ready (with timeout)
 const waitForRelayManager = async (timeoutMs = 5000) => {
   const result = await Promise.race([
-    nostrRelayManager.ready().then(() => true),
+    nostrService.ready().then(() => true),
     new Promise(resolve => setTimeout(() => resolve(false), timeoutMs))
   ])
   if (!result) console.warn('Timeout waiting for relay manager')
@@ -455,7 +457,7 @@ const login = async () => {
   }
 
   // Check for NIP-07 extension
-  if (!window.nostr) {
+  if (!signerService.isExtensionAvailable()) {
     const error = 'No Nostr extension found. Please install Alby, nos2x, or another NIP-07 browser extension.'
     authError.value = error
     throw new Error(error)
@@ -466,7 +468,7 @@ const login = async () => {
 
   try {
     // Get public key from extension
-    const pubkey = await window.nostr.getPublicKey()
+    const pubkey = await signerService.getPublicKey()
 
     // Check if this user is already stored with complete profile
     const existingUser = localStorage.getItem(NOSTR_USER_KEY)
@@ -477,7 +479,7 @@ const login = async () => {
           currentUser.value = userData
 
           // Background tasks (don't block — relay manager ready() is awaited internally)
-          nostrRelayManager.ready().then(() => {
+          nostrService.ready().then(() => {
             startUserEventListener(pubkey)
             updateRelaysFromNip65(pubkey).catch(e => {
               console.warn('NIP-65 relay update failed:', e.message)
@@ -496,7 +498,7 @@ const login = async () => {
     }
 
     // Check if relay manager is ready before fetching
-    if (!nostrRelayManager.isInitialized) {
+    if (!nostrService.isInitialized) {
       const ready = await waitForRelayManager(5000)
       if (!ready) {
         // If we have a stored user (even incomplete), return it
@@ -544,7 +546,7 @@ const login = async () => {
 // Schedule a profile refresh when relay manager becomes ready
 const scheduleProfileRefresh = async (pubkey) => {
   try {
-    await nostrRelayManager.ready()
+    await nostrService.ready()
     await fetchAndStoreProfile(pubkey)
   } catch (e) {
     console.warn('Failed scheduled profile refresh:', e.message)
@@ -601,9 +603,10 @@ const logout = () => {
       userEventSub = null
     }
 
-    // Clean up NWC client and relay manager
+    // Stop refresh cycle, NWC client, and relay manager
+    stopRefreshCycle()
     initializeNWC(null)
-    nostrRelayManager.cleanup()
+    nostrService.cleanup()
 
     // Reset initialization flag for clean re-initialization after reload
     isInitialized = false
@@ -635,10 +638,10 @@ const initAuthAndRelays = async () => {
     }
 
     // Initialize relay manager
-    await nostrRelayManager.initialize(userRelays.value)
+    await nostrService.initialize(userRelays.value)
 
     // Set up relay manager event listeners
-    nostrRelayManager.addEventListener((event) => {
+    nostrService.addEventListener((event) => {
       if (event.type === 'relayConnected' || event.type === 'relayDisconnected' ||
           event.type === 'relayHealthy' || event.type === 'relayUnhealthy') {
         syncRelayStatuses()
@@ -649,9 +652,9 @@ const initAuthAndRelays = async () => {
     syncRelayStatuses()
 
     // If user is stored and extension is available, verify/restore session
-    if (hasUser && window.nostr?.getPublicKey) {
+    if (hasUser && signerService.isExtensionAvailable()) {
       try {
-        const pubkey = await window.nostr.getPublicKey()
+        const pubkey = await signerService.getPublicKey()
         if (currentUser.value?.pubkey === pubkey) {
           // Check if profile is complete (has picture)
           if (!isProfileComplete(currentUser.value)) {
@@ -683,7 +686,7 @@ const initAuthAndRelays = async () => {
     }
 
     // Start event listener for stored-only user (no extension verified above)
-    if (currentUser.value && !window.nostr?.getPublicKey) {
+    if (currentUser.value && !signerService.isExtensionAvailable()) {
       setTimeout(() => {
         startUserEventListener(currentUser.value.pubkey)
       }, 2000)

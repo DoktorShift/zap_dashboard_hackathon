@@ -1,5 +1,5 @@
 import { ref, reactive, computed, triggerRef } from 'vue'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 
 // Global badge cache
 const badgeDefinitions = ref(new Map()) // Map<badgeId, badgeDefinition>
@@ -157,7 +157,7 @@ const fetchBadgeDefinitions = async (badgeRefs) => {
     if (filters.length === 0) return
 
     // Subscribe to badge definition events
-    const sub = nostrRelayManager.subscribeToEvents(filters, {
+    const sub = nostrService.subscribe(filters, {
       onevent: (event) => {
         try {
           const badge = parseBadgeDefinition(event)
@@ -197,7 +197,7 @@ const fetchBadgeAwards = async (badgeRef) => {
       '#a': [badgeRef]
     }
 
-    const sub = nostrRelayManager.subscribeToEvents([filter], {
+    const sub = nostrService.subscribe([filter], {
       onevent: (event) => {
         try {
           const award = parseBadgeAward(event)
@@ -246,7 +246,7 @@ const fetchProfileBadges = async (pubkey) => {
       '#d': ['profile_badges']
     }
 
-    const sub = nostrRelayManager.subscribeToEvents([filter], {
+    const sub = nostrService.subscribe([filter], {
       onevent: (event) => {
         try {
           const profileBadge = parseProfileBadges(event)

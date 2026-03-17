@@ -18,7 +18,7 @@ import {
   IconLoader,
   IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 import BadgeList from '../badges/BadgeList.vue'
 import BadgeDetailModal from '../badges/BadgeDetailModal.vue'
 import UserProfileModal from './UserProfileModal.vue'

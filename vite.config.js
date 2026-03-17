@@ -86,7 +86,7 @@ export default defineConfig({
             output: {
                 manualChunks: {
                     'echarts': ['echarts', 'vue-echarts'],
-                    'nostr-tools': ['nostr-tools'],
+                    'nostr-core': ['nostr-core'],
                     'dicebear': ['@dicebear/core', '@dicebear/collection'],
                     'fullcalendar': ['@fullcalendar/core', '@fullcalendar/vue3', '@fullcalendar/daygrid', '@fullcalendar/timegrid', '@fullcalendar/interaction', '@fullcalendar/list']
                 }

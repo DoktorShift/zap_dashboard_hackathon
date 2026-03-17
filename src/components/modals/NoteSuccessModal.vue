@@ -136,7 +136,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { IconCheck, IconX, IconExternalLink, IconArrowUpRight, IconClock } from '@iconify-prerendered/vue-tabler'
-import { neventEncode, naddrEncode } from 'nostr-tools/nip19'
+import { neventEncode, naddrEncode } from '../../services/nostr/nostrImports.js'
 
 const props = defineProps({
   show: {

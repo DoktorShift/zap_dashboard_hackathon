@@ -12,7 +12,7 @@ import {
   IconBrandReddit
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 
 const props = defineProps({
   show: {

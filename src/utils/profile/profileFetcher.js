@@ -1,5 +1,4 @@
-import { nostrRelayManager } from '../network/nostrRelayManager.js'
-import { subscribe } from '../network/subscribe.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 import {
   PROFILE_CACHE_MAX, PROFILE_CACHE_EVICT,
   PROFILE_FETCH_TIMEOUT, PROFILE_EOSE_GRACE, PROFILE_BATCH_SIZE
@@ -112,7 +111,7 @@ const _fetchProfileFromRelays = async (pubkey) => {
     throw new Error(`Invalid pubkey for profile fetch: ${pubkey}`)
   }
 
-  const event = await nostrRelayManager.getEvent({
+  const event = await nostrService.queryOne({
     kinds: [0], authors: [pubkey], limit: 1
   })
 
@@ -134,7 +133,7 @@ export const batchFetchProfiles = async (pubkeys = [], { batchSize = PROFILE_BAT
   for (let i = 0; i < missing.length; i += batchSize) {
     const batch = missing.slice(i, i + batchSize)
 
-    const events = await subscribe(
+    const events = await nostrService.query(
       [{ kinds: [0], authors: batch, limit: batch.length }],
       { timeout: timeoutMs, eoseGrace: PROFILE_EOSE_GRACE }
     )

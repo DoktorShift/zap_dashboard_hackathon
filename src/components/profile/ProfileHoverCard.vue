@@ -11,7 +11,7 @@ import BadgeList from '../badges/BadgeList.vue'
 import { useBadges } from '../../composables/social/useBadges.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 
 const { badgeUpdateTrigger } = useBadges()
 

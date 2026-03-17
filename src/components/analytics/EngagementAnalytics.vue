@@ -12,7 +12,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useEngagementMetrics } from '../../composables/analytics/useEngagementMetrics.js'
 import { filterZapsByTimeRange } from '../../utils/core/timeFilter.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 import ZapEventModal from '../modals/ZapEventModal.vue'
 
 const combinedZapData = inject('combinedZapData')
@@ -37,7 +37,7 @@ const fetchNoteContent = async (eventId) => {
   fetchingNotes.value.add(eventId)
 
   try {
-    const noteEvent = await nostrRelayManager.getEvent({
+    const noteEvent = await nostrService.queryOne({
       ids: [eventId],
       kinds: [1] // Text notes
     })

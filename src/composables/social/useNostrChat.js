@@ -1,9 +1,8 @@
 import { ref, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { nip04, nip44, hexToBytes } from 'nostr-core'
-import { finalizeEvent, verifyEvent } from 'nostr-tools/pure'
-import * as nip19 from 'nostr-tools/nip19'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { nip04, nip44, nip19, hexToBytes, finalizeEvent, verifyEvent } from '../../services/nostr/nostrImports.js'
+import { signerService } from '../../services/nostr/SignerService.js'
 import { fetchProfile } from '../../utils/profile/profileFetcher.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 
@@ -142,13 +141,16 @@ const fetchUserProfile = async (pubkey) => {
 
 // Unified encrypt helper — prefers NIP-44, falls back to NIP-04
 const encryptMessage = async (content, recipientPubkey, currentUser) => {
-  if (window.nostr?.nip44?.encrypt) {
+  // Try extension signer (NIP-44 preferred, NIP-04 fallback)
+  if (signerService.isExtensionAvailable()) {
     try {
-      return await window.nostr.nip44.encrypt(recipientPubkey, content)
+      const { ciphertext } = await signerService.encrypt(recipientPubkey, content, 'nip44')
+      return ciphertext
     } catch (e) {
-      console.warn('NIP-44 extension encrypt failed, trying fallback:', e.message)
+      console.warn('Extension encrypt failed, trying local fallback:', e.message)
     }
   }
+  // Local key fallback: NIP-44
   if (currentUser.privkey) {
     try {
       const convKey = getOrCreateConversationKey(currentUser.privkey, recipientPubkey)
@@ -156,17 +158,8 @@ const encryptMessage = async (content, recipientPubkey, currentUser) => {
     } catch (e) {
       console.warn('NIP-44 local encrypt failed, trying NIP-04:', e.message)
     }
-  }
-  if (window.nostr?.nip04?.encrypt) {
     try {
-      return await window.nostr.nip04.encrypt(recipientPubkey, content)
-    } catch (e) {
-      console.warn('NIP-04 extension encrypt failed:', e.message)
-    }
-  }
-  if (currentUser.privkey) {
-    try {
-      return nip04.encrypt(currentUser.privkey, recipientPubkey, content)
+      return nip04.encrypt(hexToBytes(currentUser.privkey), recipientPubkey, content)
     } catch (e) {
       console.warn('NIP-04 local encrypt failed:', e.message)
     }
@@ -181,16 +174,16 @@ const isNip04Content = (content) => {
 
 // NIP-04 only decrypt chain (extension → local)
 const decryptNip04 = async (content, counterpartyPubkey, currentUser) => {
-  if (window.nostr?.nip04?.decrypt) {
+  if (signerService.isExtensionAvailable()) {
     try {
-      return await window.nostr.nip04.decrypt(counterpartyPubkey, content)
+      return await signerService.decrypt(counterpartyPubkey, content, 'nip04')
     } catch (e) {
       console.warn('NIP-04 extension decrypt failed:', e.message)
     }
   }
   if (currentUser.privkey) {
     try {
-      return nip04.decrypt(currentUser.privkey, counterpartyPubkey, content)
+      return nip04.decrypt(hexToBytes(currentUser.privkey), counterpartyPubkey, content)
     } catch (e) {
       console.warn('NIP-04 local decrypt failed:', e.message)
     }
@@ -200,9 +193,9 @@ const decryptNip04 = async (content, counterpartyPubkey, currentUser) => {
 
 // NIP-44 only decrypt chain (extension → local)
 const decryptNip44 = async (content, counterpartyPubkey, currentUser) => {
-  if (window.nostr?.nip44?.decrypt) {
+  if (signerService.isExtensionAvailable()) {
     try {
-      return await window.nostr.nip44.decrypt(counterpartyPubkey, content)
+      return await signerService.decrypt(counterpartyPubkey, content, 'nip44')
     } catch (e) {
       console.warn('NIP-44 extension decrypt failed:', e.message)
     }
@@ -333,7 +326,7 @@ export function useNostrChat() {
     }
 
     try {
-      chatSubscription = nostrRelayManager.subscribeToEvents([
+      chatSubscription = nostrService.subscribe([
         {
           kinds: [4],
           '#p': [currentUser.value.pubkey],
@@ -513,9 +506,9 @@ export function useNostrChat() {
       // Sign the event
       let signedEvent
       if (currentUser.value.privkey) {
-        signedEvent = finalizeEvent(eventTemplate, currentUser.value.privkey)
-      } else if (window.nostr?.signEvent) {
-        signedEvent = await window.nostr.signEvent(eventTemplate)
+        signedEvent = finalizeEvent(eventTemplate, hexToBytes(currentUser.value.privkey))
+      } else if (signerService.isExtensionAvailable()) {
+        signedEvent = await signerService.signEvent(eventTemplate)
       } else {
         throw new Error('No signing method available')
       }
@@ -539,7 +532,7 @@ export function useNostrChat() {
       }
 
       // Publish the event
-      const result = await nostrRelayManager.publishEvent(signedEvent)
+      const result = await nostrService.publish(signedEvent)
 
       if (result.successful === 0) {
         // Mark as failed

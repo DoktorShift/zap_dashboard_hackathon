@@ -1,5 +1,5 @@
 import { ref, reactive, computed, watch } from 'vue'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { useNotifications } from '../core/useNotifications.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
@@ -87,7 +87,7 @@ const openBatchedSubscription = (getNotificationHandler) => {
   }
 
   try {
-    batchedSubscription = nostrRelayManager.subscribeToEvents(filters, {
+    batchedSubscription = nostrService.subscribe(filters, {
       onevent: async (zapEvent) => {
         const zapData = await createZapData(zapEvent)
         if (!zapData || !zapData.eventId) return

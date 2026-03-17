@@ -1,7 +1,6 @@
 import { ref, computed } from 'vue'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
-import { subscribe } from '../../utils/network/subscribe.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
 import { parseZapReceipt } from '../../utils/zaps/parseZapReceipt.js'
 import { batchFetchProfiles, profileCache } from '../../utils/profile/profileFetcher.js'
 
@@ -24,7 +23,7 @@ export function useZapLeaderboard() {
   // Step 1: Fetch the root event
   const fetchRootEvent = async (eventId) => {
     progress.value = 'Fetching event...'
-    const event = await nostrRelayManager.getEvent({ ids: [eventId] })
+    const event = await nostrService.queryOne({ ids: [eventId] })
     if (!event) throw new Error('Event not found on relays')
     rootEvent.value = event
     return event
@@ -36,7 +35,7 @@ export function useZapLeaderboard() {
     const allReplies = new Map()
 
     // Pass 1: direct replies referencing the root event
-    const directReplies = await subscribe(
+    const directReplies = await nostrService.query(
       [{ kinds: [1], '#e': [rootEventId], limit: 500 }],
       { timeout: 20000, eoseGrace: 3000 }
     )
@@ -53,7 +52,7 @@ export function useZapLeaderboard() {
       // Batch in chunks of 50 to avoid oversized filters
       for (let i = 0; i < directIds.length; i += 50) {
         const chunk = directIds.slice(i, i + 50)
-        const nested = await subscribe(
+        const nested = await nostrService.query(
           [{ kinds: [1], '#e': chunk, limit: 500 }],
           { timeout: 15000, eoseGrace: 2000 }
         )
@@ -80,7 +79,7 @@ export function useZapLeaderboard() {
         : `Collecting zaps for ${eventIds.length} events...`
       progress.value = label
 
-      const events = await subscribe(
+      const events = await nostrService.query(
         [{ kinds: [9735], '#e': chunk, limit: 2000 }],
         { timeout: 25000, eoseGrace: 3000 }
       )
@@ -92,7 +91,7 @@ export function useZapLeaderboard() {
     if (authorPubkey) {
       progress.value = 'Cross-checking zaps by author...'
       const eventIdSet = new Set(eventIds)
-      const pTagEvents = await subscribe(
+      const pTagEvents = await nostrService.query(
         [{ kinds: [9735], '#p': [authorPubkey], limit: 2000 }],
         { timeout: 20000, eoseGrace: 3000 }
       )
