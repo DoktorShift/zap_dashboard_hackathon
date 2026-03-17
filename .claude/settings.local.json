@@ -26,7 +26,9 @@
       "Bash(for f:*)",
       "Bash(for file:*)",
       "Bash(cat:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(npm info:*)",
+      "Read(//Users/drshift/projects/nostr-core/**)"
     ]
   }
 }
