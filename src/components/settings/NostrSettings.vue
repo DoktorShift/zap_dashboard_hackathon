@@ -50,12 +50,13 @@ const relayFormError = ref('')
 const refreshingIndividualRelay = ref({})
 const selectedRelayUrl = ref(null)
 const loadingRelayInfo = ref(false)
+const relayInfoError = ref(false)
 
 // Initialize on mount
 onMounted(async () => {
   await initAuthAndRelays()
   // Fetch relay info for all connected relays in background
-  fetchAllInfo().catch(() => {})
+  fetchAllInfo().catch(() => { relayInfoError.value = true })
 })
 
 // Handle add relay
@@ -92,8 +93,9 @@ const handleRemoveRelay = async (url) => {
 
 // Handle refresh all relays
 const handleRefreshRelays = async () => {
+  relayInfoError.value = false
   await checkAllRelayStatuses()
-  fetchAllInfo().catch(() => {})
+  fetchAllInfo().catch(() => { relayInfoError.value = true })
 }
 
 // Handle refresh single relay
@@ -186,7 +188,7 @@ const getNipLabel = (nip) => nipDescriptions[nip] || `NIP-${nip}`
     <!-- Not Authenticated -->
     <div v-if="!isAuthenticated" class="max-w-md mx-auto">
       <div class="bg-gray-50 rounded-2xl p-8 text-center">
-        <IconUser class="w-12 h-12 mx-auto text-gray-300 mb-3" />
+        <IconUser class="w-12 h-12 mx-auto text-gray-400 mb-3" />
         <h3 class="text-lg font-semibold text-gray-900 mb-2">Connect First</h3>
         <p class="text-sm text-gray-500">Connect your Nostr identity on the Profile tab to manage relays.</p>
       </div>
@@ -205,6 +207,7 @@ const getNipLabel = (nip) => nipDescriptions[nip] || `NIP-${nip}`
               <h3 class="text-base font-semibold text-gray-900">Relay Network</h3>
               <p class="text-xs text-gray-500">
                 {{ connectedRelays.length }}/{{ userRelays.length }} connected
+                <span v-if="relayInfoError" class="text-amber-600"> &middot; info unavailable</span>
               </p>
             </div>
           </div>
@@ -265,7 +268,7 @@ const getNipLabel = (nip) => nipDescriptions[nip] || `NIP-${nip}`
           <!-- Relay List -->
           <div class="space-y-1.5">
             <div v-if="userRelays.length === 0" class="text-center py-8">
-              <IconPlugConnected class="w-12 h-12 mx-auto text-gray-300 mb-2" />
+              <IconPlugConnected class="w-12 h-12 mx-auto text-gray-400 mb-2" />
               <p class="text-sm text-gray-500">No relays configured</p>
             </div>
 

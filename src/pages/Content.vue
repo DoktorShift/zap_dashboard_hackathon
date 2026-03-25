@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, onUnmounted, watch } from 'vue'
 import { nip19 } from '../services/nostr/nostrImports.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { formatSatsShort } from '../utils/format.js'
 import {
   IconFileText,
@@ -219,7 +220,7 @@ const handlePublishToNostr = async (content) => {
     showSuccessModal.value = true
   } catch (error) {
     console.error('Failed to publish to Nostr:', error)
-    showStatus('Failed to publish to Nostr: ' + error.message)
+    showStatus(getUserFriendlyError(error))
   }
 }
 
@@ -231,7 +232,7 @@ const handleNostrLogin = async () => {
     if (error.message.includes('No Nostr extension')) {
       showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      showStatus('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(error))
     }
   }
 }
@@ -886,7 +887,7 @@ onUnmounted(() => {
               <!-- Compact Zap List -->
               <div class="space-y-2 max-h-48 overflow-y-auto">
                 <div v-if="!selectedContent.zaps || selectedContent.zaps.length === 0" class="text-center py-6">
-                  <IconBolt class="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                  <IconBolt class="w-8 h-8 mx-auto text-gray-400 mb-2" />
                   <p class="text-sm text-gray-500">No zaps yet</p>
                 </div>
 

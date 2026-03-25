@@ -14,6 +14,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
 import { parseInvoiceBasic, formatInvoiceAmount, validateInvoice, truncateInvoice } from '../utils/wallet/invoiceUtils.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { payInvoice } from '../utils/wallet/nwcClient.js'
 import { useNotifications } from '../composables/core/useNotifications.js'
 import { useNostrConnections } from '../composables/core/useNostrConnections.js'
@@ -207,7 +208,7 @@ const payThisInvoice = async () => {
     }, 3000)
     
   } catch (err) {
-    error.value = 'Payment failed: ' + err.message
+    error.value = getUserFriendlyError(err)
     paymentStatus.value = 'error'
     handlePaymentError(err)
   } finally {
@@ -247,7 +248,7 @@ const openInWallet = () => {
         <h3 class="text-lg font-semibold text-red-900 mb-2">Invalid Invoice</h3>
         <p class="text-red-700 mb-4">{{ error }}</p>
         <button @click="goBack" class="btn-secondary">
-          Go Back
+          Go back
         </button>
       </div>
     </div>

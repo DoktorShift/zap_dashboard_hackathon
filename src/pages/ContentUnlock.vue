@@ -17,7 +17,7 @@
         <p class="text-red-600 mb-4">{{ error }}</p>
         <button @click="goBack" class="btn-primary">
           <IconArrowLeft class="w-4 h-4" />
-          Go Back
+          Go back
         </button>
       </div>
 
@@ -156,7 +156,7 @@
         <div class="text-center">
           <button @click="goBack" class="btn-secondary">
             <IconArrowLeft class="w-4 h-4" />
-            Back to Dashboard
+            Back to dashboard
           </button>
         </div>
       </div>
@@ -165,8 +165,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, inject, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, inject, watch } from 'vue'
 import { nip19 } from '../services/nostr/nostrImports.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { 
   IconArrowLeft, 
   IconBolt, 
@@ -235,9 +236,8 @@ const fetchFullContent = async (paymentProof) => {
     fullContent.value = contentData.content
     
     // Content decrypted if contentData.encrypted is truthy
-  } catch (error) {
-    console.error('Failed to fetch full content:', error)
-    error.value = 'Failed to load full content: ' + error.message
+  } catch (err) {
+    error.value = getUserFriendlyError(err)
   }
 }
 
@@ -295,7 +295,7 @@ const fetchArticle = async () => {
     
   } catch (err) {
     console.error('Error fetching article:', err)
-    error.value = `Failed to load article: ${err.message}`
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }
@@ -342,7 +342,7 @@ const initiatePayment = async () => {
 
   } catch (err) {
     console.error('Payment error:', err)
-    error.value = `Payment failed: ${err.message}`
+    error.value = getUserFriendlyError(err)
   } finally {
     isProcessingPayment.value = false
   }
@@ -352,6 +352,11 @@ const initiatePayment = async () => {
 const goBack = () => {
   currentPage.value = 'content'
   // Update URL
+  const url = new URL(window.location)
+  url.searchParams.delete('page')
+  url.searchParams.delete('eventId')
+  window.history.pushState({}, '', url)
+}
 
 // Toggle client dropdown
 const toggleClientDropdown = () => {
@@ -405,17 +410,12 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
-  const url = new URL(window.location)
-  url.searchParams.delete('page')
-  url.searchParams.delete('eventId')
-  window.history.pushState({}, '', url)
-}
 
 // Lifecycle
 onMounted(() => {
   fetchArticle().catch(err => {
     console.error('Failed to fetch article:', err)
-    error.value = `Failed to load article: ${err.message}`
+    error.value = getUserFriendlyError(err)
     isLoading.value = false
   })
 })

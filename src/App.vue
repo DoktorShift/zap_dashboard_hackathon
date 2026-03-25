@@ -5,6 +5,7 @@ import Sidebar from './components/layout/Sidebar.vue'
 import { useContentZaps } from './composables/content/useContentZaps.js'
 import { generateAvatar } from './utils/profile/avatarGenerator.js'
 import { profileService } from './services/nostr/ProfileService.js'
+import { getUserFriendlyError } from './services/nostr/errors.js'
 import { useUserZaps } from './composables/content/useUserZaps.js'
 import TopBar from './components/layout/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
@@ -154,7 +155,20 @@ const {
 } = useNostrConnections()
 
 // Use the Nostr auth composable
-const { isAuthenticated, login } = useNostrAuth()
+const { isAuthenticated, isLoading: isLoginLoading, currentUser, userProfile, login } = useNostrAuth()
+
+// Welcome toast after successful login
+const welcomeToast = ref(null)
+let _welcomeTimer = null
+watch(isAuthenticated, (authed, wasAuthed) => {
+  if (authed && !wasAuthed) {
+    const name = userProfile.value?.name || userProfile.value?.display_name || ''
+    const avatar = userProfile.value?.picture || ''
+    welcomeToast.value = { name, avatar }
+    clearTimeout(_welcomeTimer)
+    _welcomeTimer = setTimeout(() => { welcomeToast.value = null }, 3500)
+  }
+})
 
 // Relay connection health
 const { status: relayStatus, isOffline: isRelayOffline, isConnecting: isRelayConnecting, connectionLabel: relayLabel } = useConnectionStatus()
@@ -484,7 +498,7 @@ const refreshZapData = async (force = false, retryCount = 0) => {
     } else if (error.message.includes('relay')) {
       connectionError.value = 'Relay connection failed. Please try reconnecting your wallet.'
     } else {
-      connectionError.value = `Failed to refresh data: ${error.message}`
+      connectionError.value = getUserFriendlyError(error)
     }
     
     // Don't clear existing data on error, just log it
@@ -595,6 +609,7 @@ const startPeriodicHealthCheck = () => {
 // Cleanup on unmount
 onUnmounted(() => {
   clearTimeout(_loginStatusTimer)
+  clearTimeout(_welcomeTimer)
   if (healthCheckInterval) {
     clearInterval(healthCheckInterval)
   }
@@ -675,7 +690,7 @@ const changePage = async (page, tab = null) => {
 
   } catch (error) {
     console.error('Page change error:', error)
-    pageLoadingError.value = `Failed to load page: ${error.message}`
+    pageLoadingError.value = getUserFriendlyError(error)
   } finally {
     isPageLoading.value = false
   }
@@ -756,11 +771,11 @@ const handleHelpClose = () => {
   showHelpModal.value = false
 }
 
-const showLoginError = (error) => {
-  if (error.message.includes('No Nostr extension')) {
+const showLoginError = (err) => {
+  if (err.message?.includes('No Nostr extension')) {
     showLoginStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
   } else {
-    showLoginStatus('Login failed: ' + error.message)
+    showLoginStatus(getUserFriendlyError(err))
   }
 }
 
@@ -991,6 +1006,23 @@ const handleChecklistTaskAction = async (action) => {
           <div v-if="loginError" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0" role="alert" aria-live="assertive">
             <div class="bg-red-50 text-red-800 border border-red-200 rounded-lg px-4 py-3 text-sm font-medium">
               {{ loginError.message }}
+            </div>
+          </div>
+        </transition>
+
+        <!-- Welcome Toast -->
+        <transition name="slide-down">
+          <div v-if="welcomeToast" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0" role="status" aria-live="polite">
+            <div class="bg-white border border-green-200 rounded-xl px-4 py-3 shadow-sm flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full overflow-hidden border border-gray-200 flex-shrink-0 bg-gray-100">
+                <img v-if="welcomeToast.avatar" :src="welcomeToast.avatar" alt="" class="w-full h-full object-cover" @error="$event.target.style.display='none'" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900">
+                  Signed in{{ welcomeToast.name ? ` as ${welcomeToast.name}` : '' }}
+                </p>
+              </div>
+              <div class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0 animate-pulse"></div>
             </div>
           </div>
         </transition>
