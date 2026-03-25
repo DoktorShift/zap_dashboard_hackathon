@@ -166,7 +166,7 @@
 
 <script setup>
 import { ref, onMounted, computed, inject, watch } from 'vue'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../services/nostr/nostrImports.js'
 import { 
   IconArrowLeft, 
   IconBolt, 
@@ -177,7 +177,6 @@ import {
   IconExternalLink,
   IconChevronDown
 } from '@iconify-prerendered/vue-tabler'
-import { SimplePool } from 'nostr-tools/pool'
 import { nwcPaymentHandler } from '../utils/wallet/nwcPayment.js'
 import { contentService } from '../utils/content/contentService.js'
 import { useNostrLongForm } from '../composables/content/useNostrLongForm.js'
@@ -235,9 +234,7 @@ const fetchFullContent = async (paymentProof) => {
     const contentData = await contentService.getFullContent(articleEvent.value.id, paymentProof)
     fullContent.value = contentData.content
     
-    if (contentData.encrypted) {
-      console.log('✅ Content decrypted successfully')
-    }
+    // Content decrypted if contentData.encrypted is truthy
   } catch (error) {
     console.error('Failed to fetch full content:', error)
     error.value = 'Failed to load full content: ' + error.message
@@ -288,7 +285,6 @@ const fetchArticle = async () => {
     }
 
     articleEvent.value = event
-    console.log('Article loaded:', event)
 
     // Check if content was already paid for
     if (isPaidContent.value && contentService.isPaymentVerified(eventId)) {

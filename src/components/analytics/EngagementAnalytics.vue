@@ -12,7 +12,9 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import { useEngagementMetrics } from '../../composables/analytics/useEngagementMetrics.js'
 import { filterZapsByTimeRange } from '../../utils/core/timeFilter.js'
-import { nostrRelayManager } from '../../utils/network/nostrRelayManager.js'
+import { nostrService } from '../../services/nostr/NostrService.js'
+import { storageService } from '../../services/StorageService.js'
+import { getContentItems } from '../../composables/content/useContent.js'
 import ZapEventModal from '../modals/ZapEventModal.vue'
 
 const combinedZapData = inject('combinedZapData')
@@ -37,7 +39,7 @@ const fetchNoteContent = async (eventId) => {
   fetchingNotes.value.add(eventId)
 
   try {
-    const noteEvent = await nostrRelayManager.getEvent({
+    const noteEvent = await nostrService.queryOne({
       ids: [eventId],
       kinds: [1] // Text notes
     })
@@ -119,23 +121,16 @@ const buildContentPerformance = (typeFilter) => {
     content.zapAmount += zap.amount
   })
 
-  // Identify long-form content from localStorage
-  try {
-    const storedContent = localStorage.getItem('user_content_items')
-    if (storedContent) {
-      const contentItems = JSON.parse(storedContent)
-      contentPerformance.forEach((content, eventId) => {
-        const contentItem = contentItems.find(item => item.nostrEventId === eventId)
-        if (contentItem) {
-          content.type = 'longform'
-          content.title = contentItem.title || 'Untitled Article'
-          content.coverImage = contentItem.coverImage || null
-        }
-      })
+  // Identify long-form content via useContent's centralized accessor
+  const contentItems = getContentItems()
+  contentPerformance.forEach((content, eventId) => {
+    const contentItem = contentItems.find(item => item.nostrEventId === eventId)
+    if (contentItem) {
+      content.type = 'longform'
+      content.title = contentItem.title || 'Untitled Article'
+      content.coverImage = contentItem.coverImage || null
     }
-  } catch (error) {
-    console.warn('Failed to load content details from storage:', error)
-  }
+  })
 
   // Filter by type, calculate scores, sort and return top 3
   return Array.from(contentPerformance.values())

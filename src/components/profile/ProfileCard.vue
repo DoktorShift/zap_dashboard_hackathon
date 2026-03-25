@@ -7,7 +7,7 @@ import {
   IconCheck,
   IconAward
 } from '@iconify-prerendered/vue-tabler'
-import * as nip19 from 'nostr-tools/nip19'
+import { nip19 } from '../../services/nostr/nostrImports.js'
 import BadgeList from '../badges/BadgeList.vue'
 import { useBadges } from '../../composables/social/useBadges.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'

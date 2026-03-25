@@ -237,12 +237,24 @@ General-purpose utilities used across the application.
 - `timeFilter.js` - Time filtering utilities
 
 ### Network Utilities (`utils/network/`)
-Nostr relay and Lightning Network utilities.
+Lightning Network utilities.
 
 **Files:**
 - `lightningNetworkService.js` - Lightning Network service
 - `lightningStatsService.js` - Lightning stats fetching
-- `nostrRelayManager.js` - Nostr relay connection management
+
+### Nostr Service Layer (`services/nostr/`)
+Centralized Nostr protocol abstraction powered by nostr-core v0.6.0.
+
+**Files:**
+- `NostrService.js` - Relay pool management, subscriptions, publishing, health checks, backoff
+- `nostrImports.js` - Single source of truth for all nostr-core re-exports and compatibility shims
+- `CacheManager.js` - Centralized cache with namespaces (events, profiles, contacts, search, badges)
+- `ProfileService.js` - Profile fetching with dedup, batch support, and cache integration
+- `WalletService.js` - NWC wallet abstraction (connect, pay, balance, transactions)
+- `SignerService.js` - Signer abstraction (NIP-07 extension, encrypt/decrypt)
+- `errors.js` - Typed error classes (RelayError, SignerError, SubscriptionError)
+- `index.js` - Barrel export for all services
 
 ### Core Composables (`composables/core/`)
 Core application-wide composables.

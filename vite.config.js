@@ -4,6 +4,11 @@ import {VitePWA} from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+    test: {
+        environment: 'happy-dom',
+        include: ['tests/**/*.test.js'],
+        globals: true,
+    },
     plugins: [
         vue(),
         VitePWA({
@@ -86,7 +91,7 @@ export default defineConfig({
             output: {
                 manualChunks: {
                     'echarts': ['echarts', 'vue-echarts'],
-                    'nostr-tools': ['nostr-tools'],
+                    'nostr-core': ['nostr-core'],
                     'dicebear': ['@dicebear/core', '@dicebear/collection'],
                     'fullcalendar': ['@fullcalendar/core', '@fullcalendar/vue3', '@fullcalendar/daygrid', '@fullcalendar/timegrid', '@fullcalendar/interaction', '@fullcalendar/list']
                 }
