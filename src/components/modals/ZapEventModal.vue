@@ -1,6 +1,7 @@
 <script setup>
 import { ref, toRef, onMounted, watch, onUnmounted, computed, inject } from 'vue'
 import { useFocusTrap } from '../../composables/core/useFocusTrap.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
 import { neventEncode, naddrEncode } from '../../services/nostr/nostrImports.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { formatSatsShort } from '../../utils/format.js'
@@ -210,7 +211,7 @@ const fetchEvent = async () => {
 
   } catch (err) {
     console.error('Failed to fetch event:', err)
-    error.value = `Failed to load event: ${err.message}`
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }

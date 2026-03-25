@@ -32,6 +32,7 @@ import {
   IconHeart
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { useCampaigns } from '../composables/campaigns/useCampaigns.js'
 import CampaignCard from '../components/campaigns/CampaignCard.vue'
 import CampaignCreateModal from '../components/campaigns/CampaignCreateModal.vue'
@@ -137,7 +138,7 @@ const handleNostrLogin = async () => {
     if (error.message.includes('No Nostr extension')) {
       showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      showStatus('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(error))
     }
   }
 }

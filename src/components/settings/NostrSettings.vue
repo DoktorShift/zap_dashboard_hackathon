@@ -50,12 +50,13 @@ const relayFormError = ref('')
 const refreshingIndividualRelay = ref({})
 const selectedRelayUrl = ref(null)
 const loadingRelayInfo = ref(false)
+const relayInfoError = ref(false)
 
 // Initialize on mount
 onMounted(async () => {
   await initAuthAndRelays()
   // Fetch relay info for all connected relays in background
-  fetchAllInfo().catch(() => {})
+  fetchAllInfo().catch(() => { relayInfoError.value = true })
 })
 
 // Handle add relay
@@ -92,8 +93,9 @@ const handleRemoveRelay = async (url) => {
 
 // Handle refresh all relays
 const handleRefreshRelays = async () => {
+  relayInfoError.value = false
   await checkAllRelayStatuses()
-  fetchAllInfo().catch(() => {})
+  fetchAllInfo().catch(() => { relayInfoError.value = true })
 }
 
 // Handle refresh single relay
@@ -205,6 +207,7 @@ const getNipLabel = (nip) => nipDescriptions[nip] || `NIP-${nip}`
               <h3 class="text-base font-semibold text-gray-900">Relay Network</h3>
               <p class="text-xs text-gray-500">
                 {{ connectedRelays.length }}/{{ userRelays.length }} connected
+                <span v-if="relayInfoError" class="text-amber-600"> &middot; info unavailable</span>
               </p>
             </div>
           </div>

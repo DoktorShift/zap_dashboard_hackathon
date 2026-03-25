@@ -32,6 +32,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { useNostrCalendar } from '../composables/content/useNostrCalendar.js'
 import { formatDate, formatTime, isToday, isSameDay } from '../utils/core/dateUtils.js'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
@@ -578,7 +579,7 @@ const handleNostrLogin = async () => {
     if (error.message.includes('No Nostr extension')) {
       showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      showStatus('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(error))
     }
   }
 }

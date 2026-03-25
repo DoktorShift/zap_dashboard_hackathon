@@ -23,6 +23,7 @@ import {
   IconTarget
 } from '@iconify-prerendered/vue-tabler'
 import { useFollowLists } from '../../composables/audience/useFollowLists.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import FollowListCard from './FollowListCard.vue'
 import FollowListModal from './FollowListModal.vue'
@@ -202,7 +203,7 @@ const handleFollowEntireList = async (list) => {
     }
   } catch (err) {
     console.error('Failed to follow list:', err)
-    showStatus('error', `Failed to follow pack: ${err.message}`)
+    showStatus('error', getUserFriendlyError(err))
   } finally {
     processingListId.value = null
   }
@@ -223,7 +224,7 @@ const handleFollowSelectedMembers = async (list, selectedPubkeys) => {
     }
   } catch (err) {
     console.error('Failed to follow selected members:', err)
-    showStatus('error', `Failed to follow selected members: ${err.message}`)
+    showStatus('error', getUserFriendlyError(err))
   } finally {
     processingListId.value = null
   }

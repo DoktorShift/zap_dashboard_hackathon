@@ -71,12 +71,11 @@ onUnmounted(() => {
 const handleNostrLogin = async () => {
   try {
     await login()
-  } catch (error) {
-    console.error('Login failed:', error)
-    if (error.message.includes('No Nostr extension')) {
+  } catch (err) {
+    if (err.message?.includes('No Nostr extension')) {
       showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      showStatus('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(err))
     }
   }
 }

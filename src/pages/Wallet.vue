@@ -446,13 +446,13 @@ const decodeQR = (results) => {
       qrScannerError.value = 'Not a Lightning invoice or address'
     }
   } catch (err) {
-    qrScannerError.value = 'Failed to process QR code: ' + err.message
+    qrScannerError.value = getUserFriendlyError(err)
   }
 }
 
 const onQrError = (error) => {
   console.error('QR Scanner error:', error)
-  qrScannerError.value = 'Camera error: ' + error.message
+  qrScannerError.value = getUserFriendlyError(error)
 }
 
 

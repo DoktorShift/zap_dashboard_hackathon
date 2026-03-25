@@ -6,6 +6,7 @@ import { initializeNWC } from '../../utils/wallet/nwcClient.js'
 import { profileService } from '../../services/nostr/ProfileService.js'
 import { DEFAULT_RELAY_CONFIGS_WITH_STATUS } from '../../utils/constants.js'
 import { stopRefreshCycle } from '../../utils/refreshCycle.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
 import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
 
 // Global state for Nostr authentication
@@ -130,7 +131,7 @@ const fetchAndStoreProfile = async (pubkey) => {
     return userData
   } catch (error) {
     console.error('fetchAndStoreProfile failed:', error.message)
-    authError.value = `Failed to fetch profile: ${error.message}`
+    authError.value = getUserFriendlyError(error)
 
     // If we have a profile with picture, keep it
     if (existingProfile) {

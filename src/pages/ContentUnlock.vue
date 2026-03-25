@@ -167,6 +167,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, inject, watch } from 'vue'
 import { nip19 } from '../services/nostr/nostrImports.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { 
   IconArrowLeft, 
   IconBolt, 
@@ -235,9 +236,8 @@ const fetchFullContent = async (paymentProof) => {
     fullContent.value = contentData.content
     
     // Content decrypted if contentData.encrypted is truthy
-  } catch (error) {
-    console.error('Failed to fetch full content:', error)
-    error.value = 'Failed to load full content: ' + error.message
+  } catch (err) {
+    error.value = getUserFriendlyError(err)
   }
 }
 
@@ -295,7 +295,7 @@ const fetchArticle = async () => {
     
   } catch (err) {
     console.error('Error fetching article:', err)
-    error.value = `Failed to load article: ${err.message}`
+    error.value = getUserFriendlyError(err)
   } finally {
     isLoading.value = false
   }
@@ -342,7 +342,7 @@ const initiatePayment = async () => {
 
   } catch (err) {
     console.error('Payment error:', err)
-    error.value = `Payment failed: ${err.message}`
+    error.value = getUserFriendlyError(err)
   } finally {
     isProcessingPayment.value = false
   }
@@ -415,7 +415,7 @@ onUnmounted(() => {
 onMounted(() => {
   fetchArticle().catch(err => {
     console.error('Failed to fetch article:', err)
-    error.value = `Failed to load article: ${err.message}`
+    error.value = getUserFriendlyError(err)
     isLoading.value = false
   })
 })

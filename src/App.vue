@@ -5,6 +5,7 @@ import Sidebar from './components/layout/Sidebar.vue'
 import { useContentZaps } from './composables/content/useContentZaps.js'
 import { generateAvatar } from './utils/profile/avatarGenerator.js'
 import { profileService } from './services/nostr/ProfileService.js'
+import { getUserFriendlyError } from './services/nostr/errors.js'
 import { useUserZaps } from './composables/content/useUserZaps.js'
 import TopBar from './components/layout/TopBar.vue'
 import Dashboard from './pages/Dashboard.vue'
@@ -497,7 +498,7 @@ const refreshZapData = async (force = false, retryCount = 0) => {
     } else if (error.message.includes('relay')) {
       connectionError.value = 'Relay connection failed. Please try reconnecting your wallet.'
     } else {
-      connectionError.value = `Failed to refresh data: ${error.message}`
+      connectionError.value = getUserFriendlyError(error)
     }
     
     // Don't clear existing data on error, just log it
@@ -689,7 +690,7 @@ const changePage = async (page, tab = null) => {
 
   } catch (error) {
     console.error('Page change error:', error)
-    pageLoadingError.value = `Failed to load page: ${error.message}`
+    pageLoadingError.value = getUserFriendlyError(error)
   } finally {
     isPageLoading.value = false
   }
@@ -770,11 +771,11 @@ const handleHelpClose = () => {
   showHelpModal.value = false
 }
 
-const showLoginError = (error) => {
-  if (error.message.includes('No Nostr extension')) {
+const showLoginError = (err) => {
+  if (err.message?.includes('No Nostr extension')) {
     showLoginStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
   } else {
-    showLoginStatus('Login failed: ' + error.message)
+    showLoginStatus(getUserFriendlyError(err))
   }
 }
 

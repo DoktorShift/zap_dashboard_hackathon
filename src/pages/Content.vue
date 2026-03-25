@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, onUnmounted, watch } from 'vue'
 import { nip19 } from '../services/nostr/nostrImports.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { formatSatsShort } from '../utils/format.js'
 import {
   IconFileText,
@@ -219,7 +220,7 @@ const handlePublishToNostr = async (content) => {
     showSuccessModal.value = true
   } catch (error) {
     console.error('Failed to publish to Nostr:', error)
-    showStatus('Failed to publish to Nostr: ' + error.message)
+    showStatus(getUserFriendlyError(error))
   }
 }
 
@@ -231,7 +232,7 @@ const handleNostrLogin = async () => {
     if (error.message.includes('No Nostr extension')) {
       showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      showStatus('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(error))
     }
   }
 }

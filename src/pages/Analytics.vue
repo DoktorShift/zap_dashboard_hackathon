@@ -2,6 +2,7 @@
 import { computed, inject, ref, onMounted, onUnmounted } from 'vue'
 import { IconClock, IconUsers, IconTrendingUp, IconAlertCircle } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { filterZapsByTimeRange } from '../utils/core/timeFilter.js'
 import UserProfileModal from '../components/modals/UserProfileModal.vue'
 import { generateAvatar } from '../utils/profile/avatarGenerator.js'
@@ -35,7 +36,7 @@ const handleConnectNostr = async () => {
     if (error.message.includes('No Nostr extension')) {
       showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      showStatus('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(error))
     }
   }
 }

@@ -14,6 +14,7 @@ import {
 } from '@iconify-prerendered/vue-tabler'
 import QRCodeVue3 from 'qrcode-vue3'
 import { parseInvoiceBasic, formatInvoiceAmount, validateInvoice, truncateInvoice } from '../utils/wallet/invoiceUtils.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { payInvoice } from '../utils/wallet/nwcClient.js'
 import { useNotifications } from '../composables/core/useNotifications.js'
 import { useNostrConnections } from '../composables/core/useNostrConnections.js'
@@ -207,7 +208,7 @@ const payThisInvoice = async () => {
     }, 3000)
     
   } catch (err) {
-    error.value = 'Payment failed: ' + err.message
+    error.value = getUserFriendlyError(err)
     paymentStatus.value = 'error'
     handlePaymentError(err)
   } finally {

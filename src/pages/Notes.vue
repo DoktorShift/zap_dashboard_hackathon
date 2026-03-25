@@ -3,6 +3,7 @@ import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import EmojiPicker from 'vue3-emoji-picker'
 import 'vue3-emoji-picker/css'
 import { nip19 } from '../services/nostr/nostrImports.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { formatSatsShort } from '../utils/format.js'
 
 // Define props and emits for Vue 3
@@ -263,7 +264,7 @@ const handleNostrLogin = async () => {
     if (error.message.includes('No Nostr extension')) {
       showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      showStatus('Login failed: ' + error.message)
+      showStatus(getUserFriendlyError(error))
     }
   }
 }

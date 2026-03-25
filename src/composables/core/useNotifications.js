@@ -1,4 +1,5 @@
 import { ref, computed, watch } from 'vue'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
 import { useNostrConnections } from './useNostrConnections.js'
 import { fetchTransactions, getBalance } from '../../utils/wallet/nwcClient.js'
 import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
@@ -342,7 +343,7 @@ const handleConnectionError = (error) => {
   const notification = createNotification(
     NOTIFICATION_TYPES.CONNECTION_ERROR,
     '❌ Connection Failed',
-    `Failed to connect to wallet: ${error.message}`,
+    getUserFriendlyError(error),
     { error: error.message }
   )
 
@@ -366,7 +367,7 @@ const handlePaymentError = (error) => {
   const notification = createNotification(
     NOTIFICATION_TYPES.PAYMENT_ERROR,
     '❌ Payment Failed',
-    `Payment failed: ${error.message}`,
+    getUserFriendlyError(error),
     { error: error.message }
   )
 

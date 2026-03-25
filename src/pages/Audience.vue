@@ -31,6 +31,7 @@ import {
   IconBulb
 } from '@iconify-prerendered/vue-tabler'
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
+import { getUserFriendlyError } from '../services/nostr/errors.js'
 import { useAudience } from '../composables/audience/useAudience.js'
 import { nostrService } from '../services/nostr/NostrService.js'
 import { publishService } from '../services/nostr/PublishService.js'
@@ -161,12 +162,11 @@ const paginatedFollowing = computed(() => {
 const handleNostrLogin = async () => {
   try {
     await login()
-  } catch (error) {
-    console.error('Login failed:', error)
-    if (error.message.includes('No Nostr extension')) {
+  } catch (err) {
+    if (err.message?.includes('No Nostr extension')) {
       showStatus('error', 'No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
     } else {
-      showStatus('error', 'Login failed: ' + error.message)
+      showStatus('error', getUserFriendlyError(err))
     }
   }
 }
@@ -205,9 +205,8 @@ const handleUnfollow = async (pubkey) => {
       console.warn('Unfollow succeeded locally but may not have synced to all relays')
       // You could show a toast notification here if desired
     }
-  } catch (error) {
-    console.error('Failed to unfollow user:', error)
-    error.value = `Failed to unfollow user: ${error.message}`
+  } catch (err) {
+    showStatus('error', getUserFriendlyError(err))
   }
 }
 
@@ -263,7 +262,7 @@ const handleBulkFollow = async () => {
     showBulkActions.value = false
   } catch (err) {
     console.error('Bulk follow failed:', err)
-    showStatus('error', `Bulk follow failed: ${err.message}`)
+    showStatus('error', getUserFriendlyError(err))
   }
 }
 
@@ -278,8 +277,8 @@ const handleBulkUnfollow = async () => {
     await Promise.all(promises)
     selectedUsers.value.clear()
     showBulkActions.value = false
-  } catch (error) {
-    console.error('Bulk unfollow failed:', error)
+  } catch (err) {
+    showStatus('error', getUserFriendlyError(err))
   }
 }
 
