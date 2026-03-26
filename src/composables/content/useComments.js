@@ -25,27 +25,15 @@ export function useComments() {
     isLoading.value = true
 
     try {
-      // NIP-22 comments reference the target via tags
-      const events = await nostrService.query(
-        [{
-          kinds: [1111], // NIP-22 comment kind
-          '#e': [eventId],
-          limit: 200,
-        }],
+      // Fetch both NIP-22 comments (kind:1111) and traditional replies (kind:1)
+      // in a single subscription with multiple filters
+      const allComments = await nostrService.query(
+        [
+          { kinds: [1111], '#e': [eventId], limit: 200 },
+          { kinds: [1], '#e': [eventId], limit: 200 }
+        ],
         { timeout: 15_000, eoseGrace: 2_000 }
       )
-
-      // Also fetch kind:1 replies (traditional reply model)
-      const replies = await nostrService.query(
-        [{
-          kinds: [1],
-          '#e': [eventId],
-          limit: 200,
-        }],
-        { timeout: 15_000, eoseGrace: 2_000 }
-      )
-
-      const allComments = [...events, ...replies]
       allComments.sort((a, b) => a.created_at - b.created_at)
 
       // Batch fetch profiles

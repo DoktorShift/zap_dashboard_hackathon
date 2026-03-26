@@ -577,7 +577,7 @@ const handleNostrLogin = async () => {
   } catch (error) {
     console.error('Login failed:', error)
     if (error.message.includes('No Nostr extension')) {
-      showStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
+      showStatus('No Nostr extension found. Please install a NIP-07 browser extension — we recommend Jump by Buho (from the ZapTracker founders, available for Firefox & Chrome), or Alby, nos2x, or Flamingo — and refresh this page.')
     } else {
       showStatus(getUserFriendlyError(error))
     }

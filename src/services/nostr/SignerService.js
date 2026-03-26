@@ -74,7 +74,7 @@ class SignerService {
     const ext = getExtension()
     if (!ext) {
       throw new Nip07NotAvailableError(
-        'No Nostr extension found. Please install Alby, nos2x, or another NIP-07 browser extension.'
+        'No Nostr extension found. Please install a NIP-07 browser extension like Jump by Buho (from the ZapTracker founders), Alby, nos2x, or Flamingo and refresh this page.'
       )
     }
 

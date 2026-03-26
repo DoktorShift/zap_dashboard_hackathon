@@ -1,24 +1,20 @@
 /**
  * ProfileService — centralized profile fetching and caching.
  *
- * Replaces profileFetcher.js with a service that:
- * - Uses CacheManager (namespace: 'profiles') instead of a standalone Map
- * - Deduplicates in-flight requests
- * - Provides batch fetching with configurable batch size
- * - Normalizes profile data consistently
- *
- * Phase 1: delegates relay calls to NostrService.
+ * Uses CacheEntry envelopes so cache correctly distinguishes between
+ * "never fetched," "fetched but no profile," and "fetched with profile."
+ * This eliminates the infinite re-fetch bug for users without a profile picture.
  */
 
 import { nostrService } from './NostrService.js'
 import { cacheManager } from './CacheManager.js'
+import { fetchWithCache, cacheHit, isCacheEntry, unwrap } from './CacheEntry.js'
 import {
   PROFILE_BATCH_SIZE, PROFILE_FETCH_TIMEOUT, PROFILE_EOSE_GRACE
 } from '../../utils/constants.js'
 
 /**
  * Normalize raw profile JSON into a consistent shape.
- * Uses nullish coalescing (??) to preserve falsy-but-valid values.
  */
 export function normalizeProfile(pubkey, data = {}) {
   return {
@@ -38,80 +34,78 @@ export function normalizeProfile(pubkey, data = {}) {
   }
 }
 
-/**
- * Create a fallback profile (used when fetch fails or profile doesn't exist).
- */
 function fallbackProfile(pubkey) {
   return normalizeProfile(pubkey, {})
 }
 
-class ProfileService {
-  constructor() {
-    /** @type {Map<string, Promise>} — deduplicates in-flight fetches */
-    this._fetchPromises = new Map()
-  }
+// Store adapter that delegates to CacheManager
+const profileStore = {
+  get: (_ns, key) => cacheManager.get('profiles', key),
+  set: (_ns, key, value, ttl) => cacheManager.set('profiles', key, value, ttl),
+  has: (_ns, key) => cacheManager.has('profiles', key)
+}
 
+class ProfileService {
   /**
    * Get a single profile by pubkey.
-   * Returns cached version if available, fresh, and has a picture.
-   * Deduplicates concurrent requests for the same pubkey.
-   *
-   * @param {string} pubkey — 64-char hex public key
-   * @param {object} [opts] — { forceFresh: false }
-   * @returns {Promise<object>} normalized profile
+   * Cached results (including "no profile found") are returned immediately.
+   * Concurrent requests for the same pubkey are coalesced.
    */
   async get(pubkey, { forceFresh = false } = {}) {
     if (!pubkey || typeof pubkey !== 'string' || pubkey.length !== 64) {
       return fallbackProfile(pubkey || 'unknown')
     }
 
-    // Check cache (unless forced fresh). Require picture for cache hit.
-    if (!forceFresh) {
-      const cached = cacheManager.get('profiles', pubkey)
-      if (cached?.picture) return cached
+    if (forceFresh) {
+      cacheManager.invalidate('profiles', pubkey)
     }
 
-    // Deduplicate in-flight requests
-    if (this._fetchPromises.has(pubkey)) {
-      return this._fetchPromises.get(pubkey)
-    }
+    return fetchWithCache({
+      namespace: 'profiles',
+      key: pubkey,
+      store: profileStore,
+      fetcher: async () => {
+        const events = await nostrService.queryOutbox(
+          [{ kinds: [0], authors: [pubkey], limit: 1 }],
+          { timeout: 10_000, eoseGrace: 1_500 }
+        )
+        const event = events?.[0] ?? null
+        if (!event) return null
 
-    const promise = this._fetchFromRelays(pubkey)
-    this._fetchPromises.set(pubkey, promise)
-
-    try {
-      return await promise
-    } finally {
-      this._fetchPromises.delete(pubkey)
-    }
+        const data = JSON.parse(event.content || '{}')
+        return normalizeProfile(event.pubkey || pubkey, data)
+      },
+      isEmpty: (v) => v == null,
+      fallback: fallbackProfile(pubkey),
+      ttl: {
+        hit: undefined,             // use CacheManager's default (24h)
+        miss: 12 * 60 * 60 * 1000, // 12h — retry sooner for "no profile"
+        error: 30_000               // 30s — quick retry on network error
+      }
+    })
   }
 
   /**
    * Batch-fetch profiles for multiple pubkeys.
-   * Only fetches pubkeys not already cached (with picture).
-   * Updates cache as results arrive.
-   *
-   * @param {string[]} pubkeys
-   * @param {object} [opts]
-   * @returns {Promise<number>} count of profiles fetched
+   * Only fetches pubkeys not already cached.
    */
   async batch(pubkeys = [], { batchSize = PROFILE_BATCH_SIZE, timeout = PROFILE_FETCH_TIMEOUT } = {}) {
     const valid = pubkeys.filter(pk => pk && typeof pk === 'string' && pk.length === 64)
 
-    // Consistent with get(): skip if cached AND has picture
+    // Skip pubkeys that have any cached entry (hit, miss, or error)
     const missing = valid.filter(pk => {
       const cached = cacheManager.get('profiles', pk)
-      return !cached?.picture
+      return !isCacheEntry(cached)
     })
 
     if (missing.length === 0) return 0
 
     let fetchedCount = 0
+    const fetchedPubkeys = new Set()
 
     for (let i = 0; i < missing.length; i += batchSize) {
       const batch = missing.slice(i, i + batchSize)
 
-      // Use outbox model — fetch profiles from users' write relays for better discovery
       const events = await nostrService.queryOutbox(
         [{ kinds: [0], authors: batch, limit: batch.length }],
         { timeout, eoseGrace: PROFILE_EOSE_GRACE }
@@ -121,10 +115,18 @@ class ProfileService {
         try {
           const data = JSON.parse(event.content || '{}')
           const profile = normalizeProfile(event.pubkey, data)
-          cacheManager.set('profiles', event.pubkey, profile)
+          cacheManager.set('profiles', event.pubkey, cacheHit(profile))
+          fetchedPubkeys.add(event.pubkey)
           fetchedCount++
         } catch {
           // skip invalid JSON
+        }
+      }
+
+      // Mark unfetched pubkeys in this batch as miss
+      for (const pk of batch) {
+        if (!fetchedPubkeys.has(pk) && !isCacheEntry(cacheManager.get('profiles', pk))) {
+          cacheManager.set('profiles', pk, cacheHit(fallbackProfile(pk)), 12 * 60 * 60 * 1000)
         }
       }
     }
@@ -132,9 +134,6 @@ class ProfileService {
     return fetchedCount
   }
 
-  /**
-   * Invalidate a cached profile (forces re-fetch on next get()).
-   */
   invalidate(pubkey) {
     cacheManager.invalidate('profiles', pubkey)
   }
@@ -143,54 +142,19 @@ class ProfileService {
    * Get a cached profile without fetching. Returns undefined if not cached.
    */
   getCached(pubkey) {
-    return cacheManager.get('profiles', pubkey)
+    return unwrap(cacheManager.get('profiles', pubkey))
   }
 
   /**
-   * Seed the cache with a pre-loaded profile (e.g. from localStorage).
-   * @param {string} pubkey
-   * @param {object} profile — already-normalized profile object
+   * Seed the cache with a pre-loaded profile.
    */
   seed(pubkey, profile) {
-    cacheManager.set('profiles', pubkey, profile)
+    cacheManager.set('profiles', pubkey, cacheHit(profile))
   }
 
-  /**
-   * Return the number of cached profiles.
-   */
   get cacheSize() {
     const store = cacheManager._namespaces.get('profiles')
     return store ? store.size : 0
-  }
-
-  // ── Internal ────────────────────────────────────────────────────
-
-  async _fetchFromRelays(pubkey) {
-    try {
-      // Use outbox model — query the user's own write relays
-      const events = await nostrService.queryOutbox(
-        [{ kinds: [0], authors: [pubkey], limit: 1 }],
-        { timeout: 10_000, eoseGrace: 1_500 }
-      )
-      const event = events?.[0] ?? null
-
-      if (!event) {
-        const fb = fallbackProfile(pubkey)
-        // Cache fallback with half TTL so we retry sooner
-        cacheManager.set('profiles', pubkey, fb, 12 * 60 * 60 * 1000)
-        return fb
-      }
-
-      const data = JSON.parse(event.content || '{}')
-      const profile = normalizeProfile(event.pubkey || pubkey, data)
-      cacheManager.set('profiles', pubkey, profile)
-      return profile
-    } catch (err) {
-      console.error('ProfileService.get error:', pubkey.substring(0, 16), err.message)
-      const fb = fallbackProfile(pubkey)
-      cacheManager.set('profiles', pubkey, fb)
-      return fb
-    }
   }
 }
 

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import {
   IconBolt, IconBell, IconUser, IconRefresh,
-  IconAward, IconExternalLink, IconCheck, IconCopy,
+  IconExternalLink, IconCheck, IconCopy,
   IconPlugConnected, IconShield, IconKey, IconGlobe,
   IconEdit, IconLogout, IconLoader, IconAlertCircle
 } from '@iconify-prerendered/vue-tabler'
@@ -29,7 +29,11 @@ const {
   logout,
   refreshUserProfile
 } = useNostrAuth()
-const { getUserBadgeCount, initUserBadges } = useBadges()
+const { initUserBadges, isLoadingPubkey } = useBadges()
+
+const badgesLoading = computed(() =>
+  currentUser.value?.pubkey ? isLoadingPubkey(currentUser.value.pubkey) : false
+)
 
 // Define props to receive the initial tab from parent
 const props = defineProps({
@@ -57,11 +61,6 @@ const handleBadgeClick = (badge) => {
   selectedBadge.value = badge
   showBadgeDetailModal.value = true
 }
-
-// Badge count
-const badgeCount = computed(() => {
-  return currentUser.value?.pubkey ? getUserBadgeCount(currentUser.value.pubkey) : 0
-})
 
 // Profile computed
 const displayName = computed(() => {
@@ -321,9 +320,6 @@ watch(() => props.initialTab, (newTab) => {
                         @error="$event.target.src = generateAvatar(currentUser?.pubkey)"
                       />
                     </div>
-                    <div v-if="badgeCount > 0" class="absolute -bottom-1 -right-1 bg-orange-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">
-                      {{ badgeCount }}
-                    </div>
                   </div>
 
                   <!-- Desktop Actions -->
@@ -345,6 +341,20 @@ watch(() => props.initialTab, (newTab) => {
                   <h2 class="text-xl font-bold text-gray-900">{{ displayName }}</h2>
                   <p class="text-gray-500 text-xs font-mono mt-0.5">{{ shortNpub }}</p>
                   <p v-if="userProfile?.about" class="text-sm text-gray-600 mt-2 max-w-lg">{{ userProfile.about }}</p>
+                </div>
+
+                <!-- Nostr Badges (NIP-58) -->
+                <div v-if="currentUser?.pubkey" class="mb-4">
+                  <BadgeList
+                    :pubkey="currentUser.pubkey"
+                    :loading="badgesLoading"
+                    :show-count="false"
+                    :show-view-all="false"
+                    layout="grid"
+                    @badge-click="handleBadgeClick"
+                  >
+                    <template #empty></template>
+                  </BadgeList>
                 </div>
 
                 <!-- Status Badges -->
@@ -436,61 +446,6 @@ watch(() => props.initialTab, (newTab) => {
               </div>
             </div>
 
-            <!-- Badges Section -->
-            <div class="space-y-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2">
-                  <IconAward class="w-5 h-5 text-orange-600" />
-                  <h3 class="text-lg font-semibold text-gray-900">Badges</h3>
-                  <span v-if="badgeCount > 0" class="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ badgeCount }}</span>
-                </div>
-              </div>
-
-              <div class="bg-gray-50 rounded-xl p-6">
-                <BadgeList
-                  v-if="currentUser?.pubkey"
-                  :pubkey="currentUser.pubkey"
-                  size="large"
-                  :show-count="false"
-                  :show-view-all="false"
-                  layout="grid"
-                  @badge-click="handleBadgeClick"
-                >
-                  <template #empty>
-                    <div class="text-center py-6">
-                      <IconAward class="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                      <h4 class="text-lg font-medium text-gray-900 mb-2">No Badges Yet</h4>
-                      <p class="text-gray-500 text-sm mb-4">Earn badges from the Nostr community to showcase here.</p>
-                    </div>
-                  </template>
-                </BadgeList>
-              </div>
-            </div>
-
-            <!-- BadgeBox Info -->
-            <div class="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-5">
-              <div class="flex items-start space-x-4">
-                <div class="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <IconAward class="w-5 h-5 text-white" />
-                </div>
-                <div class="flex-1">
-                  <h4 class="font-semibold text-gray-900 mb-1">BadgeBox — Nostr Badge Manager</h4>
-                  <p class="text-sm text-gray-700 mb-3">
-                    BadgeBox is a PWA for managing NIP-58 badges on Nostr. Create, issue, and display badges
-                    to recognize community members and build reputation across the network.
-                  </p>
-                  <a
-                    href="https://badgebox.rinbal.de"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="inline-flex items-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
-                  >
-                    <IconExternalLink class="w-4 h-4" />
-                    <span>Open BadgeBox</span>
-                  </a>
-                </div>
-              </div>
-            </div>
           </template>
         </div>
 

@@ -419,7 +419,7 @@ const login = async () => {
 
   // Check for NIP-07 extension
   if (!signerService.isExtensionAvailable()) {
-    const error = 'No Nostr extension found. Please install Alby, nos2x, or another NIP-07 browser extension.'
+    const error = 'No Nostr extension found. Please install a NIP-07 browser extension like Jump by Buho (from the ZapTracker founders), Alby, nos2x, or Flamingo and refresh this page.'
     authError.value = error
     throw new Error(error)
   }

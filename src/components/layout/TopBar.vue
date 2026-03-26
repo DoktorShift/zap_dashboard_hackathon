@@ -108,6 +108,11 @@ const pageInfo = computed(() => {
       title: 'Calendar',
       description: 'Schedule and manage your zap-related events',
       icon: IconCalendar
+    },
+    'social-desk': {
+      title: 'SocialDesk',
+      description: 'Multi-column Nostr feed',
+      icon: IconDashboard
     }
   }
   

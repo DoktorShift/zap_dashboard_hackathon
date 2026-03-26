@@ -68,7 +68,7 @@ describe('AuthError', () => {
   })
 
   it.each([
-    ['NO_EXTENSION', 'No Nostr extension found. Install Alby, nos2x, or Flamingo.'],
+    ['NO_EXTENSION', 'No Nostr extension found. Install Jump by Buho (from the ZapTracker founders), Alby, nos2x, or Flamingo.'],
     ['NO_SIGNER', 'No signer connected. Please log in first.'],
     ['SIGN_REJECTED', 'Signing was rejected. Please approve in your signer.'],
     ['REMOTE_TIMEOUT', 'Remote signer did not respond. Check your signer app.'],
@@ -96,7 +96,7 @@ describe('SignerError', () => {
 
   it('returns correct userMessage for NO_EXTENSION', () => {
     const err = new SignerError('x', 'NO_EXTENSION')
-    expect(err.userMessage).toBe('No Nostr extension found. Install Alby, nos2x, or Flamingo.')
+    expect(err.userMessage).toBe('No Nostr extension found. Install Jump by Buho (from the ZapTracker founders), Alby, nos2x, or Flamingo.')
   })
 
   it('returns correct userMessage for SIGN_REJECTED', () => {
@@ -203,7 +203,7 @@ describe('getUserFriendlyError()', () => {
 
   it('uses userMessage from AuthError', () => {
     const err = new AuthError('x', 'NO_EXTENSION')
-    expect(getUserFriendlyError(err)).toBe('No Nostr extension found. Install Alby, nos2x, or Flamingo.')
+    expect(getUserFriendlyError(err)).toBe('No Nostr extension found. Install Jump by Buho (from the ZapTracker founders), Alby, nos2x, or Flamingo.')
   })
 
   it('uses userMessage from StorageError', () => {

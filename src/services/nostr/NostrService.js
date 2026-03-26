@@ -10,6 +10,7 @@
 
 import { RelayPool, verifyEvent, nip11, nip65 } from './nostrImports.js'
 import { cacheManager } from './CacheManager.js'
+import { fetchWithCache, isCacheEntry, unwrap } from './CacheEntry.js'
 import {
   RELAY_CONNECTION_TIMEOUT, RELAY_MAX_RETRIES, RELAY_RETRY_DELAY,
   RELAY_HEALTH_CHECK_INTERVAL, RELAY_HEALTH_CHECK_TIMEOUT, RELAY_MAX_BACKOFF,
@@ -54,10 +55,8 @@ class NostrService {
     this._subscriptionRegistry = new Map()
     this._subIdCounter = 0
 
-    // Outbox model: NIP-65 relay list cache
-    // pubkey → { relays: [{url, read, write}], fetchedAt: timestamp }
+    // Outbox model: NIP-65 relay list cache (CacheEntry envelopes)
     this._relayListCache = new Map()
-    this._relayListFetches = new Map() // pubkey → Promise (dedup in-flight)
 
     // NIP-11 relay info cache
     // url → { info: RelayInfo, fetchedAt: timestamp }
@@ -162,7 +161,6 @@ class NostrService {
     this._eventListeners.clear()
     this._relayBackoff.clear()
     this._relayListCache.clear()
-    this._relayListFetches.clear()
     this._relayInfoCache.clear()
     cacheManager.clear()
 
@@ -439,45 +437,31 @@ class NostrService {
    * @returns {Promise<Array<{url, read, write}>>}
    */
   async fetchRelayList(pubkey) {
-    // Check cache
-    const cached = this._relayListCache.get(pubkey)
-    if (cached && (Date.now() - cached.fetchedAt) < OUTBOX_RELAY_LIST_TTL) {
-      return cached.relays
+    const relayListStore = {
+      get: (_ns, key) => this._relayListCache.get(key),
+      set: (_ns, key, value) => this._relayListCache.set(key, value),
+      has: (_ns, key) => this._relayListCache.has(key)
     }
 
-    // Dedup in-flight
-    if (this._relayListFetches.has(pubkey)) {
-      return this._relayListFetches.get(pubkey)
-    }
-
-    const promise = this._fetchRelayListFromRelays(pubkey)
-    this._relayListFetches.set(pubkey, promise)
-
-    try {
-      return await promise
-    } finally {
-      this._relayListFetches.delete(pubkey)
-    }
-  }
-
-  async _fetchRelayListFromRelays(pubkey) {
-    try {
-      const event = await this.queryOne({
-        kinds: [10002], authors: [pubkey], limit: 1
-      })
-
-      if (!event) {
-        this._relayListCache.set(pubkey, { relays: [], fetchedAt: Date.now() })
-        return []
+    return fetchWithCache({
+      namespace: 'relayList',
+      key: pubkey,
+      store: relayListStore,
+      fetcher: async () => {
+        const event = await this.queryOne({
+          kinds: [10002], authors: [pubkey], limit: 1
+        })
+        if (!event) return null
+        return nip65.parseRelayList(event)
+      },
+      isEmpty: (v) => v == null,
+      fallback: [],
+      ttl: {
+        hit: OUTBOX_RELAY_LIST_TTL,   // 30min
+        miss: OUTBOX_RELAY_LIST_TTL,  // 30min — no relay list is a valid state
+        error: 30_000                 // 30s retry on network error
       }
-
-      const relays = nip65.parseRelayList(event)
-      this._relayListCache.set(pubkey, { relays, fetchedAt: Date.now() })
-      return relays
-    } catch (err) {
-      console.warn(`Failed to fetch relay list for ${pubkey.substring(0, 8)}:`, err.message)
-      return []
-    }
+    })
   }
 
   /**

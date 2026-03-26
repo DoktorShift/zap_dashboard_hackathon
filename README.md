@@ -25,7 +25,7 @@
 
 ---
 
-ZapTracker brings everything a Nostr creator needs into one place: zap analytics, wallet management, content publishing, audience growth, and fundraising campaigns. No server, no sign-up -- your data stays in your browser.
+ZapTracker brings everything a Nostr creator needs into one place: SocialDesk, Zap analytics, wallet management, content publishing, audience growth, and fundraising campaigns. No server, no sign-up -- your data stays in your browser.
 
 ## Features at a Glance
 
