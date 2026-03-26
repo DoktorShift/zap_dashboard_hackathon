@@ -13,6 +13,8 @@ import {
 import { useEngagementMetrics } from '../../composables/analytics/useEngagementMetrics.js'
 import { filterZapsByTimeRange } from '../../utils/core/timeFilter.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
+import { fetchWithCache, isCacheEntry, unwrap } from '../../services/nostr/CacheEntry.js'
+import { useReactiveCache } from '../../composables/core/useReactiveCache.js'
 import { storageService } from '../../services/StorageService.js'
 import { getContentItems } from '../../composables/content/useContent.js'
 import ZapEventModal from '../modals/ZapEventModal.vue'
@@ -26,43 +28,38 @@ const selectedEventId = ref(null)
 
 const { getEngagementCounts } = useEngagementMetrics()
 
-// Cache for note content
-const noteContentCache = ref(new Map())
-const fetchingNotes = ref(new Set())
+// Cache for note content (CacheEntry envelopes, with promise coalescing)
+const { mapRef: noteContentCache, store: noteStore } = useReactiveCache()
 
-// Fetch actual note content from Nostr
+const NOTE_UNAVAILABLE = { text: 'Unable to load note content', title: 'Note (content unavailable)' }
+
 const fetchNoteContent = async (eventId) => {
-  if (noteContentCache.value.has(eventId) || fetchingNotes.value.has(eventId)) {
-    return noteContentCache.value.get(eventId)
-  }
-
-  fetchingNotes.value.add(eventId)
-
-  try {
-    const noteEvent = await nostrService.queryOne({
-      ids: [eventId],
-      kinds: [1] // Text notes
-    })
-
-    if (noteEvent && noteEvent.content) {
-      const content = {
-        text: noteEvent.content.trim(),
+  return fetchWithCache({
+    namespace: 'noteContent',
+    key: eventId,
+    store: noteStore,
+    fetcher: async () => {
+      const noteEvent = await nostrService.queryOne({
+        ids: [eventId],
+        kinds: [1]
+      })
+      if (!noteEvent?.content) return null
+      const text = noteEvent.content.trim()
+      return {
+        text,
+        title: createNoteTitle(text),
         created_at: noteEvent.created_at,
         pubkey: noteEvent.pubkey
       }
-      
-      noteContentCache.value.set(eventId, content)
-      return content
-    } else {
-      console.warn('No note content found for:', eventId)
-      return null
+    },
+    isEmpty: (v) => v == null,
+    fallback: NOTE_UNAVAILABLE,
+    ttl: {
+      hit: 5 * 60 * 1000,  // 5min
+      miss: 2 * 60 * 1000, // 2min retry for missing notes
+      error: 30_000         // 30s retry on error
     }
-  } catch (error) {
-    console.error('Failed to fetch note content:', error)
-    return null
-  } finally {
-    fetchingNotes.value.delete(eventId)
-  }
+  })
 }
 
 // Helper function to create note title from content
@@ -86,7 +83,8 @@ const buildContentPerformance = (typeFilter) => {
     const eventId = zap.eventId
     if (!contentPerformance.has(eventId)) {
       const engagement = getEngagementCounts(eventId)
-      const cachedContent = noteContentCache.value.get(eventId)
+      const rawCached = noteContentCache.value.get(eventId)
+      const cachedContent = isCacheEntry(rawCached) ? unwrap(rawCached) : rawCached
 
       contentPerformance.set(eventId, {
         eventId,
@@ -100,18 +98,10 @@ const buildContentPerformance = (typeFilter) => {
         bookmarks: engagement.bookmarks
       })
 
-      // For notes: fetch content asynchronously if not cached
-      if (typeFilter === 'note' && !cachedContent) {
-        fetchNoteContent(eventId).then(noteContent => {
-          const cacheEntry = noteContent?.text
-            ? { text: noteContent.text, title: createNoteTitle(noteContent.text) }
-            : { text: 'Unable to load note content', title: 'Note (content unavailable)' }
-          noteContentCache.value.set(eventId, cacheEntry)
-        }).catch(() => {
-          noteContentCache.value.set(eventId, {
-            text: 'Unable to load note content',
-            title: 'Note (content unavailable)'
-          })
+      // Fetch content if not yet cached (fetchWithCache handles coalescing + miss caching)
+      if (typeFilter === 'note' && !noteContentCache.value.has(eventId)) {
+        fetchNoteContent(eventId).catch(() => {
+          // error already cached by fetchWithCache
         })
       }
     }

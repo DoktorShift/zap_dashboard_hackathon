@@ -21,7 +21,8 @@ import {
   IconVideo,
   IconMessageCircle,
   IconTrophy,
-  IconPhoto
+  IconPhoto,
+  IconColumns
 } from '@iconify-prerendered/vue-tabler'
 
 const currentPage = inject('currentPage')
@@ -84,6 +85,7 @@ const menuItems = [
   { id: 'wallet', label: 'Wallet', icon: IconWallet, requiresAuth: true },
   { id: 'analytics', label: 'Analytics', icon: IconChartBar, requiresAuth: true },
   { id: 'media', label: 'Media', icon: IconPhoto, requiresAuth: true },
+  { id: 'social-desk', label: 'SocialDesk', icon: IconColumns, requiresAuth: true },
   {
     id: 'studio',
     label: 'Studio',

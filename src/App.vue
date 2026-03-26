@@ -1,6 +1,6 @@
 <script setup>
 import { ref, provide, watch, onMounted, nextTick, computed, onUnmounted, defineAsyncComponent } from 'vue'
-import { IconAlertTriangle, IconX, IconWifi, IconWifiOff, IconRefresh } from '@iconify-prerendered/vue-tabler'
+import { IconAlertTriangle, IconX, IconRefresh } from '@iconify-prerendered/vue-tabler'
 import Sidebar from './components/layout/Sidebar.vue'
 import { useContentZaps } from './composables/content/useContentZaps.js'
 import { generateAvatar } from './utils/profile/avatarGenerator.js'
@@ -22,7 +22,6 @@ import NWCConnection from './components/wallet/NWCConnection.vue'
 import ErrorBoundary from './components/shared/ErrorBoundary.vue'
 import { useNostrConnections } from './composables/core/useNostrConnections.js'
 import { storageService } from './services/StorageService.js'
-import { useConnectionStatus } from './composables/core/useConnectionStatus.js'
 import { useNotifications } from './composables/core/useNotifications.js'
 import { nostrService } from './services/nostr/NostrService.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
@@ -66,6 +65,7 @@ const InvoiceShare = lazyLoad(() => import('./pages/InvoiceShare.vue'))
 const Calendar = lazyLoad(() => import('./pages/Calendar.vue'))
 const ContestResolver = lazyLoad(() => import('./pages/ContestResolver.vue'))
 const Media = lazyLoad(() => import('./pages/Media.vue'))
+const SocialDesk = lazyLoad(() => import('./pages/SocialDesk.vue'))
 const WelcomeModal = lazyLoad(() => import('./components/modals/WelcomeModal.vue'))
 const HelpModal = lazyLoad(() => import('./components/modals/HelpModal.vue'))
 
@@ -100,10 +100,6 @@ const showLoginStatus = (message, type = 'error') => {
   loginError.value = { message, type }
   _loginStatusTimer = setTimeout(() => { loginError.value = null }, 6000)
 }
-
-// UI state for dismissible banners
-const showLargeDatasetBanner = ref(true)
-let largeDatasetBannerTimeout = null
 
 // Fetch author profile using ProfileService
 const fetchAuthorProfile = async (pubkey, forceRefresh = false) => {
@@ -169,9 +165,6 @@ watch(isAuthenticated, (authed, wasAuthed) => {
     _welcomeTimer = setTimeout(() => { welcomeToast.value = null }, 3500)
   }
 })
-
-// Relay connection health
-const { status: relayStatus, isOffline: isRelayOffline, isConnecting: isRelayConnecting, connectionLabel: relayLabel } = useConnectionStatus()
 
 // Use the notifications composable
 const {
@@ -346,39 +339,6 @@ const enhancedCombinedZapData = computed(() => {
   })
 })
 
-// Auto-show and auto-hide logic for the large dataset banner
-const scheduleLargeDatasetBannerHide = () => {
-  if (largeDatasetBannerTimeout) {
-    clearTimeout(largeDatasetBannerTimeout)
-    largeDatasetBannerTimeout = null
-  }
-  largeDatasetBannerTimeout = setTimeout(() => {
-    showLargeDatasetBanner.value = false
-  }, 5000)
-}
-
-watch(
-  () => ({
-    len: enhancedCombinedZapData.value.filter(zap => zap.eventId).length,
-    loading: dataLoadingProgress.value.isLoading
-  }),
-  ({ len, loading }) => {
-    if (len > 50 && !loading) {
-      showLargeDatasetBanner.value = true
-      scheduleLargeDatasetBannerHide()
-    }
-  },
-  { immediate: true }
-)
-
-const dismissLargeDatasetBanner = () => {
-  showLargeDatasetBanner.value = false
-  if (largeDatasetBannerTimeout) {
-    clearTimeout(largeDatasetBannerTimeout)
-    largeDatasetBannerTimeout = null
-  }
-}
-
 // Provide data to child components
 provide('zapData', zapData)
 provide('combinedZapData', enhancedCombinedZapData)
@@ -424,13 +384,20 @@ const components = {
   notes: Notes,
   calendar: Calendar,
   contest: ContestResolver,
-  media: Media
+  media: Media,
+  'social-desk': SocialDesk
 }
 
 // Check if current page is standalone
 const isStandalonePage = computed(() => {
   return currentPage.value === 'invoice-share' || currentPage.value === 'campaign-view'
 })
+
+const isFullscreenPage = computed(() => currentPage.value === 'social-desk')
+
+const useImmersiveLayout = computed(() =>
+  isWritingMode.value || isFullscreenPage.value
+)
 
 // Enhanced data refresh function with progressive loading and better error handling
 const refreshZapData = async (force = false, retryCount = 0) => {
@@ -654,7 +621,7 @@ const pageGroupMap = {
 }
 
 // Enhanced page change function to handle tab navigation
-const changePage = async (page, tab = null) => {
+const changePage = async (page, tab = null, options = {}) => {
   if (!components[page]) {
     console.error('Invalid page:', page)
     pageLoadingError.value = `Page "${page}" not found`
@@ -683,6 +650,15 @@ const changePage = async (page, tab = null) => {
     } else {
       url.searchParams.delete('page')
     }
+    const query = options.query || {}
+    const managedQueryKeys = ['eventId']
+    managedQueryKeys.forEach((key) => {
+      if (query[key] !== undefined && query[key] !== null && query[key] !== '') {
+        url.searchParams.set(key, query[key])
+      } else {
+        url.searchParams.delete(key)
+      }
+    })
     window.history.pushState({ page }, '', url)
 
     // Give the component a moment to load
@@ -773,7 +749,7 @@ const handleHelpClose = () => {
 
 const showLoginError = (err) => {
   if (err.message?.includes('No Nostr extension')) {
-    showLoginStatus('No Nostr extension found. Please install a NIP-07 browser extension (Alby, nos2x, or Flamingo) and refresh this page.')
+    showLoginStatus('No Nostr extension found. Please install a NIP-07 browser extension — we recommend Jump by Buho (from the ZapTracker founders, available for Firefox & Chrome), or Alby, nos2x, or Flamingo — and refresh this page.')
   } else {
     showLoginStatus(getUserFriendlyError(err))
   }
@@ -917,7 +893,7 @@ const handleChecklistTaskAction = async (action) => {
   </Transition>
 
   <!-- Standalone Invoice Share Page -->
-  <div v-if="appReady && isStandalonePage" class="min-h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25">
+  <div v-if="appReady && isStandalonePage" class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
     <component
       :is="components[currentPage]"
       :key="currentPage"
@@ -927,21 +903,25 @@ const handleChecklistTaskAction = async (action) => {
 
   <!-- Main Application Layout -->
   <div v-else-if="appReady" :class="[
-    'h-screen bg-gradient-to-br from-orange-25 via-amber-25 to-yellow-25 flex overflow-hidden',
+    'h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex overflow-hidden',
     isWritingMode ? 'writing-mode' : ''
   ]">
     <!-- Mobile Menu Overlay -->
     <transition name="overlay-fade">
       <div 
         v-if="isMobileMenuOpen" 
-        class="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        :class="[
+          'fixed inset-0 bg-black/50 z-40',
+          isFullscreenPage ? '' : 'lg:hidden'
+        ]"
         @click="isMobileMenuOpen = false"
       ></div>
     </transition>
     
     <!-- Sidebar - Mobile Drawer / Desktop Fixed -->
     <div :class="[
-      'fixed top-0 left-0 h-screen w-80 lg:w-72 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:z-30', isWritingMode ? 'lg:-translate-x-full' : '',
+      'fixed top-0 left-0 h-screen w-80 lg:w-72 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out',
+      isFullscreenPage ? '' : (isWritingMode ? 'lg:-translate-x-full' : 'lg:translate-x-0 lg:z-30'),
       isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
     ]">
       <Sidebar
@@ -951,9 +931,9 @@ const handleChecklistTaskAction = async (action) => {
     </div>
     
     <!-- Main Content Area -->
-    <div :class="['flex-1 flex flex-col h-screen overflow-hidden', isWritingMode ? 'lg:ml-0' : 'lg:ml-72']">
+    <div :class="['flex-1 flex flex-col h-screen overflow-hidden', useImmersiveLayout ? 'lg:ml-0' : 'lg:ml-72']">
       <!-- Fixed Top Bar -->
-      <header :class="['sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-orange-100/50', isWritingMode ? 'lg:hidden' : '']">
+      <header :class="['sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-orange-100/50', isWritingMode || isFullscreenPage ? 'hidden' : '']">
         <TopBar
           @show-connection="showConnectionModal = true"
           @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen"
@@ -962,57 +942,39 @@ const handleChecklistTaskAction = async (action) => {
         />
       </header>
       
-      <!-- Scrollable Main Content -->
-      <main :class="['flex-1 overflow-y-auto scrollbar-thin', isWritingMode ? 'p-0' : 'p-3 sm:p-4 lg:p-6']">
-        <!-- Offline Banner — prominent, above all page content -->
+      <!-- Main Content -->
+      <main :class="[
+        'relative flex-1 min-h-0',
+        isFullscreenPage ? 'overflow-hidden' : 'overflow-y-auto scrollbar-thin'
+      ]">
         <transition name="slide-down">
-          <div v-if="isRelayOffline && isAuthenticated" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0">
-            <div class="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center space-x-3">
-                  <div class="p-2 bg-red-100 rounded-full">
-                    <IconWifiOff class="w-4 h-4 text-red-600" />
-                  </div>
-                  <div>
-                    <span class="text-red-800 text-sm font-medium">No relay connections</span>
-                    <p class="text-red-600 text-xs">Showing cached data. Live updates paused.</p>
-                  </div>
-                </div>
-                <button
-                  @click="changePage('settings')"
-                  class="text-xs font-medium text-red-700 hover:text-red-900 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors whitespace-nowrap"
-                >
-                  Check Settings
-                </button>
-              </div>
-            </div>
-          </div>
-        </transition>
-
-        <!-- Degraded Connection Banner -->
-        <transition name="slide-down">
-          <div v-if="relayStatus === 'degraded' && isAuthenticated && !isRelayOffline" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0">
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
-              <div class="flex items-center space-x-2">
-                <IconWifi class="w-4 h-4 text-yellow-600" />
-                <span class="text-yellow-800 text-xs">Degraded connection — {{ relayLabel }} relays online</span>
-              </div>
-            </div>
-          </div>
-        </transition>
-
-        <!-- Login Error Banner -->
-        <transition name="slide-down">
-          <div v-if="loginError" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0" role="alert" aria-live="assertive">
-            <div class="bg-red-50 text-red-800 border border-red-200 rounded-lg px-4 py-3 text-sm font-medium">
+          <div
+            v-if="loginError"
+            :class="[
+              isFullscreenPage
+                ? 'pointer-events-none absolute inset-x-3 top-3 z-30 sm:inset-x-4 sm:top-4 lg:inset-x-6'
+                : 'mb-0'
+            ]"
+            role="alert"
+            aria-live="assertive"
+          >
+            <div class="bg-red-50 text-red-800 border border-red-200 rounded-lg px-4 py-3 text-sm font-medium shadow-sm">
               {{ loginError.message }}
             </div>
           </div>
         </transition>
 
-        <!-- Welcome Toast -->
         <transition name="slide-down">
-          <div v-if="welcomeToast" class="mx-3 sm:mx-4 lg:mx-6 mt-3 sm:mt-4 lg:mt-6 mb-0" role="status" aria-live="polite">
+          <div
+            v-if="welcomeToast"
+            :class="[
+              isFullscreenPage
+                ? 'pointer-events-none absolute inset-x-3 top-3 z-30 sm:inset-x-4 sm:top-4 lg:inset-x-6'
+                : 'mb-0'
+            ]"
+            role="status"
+            aria-live="polite"
+          >
             <div class="bg-white border border-green-200 rounded-xl px-4 py-3 shadow-sm flex items-center gap-3">
               <div class="w-8 h-8 rounded-full overflow-hidden border border-gray-200 flex-shrink-0 bg-gray-100">
                 <img v-if="welcomeToast.avatar" :src="welcomeToast.avatar" alt="" class="w-full h-full object-cover" @error="$event.target.style.display='none'" />
@@ -1027,7 +989,7 @@ const handleChecklistTaskAction = async (action) => {
           </div>
         </transition>
 
-        <div class="p-3 sm:p-4 lg:p-6">
+        <div :class="[isFullscreenPage ? 'flex h-full min-h-0 flex-col' : 'p-3 sm:p-4 lg:p-6']">
           <!-- Connection Status Bar (legacy, commented out) -->
         <!--  <transition name="slide-down">
             <div v-if="!isWalletConnected && currentPage === 'wallet'" class="mb-4 lg:mb-6">
@@ -1148,44 +1110,6 @@ const handleChecklistTaskAction = async (action) => {
             </div>
           </transition>
           
-          <!-- Data Summary for Large Datasets -->
-          <transition name="slide-down">
-            <div v-if="enhancedCombinedZapData.length > 50 && !dataLoadingProgress.isLoading && showLargeDatasetBanner" class="mb-4 lg:mb-6">
-              <div class="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3 sm:p-4">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div class="flex items-center space-x-2">
-                    <div class="p-2 bg-green-100 rounded-full">
-                      <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                      </svg>
-                    </div>
-                    <div>
-                      <span class="text-green-800 text-sm sm:text-base font-medium">
-                        Large dataset loaded successfully
-                      </span>
-                      <p class="text-green-700 text-xs">
-                        {{ enhancedCombinedZapData.filter(zap => zap.eventId).length }} zaps • {{ profileStore.size }} profiles • Ready for analysis
-                      </p>
-                    </div>
-                  </div>
-                  <div class="text-xs text-green-600 flex items-center space-x-3">
-                    <span class="inline-flex items-center">
-                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
-                      </svg>
-                      Optimized for large datasets
-                    </span>
-                    <button @click="dismissLargeDatasetBanner" class="text-green-700 hover:text-green-900 p-1 rounded-md hover:bg-green-100 transition-colors" aria-label="Dismiss">
-                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </transition>
-          
           <!-- Page Content with Transition -->
           <transition name="page-fade" mode="out-in">
             <ErrorBoundary v-if="!pageLoadingError && !isPageLoading">
@@ -1194,6 +1118,7 @@ const handleChecklistTaskAction = async (action) => {
                 :key="currentPage"
                 :initial-tab="currentPage === 'settings' ? activeSettingsTab : undefined"
                 @change-page="changePage"
+                @toggle-sidebar="isMobileMenuOpen = !isMobileMenuOpen"
                 @writing-mode-change="handleWritingModeChange"
                 @trigger-login="handleTriggerLogin"
                 @show-help="handleShowHelp"

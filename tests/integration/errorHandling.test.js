@@ -202,7 +202,7 @@ describe('Step 6.3 — Signing rejection produces friendly message', () => {
   it('AuthError with NO_EXTENSION returns a user-friendly message', () => {
     const err = new AuthError('No extension found', 'NO_EXTENSION')
     expect(getUserFriendlyError(err)).toBe(
-      'No Nostr extension found. Install Alby, nos2x, or Flamingo.'
+      'No Nostr extension found. Install Jump by Buho (from the ZapTracker founders), Alby, nos2x, or Flamingo.'
     )
   })
 

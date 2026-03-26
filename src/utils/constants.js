@@ -159,6 +159,9 @@ export const STORAGE_KEYS = {
   FOLLOW_LISTS_DISCOVERED: 'follow_lists_discovered',
   FOLLOW_LISTS_PROFILES: 'follow_lists_profiles',
 
+  // SocialDesk
+  DESK_COLUMNS: 'socialdesk_columns',
+
   // UI state
   WELCOME_SEEN: 'zaptracker_welcome_seen',
   BTC_PRICE: 'btcPriceData',

@@ -38,7 +38,7 @@ export class AuthError extends Error {
 
   get userMessage() {
     switch (this.code) {
-      case 'NO_EXTENSION': return 'No Nostr extension found. Install Alby, nos2x, or Flamingo.'
+      case 'NO_EXTENSION': return 'No Nostr extension found. Install Jump by Buho (from the ZapTracker founders), Alby, nos2x, or Flamingo.'
       case 'NO_SIGNER': return 'No signer connected. Please log in first.'
       case 'SIGN_REJECTED': return 'Signing was rejected. Please approve in your signer.'
       case 'REMOTE_TIMEOUT': return 'Remote signer did not respond. Check your signer app.'
@@ -58,7 +58,7 @@ export class SignerError extends Error {
 
   get userMessage() {
     switch (this.code) {
-      case 'NO_EXTENSION': return 'No Nostr extension found. Install Alby, nos2x, or Flamingo.'
+      case 'NO_EXTENSION': return 'No Nostr extension found. Install Jump by Buho (from the ZapTracker founders), Alby, nos2x, or Flamingo.'
       case 'SIGN_REJECTED': return 'Signing was rejected by your extension.'
       default: return this.message
     }
