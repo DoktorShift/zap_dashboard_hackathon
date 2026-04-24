@@ -2,6 +2,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { nip19, parseRelayList } from '../../services/nostr/nostrImports.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { signerService } from '../../services/nostr/SignerService.js'
+import { publishService } from '../../services/nostr/PublishService.js'
 import { initializeNWC } from '../../utils/wallet/nwcClient.js'
 import { profileService } from '../../services/nostr/ProfileService.js'
 import { DEFAULT_RELAY_CONFIGS_WITH_STATUS, MAX_PERSISTENT_RELAYS } from '../../utils/constants.js'
@@ -266,24 +267,15 @@ const removeRelay = (url) => {
   return true
 }
 
-// Fetch user's NIP-65 relay list (kind 10002) from Nostr
-// Uses nostr-core's parseRelayList for spec-correct parsing.
+// Fetch user's NIP-65 relay list via NostrService (discovery tier + persistent
+// cache). Replaces the old direct `queryOne` which only hit our own relays.
 const fetchUserRelayList = async (pubkey) => {
   if (!pubkey) return null
 
   try {
-    const relayListEvent = await nostrService.queryOne({
-      kinds: [10002],
-      authors: [pubkey],
-      limit: 1
-    })
+    const parsed = await nostrService.fetchRelayList(pubkey)
+    if (!parsed || parsed.length === 0) return null
 
-    if (!relayListEvent) {
-      return null
-    }
-
-    // nostr-core parseRelayList returns [{url, read, write}]
-    const parsed = parseRelayList(relayListEvent)
     return parsed.map(r => ({
       url: r.url,
       read: r.read,
@@ -293,6 +285,34 @@ const fetchUserRelayList = async (pubkey) => {
   } catch (error) {
     console.error('Failed to fetch NIP-65 relay list:', error)
     return null
+  }
+}
+
+/**
+ * Auto-publish the user's NIP-65 relay list if they don't yet have one
+ * on the discovery tier. Makes us a good citizen of the outbox model —
+ * other clients can route events to us correctly.
+ *
+ * Best-effort: never throws. Failure just logs.
+ */
+const ensureOwnRelayListPublished = async (pubkey) => {
+  if (!pubkey) return
+  try {
+    const existing = await nostrService.fetchRelayList(pubkey)
+    if (Array.isArray(existing) && existing.length > 0) return
+
+    const template = nostrService.buildOwnRelayListTemplate()
+    if (!template) return
+
+    await publishService.signAndPublish(template)
+    // Invalidate so next lookup sees the fresh list.
+    // Persistent cache key matches the pubkey.
+    try {
+      const { cacheManager } = await import('../../services/nostr/CacheManager.js')
+      cacheManager.invalidate('relayLists', pubkey)
+    } catch {}
+  } catch (error) {
+    console.warn('[useNostrAuth] NIP-65 auto-publish skipped:', error?.message || error)
   }
 }
 
@@ -341,8 +361,16 @@ const updateRelaysFromNip65 = async (pubkey) => {
       console.warn('Failed to update relay manager:', error)
     }
 
+    // Good-citizen: publish our OWN NIP-65 if we don't have one yet.
+    // Runs in background, never blocks login.
+    ensureOwnRelayListPublished(pubkey)
+
     return true
   }
+
+  // No NIP-65 on any discovery/user relay — publish ours so other clients
+  // can route to us.
+  ensureOwnRelayListPublished(pubkey)
 
   return false
 }
@@ -358,8 +386,9 @@ const startUserEventListener = (pubkey) => {
   }
 
   try {
-    // Subscribe to user's events using relay manager
-    const sub = nostrService.subscribe([
+    // Outbox-routed: user's own events live on their write relays,
+    // mentions of them live on other users' write relays (routed per-#p).
+    const sub = nostrService.subscribeOutbox([
       {
         kinds: [1, 6, 7], // Notes, reposts, reactions
         authors: [pubkey],

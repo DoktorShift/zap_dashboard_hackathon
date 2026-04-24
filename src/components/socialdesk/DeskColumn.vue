@@ -15,7 +15,12 @@ import {
 import { useDeskFeed } from '../../composables/social/useDeskFeed.js'
 import { useDeskInteractions } from '../../composables/social/useDeskInteractions.js'
 import { COLUMN_TYPES } from '../../composables/social/useDeskColumns.js'
-import { useEngagementMetrics } from '../../composables/analytics/useEngagementMetrics.js'
+// useEngagementMetrics intentionally NOT imported here — useDeskInteractions
+// is the sole source for reactions/reposts/replies in SocialDesk. Keeping
+// engagement-metrics tracking here opened a parallel subscription that
+// duplicated the same events without surfacing any distinct data in the
+// column UI (article cards and post cards both read from the prop that
+// getDisplayInteractions returns). Analytics remains engagement-metrics's home.
 import { useContentZaps } from '../../composables/content/useContentZaps.js'
 import DeskPost from './DeskPost.vue'
 import DeskArticleCard from './DeskArticleCard.vue'
@@ -42,8 +47,7 @@ const {
   getProfile
 } = useDeskFeed(columnRef)
 
-const { getInteractions, trackPosts, untrackPosts } = useDeskInteractions()
-const { getEngagementCounts, startEngagementTracking, startLongFormContentTracking } = useEngagementMetrics()
+const { getInteractions, trackPosts, untrackPosts, trackPostAddress } = useDeskInteractions()
 const { startZapTracking, getZapCount } = useContentZaps()
 
 // Track interaction counts when posts arrive, untrack when they leave
@@ -58,12 +62,18 @@ watch(posts, (newPosts) => {
   if (addedIds.length > 0) trackPosts(addedIds)
   newPosts.forEach((post) => {
     if (!post?.rawEvent?.id) return
+    // Zap tracking is distinct (bolt11-verified sats, not raw receipt count).
     startZapTracking(post.rawEvent.id)
+
+    // Articles / parameterized-replaceable events: also register the
+    // NIP-33 address coordinate so reactions that reference the post
+    // via `#a` (common for long-form content) are counted alongside
+    // reactions that reference the event id via `#e`.
     if (post.rawEvent.kind === 30023) {
-      const dTag = post.rawEvent.tags.find((tag) => tag[0] === 'd')?.[1] || post.id
-      startLongFormContentTracking(post.rawEvent.id, post.pubkey, dTag)
-    } else {
-      startEngagementTracking(post.rawEvent.id)
+      const dTag = post.rawEvent.tags.find((tag) => tag[0] === 'd')?.[1]
+      if (dTag && post.pubkey) {
+        trackPostAddress(post.rawEvent.id, `30023:${post.pubkey}:${dTag}`)
+      }
     }
   })
   trackedPostIds = newIds
@@ -105,17 +115,29 @@ function onFeedScroll() {
   }
 }
 
+/**
+ * Interaction counts come from useDeskInteractions — the single source
+ * of truth for reactions/reposts/replies in SocialDesk. It dedupes per
+ * author (NIP-25 latest-wins) and honors kind:5 deletions. We no longer
+ * mix in useEngagementMetrics counts here; that composable has its own
+ * analytics use-cases but tracking them both for the same surface caused
+ * the "jumping numbers" bug as they converged at different rates.
+ *
+ * Content-zap totals (sats) come from useContentZaps via getZapCount —
+ * that one IS authoritative for zap totals and is additive, not a count
+ * of the same thing from two angles.
+ */
 function getDisplayInteractions(post) {
   const deskCounts = getInteractions(post.id)
   const eventId = post.rawEvent?.id
-  const engagementCounts = eventId ? getEngagementCounts(eventId) : null
   const zapCount = eventId ? getZapCount(eventId) : 0
 
   return {
     ...deskCounts,
-    reactions: Math.max(deskCounts.reactions || 0, engagementCounts?.likes || 0),
-    reposts: Math.max(deskCounts.reposts || 0, engagementCounts?.reposts || 0),
-    zaps: Math.max(deskCounts.zaps || 0, zapCount || 0)
+    // zaps tracked by useDeskInteractions is a COUNT of receipts; zapCount
+    // from useContentZaps is AUTHORITATIVE because it parses bolt11. Use
+    // the authoritative one when we have it, fall back to the receipt count.
+    zaps: zapCount || deskCounts.zaps || 0,
   }
 }
 

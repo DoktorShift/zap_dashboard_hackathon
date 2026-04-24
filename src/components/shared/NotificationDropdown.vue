@@ -1,441 +1,221 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, inject, onMounted, onUnmounted, watch } from 'vue'
 import {
   IconBell,
   IconBellRinging,
   IconCheck,
-  IconX,
   IconTrash,
-  IconBolt,
-  IconAlertCircle,
-  IconCalendar
+  IconSettings,
 } from '@iconify-prerendered/vue-tabler'
 import { useNotifications } from '../../composables/core/useNotifications.js'
-import NotificationItem from './NotificationItem.vue'
+import NotificationList from './NotificationList.vue'
 import NotificationModal from './NotificationModal.vue'
+
+/**
+ * Notification bell + popover.
+ *
+ * Badge reflects UNSEEN (not unread) — opening the panel clears it while
+ * leaving unread items visually distinct inside. Activating an item delegates
+ * to the injected `changePage` for in-app navigation.
+ */
 
 const {
   notifications,
+  unseenCount,
   unreadCount,
   markAsRead,
+  markAsUnread,
   markAllAsRead,
+  markAllSeen,
   clearAllNotifications,
   removeNotification,
-  NOTIFICATION_TYPES
 } = useNotifications()
 
-const showDropdown = ref(false)
-const dropdownRef = ref(null)
-const filterType = ref('all')
-const displayCount = ref(50)
-const scrollContainer = ref(null)
-const showNotificationModal = ref(false)
+const changePage = inject('changePage', null)
 
-// Close dropdown when clicking outside
+const showDropdown = ref(false)
+const showModal = ref(false)
+const dropdownRef = ref(null)
+
+const toggleDropdown = () => {
+  showDropdown.value = !showDropdown.value
+}
+
+// Clear the badge as soon as the panel becomes visible
+watch(showDropdown, (open) => {
+  if (open) markAllSeen()
+})
+
+// Row click: mark as read, stay open for triage
+const onSelect = (notification) => {
+  markAsRead(notification.id)
+}
+
+// Explicit "Open" button: navigate + close the dropdown (user asked to go)
+const onOpen = (notification) => {
+  markAsRead(notification.id)
+  showDropdown.value = false
+  showModal.value = false
+  const action = notification.action
+  if (action && changePage) {
+    changePage(action.page, action.tab || null, action.query ? { query: action.query } : {})
+  }
+}
+
+const openAllModal = () => {
+  showDropdown.value = false
+  showModal.value = true
+}
+
+// Close on outside click
 const handleClickOutside = (event) => {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
     showDropdown.value = false
   }
 }
+const handleEscape = (event) => {
+  if (event.key === 'Escape') showDropdown.value = false
+}
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleEscape)
 })
-
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleEscape)
 })
-
-const toggleDropdown = () => {
-  showDropdown.value = !showDropdown.value
-  if (showDropdown.value) {
-    displayCount.value = 50
-  }
-}
-
-// Infinite scroll handler
-const handleScroll = (e) => {
-  const { scrollTop, scrollHeight, clientHeight } = e.target
-  if (scrollHeight - scrollTop <= clientHeight + 100) {
-    if (displayCount.value < filteredNotifications.value.length) {
-      displayCount.value += 50
-    }
-  }
-}
-
-// Filter notifications
-const filteredNotifications = computed(() => {
-  if (filterType.value === 'all') return notifications.value
-  if (filterType.value === 'unread') return notifications.value.filter(n => !n.read)
-  if (filterType.value === 'zaps') {
-    return notifications.value.filter(n =>
-      n.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NWC ||
-      n.type === NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR ||
-      n.type === NOTIFICATION_TYPES.ZAP_SENT
-    )
-  }
-  if (filterType.value === 'calendar') {
-    return notifications.value.filter(n =>
-      n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
-      n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
-    )
-  }
-  return notifications.value
-})
-
-// Displayed notifications (with infinite scroll limit)
-const displayedNotifications = computed(() => {
-  return filteredNotifications.value.slice(0, displayCount.value)
-})
-
-// Group notifications by date
-const groupedNotifications = computed(() => {
-  const groups = {
-    today: [],
-    yesterday: [],
-    thisWeek: [],
-    older: []
-  }
-
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  const thisWeek = new Date(today)
-  thisWeek.setDate(thisWeek.getDate() - 7)
-
-  displayedNotifications.value.forEach(notification => {
-    const notifDate = new Date(notification.timestamp)
-    const notifDay = new Date(notifDate.getFullYear(), notifDate.getMonth(), notifDate.getDate())
-
-    if (notifDay.getTime() === today.getTime()) {
-      groups.today.push(notification)
-    } else if (notifDay.getTime() === yesterday.getTime()) {
-      groups.yesterday.push(notification)
-    } else if (notifDay >= thisWeek) {
-      groups.thisWeek.push(notification)
-    } else {
-      groups.older.push(notification)
-    }
-  })
-
-  return groups
-})
-
-const handleNotificationClick = (notification) => {
-  markAsRead(notification.id)
-}
-
-const hasUnread = computed(() => unreadCount.value > 0)
-
-const filterOptions = [
-  { value: 'all', label: 'All', icon: IconBell },
-  { value: 'unread', label: 'Unread', icon: IconBellRinging },
-  { value: 'zaps', label: 'Zaps', icon: IconBolt },
-  { value: 'calendar', label: 'Calendar', icon: IconCalendar }
-]
-
-const unreadFilteredCount = computed(() => {
-  return filteredNotifications.value.filter(n => !n.read).length
-})
-
-const openNotificationModal = () => {
-  showNotificationModal.value = true
-  showDropdown.value = false
-}
 </script>
 
 <template>
   <div class="relative" ref="dropdownRef">
-    <!-- Notification Bell Button -->
     <button
       @click="toggleDropdown"
-      class="relative text-gray-500 hover:text-amber-600 p-2 rounded-xl transition-all duration-200 hover:bg-amber-50 group flex items-center justify-center"
+      :aria-label="`Notifications${unseenCount ? `, ${unseenCount} new` : ''}`"
+      :aria-expanded="showDropdown"
+      aria-haspopup="menu"
+      class="relative text-gray-500 hover:text-orange-600 p-2 rounded-xl transition-all duration-200 hover:bg-orange-50 group flex items-center justify-center"
     >
-      <IconBellRinging v-if="hasUnread" class="w-5 h-5 text-amber-600 animate-[wiggle_0.5s_ease-in-out_3]" />
+      <IconBellRinging
+        v-if="unseenCount > 0"
+        class="w-5 h-5 text-orange-600 animate-bell"
+      />
       <IconBell v-else class="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
 
-      <!-- Unread Count Badge -->
       <span
-        v-if="unreadCount > 0"
-        class="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 bg-gradient-to-r from-red-500 to-red-600 rounded-full text-white text-[11px] font-bold flex items-center justify-center shadow-lg shadow-red-500/40 ring-2 ring-white"
+        v-if="unseenCount > 0"
+        class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-red-500 to-red-600 rounded-full text-white text-[10px] font-bold flex items-center justify-center shadow-lg shadow-red-500/40 ring-2 ring-white"
       >
-        {{ unreadCount > 99 ? '99+' : unreadCount }}
+        {{ unseenCount > 99 ? '99+' : unseenCount }}
       </span>
     </button>
 
-    <!-- Notification Dropdown -->
     <transition name="dropdown">
       <div
         v-if="showDropdown"
-        class="absolute right-0 top-full mt-2 w-[420px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden"
+        role="menu"
+        class="absolute right-0 top-full mt-2 w-[420px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 flex flex-col overflow-hidden"
         style="max-height: calc(100vh - 120px);"
       >
-        <!-- Header -->
-        <div class="sticky top-0 bg-white border-b border-gray-200 z-10">
-          <div class="p-4">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <IconBell class="w-5 h-5 text-amber-600" />
-                <span>Notifications</span>
-              </h3>
-              <div class="flex items-center gap-1">
-                <button
-                  v-if="unreadCount > 0"
-                  @click="markAllAsRead"
-                  class="text-xs text-amber-600 hover:text-amber-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-all duration-200 flex items-center gap-1.5"
-                  title="Mark all as read"
-                >
-                  <IconCheck class="w-4 h-4" />
-                  <span>Mark all</span>
-                </button>
-                <button
-                  v-if="notifications.length > 0"
-                  @click="clearAllNotifications"
-                  class="text-xs text-gray-500 hover:text-red-600 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-50 transition-all duration-200 flex items-center gap-1.5"
-                  title="Clear all"
-                >
-                  <IconTrash class="w-4 h-4" />
-                  <span>Clear</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Filter Tabs -->
-            <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+        <div class="px-4 pt-4 pb-2 flex-shrink-0 border-b border-gray-100">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
+              <IconBell class="w-5 h-5 text-orange-600" />
+              Notifications
+            </h3>
+            <div class="flex items-center gap-0.5">
               <button
-                v-for="filter in filterOptions"
-                :key="filter.value"
-                @click="filterType = filter.value; displayCount = 50"
-                :class="[
-                  'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200',
-                  filterType === filter.value
-                    ? 'bg-white text-amber-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                ]"
+                v-if="unreadCount > 0"
+                @click="markAllAsRead"
+                class="text-xs text-gray-600 hover:text-orange-600 font-medium px-2 py-1.5 rounded-lg hover:bg-orange-50 flex items-center gap-1"
+                title="Mark all as read"
               >
-                <component :is="filter.icon" class="w-4 h-4" />
-                <span>{{ filter.label }}</span>
+                <IconCheck class="w-4 h-4" />
               </button>
-            </div>
-
-            <!-- Status Bar -->
-            <div class="mt-3 flex items-center justify-between text-xs">
-              <span class="text-gray-600">
-                <span class="font-semibold text-gray-900">{{ filteredNotifications.length }}</span>
-                {{ filterType === 'all' ? 'total' : filterType }}
-              </span>
-              <span v-if="unreadFilteredCount > 0" class="text-amber-600 font-semibold">
-                {{ unreadFilteredCount }} unread
-              </span>
-              <span v-else class="text-green-600 font-semibold flex items-center gap-1">
-                <IconCheck class="w-3.5 h-3.5" />
-                All caught up!
-              </span>
-            </div>
-
-            <!-- Storage Info Banner -->
-            <div v-if="notifications.length >= 200" class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs">
-              <div class="flex items-start gap-2">
-                <IconAlertCircle class="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div class="flex-1">
-                  <p class="text-blue-900 font-medium">
-                    Showing {{ notifications.length }} notifications
-                  </p>
-                  <p class="text-blue-700 mt-0.5">
-                    Older notifications are automatically archived. Calendar events are always kept.
-                  </p>
-                </div>
-              </div>
+              <button
+                v-if="notifications.length > 0"
+                @click="clearAllNotifications"
+                class="text-xs text-gray-500 hover:text-red-600 font-medium px-2 py-1.5 rounded-lg hover:bg-red-50 flex items-center gap-1"
+                title="Clear all"
+              >
+                <IconTrash class="w-4 h-4" />
+              </button>
+              <button
+                v-if="changePage"
+                @click="() => { showDropdown = false; changePage('settings', 'alerts') }"
+                class="text-xs text-gray-500 hover:text-orange-600 font-medium px-2 py-1.5 rounded-lg hover:bg-orange-50 flex items-center gap-1"
+                title="Notification settings"
+              >
+                <IconSettings class="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
 
-        <!-- Notifications List -->
+        <NotificationList
+          :notifications="notifications"
+          :initial-count="50"
+          :page-size="50"
+          density="compact"
+          max-height="calc(100vh - 280px)"
+          empty-title="No notifications"
+          empty-hint="You're all caught up!"
+          @select="onSelect"
+          @open="onOpen"
+          @mark-unread="markAsUnread"
+          @remove="removeNotification"
+        />
+
         <div
-          ref="scrollContainer"
-          @scroll="handleScroll"
-          class="overflow-y-auto"
-          style="max-height: calc(100vh - 300px);"
+          v-if="notifications.length > 0"
+          class="p-2.5 text-center border-t border-gray-200 bg-gray-50/80 flex-shrink-0"
         >
-          <div v-if="filteredNotifications.length === 0" class="p-12 text-center">
-            <div class="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-              <IconBell class="w-10 h-10 text-gray-300" />
-            </div>
-            <h4 class="text-base font-semibold text-gray-900 mb-2">No notifications</h4>
-            <p class="text-gray-500 text-sm">
-              {{ filterType === 'all' ? "You're all caught up!" : `No ${filterType} notifications` }}
-            </p>
-          </div>
-
-          <div v-else>
-            <!-- Today -->
-            <div v-if="groupedNotifications.today.length > 0">
-              <div class="sticky top-0 bg-gray-50 px-4 py-2 border-b border-gray-200 z-5">
-                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Today</h4>
-              </div>
-              <div
-                v-for="notification in groupedNotifications.today"
-                :key="notification.id"
-                @click="handleNotificationClick(notification)"
-                :class="[
-                  'p-4 border-b border-gray-100 hover:bg-gradient-to-r cursor-pointer transition-all duration-200 relative group',
-                  !notification.read
-                    ? 'bg-amber-50/40 hover:from-amber-50/60 hover:to-amber-50/30'
-                    : 'hover:from-gray-50/60 hover:to-gray-50/30'
-                ]"
-              >
-                <NotificationItem :notification="notification" @remove="removeNotification" />
-              </div>
-            </div>
-
-            <!-- Yesterday -->
-            <div v-if="groupedNotifications.yesterday.length > 0">
-              <div class="sticky top-0 bg-gray-50 px-4 py-2 border-b border-gray-200 z-5">
-                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Yesterday</h4>
-              </div>
-              <div
-                v-for="notification in groupedNotifications.yesterday"
-                :key="notification.id"
-                @click="handleNotificationClick(notification)"
-                :class="[
-                  'p-4 border-b border-gray-100 hover:bg-gradient-to-r cursor-pointer transition-all duration-200 relative group',
-                  !notification.read
-                    ? 'bg-amber-50/40 hover:from-amber-50/60 hover:to-amber-50/30'
-                    : 'hover:from-gray-50/60 hover:to-gray-50/30'
-                ]"
-              >
-                <NotificationItem :notification="notification" @remove="removeNotification" />
-              </div>
-            </div>
-
-            <!-- This Week -->
-            <div v-if="groupedNotifications.thisWeek.length > 0">
-              <div class="sticky top-0 bg-gray-50 px-4 py-2 border-b border-gray-200 z-5">
-                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">This Week</h4>
-              </div>
-              <div
-                v-for="notification in groupedNotifications.thisWeek"
-                :key="notification.id"
-                @click="handleNotificationClick(notification)"
-                :class="[
-                  'p-4 border-b border-gray-100 hover:bg-gradient-to-r cursor-pointer transition-all duration-200 relative group',
-                  !notification.read
-                    ? 'bg-amber-50/40 hover:from-amber-50/60 hover:to-amber-50/30'
-                    : 'hover:from-gray-50/60 hover:to-gray-50/30'
-                ]"
-              >
-                <NotificationItem :notification="notification" @remove="removeNotification" />
-              </div>
-            </div>
-
-            <!-- Older -->
-            <div v-if="groupedNotifications.older.length > 0">
-              <div class="sticky top-0 bg-gray-50 px-4 py-2 border-b border-gray-200 z-5">
-                <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Older</h4>
-              </div>
-              <div
-                v-for="notification in groupedNotifications.older"
-                :key="notification.id"
-                @click="handleNotificationClick(notification)"
-                :class="[
-                  'p-4 border-b border-gray-100 hover:bg-gradient-to-r cursor-pointer transition-all duration-200 relative group',
-                  !notification.read
-                    ? 'bg-amber-50/40 hover:from-amber-50/60 hover:to-amber-50/30'
-                    : 'hover:from-gray-50/60 hover:to-gray-50/30'
-                ]"
-              >
-                <NotificationItem :notification="notification" @remove="removeNotification" />
-              </div>
-            </div>
-
-            <!-- View All Button -->
-            <div class="p-3 text-center border-t border-gray-200 bg-gray-50/80">
-              <button
-                @click="openNotificationModal"
-                class="text-sm font-semibold text-amber-600 hover:text-amber-700 px-4 py-2 rounded-lg hover:bg-amber-50 transition-all duration-200"
-              >
-                View all notifications
-              </button>
-            </div>
-          </div>
+          <button
+            @click="openAllModal"
+            class="text-xs font-semibold text-orange-600 hover:text-orange-700 px-3 py-1.5 rounded-lg hover:bg-orange-50"
+          >
+            View all notifications
+          </button>
         </div>
       </div>
     </transition>
 
-    <!-- Notification Modal -->
     <NotificationModal
-      v-if="showNotificationModal"
-      :show="showNotificationModal"
-      :notifications="notifications"
-      :notification-types="NOTIFICATION_TYPES"
-      @close="showNotificationModal = false"
-      @mark-read="markAsRead"
-      @mark-all-read="markAllAsRead"
-      @remove="removeNotification"
-      @clear-all="clearAllNotifications"
+      v-if="showModal"
+      :show="showModal"
+      @close="showModal = false"
+      @open="onOpen"
     />
   </div>
 </template>
 
 <style scoped>
-/* Dropdown transition */
 .dropdown-enter-active {
-  animation: dropdown-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: dropdown-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
 .dropdown-leave-active {
-  animation: dropdown-out 0.2s cubic-bezier(0.4, 0, 1, 1);
+  animation: dropdown-out 0.18s cubic-bezier(0.4, 0, 1, 1);
 }
 
 @keyframes dropdown-in {
-  from {
-    opacity: 0;
-    transform: translateY(-16px) scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-
 @keyframes dropdown-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-12px) scale(0.96);
-  }
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-8px) scale(0.97); }
 }
 
-@keyframes wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-10deg); }
-  75% { transform: rotate(10deg); }
+@keyframes bell-swing {
+  0%, 100% { transform: rotate(0); }
+  15%      { transform: rotate(-12deg); }
+  30%      { transform: rotate(10deg); }
+  45%      { transform: rotate(-8deg); }
+  60%      { transform: rotate(6deg); }
+  75%      { transform: rotate(-4deg); }
 }
-
-/* Custom scrollbar */
-.overflow-y-auto::-webkit-scrollbar {
-  width: 8px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: #f3f4f6;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Smooth scrolling */
-.overflow-y-auto {
-  scroll-behavior: smooth;
+.animate-bell {
+  animation: bell-swing 1.4s ease-in-out 1;
+  transform-origin: 50% 4px;
 }
 </style>

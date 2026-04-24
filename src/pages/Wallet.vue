@@ -25,6 +25,7 @@ import {
 import QRCodeVue3 from 'qrcode-vue3'
 import { useNostrConnections } from '../composables/core/useNostrConnections.js'
 import { useNotifications } from '../composables/core/useNotifications.js'
+import { cacheManager } from '../services/nostr/CacheManager.js'
 import {
   getBalance,
   getWalletInfo,
@@ -51,6 +52,53 @@ const transactions = ref([])
 const isLoading = ref(false)
 const showBalance = ref(true)
 const error = ref('')
+
+// Cold-paint snapshot — keyed per wallet connection so switching wallets
+// doesn't show the previous wallet's data. 7d TTL via cacheManager
+// 'snapshots' namespace (persistent).
+const WALLET_SNAPSHOT_MAX_TX = 50
+const walletSnapshotKey = computed(() => {
+  const cid = activeConnection.value?.id
+  return cid ? `wallet:${cid}` : null
+})
+
+function hydrateWalletSnapshot() {
+  const key = walletSnapshotKey.value
+  if (!key) return
+  const snap = cacheManager.get('snapshots', key)
+  if (!snap || typeof snap !== 'object') return
+  // Only seed if we don't already have live data — avoid clobbering mid-session.
+  if (balance.value === 0 && typeof snap.balance === 'number') balance.value = snap.balance
+  if (!walletInfo.value && snap.info) walletInfo.value = snap.info
+  if (transactions.value.length === 0 && Array.isArray(snap.transactions)) {
+    transactions.value = snap.transactions
+  }
+}
+
+/**
+ * Persist only the fields that actually came from a successful RPC in
+ * this refresh cycle. A partial-success refresh (balance OK, tx fetch
+ * failed) must not overwrite a good `transactions` snapshot with an
+ * empty list — the last-known tx history stays visible until a real
+ * success replaces it.
+ */
+function persistWalletSnapshot({ balance: gotBalance, info: gotInfo, transactions: gotTxs } = {}) {
+  const key = walletSnapshotKey.value
+  if (!key) return
+
+  const existing = cacheManager.get('snapshots', key) || {}
+  const next = {
+    balance: gotBalance ? balance.value : existing.balance,
+    info: gotInfo ? walletInfo.value : existing.info,
+    transactions: gotTxs
+      ? transactions.value.slice(0, WALLET_SNAPSHOT_MAX_TX)
+      : existing.transactions,
+  }
+  // Only write if at least one field has a real value — avoids writing
+  // an empty wrapper on a first-ever-run total failure.
+  if (next.balance == null && !next.info && !next.transactions) return
+  cacheManager.set('snapshots', key, next)
+}
 
 // Modal states
 const showCreateInvoice = ref(false)
@@ -128,6 +176,9 @@ const isPaymentFormValid = computed(() => {
 
 // Lifecycle methods
 onMounted(() => {
+  // Cold-paint immediately so the user sees their last-known wallet state
+  // even if `loadWalletData` bails (no connection) or is slow.
+  hydrateWalletSnapshot()
   if (isWalletConnected.value) {
     loadWalletData()
   }
@@ -139,7 +190,9 @@ watch(() => notifications.value.length, (newLen, oldLen) => {
   if (!isWalletConnected.value || !newLen || newLen <= (oldLen || 0)) return
 
   const hasNewPaymentNotification = notifications.value.some(notification =>
-    (notification.type === 'zap_received' || notification.type === 'payment_success') &&
+    (notification.type === 'zap_received_nwc' ||
+     notification.type === 'zap_received_nostr' ||
+     notification.type === 'payment_success') &&
     !notification.read
   )
 
@@ -173,10 +226,14 @@ const checkCameraPermission = async () => {
 // Data loading methods
 const loadWalletData = async () => {
   if (!isWalletConnected.value) return
-  
+
+  // Paint last-known wallet state immediately so the page isn't blank
+  // while NWC RPCs are in flight. Fresh data replaces it in place.
+  hydrateWalletSnapshot()
+
   isLoading.value = true
   error.value = ''
-  
+
   try {
     const [balanceResult, infoResult, transactionResult] = await Promise.allSettled([
       getBalance(),
@@ -201,6 +258,16 @@ const loadWalletData = async () => {
     } else if (transactionResult.status === 'rejected') {
       console.warn('Transaction fetch failed:', transactionResult.reason?.message)
     }
+
+    // Persist per-field: each successful RPC updates its slice of the
+    // snapshot, failed RPCs leave their prior value untouched. This
+    // prevents a "balance loaded, tx fetch failed" cycle from
+    // overwriting yesterday's valid tx history with [].
+    persistWalletSnapshot({
+      balance: balanceResult.status === 'fulfilled' && !!balanceResult.value,
+      info: infoResult.status === 'fulfilled' && !!infoResult.value,
+      transactions: transactionResult.status === 'fulfilled' && !!transactionResult.value,
+    })
 
     // Show error only if all requests failed
     const failures = [balanceResult, infoResult, transactionResult].filter(r => r.status === 'rejected')
@@ -372,7 +439,7 @@ const sendPayment = async () => {
     handlePaymentSuccess(result)
 
     if (paidAmountSats) {
-      handleZapSent({ amount: paidAmountSats * 1000 }) // msats
+      handleZapSent({ amount: paidAmountSats })
     }
 
     await refreshData()

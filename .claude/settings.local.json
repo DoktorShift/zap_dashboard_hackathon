@@ -39,7 +39,17 @@
       "Bash(npm view:*)",
       "Bash(npm pack:*)",
       "Bash(npx vitest:*)",
-      "Bash(do sed:*)"
+      "Bash(do sed:*)",
+      "WebFetch(domain:nostrify.dev)",
+      "Bash(gh issue *)",
+      "Bash(npm test *)",
+      "Bash(git stash *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} in %{time_total}s\\\\n\" http://localhost:5175/)",
+      "Bash(curl -s http://localhost:5175/src/pages/Explore.vue)",
+      "Bash(curl -s -o /dev/null -w \"Explore.vue: HTTP %{http_code}\\\\n\" http://localhost:5175/src/pages/Explore.vue)",
+      "Bash(pkill -f \"vite.*5175\")",
+      "Bash(lsof -ti:5175)",
+      "Bash(xargs -r kill -9)"
     ]
   }
 }

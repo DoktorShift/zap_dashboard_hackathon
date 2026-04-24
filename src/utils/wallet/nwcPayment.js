@@ -19,11 +19,14 @@ export class NWCPaymentHandler {
 
   async getZapEndpoint(publisherPubkey) {
     try {
-      const metadata = await nostrService.queryOne({
-        kinds: [0],
-        authors: [publisherPubkey],
-        limit: 1
-      })
+      // Route through outbox — a user's profile lives on their write
+      // relays, not ours. Discovery + cache handled by NostrService.
+      const events = await nostrService.queryOutbox(
+        [{ kinds: [0], authors: [publisherPubkey], limit: 1 }],
+        { timeout: 10_000, eoseGrace: 1_500 }
+      )
+      events.sort((a, b) => b.created_at - a.created_at)
+      const metadata = events[0] || null
 
       if (!metadata) {
         throw new Error('Publisher profile not found')

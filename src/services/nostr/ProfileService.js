@@ -46,6 +46,17 @@ const profileStore = {
 }
 
 class ProfileService {
+  constructor() {
+    /**
+     * Per-pubkey in-flight promises for batch fetches. If component A asks
+     * for [p1, p2, p3] and component B asks for [p2, p3, p4] while A is
+     * still fetching, B reuses A's promise for p2+p3 and only issues a
+     * fresh outbox query for p4.
+     * @type {Map<string, Promise<void>>}
+     */
+    this._batchInflight = new Map()
+  }
+
   /**
    * Get a single profile by pubkey.
    * Cached results (including "no profile found") are returned immediately.
@@ -87,50 +98,89 @@ class ProfileService {
 
   /**
    * Batch-fetch profiles for multiple pubkeys.
-   * Only fetches pubkeys not already cached.
+   *
+   * Coalesces across concurrent callers: if another batch is already
+   * fetching some of the requested pubkeys, this call waits for those
+   * and only issues a fresh outbox query for the truly-missing ones.
+   *
+   * Skips pubkeys with any cached envelope (hit / miss / error) so we
+   * don't thrash the network on profiles that legitimately don't exist.
+   *
+   * @param {string[]} pubkeys
+   * @param {{ batchSize?: number, timeout?: number }} [opts]
+   * @returns {Promise<number>} number of fresh profiles fetched by this call
    */
   async batch(pubkeys = [], { batchSize = PROFILE_BATCH_SIZE, timeout = PROFILE_FETCH_TIMEOUT } = {}) {
     const valid = pubkeys.filter(pk => pk && typeof pk === 'string' && pk.length === 64)
 
-    // Skip pubkeys that have any cached entry (hit, miss, or error)
-    const missing = valid.filter(pk => {
-      const cached = cacheManager.get('profiles', pk)
-      return !isCacheEntry(cached)
-    })
-
-    if (missing.length === 0) return 0
-
-    let fetchedCount = 0
-    const fetchedPubkeys = new Set()
-
-    for (let i = 0; i < missing.length; i += batchSize) {
-      const batch = missing.slice(i, i + batchSize)
-
-      const events = await nostrService.queryOutbox(
-        [{ kinds: [0], authors: batch, limit: batch.length }],
-        { timeout, eoseGrace: PROFILE_EOSE_GRACE }
-      )
-
-      for (const event of events) {
-        try {
-          const data = JSON.parse(event.content || '{}')
-          const profile = normalizeProfile(event.pubkey, data)
-          cacheManager.set('profiles', event.pubkey, cacheHit(profile))
-          fetchedPubkeys.add(event.pubkey)
-          fetchedCount++
-        } catch {
-          // skip invalid JSON
-        }
-      }
-
-      // Mark unfetched pubkeys in this batch as miss
-      for (const pk of batch) {
-        if (!fetchedPubkeys.has(pk) && !isCacheEntry(cacheManager.get('profiles', pk))) {
-          cacheManager.set('profiles', pk, cacheHit(fallbackProfile(pk)), 12 * 60 * 60 * 1000)
-        }
+    // Partition: truly-missing (no cache + no in-flight) vs. already-in-flight.
+    const missing = []
+    const waitFor = []
+    const seen = new Set() // guard against dupes in the input
+    for (const pk of valid) {
+      if (seen.has(pk)) continue
+      seen.add(pk)
+      if (isCacheEntry(cacheManager.get('profiles', pk))) continue
+      const inflight = this._batchInflight.get(pk)
+      if (inflight) {
+        waitFor.push(inflight)
+      } else {
+        missing.push(pk)
       }
     }
 
+    if (missing.length === 0) {
+      // Nothing new to fetch — just wait on any overlapping in-flight work
+      // so the caller's postconditions (cache is populated) hold.
+      if (waitFor.length > 0) await Promise.allSettled(waitFor)
+      return 0
+    }
+
+    let fetchedCount = 0
+
+    for (let i = 0; i < missing.length; i += batchSize) {
+      const slice = missing.slice(i, i + batchSize)
+
+      // Register this slice as in-flight BEFORE the await so concurrent
+      // callers see it. We resolve the promise after the slice's cache
+      // writes are committed.
+      let resolveSlice
+      const slicePromise = new Promise(r => { resolveSlice = r })
+      for (const pk of slice) this._batchInflight.set(pk, slicePromise)
+
+      try {
+        const events = await nostrService.queryOutbox(
+          [{ kinds: [0], authors: slice, limit: slice.length }],
+          { timeout, eoseGrace: PROFILE_EOSE_GRACE }
+        )
+
+        const got = new Set()
+        for (const event of events) {
+          try {
+            const data = JSON.parse(event.content || '{}')
+            const profile = normalizeProfile(event.pubkey, data)
+            cacheManager.set('profiles', event.pubkey, cacheHit(profile))
+            got.add(event.pubkey)
+            fetchedCount++
+          } catch {
+            // invalid JSON — fall through to the miss path below
+          }
+        }
+
+        // Mark the rest as misses so we don't re-fetch on every render.
+        for (const pk of slice) {
+          if (!got.has(pk) && !isCacheEntry(cacheManager.get('profiles', pk))) {
+            cacheManager.set('profiles', pk, cacheHit(fallbackProfile(pk)), 12 * 60 * 60 * 1000)
+          }
+        }
+      } finally {
+        for (const pk of slice) this._batchInflight.delete(pk)
+        resolveSlice()
+      }
+    }
+
+    // Wait on overlapping in-flight work so the whole batch is settled.
+    if (waitFor.length > 0) await Promise.allSettled(waitFor)
     return fetchedCount
   }
 

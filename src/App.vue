@@ -24,6 +24,7 @@ import { useNostrConnections } from './composables/core/useNostrConnections.js'
 import { storageService } from './services/StorageService.js'
 import { useNotifications } from './composables/core/useNotifications.js'
 import { nostrService } from './services/nostr/NostrService.js'
+import { cacheManager } from './services/nostr/CacheManager.js'
 import { useNostrNotes } from './composables/content/useNostrNotes.js'
 import { startRefreshCycle, stopRefreshCycle, setActiveGroup } from './utils/refreshCycle.js'
 import { APP_HARD_TIMEOUT, RELAY_READY_TIMEOUT } from './utils/constants.js'
@@ -185,7 +186,33 @@ const { userZaps, isLoading: isUserZapsLoading } = useUserZaps()
 const { notes, isFetchingNotes } = useNostrNotes()
 useNostrLongForm() // triggers composable initialization + refresh registration
 
-// Global state
+// Global state — NWC wallet zap history. Kept as a snapshot per-connection
+// so Dashboard's combined view paints the last-known payment history
+// instantly on reload instead of showing empty until NWC initializes.
+const ZAP_DATA_SNAPSHOT_MAX = 500
+const zapDataSnapshotKey = computed(() => {
+  const cid = activeConnection.value?.id
+  return cid ? `zapData:${cid}` : null
+})
+
+function hydrateZapData() {
+  const key = zapDataSnapshotKey.value
+  if (!key) return
+  const snap = cacheManager.get('snapshots', key)
+  if (Array.isArray(snap) && zapData.value.length === 0) {
+    zapData.value = snap
+  }
+}
+
+function persistZapData() {
+  const key = zapDataSnapshotKey.value
+  if (!key || zapData.value.length === 0) return
+  // Cap size — the Dashboard renders a windowed slice anyway, and this
+  // keeps localStorage usage bounded across long-running wallets.
+  const snap = zapData.value.slice(0, ZAP_DATA_SNAPSHOT_MAX)
+  cacheManager.set('snapshots', key, snap)
+}
+
 const zapData = ref([])
 const selectedTimeRange = ref('all') // Changed from '7d' to 'all'
 const searchQuery = ref('')
@@ -366,7 +393,7 @@ provide('refreshProfile', refreshProfile)
 
 const components = {
   dashboard: Dashboard,
-  'lightning-explorer': Dashboard,
+  explore: Dashboard,
   'zap-feed': ZapFeed,
   analytics: Analytics,
   'chat-zaps': ChatZaps,
@@ -429,7 +456,8 @@ const refreshZapData = async (force = false, retryCount = 0) => {
     dataLoadingProgress.value.currentStep = `Loaded ${data.length} zaps, processing data...`
     
     zapData.value = data
-    
+    persistZapData()
+
     // Update final progress
     dataLoadingProgress.value.progress = 100
     dataLoadingProgress.value.currentStep = `Data loaded successfully (${data.length} zaps)`
@@ -497,14 +525,18 @@ const isNetworkError = (error) => {
   return networkErrorMessages.some(msg => errorMessage.includes(msg))
 }
 
-// Watch for active connection changes with immediate execution
-watch(activeConnection, async (newConnection, oldConnection) => {
+// Watch for active connection changes.
+// - On connect: paint last-known payment history from the snapshot so the
+//   Dashboard combined view isn't blank while NWC initializes, then kick
+//   off a live refresh. `refreshZapData` awaits the NWC client readiness
+//   internally — no setTimeout shim needed.
+// - On disconnect: clear in-memory state but keep the snapshot (per-
+//   connection key) so the next reconnect paints instantly.
+watch(activeConnection, async (newConnection) => {
   if (newConnection) {
-    // Small delay to ensure NWC client is fully initialized
     await nextTick()
-    setTimeout(() => {
-      refreshZapData(true)
-    }, 500)
+    hydrateZapData()
+    refreshZapData(true)
   } else {
     zapData.value = []
   }
@@ -692,9 +724,9 @@ provide('changePage', changePage)
 const handleConnectionSuccess = () => {
   showConnectionModal.value = false
 
-  // Notify about successful connection
+  // Notify about successful connection (pass id so dedupe is per-connection)
   if (activeConnection.value) {
-    notifyConnectionSuccess(activeConnection.value.name)
+    notifyConnectionSuccess(activeConnection.value.name, activeConnection.value.id)
   }
 
   // refreshZapData is triggered by the activeConnection watcher — no duplicate call needed

@@ -8,6 +8,7 @@ import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { getFollowedPubkeys } from '../../services/nostr/nostrImports.js'
 import { mergeFollowLists } from '../../utils/profile/followMergeUtils.js'
 import { getUserFriendlyError } from '../../services/nostr/errors.js'
+import { markStale, markFresh } from '../core/useStaleness.js'
 import { storageService } from '../../services/StorageService.js'
 import { fetchCurrentContactList, publishContactList } from './useAudience.js'
 
@@ -131,7 +132,12 @@ const _startBackgroundRefresh = async () => {
 }
 
 // Kick off background refresh without blocking import
-setTimeout(() => { _startBackgroundRefresh().catch(err => console.warn('Background refresh error:', err)) }, 0)
+setTimeout(() => {
+  _startBackgroundRefresh().catch(err => {
+    markStale('follow-lists', getUserFriendlyError(err))
+    console.warn('Background refresh error:', err?.message)
+  })
+}, 0)
 
 /**
  * Internal helper: fetch current kind 3 → merge with new pubkeys → validate.
@@ -191,7 +197,7 @@ export function useFollowLists() {
         myListsSubscription.close()
       }
 
-      myListsSubscription = nostrService.subscribe([
+      myListsSubscription = nostrService.subscribeOutbox([
         {
           kinds: [FOLLOW_LIST_KIND], // Follow lists
           authors: [currentUser.value.pubkey],
@@ -726,13 +732,21 @@ export function useFollowLists() {
   // Initialize when authenticated
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
-      // Load cached data first for instant UI display
+      // Load cached data synchronously for instant UI display, then
+      // kick off fresh fetches immediately (no artificial delay —
+      // NostrService.ready() internally awaits relay readiness).
       loadFromStorage()
-      // Then fetch fresh data from relays
-      setTimeout(() => {
-        fetchMyLists().catch(err => console.warn('[useFollowLists] Fetch lists failed:', err.message))
-        discoverLists().catch(err => console.warn('[useFollowLists] Discover lists failed:', err.message))
-      }, 1000)
+      fetchMyLists()
+        .then(() => markFresh('follow-lists'))
+        .catch(err => {
+          error.value = getUserFriendlyError(err)
+          markStale('follow-lists', getUserFriendlyError(err))
+          console.warn('[useFollowLists] Fetch lists failed:', err?.message)
+        })
+      discoverLists().catch(err => {
+        // Discovery lists are a best-effort feature — not staleness-worthy.
+        console.warn('[useFollowLists] Discover lists failed:', err?.message)
+      })
     } else {
       // NOTE: We intentionally DO NOT clear cached data on logout
       // This allows the data to be restored immediately on re-login

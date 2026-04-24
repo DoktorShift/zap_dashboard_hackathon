@@ -116,14 +116,14 @@ export function useCampaigns() {
     }
 
     try {
-      const noteEvents = await nostrService.query(
+      const noteEvents = await nostrService.queryOutbox(
         [{
           kinds: [1],
           authors: [currentUser.value.pubkey],
           '#goal': campaignIds,
           limit: 200
         }],
-        { timeout: 20000, eoseGrace: 3000 }
+        { timeout: 12_000, eoseGrace: 1_500 }
       )
 
       for (const noteEvent of noteEvents) {
@@ -405,7 +405,7 @@ export function useCampaigns() {
     error.value = ''
 
     try {
-      const events = await nostrService.query(
+      const events = await nostrService.queryOutbox(
         [
           {
             kinds: [CAMPAIGN_KIND],
@@ -418,7 +418,7 @@ export function useCampaigns() {
             limit: 100
           }
         ],
-        { timeout: 20000, eoseGrace: 3000 }
+        { timeout: 12_000, eoseGrace: 1_500 }
       )
 
       for (const event of events) {

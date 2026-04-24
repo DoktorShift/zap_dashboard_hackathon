@@ -36,6 +36,7 @@ import {
   IconDots
 } from '@iconify-prerendered/vue-tabler'
 import { nostrService } from '../../services/nostr/NostrService.js'
+import { profileService } from '../../services/nostr/ProfileService.js'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { useContentZaps } from '../../composables/content/useContentZaps.js'
 
@@ -217,14 +218,32 @@ const fetchEvent = async () => {
   }
 }
 
-// Fetch author profile
+// Fetch author profile via ProfileService so the cache (persistent, 24h
+// TTL) is populated consistently with the rest of the app. Falls back to
+// a direct outbox query if the service returns a null/fallback profile.
 const fetchAuthorProfile = async (pubkey) => {
   try {
-    const authorEvent = await nostrService.queryOne({
-      kinds: [0],
-      authors: [pubkey],
-      limit: 1
-    })
+    const cached = await profileService.get(pubkey)
+    if (cached && cached.name && !cached.name.startsWith('user:')) {
+      eventAuthor.value = {
+        pubkey,
+        name: cached.display_name || cached.name,
+        picture: cached.picture,
+        nip05: cached.nip05,
+        lud16: cached.lud16,
+        lud06: cached.lud06,
+      }
+      return
+    }
+
+    // ProfileService didn't resolve — outbox-routed fallback for clients
+    // that might have stored only a raw event we can parse directly.
+    const events = await nostrService.queryOutbox(
+      [{ kinds: [0], authors: [pubkey], limit: 1 }],
+      { timeout: 10_000, eoseGrace: 1_500 }
+    )
+    events.sort((a, b) => b.created_at - a.created_at)
+    const authorEvent = events[0] || null
 
     if (authorEvent) {
       try {

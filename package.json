@@ -20,7 +20,6 @@
     "@fullcalendar/vue3": "^6.1.18",
     "@iconify-prerendered/vue-tabler": "^0.28.1749100890",
     "echarts": "^5.4.3",
-    "light-bolt11-decoder": "^3.2.0",
     "nostr-core": "^0.8.0",
     "qrcode-vue3": "^1.6.8",
     "vue": "^3.4.38",

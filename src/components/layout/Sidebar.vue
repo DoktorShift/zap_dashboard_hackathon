@@ -2,6 +2,7 @@
 import { inject, computed, ref, watch, onMounted } from 'vue'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { useNostrConnections } from '../../composables/core/useNostrConnections.js'
+import { useUnread } from '../../composables/core/useUnread.js'
 import {
   IconDashboard,
   IconBolt,
@@ -16,6 +17,7 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconActivity,
+  IconCompass,
   IconCoins,
   IconSparkles,
   IconVideo,
@@ -31,8 +33,36 @@ const activeConnection = inject('activeConnection')
 const isWalletConnected = inject('isWalletConnected')
 const emit = defineEmits(['change-page', 'show-help'])
 
-const { isAuthenticated } = useNostrAuth()
+const { isAuthenticated, currentUser } = useNostrAuth()
 const { getBalance } = useNostrConnections()
+
+// Unread indicators — Twitter/FB-parity. `hasUnread(channel)` returns
+// a reactive boolean that flips true when new items arrive while the
+// user is on a different page, and back to false on `markSeen` (which
+// happens when the user navigates to that page).
+const { hasUnread, markSeen } = useUnread(currentUser)
+const unreadZaps  = hasUnread('zaps')
+const unreadNotes = hasUnread('notes')
+const unreadChat  = hasUnread('chat')
+
+/** Map menu-item id → unread ref, if any. Keeps template simple. */
+const unreadFor = (itemId) => {
+  switch (itemId) {
+    case 'zap-feed':  return unreadZaps
+    case 'notes':     return unreadNotes
+    case 'chat-zaps': return unreadChat
+    default:          return null
+  }
+}
+
+/** Mark the destination channel as seen when the user navigates to it. */
+const markChannelSeen = (itemId) => {
+  switch (itemId) {
+    case 'zap-feed':  markSeen('zaps'); break
+    case 'notes':     markSeen('notes'); break
+    case 'chat-zaps': markSeen('chat'); break
+  }
+}
 
 const walletBalance = ref(null)
 const isLoadingBalance = ref(false)
@@ -51,7 +81,7 @@ const totalSats = computed(() => {
 })
 
 const checkAndOpenParentMenu = () => {
-  const dashboardPages = ['dashboard', 'lightning-explorer']
+  const dashboardPages = ['dashboard', 'explore']
   const studioPages = ['content', 'notes', 'campaigns', 'contest']
   const audiencePages = ['audience', 'chat-zaps']
 
@@ -78,7 +108,7 @@ const menuItems = [
     submenuKey: 'dashboard',
     submenuItems: [
       { id: 'dashboard', label: 'ZapTracker Dashboard', icon: IconDashboard },
-      { id: 'lightning-explorer', label: 'Lightning Explorer', icon: IconActivity }
+      { id: 'explore', label: 'Explore', icon: IconCompass }
     ]
   },
   { id: 'zap-feed', label: 'Zap Feed', icon: IconBolt, requiresAuth: true },
@@ -143,17 +173,19 @@ const handlePageChange = (item) => {
 
   if (item.hasSubmenu) {
     if (item.submenuKey === 'dashboard' && !isAuthenticated.value) {
-      emit('change-page', 'lightning-explorer')
+      emit('change-page', 'explore')
       return
     }
     toggleSubmenu(item.submenuKey)
     return
   }
 
+  markChannelSeen(item.id)
   emit('change-page', item.id)
 }
 
 const handleSubmenuClick = (subItem) => {
+  markChannelSeen(subItem.id)
   emit('change-page', subItem.id)
 }
 
@@ -277,6 +309,14 @@ onMounted(() => {
               ]"
             />
             <span class="text-sm truncate flex-1">{{ item.label }}</span>
+            <!-- Unread dot — Twitter/FB-parity indicator. Only renders
+                 when the channel has unread AND we're not currently on
+                 that page (seeing it already marks it seen). -->
+            <span
+              v-if="unreadFor(item.id)?.value && currentPage !== item.id"
+              class="w-2 h-2 rounded-full bg-orange-500 animate-pulse flex-shrink-0"
+              aria-label="New activity"
+            ></span>
             <component
               v-if="item.hasSubmenu && (isAuthenticated || item.submenuKey === 'dashboard')"
               :is="isSubmenuOpen(item.submenuKey) ? IconChevronDown : IconChevronRight"
@@ -322,6 +362,11 @@ onMounted(() => {
                     ]"
                   />
                   <span class="text-xs truncate flex-1 min-w-0">{{ subItem.label }}</span>
+                  <span
+                    v-if="unreadFor(subItem.id)?.value && currentPage !== subItem.id"
+                    class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse flex-shrink-0 ml-auto"
+                    aria-label="New activity"
+                  ></span>
                 </div>
               </button>
             </li>

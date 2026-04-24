@@ -247,4 +247,107 @@ describe('useDeskInteractions', () => {
     harnessB.wrapper.unmount()
     expect(subscriptions[0].close).toHaveBeenCalledTimes(1)
   })
+
+  // ── NIP-25 per-author dedup (fixes SocialDesk "buggy likes" report) ──
+
+  it('multiple kind:7 events from the same author count as ONE reaction', () => {
+    const harness = makeHarness(useDeskInteractions)
+    const api = harness.api()
+
+    api.trackPosts(['post-1'])
+    vi.advanceTimersByTime(1500)
+
+    const mk = (id, created_at) => ({
+      id, kind: 7, pubkey: 'alice', created_at, content: '+',
+      tags: [['e', 'post-1']],
+    })
+    subscriptions[0].callbacks.onevent(mk('r1', 100))
+    subscriptions[0].callbacks.onevent(mk('r2', 200))
+    subscriptions[0].callbacks.onevent(mk('r3', 300))
+
+    // Three events, same pubkey → ONE reaction counted.
+    expect(api.getInteractions('post-1').reactions).toBe(1)
+    harness.wrapper.unmount()
+  })
+
+  it('reactions from distinct authors each count separately', () => {
+    const harness = makeHarness(useDeskInteractions)
+    const api = harness.api()
+
+    api.trackPosts(['post-1'])
+    vi.advanceTimersByTime(1500)
+
+    for (const pk of ['alice', 'bob', 'carol']) {
+      subscriptions[0].callbacks.onevent({
+        id: 'r-' + pk, kind: 7, pubkey: pk, created_at: 100, content: '+',
+        tags: [['e', 'post-1']],
+      })
+    }
+    expect(api.getInteractions('post-1').reactions).toBe(3)
+    harness.wrapper.unmount()
+  })
+
+  // ── NIP-09 deletion retraction ────────────────────────────────────
+
+  it('retracts a reaction when the ORIGINAL author publishes kind:5', () => {
+    const harness = makeHarness(useDeskInteractions)
+    const api = harness.api()
+
+    api.trackPosts(['post-1'])
+    vi.advanceTimersByTime(1500)
+
+    subscriptions[0].callbacks.onevent({
+      id: 'rxn', kind: 7, pubkey: 'alice', created_at: 100, content: '+',
+      tags: [['e', 'post-1']],
+    })
+    expect(api.getInteractions('post-1').reactions).toBe(1)
+
+    subscriptions[0].callbacks.onevent({
+      id: 'del-1', kind: 5, pubkey: 'alice', created_at: 200, content: '',
+      tags: [['e', 'rxn']],
+    })
+    expect(api.getInteractions('post-1').reactions).toBe(0)
+    harness.wrapper.unmount()
+  })
+
+  it('ignores unauthorized kind:5 (deletion pubkey must match original author)', () => {
+    const harness = makeHarness(useDeskInteractions)
+    const api = harness.api()
+
+    api.trackPosts(['post-1'])
+    vi.advanceTimersByTime(1500)
+
+    subscriptions[0].callbacks.onevent({
+      id: 'rxn', kind: 7, pubkey: 'alice', created_at: 100, content: '+',
+      tags: [['e', 'post-1']],
+    })
+    // Mallory tries to delete Alice's reaction. We refuse.
+    subscriptions[0].callbacks.onevent({
+      id: 'del-1', kind: 5, pubkey: 'mallory', created_at: 200, content: '',
+      tags: [['e', 'rxn']],
+    })
+    expect(api.getInteractions('post-1').reactions).toBe(1)
+    harness.wrapper.unmount()
+  })
+
+  it('clears myReaction when the user deletes their own reaction', () => {
+    const harness = makeHarness(useDeskInteractions)
+    const api = harness.api()
+
+    api.trackPosts(['post-1'])
+    vi.advanceTimersByTime(1500)
+
+    subscriptions[0].callbacks.onevent({
+      id: 'mine', kind: 7, pubkey: 'my-pubkey', created_at: 100, content: '+',
+      tags: [['e', 'post-1']],
+    })
+    expect(api.getInteractions('post-1').myReaction).toBe(true)
+
+    subscriptions[0].callbacks.onevent({
+      id: 'del-1', kind: 5, pubkey: 'my-pubkey', created_at: 200, content: '',
+      tags: [['e', 'mine']],
+    })
+    expect(api.getInteractions('post-1').myReaction).toBe(false)
+    harness.wrapper.unmount()
+  })
 })

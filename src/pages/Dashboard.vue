@@ -7,9 +7,8 @@ import { getNWCClient, getBalance, getWalletInfo } from '../utils/wallet/nwcClie
 import { useNostrAuth } from '../composables/auth/useNostrAuth.js'
 import { useBtcPrice } from '../composables/core/useBtcPrice.js'
 import { filterZapsByTimeRange, getTimeRangeDisplayText, getShortTimeRangeText, getPeriodComparison } from '../utils/core/timeFilter.js'
-import EmptyStateDashboard from '../components/shared/EmptyStateDashboard.vue'
 import LoadingStateDashboard from '../components/shared/LoadingStateDashboard.vue'
-import LightningNetworkDashboard from '../components/zaps/LightningNetworkDashboard.vue'
+import Explore from './Explore.vue'
 import { calculateSmartYAxisRange, applySplitAxisTransformation } from '../utils/chart/chartScaling.js'
 
 const currentPage = inject('currentPage')
@@ -459,12 +458,11 @@ const getTrendColorClass = (change) => {
 </script>
 
 <template>
-  <!-- Lightning Network Explorer - Accessible when logged in or not -->
-  <LightningNetworkDashboard
-    v-if="currentPage === 'lightning-explorer' || !isAuthenticated"
+  <!-- Explore — live Nostr front page; also the logged-out landing. -->
+  <Explore
+    v-if="currentPage === 'explore' || !isAuthenticated"
     @trigger-login="$emit('trigger-login')"
     @show-help="$emit('show-help')"
-    :hideAuthPrompts="isAuthenticated"
   />
 
   <!-- Loading State (User Dashboard Only) -->

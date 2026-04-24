@@ -6,6 +6,11 @@ import { useContentZaps } from './useContentZaps.js'
 import { publishService } from '../../services/nostr/PublishService.js'
 import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import { getUserFriendlyError } from '../../services/nostr/errors.js'
+import { markStale, markFresh } from '../core/useStaleness.js'
+import { useUnread } from '../core/useUnread.js'
+import { extractHashtags } from '../../utils/nostr/extractHashtags.js'
+import { createNoteTitle, createNotePreview } from '../../utils/nostr/noteText.js'
+import { useNotesSnapshot } from './notes/useNotesSnapshot.js'
 
 // Global state for notes
 const notes = ref([])
@@ -18,6 +23,14 @@ const PROCESSED_IDS_MAX = 1000
 let fetchTimeout = null // Track fetch timeout
 let notesCleanupInterval = null // Track cleanup interval (module-scoped, not window)
 const trackedZapNoteIds = new Set() // Track which notes already have zap tracking started
+
+// Persistent cold-paint snapshot — extracted to notes/useNotesSnapshot.
+// Returns { hydrate, persist, flush } bound to our notes ref + dedupe set.
+const {
+  hydrate: hydrateNotesSnapshot,
+  persist: persistNotesSnapshot,
+  flush: flushNotesSnapshot,
+} = useNotesSnapshot(notes, processedEventIds)
 
 // Note form state
 const noteForm = reactive({
@@ -33,6 +46,11 @@ const editingNote = ref(null)
 export function useNostrNotes() {
   const { currentUser, isAuthenticated, writeRelays, readRelays } = useNostrAuth()
   const { startZapTracking, clearZapsForContent } = useContentZaps()
+  // Live note arrivals flip the sidebar "new" dot until the user opens
+  // the Notes page. Only post-EOSE arrivals should count — the
+  // historical replay on fetch shouldn't flag everything as unread.
+  const { trackArrival } = useUnread(currentUser)
+  let notesEosed = false
 
   // Computed properties
   const userNotes = computed(() => {
@@ -46,42 +64,20 @@ export function useNostrNotes() {
     return [...userNotes.value].sort((a, b) => b.created_at - a.created_at)
   })
 
-  // Extract hashtags from content
-  const extractHashtags = (content) => {
-    const hashtagRegex = /#(\w+)/g
-    const hashtags = []
-    let match
-    
-    while ((match = hashtagRegex.exec(content)) !== null) {
-      hashtags.push(match[1])
-    }
-    
-    return hashtags
-  }
-
-  // Create note title from content
-  const createNoteTitle = (content) => {
-    // Get plain text for title
-    const plainText = content.trim()
-
-    // Get first line or first 50 characters
-    const firstLine = plainText.split('\n')[0]
-    return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine || 'Untitled Note'
-  }
-
-  // Create note preview from content
-  const createNotePreview = (content) => {
-    // Get plain text for preview
-    const plainText = content.replace(/\n+/g, ' ').trim()
-
-    return plainText.length > 200 ? plainText.substring(0, 200) + '...' : plainText
-  }
+  // createNoteTitle / createNotePreview now live in utils/nostr/noteText.js
+  // so components that only need the string-shaping can skip the
+  // subscription lifecycle. Re-exported below for API compat.
 
   // Fetch user's notes from Nostr relays
   const fetchUserNotes = async () => {
     if (!isAuthenticated.value || !currentUser.value?.pubkey) {
       return
     }
+
+    // Paint last-known notes immediately from the persistent snapshot
+    // so the Notes page is never blank on return visits. Fresh events
+    // from the subscription reconcile in place (dedup via processedEventIds).
+    hydrateNotesSnapshot(currentUser.value.pubkey)
 
     try {
       await nostrService.ready()
@@ -109,11 +105,11 @@ export function useNostrNotes() {
     try {
       // Subscribe to user's kind:1 events (notes) and kind:5 deletion events
       // Increased limit for users with many notes
-      currentSubscription = nostrService.subscribe([
+      currentSubscription = nostrService.subscribeOutbox([
         {
           kinds: [1], // Text notes
           authors: [currentUser.value.pubkey],
-          limit: 500 // Increased from 100 to handle large datasets
+          limit: 500
         },
         {
           kinds: [5], // Deletion events
@@ -156,6 +152,10 @@ export function useNostrNotes() {
                 preview: createNotePreview(event.content),
                 hashtags: extractHashtags(event.content)
               })
+              // Only LIVE notes (post-EOSE) flip the unread dot. The
+              // historical replay on fetch hydrates the list without
+              // flagging every old note as "new".
+              if (notesEosed) trackArrival('notes', event.created_at)
             } else {
               // Update existing note
               notes.value[existingIndex] = {
@@ -183,10 +183,17 @@ export function useNostrNotes() {
         },
         oneose: () => {
           isFetchingNotes.value = false
+          // Anything arriving from here on out is genuinely new — flip
+          // the EOSE gate so the unread tracker starts counting.
+          notesEosed = true
           if (fetchTimeout) {
             clearTimeout(fetchTimeout)
             fetchTimeout = null
           }
+          // Persist the final state to the cold-paint snapshot after the
+          // initial historical batch settles. Live updates later will
+          // re-persist via the watcher below.
+          persistNotesSnapshot(currentUser.value?.pubkey)
           // Close subscription after EOSE — this is a fetch, not a live sub.
           // The refresh cycle will re-fetch periodically.
           if (currentSubscription) {
@@ -475,18 +482,23 @@ export function useNostrNotes() {
     return date.toLocaleDateString()
   }
 
-  // Watch for notes changes to track zaps on new notes
-  // Shallow watch on array length — only fires when notes are added/removed, not on deep property changes
+  // Watch for notes changes to track zaps on new notes AND to persist
+  // the cold-paint snapshot. Shallow watch (length only) so deep mutations
+  // like hashtag edits don't thrash localStorage. Snapshot persistence is
+  // debounced to the CacheManager layer (2s) so quick successive
+  // add/delete operations coalesce into one write.
   watch(() => notes.value.length, () => {
-    if (isAuthenticated.value && notes.value.length > 0) {
-      const untracked = notes.value.filter(note => !trackedZapNoteIds.has(note.id))
-      if (untracked.length > 0) {
-        untracked.forEach(note => {
-          trackedZapNoteIds.add(note.id)
-          startZapTracking(note.id)
-        })
-      }
+    if (!isAuthenticated.value || notes.value.length === 0) return
+
+    const untracked = notes.value.filter(note => !trackedZapNoteIds.has(note.id))
+    if (untracked.length > 0) {
+      untracked.forEach(note => {
+        trackedZapNoteIds.add(note.id)
+        startZapTracking(note.id)
+      })
     }
+
+    persistNotesSnapshot(currentUser.value?.pubkey)
   })
 
   // Initialize notes when authenticated
@@ -501,8 +513,15 @@ export function useNostrNotes() {
         }
         processedEventIds.clear() // Clear processed event IDs
         
-        // fetchUserNotes already awaits ready() internally
-        fetchUserNotes().catch(err => console.warn('[useNostrNotes] Initial fetch failed:', err.message))
+        // fetchUserNotes already awaits ready() internally. Surface
+        // persistent failures through the staleness indicator so the
+        // user knows we're showing cached notes, not live ones.
+        fetchUserNotes()
+          .then(() => markFresh('notes'))
+          .catch(err => {
+            markStale('notes', getUserFriendlyError(err))
+            console.warn('[useNostrNotes] Initial fetch failed:', err?.message)
+          })
 
         registerRefresh('notes', async () => {
           if (currentSubscription) { currentSubscription.close(); currentSubscription = null }
@@ -521,7 +540,14 @@ export function useNostrNotes() {
         notesCleanupInterval = cleanupInterval
       }
     } else {
-      // Clean up subscription when not authenticated
+      // Clean up subscription when not authenticated. Flush any pending
+      // debounced snapshot write BEFORE clearing notes.value so the
+      // snapshot captures the final session state (otherwise the
+      // debounced callback would fire after clear and persist an
+      // empty array).
+      const prevPubkey = currentUser.value?.pubkey
+      if (prevPubkey) flushNotesSnapshot(prevPubkey)
+
       if (currentSubscription) {
         currentSubscription.close()
         currentSubscription = null

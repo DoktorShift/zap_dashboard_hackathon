@@ -9,6 +9,7 @@ import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import { profileService } from '../../services/nostr/ProfileService.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { getUserFriendlyError } from '../../services/nostr/errors.js'
+import { markStale, markFresh } from '../core/useStaleness.js'
 import { storageService } from '../../services/StorageService.js'
 
 // ── Shared kind 3 publish helper ────────────────────────────────────
@@ -20,7 +21,14 @@ import { storageService } from '../../services/StorageService.js'
  * Returns the event or null.
  */
 export const fetchCurrentContactList = async (pubkey) => {
-  return nostrService.queryOne({ kinds: [3], authors: [pubkey], limit: 1 })
+  // Outbox-routed: a user's own contact list lives on their write relays.
+  const events = await nostrService.queryOutbox(
+    [{ kinds: [3], authors: [pubkey], limit: 1 }],
+    { timeout: 10_000, eoseGrace: 1_500 }
+  )
+  if (!events || events.length === 0) return null
+  events.sort((a, b) => b.created_at - a.created_at)
+  return events[0]
 }
 
 /**
@@ -134,7 +142,12 @@ const _startAudienceBackgroundRefresh = async () => {
   }
 }
 
-setTimeout(() => { _startAudienceBackgroundRefresh().catch(err => console.warn('Audience background refresh error:', err)) }, 0)
+setTimeout(() => {
+  _startAudienceBackgroundRefresh().catch(err => {
+    markStale('following', getUserFriendlyError(err))
+    console.warn('Audience background refresh error:', err?.message)
+  })
+}, 0)
 
 export function useAudience() {
   const { currentUser, isAuthenticated } = useNostrAuth()
@@ -397,11 +410,18 @@ export function useAudience() {
   }
   watch(() => following.value.length + followers.value.length + profiles.size, debouncedSaveToStorage)
 
-  // Initialize when authenticated
+  // Initialize when authenticated. Cached follow list paints first;
+  // refreshFollowing awaits nostrService.ready() internally, no need
+  // for a setTimeout shim that just delays the first fetch by 1s.
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
       loadFromStorage()
-      setTimeout(() => { refreshFollowing().catch(err => console.warn('[useAudience] Refresh following failed:', err.message)) }, 1000)
+      refreshFollowing()
+        .then(() => markFresh('following'))
+        .catch(err => {
+          markStale('following', getUserFriendlyError(err))
+          console.warn('[useAudience] Refresh following failed:', err?.message)
+        })
       registerRefresh('audience', async () => {
         await refreshFollowing()
         await refreshFollowers()

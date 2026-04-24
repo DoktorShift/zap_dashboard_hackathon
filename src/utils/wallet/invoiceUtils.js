@@ -1,8 +1,11 @@
 /**
  * Utility functions for BOLT-11 invoice parsing.
  *
- * Uses nostr-core's bolt11.decode() (currently shimmed via light-bolt11-decoder)
- * instead of fragile manual regex extraction.
+ * Uses nostr-core's native `bolt11.decode()` (post-shim) instead of
+ * fragile manual regex extraction. Networks are reported directly by
+ * the decoder now — the old prefix-based fallback is no longer needed
+ * but is kept as a defense-in-depth if the decoder's network field
+ * is ever missing.
  */
 import { bolt11 } from '../../services/nostr/nostrImports.js'
 
@@ -23,11 +26,17 @@ export function parseInvoiceBasic(invoice) {
   try {
     const decoded = bolt11.decode(invoice)
 
-    // Derive network from the prefix (light-bolt11-decoder validates it for us)
-    const lower = invoice.toLowerCase()
-    let network = 'mainnet'
-    if (lower.startsWith('lntb')) network = 'testnet'
-    else if (lower.startsWith('lnbcrt')) network = 'regtest'
+    // Prefer the decoded network (nostr-core reports it directly).
+    // Fall back to prefix detection if the field is missing on an
+    // older decoder or custom invoice variant.
+    let network = decoded.network
+    if (!network) {
+      const lower = invoice.toLowerCase()
+      if (lower.startsWith('lnbcrt')) network = 'regtest'
+      else if (lower.startsWith('lntbs')) network = 'signet'
+      else if (lower.startsWith('lntb')) network = 'testnet'
+      else network = 'mainnet'
+    }
 
     return {
       network,

@@ -3,13 +3,38 @@ import { getUserFriendlyError } from '../../services/nostr/errors.js'
 import { useNostrConnections } from './useNostrConnections.js'
 import { fetchTransactions, getBalance } from '../../utils/wallet/nwcClient.js'
 import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
+import { NOTIFICATION_TYPES, CALENDAR_TYPES, ERROR_TYPES } from '../../utils/notifications/types.js'
+import { dedupeKeyFor } from '../../utils/notifications/dedupeKey.js'
+import { resolveAction } from '../../utils/notifications/action.js'
+import { toSats } from '../../utils/notifications/format.js'
 
-// Global notification state
-const notifications = ref([])
-const notificationSettings = ref({
+/**
+ * useNotifications — module-scoped singleton.
+ *
+ * Design principles
+ * ─────────────────
+ * 1. Every notification has a deterministic `dedupeKey`. Same underlying event
+ *    (zap receipt, calendar invite, payment hash) produces the same key regardless
+ *    of replay source (relay re-delivery, page reload, polling tick), so the tray
+ *    never shows a duplicate.
+ * 2. Seen/unread is tri-state: {unseen → seen → read}. Badge shows `unseenCount`,
+ *    cleared when the dropdown opens. `read` only flips on explicit user action.
+ * 3. Persistence covers all mutations. `markAsRead` etc. save synchronously rather
+ *    than waiting for a length watcher that doesn't fire on in-place mutation.
+ * 4. Tab-visibility aware: live notifications surface as in-app toasts when the
+ *    tab is focused, as OS notifications when hidden. Never both.
+ * 5. Amounts are normalized to sats at the boundary. Callers may pass sats or
+ *    msats; `toSats()` does the right thing.
+ * 6. Deep links: every notification stores a navigation action (page + query),
+ *    resolved at render time via the injected `changePage` handle.
+ */
+
+// ── Settings (reactive) ────────────────────────────────────────────────
+const DEFAULT_SETTINGS = {
   enabled: true,
   sound: false,
   desktop: true,
+  toasts: true,             // NEW: in-app toast channel
   zapReceived: true,
   zapSent: true,
   nwcTransactions: true,
@@ -17,626 +42,616 @@ const notificationSettings = ref({
   balanceChange: false,
   connectionStatus: false,
   calendarInvites: true,
-  calendarEventStarts: true
-})
+  calendarEventStarts: true,
+}
+const notificationSettings = ref({ ...DEFAULT_SETTINGS })
 
-// Notification types
-const NOTIFICATION_TYPES = {
-  ZAP_RECEIVED_NWC: 'zap_received_nwc',
-  ZAP_RECEIVED_NOSTR: 'zap_received_nostr',
-  ZAP_SENT: 'zap_sent',
-  BALANCE_CHANGE: 'balance_change',
-  CONNECTION_SUCCESS: 'connection_success',
-  CONNECTION_ERROR: 'connection_error',
-  WALLET_ERROR: 'wallet_error',
-  PAYMENT_SUCCESS: 'payment_success',
-  PAYMENT_ERROR: 'payment_error',
-  CALENDAR_INVITE: 'calendar_invite',
-  CALENDAR_EVENT_START: 'calendar_event_start'
+// ── Core state ─────────────────────────────────────────────────────────
+const notifications = ref([])   // persisted list
+const toasts = ref([])          // ephemeral in-app toasts (not persisted)
+const seenDedupeKeys = new Set() // survives list clears so cleared notifs don't re-fire
+
+// Pending navigation intent — set when the user clicks an OS notification
+// (the composable has no router access). The UI layer watches this and
+// resolves it via the injected `changePage`, then clears it.
+const pendingAction = ref(null)
+
+export function consumePendingAction() {
+  const action = pendingAction.value
+  pendingAction.value = null
+  return action
 }
 
-// Storage key for calendar events (no STORAGE_KEYS constant for this one)
-const NOTIFIED_EVENTS_KEY = 'notified_calendar_events'
+const MAX_STORED = 250
+const CALENDAR_FLOOR = 50 // always retain at least this many calendar notifs
 
-// Generate unique notification ID
-const generateNotificationId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
-
-// Load settings from localStorage
-const loadNotificationSettings = () => {
+// ── Persistence helpers ────────────────────────────────────────────────
+const loadSettings = () => {
   const parsed = storageService.get(STORAGE_KEYS.NOTIFICATION_SETTINGS)
-  if (parsed) {
-    notificationSettings.value = { ...notificationSettings.value, ...parsed }
-  }
+  if (parsed) notificationSettings.value = { ...DEFAULT_SETTINGS, ...parsed }
 }
-
-// Load notifications from localStorage
-const loadNotifications = () => {
-  const parsed = storageService.get(STORAGE_KEYS.NOTIFICATIONS_LIST, [])
-  notifications.value = Array.isArray(parsed) ? parsed : []
-}
-
-// Save notifications to localStorage
-const saveNotifications = () => {
-  // Always keep calendar notifications, limit others
-  const calendarNotifs = notifications.value.filter(n =>
-    n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
-    n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
-  )
-  const otherNotifs = notifications.value.filter(n =>
-    n.type !== NOTIFICATION_TYPES.CALENDAR_INVITE &&
-    n.type !== NOTIFICATION_TYPES.CALENDAR_EVENT_START
-  )
-
-  // Keep all calendar notifications + up to 200 other notifications
-  const notificationsToSave = [...calendarNotifs, ...otherNotifs.slice(0, 200)]
-  storageService.set(STORAGE_KEYS.NOTIFICATIONS_LIST, notificationsToSave)
-}
-
-// Save settings to localStorage
-const saveNotificationSettings = () => {
+const saveSettings = () => {
   storageService.set(STORAGE_KEYS.NOTIFICATION_SETTINGS, notificationSettings.value)
 }
 
-// Watch specific settings properties (avoid deep watch)
-watch(
-  () => JSON.stringify(notificationSettings.value),
-  saveNotificationSettings
-)
-
-// Debounced watch for notification changes (2s delay)
-let saveTimeout = null
-const debouncedSave = () => {
-  clearTimeout(saveTimeout)
-  saveTimeout = setTimeout(saveNotifications, 2000)
-}
-watch(() => notifications.value.length, debouncedSave)
-
-// Create notification object
-const createNotification = (type, title, message, data = {}) => {
-  return {
-    id: generateNotificationId(),
-    type,
-    title,
-    message,
-    timestamp: new Date().toISOString(),
-    read: false,
-    played: false,
-    data,
-    ...data
-  }
+const loadNotifications = () => {
+  const parsed = storageService.get(STORAGE_KEYS.NOTIFICATIONS_LIST, [])
+  notifications.value = Array.isArray(parsed) ? parsed : []
+  // Seed dedupe set from persisted notifications so we don't re-fire them
+  notifications.value.forEach(n => { if (n.dedupeKey) seenDedupeKeys.add(n.dedupeKey) })
+  // Also load keys that persisted after the notification itself was cleared,
+  // so "clear all + reload" doesn't spam the user with the backlog again.
+  const storedKeys = storageService.get(STORAGE_KEYS.NOTIFICATION_DEDUPE, [])
+  if (Array.isArray(storedKeys)) storedKeys.forEach(k => seenDedupeKeys.add(k))
 }
 
-// Add notification to the list
-const addNotification = (notification, isNewNotification = true) => {
-  if (!notificationSettings.value.enabled) return
+const saveNotifications = () => {
+  const list = notifications.value
 
-  notifications.value.unshift(notification)
+  // Keep all recent calendar notifications; trim other types to 200.
+  const calendar = list.filter(n => CALENDAR_TYPES.includes(n.type))
+  const others = list.filter(n => !CALENDAR_TYPES.includes(n.type))
+  const trimmed = [
+    ...calendar.slice(0, Math.max(CALENDAR_FLOOR, MAX_STORED - others.length)),
+    ...others.slice(0, MAX_STORED - Math.min(calendar.length, CALENDAR_FLOOR)),
+  ]
 
-  // Limit notifications, but always keep calendar events
-  if (notifications.value.length > 250) {
-    const calendarNotifs = notifications.value.filter(n =>
-      n.type === NOTIFICATION_TYPES.CALENDAR_INVITE ||
-      n.type === NOTIFICATION_TYPES.CALENDAR_EVENT_START
-    )
-    const otherNotifs = notifications.value.filter(n =>
-      n.type !== NOTIFICATION_TYPES.CALENDAR_INVITE &&
-      n.type !== NOTIFICATION_TYPES.CALENDAR_EVENT_START
-    )
+  storageService.set(STORAGE_KEYS.NOTIFICATIONS_LIST, trimmed)
 
-    // Keep all calendar notifications + most recent 200 others
-    notifications.value = [...calendarNotifs, ...otherNotifs.slice(0, 200)]
-  }
+  // Separately persist the dedupe set so it survives explicit list clears.
+  // Cap to 2000 keys so localStorage doesn't grow unbounded.
+  const keys = Array.from(seenDedupeKeys).slice(-2000)
+  storageService.set(STORAGE_KEYS.NOTIFICATION_DEDUPE, keys)
+}
 
-  // Only show desktop notification and play sound for truly new notifications
-  if (isNewNotification && !notification.played) {
-    // Show desktop notification if enabled
-    if (notificationSettings.value.desktop && 'Notification' in window) {
-      showDesktopNotification(notification)
+// Debounce persistence because mutations can arrive in bursts from subscriptions.
+let _saveTimer = null
+const schedulePersist = () => {
+  clearTimeout(_saveTimer)
+  _saveTimer = setTimeout(saveNotifications, 500)
+}
+
+// Settings don't need debouncing — toggle frequency is low and we want durability.
+watch(() => JSON.stringify(notificationSettings.value), saveSettings)
+
+// Flush pending saves before unload so we don't lose a trailing mutation.
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    if (_saveTimer) {
+      clearTimeout(_saveTimer)
+      saveNotifications()
     }
-
-    // Play sound if enabled
-    if (notificationSettings.value.sound) {
-      playNotificationSound()
-    }
-
-    // Mark as played to prevent replay
-    notification.played = true
-  }
-}
-
-// Show desktop notification
-const showDesktopNotification = (notification) => {
-  if (Notification.permission === 'granted') {
-    const desktopNotification = new Notification(notification.title, {
-      body: notification.message,
-      icon: '/new_logo3.png',
-      tag: notification.type,
-      requireInteraction: false
-    })
-
-    setTimeout(() => {
-      desktopNotification.close()
-    }, 5000)
-  }
-}
-
-// Play notification sound
-const playNotificationSound = () => {
-  try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)()
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
-
-    oscillator.connect(gainNode)
-    gainNode.connect(audioContext.destination)
-
-    oscillator.frequency.value = 800
-    oscillator.type = 'sine'
-
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
-
-    oscillator.start(audioContext.currentTime)
-    oscillator.stop(audioContext.currentTime + 0.5)
-  } catch (error) {
-    console.warn('Failed to play notification sound:', error)
-  }
-}
-
-// Request desktop notification permission
-const requestNotificationPermission = async () => {
-  if ('Notification' in window && Notification.permission === 'default') {
-    const permission = await Notification.requestPermission()
-    return permission === 'granted'
-  }
-  return Notification.permission === 'granted'
-}
-
-// Mark notification as read
-const markAsRead = (notificationId) => {
-  const notification = notifications.value.find(n => n.id === notificationId)
-  if (notification) {
-    notification.read = true
-  }
-}
-
-// Mark all notifications as read
-const markAllAsRead = () => {
-  notifications.value.forEach(notification => {
-    notification.read = true
   })
 }
 
-// Clear all notifications
-const clearAllNotifications = () => {
-  notifications.value = []
-  saveNotifications()
+// ── Core emit ──────────────────────────────────────────────────────────
+// Canonical entry point. All `handle*` wrappers funnel through here.
+//
+// Idempotent: if `dedupeKey` collides with an existing (or previously cleared)
+// notification, we reject silently rather than append.
+function emit(type, { title, message, data = {} } = {}) {
+  if (!notificationSettings.value.enabled) return null
+
+  // Enforce per-type enable flags
+  if (!isTypeEnabled(type)) return null
+
+  const now = Date.now()
+  const payload = { ...data, timestamp: data.timestamp || now }
+
+  // Build dedupe key; notifications without a strong identity still get a weak
+  // time-bucketed key from dedupeKeyFor, so only true duplicates collide.
+  const dedupeKey = dedupeKeyFor(type, payload) || `${type}:${now}:${Math.random()}`
+
+  if (seenDedupeKeys.has(dedupeKey)) {
+    return null // silent dedupe — this is the happy path for replayed events
+  }
+  seenDedupeKeys.add(dedupeKey)
+
+  const notification = {
+    id: dedupeKey, // deterministic id — stable across reloads
+    dedupeKey,
+    type,
+    title,
+    message,
+    timestamp: new Date(payload.timestamp).toISOString(),
+    seen: false,
+    read: false,
+    data: payload,
+  }
+
+  // Attach resolved navigation action up-front so UI doesn't need to compute it
+  notification.action = resolveAction(notification)
+
+  notifications.value.unshift(notification)
+  trimList()
+  schedulePersist()
+
+  // Route to the correct surface channel
+  surface(notification)
+
+  return notification
 }
 
-// Remove specific notification
-const removeNotification = (notificationId) => {
-  const index = notifications.value.findIndex(n => n.id === notificationId)
-  if (index !== -1) {
-    notifications.value.splice(index, 1)
+function trimList() {
+  if (notifications.value.length <= MAX_STORED + 50) return
+  const calendar = notifications.value.filter(n => CALENDAR_TYPES.includes(n.type))
+  const others = notifications.value.filter(n => !CALENDAR_TYPES.includes(n.type))
+  notifications.value = [...calendar, ...others.slice(0, MAX_STORED - Math.min(calendar.length, CALENDAR_FLOOR))]
+}
+
+function isTypeEnabled(type) {
+  const s = notificationSettings.value
+  switch (type) {
+    case NOTIFICATION_TYPES.ZAP_RECEIVED_NWC: return s.zapReceived && s.nwcTransactions
+    case NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR: return s.zapReceived && s.nostrZaps
+    case NOTIFICATION_TYPES.ZAP_SENT: return s.zapSent
+    case NOTIFICATION_TYPES.BALANCE_CHANGE: return s.balanceChange
+    case NOTIFICATION_TYPES.CONNECTION_SUCCESS:
+    case NOTIFICATION_TYPES.CONNECTION_ERROR: return s.connectionStatus
+    case NOTIFICATION_TYPES.CALENDAR_INVITE: return s.calendarInvites
+    case NOTIFICATION_TYPES.CALENDAR_EVENT_START: return s.calendarEventStarts
+    default: return true // Payment success/error & wallet errors are transactional, always shown
   }
 }
 
-// Computed properties
-const unreadCount = computed(() => {
-  return notifications.value.filter(n => !n.read).length
-})
+// ── Surfacing: choose toast vs. OS notification vs. silent ─────────────
+function surface(notification) {
+  const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+  const s = notificationSettings.value
 
-const recentNotifications = computed(() => {
-  return notifications.value.slice(0, 10)
-})
-
-// Notification handlers for different events
-
-// Handle incoming NWC transactions
-const handleZapReceivedNWC = (transaction) => {
-  if (!notificationSettings.value.zapReceived || !notificationSettings.value.nwcTransactions) return
-
-  const notification = createNotification(
-    NOTIFICATION_TYPES.ZAP_RECEIVED_NWC,
-    '⚡ Payment Received',
-    `You received ${transaction.amount} sats`,
-    {
-      amount: transaction.amount,
-      source: 'nwc',
-      paymentHash: transaction.paymentHash,
-      timestamp: transaction.timestamp
-    }
-  )
-
-  addNotification(notification)
-}
-
-// Handle incoming Nostr zap receipts
-const handleZapReceivedNostr = (zapData) => {
-  if (!notificationSettings.value.zapReceived || !notificationSettings.value.nostrZaps) return
-
-  const notification = createNotification(
-    NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR,
-    '⚡ Zap Received!',
-    `${zapData.sender?.name || 'Anonymous'} zapped ${zapData.amount} sats`,
-    {
-      amount: zapData.amount,
-      sender: zapData.sender,
-      source: 'nostr',
-      eventId: zapData.eventId,
-      message: zapData.message,
-      paymentHash: zapData.id,
-      timestamp: zapData.timestamp
-    }
-  )
-
-  addNotification(notification)
-}
-
-// Legacy handler for backward compatibility
-const handleZapReceived = (zapData) => {
-  // Determine if this is NWC or Nostr based on data structure
-  if (zapData.source === 'nwc' || zapData.type === 'incoming') {
-    handleZapReceivedNWC(zapData)
-  } else if (zapData.source === 'nostr' || zapData.eventId) {
-    handleZapReceivedNostr(zapData)
+  if (hidden) {
+    if (s.desktop) showDesktopNotification(notification)
   } else {
-    // Default to NWC for backward compatibility
-    handleZapReceivedNWC(zapData)
+    if (s.toasts) pushToast(notification)
   }
+
+  if (s.sound) playSound()
 }
 
-// Handle outgoing payments
-const handleZapSent = (paymentData) => {
-  if (!notificationSettings.value.zapSent) return
+function showDesktopNotification(notification) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return
+  if (Notification.permission !== 'granted') return
 
-  const amount = paymentData.amount
-    ? (typeof paymentData.amount === 'number' && paymentData.amount > 1000
-        ? Math.floor(paymentData.amount / 1000)
-        : paymentData.amount)
-    : 0
+  const isError = ERROR_TYPES.includes(notification.type)
 
-  const notification = createNotification(
-    NOTIFICATION_TYPES.ZAP_SENT,
-    '⚡ Payment Sent',
-    `You sent ${amount} sats`,
-    { amount, source: paymentData.source || 'nwc' }
-  )
+  try {
+    const desktop = new Notification(notification.title, {
+      body: notification.message,
+      icon: '/new_logo3.png',
+      tag: notification.dedupeKey, // collapse identical OS notifs
+      renotify: false,
+      // Errors stay on screen until dismissed; success/info auto-decays
+      requireInteraction: isError,
+    })
 
-  addNotification(notification)
-}
-
-// Handle balance changes
-const handleBalanceChange = (oldBalance, newBalance) => {
-  if (!notificationSettings.value.balanceChange) return
-  if (oldBalance === newBalance) return
-
-  const difference = newBalance - oldBalance
-  const notification = createNotification(
-    NOTIFICATION_TYPES.BALANCE_CHANGE,
-    '💰 Balance Updated',
-    `Balance ${difference > 0 ? 'increased' : 'decreased'} by ${Math.abs(difference)} sats`,
-    { oldBalance, newBalance, difference }
-  )
-
-  addNotification(notification)
-}
-
-// Handle connection success
-const handleConnectionSuccess = (connectionName) => {
-  if (!notificationSettings.value.connectionStatus) return
-
-  const notification = createNotification(
-    NOTIFICATION_TYPES.CONNECTION_SUCCESS,
-    '🔗 Wallet Connected',
-    `Successfully connected to ${connectionName}`,
-    { connectionName }
-  )
-
-  addNotification(notification)
-}
-
-// Handle connection errors
-const handleConnectionError = (error) => {
-  if (!notificationSettings.value.connectionStatus) return
-
-  const notification = createNotification(
-    NOTIFICATION_TYPES.CONNECTION_ERROR,
-    '❌ Connection Failed',
-    getUserFriendlyError(error),
-    { error: error.message }
-  )
-
-  addNotification(notification)
-}
-
-// Handle payment success
-const handlePaymentSuccess = (paymentData) => {
-  const notification = createNotification(
-    NOTIFICATION_TYPES.PAYMENT_SUCCESS,
-    '✅ Payment Successful',
-    `Payment completed successfully`,
-    paymentData
-  )
-
-  addNotification(notification)
-}
-
-// Handle payment errors
-const handlePaymentError = (error) => {
-  const notification = createNotification(
-    NOTIFICATION_TYPES.PAYMENT_ERROR,
-    '❌ Payment Failed',
-    getUserFriendlyError(error),
-    { error: error.message }
-  )
-
-  addNotification(notification)
-}
-
-// Handle calendar event invitation
-const handleCalendarInvite = (eventData) => {
-  if (!notificationSettings.value.calendarInvites) return
-
-  const notification = createNotification(
-    NOTIFICATION_TYPES.CALENDAR_INVITE,
-    '📅 Event Invitation',
-    `You've been invited to "${eventData.title}"`,
-    {
-      eventId: eventData.id,
-      eventTitle: eventData.title,
-      eventStart: eventData.start || eventData.start_date,
-      eventType: eventData.type,
-      organizer: eventData.organizer,
-      organizerProfile: eventData.organizerProfile || null
+    // Wire click → focus the tab, mark read, publish pending action. The
+    // UI layer (NotificationToastHost) picks it up and calls changePage.
+    desktop.onclick = () => {
+      try { window.focus() } catch {}
+      markAsRead(notification.id)
+      if (notification.action) pendingAction.value = notification.action
+      desktop.close()
     }
-  )
 
-  addNotification(notification)
+    if (!isError) setTimeout(() => desktop.close(), 5000)
+  } catch (err) {
+    console.warn('[notifications] desktop show failed:', err.message)
+  }
 }
 
-// Handle calendar event starting soon
-const handleCalendarEventStart = (eventData) => {
-  if (!notificationSettings.value.calendarEventStarts) return
-
-  const notification = createNotification(
-    NOTIFICATION_TYPES.CALENDAR_EVENT_START,
-    '📅 Event Starting',
-    `"${eventData.title}" is starting now`,
-    {
-      eventId: eventData.id,
-      eventTitle: eventData.title,
-      eventStart: eventData.start || eventData.start_date,
-      eventType: eventData.type
-    }
-  )
-
-  addNotification(notification)
+const TOAST_LIMIT = 4
+function pushToast(notification) {
+  toasts.value = [notification, ...toasts.value].slice(0, TOAST_LIMIT)
+}
+function dismissToast(id) {
+  toasts.value = toasts.value.filter(t => t.id !== id)
 }
 
-// NWC Transaction monitoring
-let transactionPolling = null
-let lastTransactionTimestamp = null
-let lastBalance = null
-let processedTransactions = new Set()
-
-const startTransactionMonitoring = async () => {
-  if (transactionPolling) {
-    return
+function playSound() {
+  try {
+    const AudioCtor = window.AudioContext || window.webkitAudioContext
+    if (!AudioCtor) return
+    const ctx = new AudioCtor()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = 880
+    osc.type = 'sine'
+    gain.gain.setValueAtTime(0.22, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.35)
+  } catch {
+    // AudioContext requires a user gesture in some browsers — swallow silently
   }
+}
 
-  // Load last known state from localStorage
-  const storedTimestamp = storageService.getRaw(STORAGE_KEYS.LAST_TX_TIMESTAMP)
-  const storedBalance = storageService.getRaw(STORAGE_KEYS.LAST_BALANCE)
-  const storedProcessedTransactions = storageService.get(STORAGE_KEYS.PROCESSED_TX)
+// ── Public actions ─────────────────────────────────────────────────────
+async function requestNotificationPermission() {
+  if (typeof window === 'undefined' || !('Notification' in window)) return false
+  if (Notification.permission === 'granted') return true
+  if (Notification.permission === 'denied') return false
+  const permission = await Notification.requestPermission()
+  return permission === 'granted'
+}
 
-  if (storedTimestamp) {
-    lastTransactionTimestamp = parseInt(storedTimestamp)
+function markAsRead(id) {
+  const n = notifications.value.find(x => x.id === id)
+  if (n && (!n.read || !n.seen)) {
+    n.read = true
+    n.seen = true
+    schedulePersist()
   }
+}
 
-  if (storedBalance) {
-    lastBalance = parseInt(storedBalance)
+function markAsUnread(id) {
+  const n = notifications.value.find(x => x.id === id)
+  if (n && n.read) {
+    n.read = false
+    n.seen = false // re-surface in badge so user can find it again
+    schedulePersist()
   }
+}
 
-  if (storedProcessedTransactions) {
-    processedTransactions = new Set(storedProcessedTransactions)
+function markAllAsRead() {
+  let changed = false
+  for (const n of notifications.value) {
+    if (!n.read || !n.seen) { n.read = true; n.seen = true; changed = true }
   }
+  if (changed) schedulePersist()
+}
 
-  // Flag to prevent initial balance notification
-  let isInitialBalanceCheck = true
+// Called when the dropdown opens — clears the badge but leaves the unread
+// visual state intact so the user can still spot fresh items.
+function markAllSeen() {
+  let changed = false
+  for (const n of notifications.value) {
+    if (!n.seen) { n.seen = true; changed = true }
+  }
+  if (changed) schedulePersist()
+}
 
-  transactionPolling = setInterval(async () => {
+function removeNotification(id) {
+  const idx = notifications.value.findIndex(n => n.id === id)
+  if (idx !== -1) {
+    notifications.value.splice(idx, 1)
+    schedulePersist()
+  }
+}
+
+function clearAllNotifications() {
+  notifications.value = []
+  schedulePersist()
+}
+
+// ── Computed ───────────────────────────────────────────────────────────
+const unseenCount = computed(() => notifications.value.filter(n => !n.seen).length)
+const unreadCount = computed(() => notifications.value.filter(n => !n.read).length)
+const recentNotifications = computed(() => notifications.value.slice(0, 10))
+
+// ── Typed handlers (legacy public API preserved) ───────────────────────
+// Content layering contract for every handler:
+//   title      → the action that happened (short, verb-led)
+//   message    → context (source, recipient, event name) — NEVER the amount, NEVER the zap comment
+//   data.amount → rendered by the amount badge (sats)
+//   data.message → the zap comment, rendered as blockquote ONLY (not in message text)
+// Following this contract is what keeps the UI from showing the same fact twice.
+
+function handleZapReceivedNWC(tx) {
+  const amount = toSats(tx.amount, { assumeMsats: tx._msats })
+  return emit(NOTIFICATION_TYPES.ZAP_RECEIVED_NWC, {
+    title: 'Payment received',
+    message: 'Incoming Lightning payment',
+    data: {
+      amount,
+      source: 'nwc',
+      paymentHash: tx.paymentHash,
+      timestamp: tx.timestamp,
+    },
+  })
+}
+
+function handleZapReceivedNostr(zap) {
+  const amount = toSats(zap.amount)
+  const senderName = zap.sender?.name
+  return emit(NOTIFICATION_TYPES.ZAP_RECEIVED_NOSTR, {
+    title: senderName ? `⚡ ${senderName} zapped you` : '⚡ Zap received',
+    // Brief context, not a re-statement of sats or comment
+    message: 'Zap on your Nostr content',
+    data: {
+      amount,
+      source: 'nostr',
+      sender: zap.sender,
+      eventId: zap.eventId,
+      message: zap.message, // renders as blockquote — never duplicated in the message line
+      paymentHash: zap.id || zap.paymentHash,
+      zapId: zap.id,
+      timestamp: zap.timestamp,
+    },
+  })
+}
+
+function handleZapSent(payment) {
+  const amount = toSats(payment.amount)
+  return emit(NOTIFICATION_TYPES.ZAP_SENT, {
+    title: 'Payment sent',
+    message: payment.recipient
+      ? `To ${payment.recipient}`
+      : 'Lightning payment',
+    data: {
+      amount,
+      source: payment.source || 'nwc',
+      recipient: payment.recipient,
+      paymentHash: payment.paymentHash,
+    },
+  })
+}
+
+function handleBalanceChange(oldBalance, newBalance, connectionId = null) {
+  if (oldBalance === newBalance) return null
+  const diff = newBalance - oldBalance
+  return emit(NOTIFICATION_TYPES.BALANCE_CHANGE, {
+    title: diff > 0 ? 'Balance increased' : 'Balance decreased',
+    // The delta is carried by the amount badge; message stays context-only
+    message: 'Wallet balance updated',
+    data: {
+      oldBalance,
+      newBalance,
+      difference: diff,
+      amount: Math.abs(diff), // surfaced as badge with signed icon
+      signed: diff,
+      connectionId,
+    },
+  })
+}
+
+function handleConnectionSuccess(connectionName, connectionId = null) {
+  return emit(NOTIFICATION_TYPES.CONNECTION_SUCCESS, {
+    title: 'Wallet connected',
+    message: connectionName || 'Wallet is online',
+    data: { connectionName, connectionId },
+  })
+}
+
+function handleConnectionError(error) {
+  return emit(NOTIFICATION_TYPES.CONNECTION_ERROR, {
+    title: 'Connection failed',
+    message: getUserFriendlyError(error),
+    data: { errorMessage: error?.message || String(error) },
+  })
+}
+
+function handlePaymentSuccess(paymentData = {}) {
+  const amount = paymentData.amount ? toSats(paymentData.amount) : null
+  return emit(NOTIFICATION_TYPES.PAYMENT_SUCCESS, {
+    title: 'Payment successful',
+    message: 'Lightning payment completed',
+    data: { ...paymentData, amount: amount ?? paymentData.amount },
+  })
+}
+
+function handlePaymentError(error) {
+  return emit(NOTIFICATION_TYPES.PAYMENT_ERROR, {
+    title: 'Payment failed',
+    message: getUserFriendlyError(error),
+    data: { errorMessage: error?.message || String(error) },
+  })
+}
+
+function handleCalendarInvite(event) {
+  return emit(NOTIFICATION_TYPES.CALENDAR_INVITE, {
+    title: event.title ? `Invited to ${event.title}` : 'Event invitation',
+    message: 'You were added as a participant',
+    data: {
+      eventId: event.id,
+      eventTitle: event.title,
+      eventStart: event.start || event.start_date,
+      eventType: event.type,
+      organizer: event.organizer,
+      organizerProfile: event.organizerProfile || null,
+    },
+  })
+}
+
+function handleCalendarEventStart(event) {
+  return emit(NOTIFICATION_TYPES.CALENDAR_EVENT_START, {
+    title: event.title ? `${event.title} is starting` : 'Event starting',
+    message: 'Your event is starting soon',
+    data: {
+      eventId: event.id,
+      eventTitle: event.title,
+      eventStart: event.start || event.start_date,
+      eventType: event.type,
+    },
+  })
+}
+
+// ── NWC transaction + balance monitor (polling) ────────────────────────
+let _txPoll = null
+let _lastTxTimestamp = null
+let _lastBalance = null
+let _processedTx = new Set()
+
+async function startTransactionMonitoring(activeConnectionRef = null) {
+  if (_txPoll) return
+
+  // Load persisted state
+  const storedTs = storageService.getRaw(STORAGE_KEYS.LAST_TX_TIMESTAMP)
+  const storedProcessed = storageService.get(STORAGE_KEYS.PROCESSED_TX)
+  if (storedTs) _lastTxTimestamp = parseInt(storedTs, 10)
+  if (Array.isArray(storedProcessed)) _processedTx = new Set(storedProcessed)
+
+  let isFirstBalanceTick = true
+
+  const tick = async () => {
     try {
-      // Check for new transactions
-      const transactions = await fetchTransactions()
-      if (transactions && transactions.length > 0) {
-        let hasNewTransactions = false
+      // Fetch settled transactions
+      const txs = await fetchTransactions()
+      if (Array.isArray(txs) && txs.length) {
+        let changed = false
+        for (const tx of txs) {
+          if (!tx.payment_hash || tx.state !== 'settled') continue
+          if (_processedTx.has(tx.payment_hash)) continue
+          _processedTx.add(tx.payment_hash)
+          changed = true
 
-        // Process each transaction
-        for (const transaction of transactions) {
-          const paymentHash = transaction.payment_hash
-          const timestamp = transaction.settled_at || transaction.created_at
+          const ts = tx.settled_at || tx.created_at
+          if (!_lastTxTimestamp || ts > _lastTxTimestamp) _lastTxTimestamp = ts
 
-          // Skip if already processed
-          if (processedTransactions.has(paymentHash)) {
-            continue
-          }
-
-          // Skip if not settled
-          if (transaction.state !== 'settled') {
-            continue
-          }
-
-          // Mark as processed
-          processedTransactions.add(paymentHash)
-          hasNewTransactions = true
-
-          // Create notification for incoming transactions only
-          if (transaction.type === 'incoming') {
+          if (tx.type === 'incoming') {
             handleZapReceivedNWC({
-              amount: Math.floor(transaction.amount / 1000),
-              timestamp: new Date(timestamp * 1000).toISOString(),
-              paymentHash: paymentHash,
-              type: 'incoming',
-              source: 'nwc'
+              amount: tx.amount, // msats from LNbits-style NWC response
+              _msats: true,
+              timestamp: new Date(ts * 1000).toISOString(),
+              paymentHash: tx.payment_hash,
             })
           }
-
-          // Update last transaction timestamp
-          if (!lastTransactionTimestamp || timestamp > lastTransactionTimestamp) {
-            lastTransactionTimestamp = timestamp
-          }
         }
-
-        // Save state if we processed new transactions
-        if (hasNewTransactions) {
-          storageService.setRaw(STORAGE_KEYS.LAST_TX_TIMESTAMP, lastTransactionTimestamp.toString())
-
-          // Keep only recent transaction hashes (last 1000)
-          const recentTransactions = Array.from(processedTransactions).slice(-1000)
-          processedTransactions = new Set(recentTransactions)
-          storageService.set(STORAGE_KEYS.PROCESSED_TX, Array.from(processedTransactions))
+        if (changed) {
+          storageService.setRaw(STORAGE_KEYS.LAST_TX_TIMESTAMP, String(_lastTxTimestamp))
+          const recent = Array.from(_processedTx).slice(-1000)
+          _processedTx = new Set(recent)
+          storageService.set(STORAGE_KEYS.PROCESSED_TX, recent)
         }
       }
 
-      // Check for balance changes
-      const balanceData = await getBalance()
-      if (balanceData && balanceData.balance !== undefined) {
-        const currentBalance = Math.floor(balanceData.balance / 1000)
-
-        if (lastBalance !== null && currentBalance !== lastBalance && !isInitialBalanceCheck) {
-          handleBalanceChange(lastBalance, currentBalance)
-        }
-
-        lastBalance = currentBalance
-        storageService.setRaw(STORAGE_KEYS.LAST_BALANCE, lastBalance.toString())
-        isInitialBalanceCheck = false
+      // Balance check — keyed per connection so switching wallets doesn't fire a spurious delta
+      const connectionId = activeConnectionRef?.value?.id || 'default'
+      const balanceKey = `${STORAGE_KEYS.LAST_BALANCE}:${connectionId}`
+      if (_lastBalance === null) {
+        const persisted = storageService.getRaw(balanceKey)
+        _lastBalance = persisted != null ? parseInt(persisted, 10) : null
       }
-    } catch (error) {
-      console.warn('Transaction monitoring error:', error.message)
+
+      const data = await getBalance()
+      if (data && typeof data.balance === 'number') {
+        const currentSats = Math.floor(data.balance / 1000)
+        if (_lastBalance !== null && currentSats !== _lastBalance && !isFirstBalanceTick) {
+          handleBalanceChange(_lastBalance, currentSats, connectionId)
+        }
+        _lastBalance = currentSats
+        storageService.setRaw(balanceKey, String(currentSats))
+        isFirstBalanceTick = false
+      }
+    } catch (err) {
+      // Polling errors are noisy and expected on flaky connections — suppress
     }
-  }, 10000) // Check every 10 seconds
-}
-
-const stopTransactionMonitoring = () => {
-  if (transactionPolling) {
-    clearInterval(transactionPolling)
-    transactionPolling = null
   }
 
-  processedTransactions.clear()
+  await tick()
+  _txPoll = setInterval(tick, 10_000)
 }
 
-// Calendar Event Monitoring
-let eventMonitoring = null
-let notifiedEvents = new Set()
-
-const loadNotifiedEvents = () => {
-  const stored = storageService.get(NOTIFIED_EVENTS_KEY)
-  if (stored) {
-    notifiedEvents = new Set(stored)
-  }
+function stopTransactionMonitoring() {
+  if (_txPoll) { clearInterval(_txPoll); _txPoll = null }
+  _processedTx.clear()
+  _lastBalance = null
 }
 
-const saveNotifiedEvents = () => {
-  const recentEvents = Array.from(notifiedEvents).slice(-500)
-  notifiedEvents = new Set(recentEvents)
-  storageService.set(NOTIFIED_EVENTS_KEY, Array.from(notifiedEvents))
+// ── Calendar event start monitor ───────────────────────────────────────
+let _eventPoll = null
+let _notifiedEvents = new Set()
+
+function loadNotifiedEvents() {
+  const stored = storageService.get(STORAGE_KEYS.NOTIFIED_CALENDAR)
+  if (Array.isArray(stored)) _notifiedEvents = new Set(stored)
+}
+function saveNotifiedEvents() {
+  const recent = Array.from(_notifiedEvents).slice(-500)
+  _notifiedEvents = new Set(recent)
+  storageService.set(STORAGE_KEYS.NOTIFIED_CALENDAR, recent)
 }
 
-const startEventMonitoring = (getEventsCallback) => {
-  if (eventMonitoring) {
-    return
-  }
-
+function startEventMonitoring(getEventsCallback) {
+  if (_eventPoll) return
   loadNotifiedEvents()
 
-  eventMonitoring = setInterval(() => {
+  const tick = () => {
     try {
-      const events = getEventsCallback()
-      if (!events || events.length === 0) return
-
+      const events = getEventsCallback?.()
+      if (!Array.isArray(events) || events.length === 0) return
       const now = Date.now()
-      const fiveMinutes = 5 * 60 * 1000
+      const FIVE_MIN = 5 * 60_000
 
-      events.forEach(event => {
-        const eventKey = `${event.id}_start`
+      for (const event of events) {
+        const key = `${event.id}_start`
+        if (_notifiedEvents.has(key)) continue
 
-        if (notifiedEvents.has(eventKey)) return
+        let startMs
+        if (event.type === 'time-based' && event.start) startMs = event.start * 1000
+        else if (event.type === 'date-based' && event.start_date) startMs = new Date(event.start_date).getTime()
+        else continue
 
-        let eventStartTime
-        if (event.type === 'time-based' && event.start) {
-          eventStartTime = event.start * 1000
-        } else if (event.type === 'date-based' && event.start_date) {
-          eventStartTime = new Date(event.start_date).getTime()
-        } else {
-          return
-        }
-
-        const timeUntilEvent = eventStartTime - now
-
-        if (timeUntilEvent <= fiveMinutes && timeUntilEvent > -60000) {
+        const until = startMs - now
+        if (until <= FIVE_MIN && until > -60_000) {
           handleCalendarEventStart(event)
-          notifiedEvents.add(eventKey)
+          _notifiedEvents.add(key)
           saveNotifiedEvents()
         }
-      })
-    } catch (error) {
-      console.warn('Event monitoring error:', error.message)
+      }
+    } catch {
+      // swallow; polling errors shouldn't take the app down
     }
-  }, 30000)
-}
-
-const stopEventMonitoring = () => {
-  if (eventMonitoring) {
-    clearInterval(eventMonitoring)
-    eventMonitoring = null
   }
+
+  tick()
+  _eventPoll = setInterval(tick, 30_000)
 }
 
-// Initialize notification system
-const initializeNotifications = async () => {
-  loadNotificationSettings()
-  loadNotifications()
+function stopEventMonitoring() {
+  if (_eventPoll) { clearInterval(_eventPoll); _eventPoll = null }
+}
 
-  // Request desktop notification permission if enabled
+// ── Initialization (module-scoped, runs once) ──────────────────────────
+let _initialized = false
+async function initialize() {
+  if (_initialized) return
+  _initialized = true
+  loadSettings()
+  loadNotifications()
   if (notificationSettings.value.desktop) {
     await requestNotificationPermission()
   }
 }
 
+// ── Public composable factory ──────────────────────────────────────────
 export function useNotifications() {
   const { isWalletConnected, activeConnection } = useNostrConnections()
 
-  // Watch for wallet connection changes
+  // Drive tx monitoring off wallet connection state
   watch(isWalletConnected, (connected) => {
-    if (connected) {
-      startTransactionMonitoring()
-    } else {
-      stopTransactionMonitoring()
-    }
+    if (connected) startTransactionMonitoring(activeConnection)
+    else stopTransactionMonitoring()
   }, { immediate: true })
 
-  // Initialize immediately (module-scoped singleton — no lifecycle hooks)
-  initializeNotifications()
+  // Kick off one-shot init
+  initialize()
 
   return {
     // State
     notifications,
     notificationSettings,
+    toasts,
+    pendingAction,
+    unseenCount,
     unreadCount,
     recentNotifications,
 
     // Actions
-    addNotification,
     markAsRead,
+    markAsUnread,
     markAllAsRead,
+    markAllSeen,
     clearAllNotifications,
     removeNotification,
     requestNotificationPermission,
+    dismissToast,
 
-    // Event handlers
-    handleZapReceived,
+    // Raw emit (for new callers — prefer this over handle*)
+    emit,
+
+    // Typed handlers
     handleZapReceivedNWC,
     handleZapReceivedNostr,
     handleZapSent,
@@ -648,13 +663,16 @@ export function useNotifications() {
     handleCalendarInvite,
     handleCalendarEventStart,
 
-    // Monitoring
+    // Lifecycle
     startTransactionMonitoring,
     stopTransactionMonitoring,
     startEventMonitoring,
     stopEventMonitoring,
 
     // Constants
-    NOTIFICATION_TYPES
+    NOTIFICATION_TYPES,
   }
 }
+
+// Re-export for call sites that only need the constants without the composable
+export { NOTIFICATION_TYPES }

@@ -1027,11 +1027,13 @@ const loadCampaign = async () => {
 // Fetch author profile
 const fetchAuthorProfile = async (pubkey) => {
   try {
-    const authorEvent = await nostrService.queryOne({
-      kinds: [0],
-      authors: [pubkey],
-      limit: 1
-    })
+    // Outbox-routed profile fetch (a profile lives on its owner's write relays).
+    const events = await nostrService.queryOutbox(
+      [{ kinds: [0], authors: [pubkey], limit: 1 }],
+      { timeout: 10_000, eoseGrace: 1_500 }
+    )
+    events.sort((a, b) => b.created_at - a.created_at)
+    const authorEvent = events[0] || null
 
     if (authorEvent) {
       try {
@@ -1276,12 +1278,14 @@ const generateInvoice = async () => {
         })
       }
     } else {
-      // Fallback: fetch from relay only if no cached lightning data
-      profileEvent = await nostrService.queryOne({
-        kinds: [0],
-        authors: [campaignAuthor.value.pubkey],
-        limit: 1
-      })
+      // Fallback: fetch from relay only if no cached lightning data.
+      // Outbox-routed so we reach the author's own write relays.
+      const _events = await nostrService.queryOutbox(
+        [{ kinds: [0], authors: [campaignAuthor.value.pubkey], limit: 1 }],
+        { timeout: 10_000, eoseGrace: 1_500 }
+      )
+      _events.sort((a, b) => b.created_at - a.created_at)
+      profileEvent = _events[0] || null
       if (!profileEvent) {
         throw new Error('Could not find author profile')
       }

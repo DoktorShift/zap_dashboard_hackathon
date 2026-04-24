@@ -3,8 +3,11 @@ import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { nip19, verifyEvent } from '../../services/nostr/nostrImports.js'
 import { signerService } from '../../services/nostr/SignerService.js'
+import { publishService } from '../../services/nostr/PublishService.js'
 import { profileService } from '../../services/nostr/ProfileService.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
+import { markStale, markFresh } from '../core/useStaleness.js'
+import { useUnread } from '../core/useUnread.js'
 
 /**
  * Map chat/encryption errors to user-friendly messages.
@@ -193,6 +196,15 @@ const addMessageToConversation = (pubkey, message) => {
 
 export function useNostrChat() {
   const { currentUser, isAuthenticated } = useNostrAuth()
+  // Incoming messages (not sent by us, not in the active conversation)
+  // flip the sidebar Chat dot. Self-sent messages don't count as
+  // unread — the user clearly saw their own send.
+  const { trackArrival } = useUnread(currentUser)
+  const notifyArrival = (senderPubkey, ts) => {
+    if (!senderPubkey || !ts) return
+    if (senderPubkey === currentUser.value?.pubkey) return
+    trackArrival('chat', ts)
+  }
 
 
   // Computed properties — depend on _version for forced re-evaluation
@@ -236,7 +248,7 @@ export function useNostrChat() {
     }
 
     try {
-      chatSubscription = nostrService.subscribe([
+      chatSubscription = nostrService.subscribeOutbox([
         {
           kinds: [4],
           '#p': [currentUser.value.pubkey],
@@ -309,6 +321,7 @@ export function useNostrChat() {
 
       // Add message
       const added = addMessageToConversation(otherPartyPubkey, message)
+      if (added) notifyArrival(message.senderPubkey || otherPartyPubkey, message.timestamp)
       if (added) {
         conversation.lastMessage = message.content
         conversation.lastMessageTime = message.timestamp
@@ -370,6 +383,7 @@ export function useNostrChat() {
 
       // Add message
       const added = addMessageToConversation(otherPartyPubkey, message)
+      if (added) notifyArrival(message.senderPubkey || otherPartyPubkey, message.timestamp)
       if (added) {
         conversation.lastMessage = message.content
         conversation.lastMessageTime = message.timestamp
@@ -409,19 +423,16 @@ export function useNostrChat() {
         content: encryptedContent
       }
 
-      // Sign via SignerService (handles all signer types)
+      // Sign + optimistic render before publish so UI feels instant.
       const signedEvent = await signerService.signEvent(eventTemplate)
-
       if (!verifyEvent(signedEvent)) {
         throw new Error('Event signature verification failed')
       }
 
-      // Optimistic: show message immediately before relay confirms
       const optimisticMessage = createMessage(signedEvent, content, true)
       optimisticMessage.status = 'sending'
       addMessageToConversation(recipientPubkey, optimisticMessage)
 
-      // Update conversation metadata immediately
       const conversation = conversations.value.get(recipientPubkey)
       if (conversation) {
         conversation.lastMessage = content
@@ -430,19 +441,21 @@ export function useNostrChat() {
         triggerUpdate()
       }
 
-      // Publish using inbox model — deliver to recipient's read relays
-      const result = await nostrService.publishInbox(signedEvent, [recipientPubkey])
-
-      if (result.successful === 0) {
-        // Mark as failed
+      // Route through PublishService so a transient relay failure gets
+      // retried + queued (shared pending queue surfaced in TopBar).
+      try {
+        await publishService.publish(signedEvent, {
+          routing: 'inbox',
+          recipients: [recipientPubkey],
+        })
+      } catch (err) {
         const msgs = messages.value.get(recipientPubkey) || []
         const msg = msgs.find(m => m.id === signedEvent.id)
         if (msg) msg.status = 'failed'
         triggerUpdate()
-        throw new Error('Failed to publish message to any relays')
+        throw err
       }
 
-      // Mark as sent
       const msgs = messages.value.get(recipientPubkey) || []
       const msg = msgs.find(m => m.id === signedEvent.id)
       if (msg) msg.status = 'sent'
@@ -561,10 +574,17 @@ export function useNostrChat() {
     processedEventIds.clear()
   }
 
-  // Initialize when authenticated
+  // Initialize when authenticated. No artificial delay — initializeChat
+  // awaits nostrService.ready() internally, so scheduling later doesn't
+  // speed anything up; it just delays the first subscription attempt.
   watch(isAuthenticated, (authenticated) => {
     if (authenticated) {
-      setTimeout(() => { initializeChat() }, 1000)
+      initializeChat()
+        .then(() => markFresh('chat'))
+        .catch(err => {
+          markStale('chat', err?.message || 'Chat init failed')
+          console.warn('[useNostrChat] Init failed:', err?.message)
+        })
     } else {
       cleanup()
       conversations.value.clear()

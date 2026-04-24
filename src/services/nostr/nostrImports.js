@@ -290,47 +290,12 @@ export {
 } from 'nostr-core'
 
 // ── BOLT-11: invoice decoding ──────────────────────────────────
-// Shim: wraps light-bolt11-decoder to match nostr-core's future bolt11.decode() API.
-// TODO: Replace with `export { bolt11, decodeBolt11 } from 'nostr-core'` once nostr-core ships the module.
-import { decode as _decodeBolt11 } from 'light-bolt11-decoder'
-
-export const bolt11 = {
-  /**
-   * Decode a BOLT-11 invoice string.
-   * Returns the same shape nostr-core's bolt11.decode() will provide:
-   *   { amountMsat, amountSat, paymentHash, expiry, expiresAt, isExpired,
-   *     description, payeeNodeKey, timestamp }
-   */
-  decode(invoice) {
-    const sections = _decodeBolt11(invoice).sections
-    const get = (name) => sections.find((s) => s.name === name)?.value
-
-    const amountMsat = get('amount') ? Number(get('amount')) : null
-    const amountSat = amountMsat != null ? Math.round(amountMsat / 1000) : null
-    const timestamp = get('timestamp') ?? null
-    const expiry = get('expiry') ?? 3600 // BOLT-11 default
-    const expiresAt = timestamp != null ? timestamp + expiry : null
-    const isExpired = expiresAt != null ? Date.now() / 1000 > expiresAt : false
-    const description = get('description') ?? null
-    const paymentHash = get('payment_hash') ?? null
-    const payeeNodeKey = get('payee') ?? null
-
-    return {
-      amountMsat,
-      amountSat,
-      paymentHash,
-      expiry,
-      expiresAt,
-      isExpired,
-      description,
-      payeeNodeKey,
-      timestamp,
-    }
-  },
-}
-
-/** Convenience alias matching the expected nostr-core named export */
-export const decodeBolt11 = bolt11.decode
+// Native nostr-core export (it now ships the module directly).
+// Previously shimmed via light-bolt11-decoder while nostr-core hadn't
+// exposed it; that dependency can come out of package.json in a
+// follow-up once we confirm no straggling direct imports.
+export * as bolt11 from 'nostr-core'
+export { decodeBolt11, Bolt11Error } from 'nostr-core'
 
 // ── Utility functions ────────────────────────────────────────────
 

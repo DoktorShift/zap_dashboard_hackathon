@@ -41,11 +41,12 @@ export function useMentions() {
     
     try {
       
-      const contactEvent = await nostrService.queryOne({
-        kinds: [3], // Contact list (NIP-02)
-        authors: [currentUser.value.pubkey],
-        limit: 1
-      })
+      const contactEvents = await nostrService.queryOutbox(
+        [{ kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }],
+        { timeout: 10_000, eoseGrace: 1_500 }
+      )
+      contactEvents.sort((a, b) => b.created_at - a.created_at)
+      const contactEvent = contactEvents[0] || null
       
       if (!contactEvent) {
         return []
@@ -274,33 +275,39 @@ export function useMentions() {
   }
   
   /**
-   * Search using NIP-50 (if supported by relays)
+   * Search using NIP-50 (if supported by relays).
+   *
+   * Resolves as soon as EOSE arrives OR 3s elapses — whichever is first.
+   * The old version always waited the full 3s, making search feel slow
+   * even when the relay responded immediately. On non-NIP-50 relays
+   * that don't answer, the timeout still bounds the wait.
    */
   const searchWithNIP50 = async (query, limit) => {
     try {
-      
       const events = []
-      
-      // Subscribe with NIP-50 search filter
-      const sub = nostrService.subscribe([{
-        kinds: [0], // Profile metadata
-        search: query, // NIP-50 search field
-        limit: limit
-      }], {
-        onevent: (event) => {
-          events.push(event)
-        },
-        oneose: () => {
-          sub.close()
-        }
-      })
-      
-      // Wait for results with timeout
+      let sub = null
+
       await new Promise((resolve) => {
-        setTimeout(() => {
-          sub.close()
+        let done = false
+        const finish = () => {
+          if (done) return
+          done = true
+          clearTimeout(timer)
+          try { sub?.close() } catch { /* ignore */ }
           resolve()
-        }, 3000) // 3 second timeout
+        }
+
+        const timer = setTimeout(finish, 3000)
+
+        sub = nostrService.subscribe([{
+          kinds: [0],
+          search: query, // NIP-50 search field
+          limit: limit,
+        }], {
+          onevent: (event) => { events.push(event) },
+          oneose: finish,
+          onclose: finish,
+        })
       })
       
       // Parse profile events

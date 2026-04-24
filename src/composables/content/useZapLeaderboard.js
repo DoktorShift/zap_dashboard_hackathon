@@ -88,13 +88,13 @@ export function useZapLeaderboard() {
     }
 
     // Strategy B: Zaps by #p tag (author pubkey) -- catches zaps indexed
-    // differently by some relays. Filter to only relevant event IDs after.
+    // differently by some relays. Outbox-routed via recipient inbox.
     if (authorPubkey) {
       progress.value = 'Cross-checking zaps by author...'
       const eventIdSet = new Set(eventIds)
-      const pTagEvents = await nostrService.query(
+      const pTagEvents = await nostrService.queryOutbox(
         [{ kinds: [9735], '#p': [authorPubkey], limit: 2000 }],
-        { timeout: 20000, eoseGrace: 3000 }
+        { timeout: 12_000, eoseGrace: 1_500 }
       )
       for (const e of pTagEvents) {
         // Only include if the zap references one of our event IDs

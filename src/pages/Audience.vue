@@ -215,8 +215,10 @@ const handleBulkFollow = async () => {
   if (selectedUsers.value.size === 0) return
   
   try {
-    const kind3Filters = { kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }
-    const currentFollowingEvent = await nostrService.queryOne(kind3Filters)
+    const kind3Filters = [{ kinds: [3], authors: [currentUser.value.pubkey], limit: 1 }]
+    const _events = await nostrService.queryOutbox(kind3Filters, { timeout: 10_000, eoseGrace: 1_500 })
+    _events.sort((a, b) => b.created_at - a.created_at)
+    const currentFollowingEvent = _events[0] || null
 
     // Extract current follows and preserve relay config in content field
     let currentFollows = []

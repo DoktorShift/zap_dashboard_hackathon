@@ -6,6 +6,7 @@ import { registerRefresh, unregisterRefresh } from '../../utils/refreshCycle.js'
 import { getUserFriendlyError } from '../../services/nostr/errors.js'
 import { storageService } from '../../services/StorageService.js'
 import { upsertContentItem, removeContentItem } from './useContent.js'
+import { markStale, markFresh } from '../core/useStaleness.js'
 
 // Global state for long-form content
 // Helper function to extract d tag identifier from event
@@ -140,7 +141,7 @@ export function useNostrLongForm() {
 
     try {
       // Capture subscription in local variable to avoid closure bug
-      const sub = nostrService.subscribe([
+      const sub = nostrService.subscribeOutbox([
         {
           kinds: [30023], // Long-form content
           authors: [currentUser.value.pubkey],
@@ -370,7 +371,12 @@ export function useNostrLongForm() {
       if (authenticated) {
         if (longFormContent.value.length === 0 && !isFetching) {
           processedEventIds.clear()
-          fetchUserLongFormContent().catch(err => console.warn('[useNostrLongForm] Initial fetch failed:', err.message))
+          fetchUserLongFormContent()
+            .then(() => markFresh('long-form'))
+            .catch(err => {
+              markStale('long-form', getUserFriendlyError(err))
+              console.warn('[useNostrLongForm] Initial fetch failed:', err?.message)
+            })
         }
 
         registerRefresh('longform', async () => {

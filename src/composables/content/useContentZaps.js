@@ -12,6 +12,8 @@ import {
 } from '../../utils/constants.js'
 import { storageService } from '../../services/StorageService.js'
 import { getPublishedContentEventIds } from './useContent.js'
+import { markStale, markFresh } from '../core/useStaleness.js'
+import { getUserFriendlyError } from '../../services/nostr/errors.js'
 
 // Global state for content zaps
 const contentZaps = reactive(new Map()) // Map<eventId, zap[]>
@@ -21,6 +23,11 @@ const isTrackingZaps = ref(false)
 const trackedEventIds = new Set()
 let batchedSubscription = null
 let resubscribeTimer = null
+
+// EOSE gate: relays replay historical events before EOSE. We ingest them into
+// state (so the UI shows counts) but must NOT notify — otherwise every reload
+// fires a notification for every past zap.
+let subscriptionEosed = false
 
 // Create enriched zap data from a raw zap event using shared utilities
 const createZapData = async (zapEvent) => {
@@ -76,6 +83,9 @@ const openBatchedSubscription = (getNotificationHandler) => {
     return
   }
 
+  // Reset EOSE gate each time we (re)open the subscription; relays re-deliver backlog
+  subscriptionEosed = false
+
   const allIds = Array.from(trackedEventIds)
 
   // Chunk event IDs into groups of CONTENT_ZAP_CHUNK_SIZE to avoid oversized filters
@@ -108,16 +118,21 @@ const openBatchedSubscription = (getNotificationHandler) => {
           existingZaps.unshift(zapData)
           contentZaps.set(eventId, existingZaps)
 
-          // Trigger notification
-          try {
-            const handler = getNotificationHandler()
-            if (handler) handler(zapData)
-          } catch (err) {
-            console.warn('Failed to trigger notification:', err)
+          // Only fire a notification for LIVE events (post-EOSE). Pre-EOSE
+          // arrivals are historical backlog — the composable-level dedupe
+          // would catch them anyway, but skipping the call is cheaper and
+          // avoids surfacing spurious toasts during the initial sync.
+          if (subscriptionEosed) {
+            try {
+              const handler = getNotificationHandler()
+              if (handler) handler(zapData)
+            } catch (err) {
+              console.warn('Failed to trigger notification:', err)
+            }
           }
         }
       },
-      oneose: () => {},
+      oneose: () => { subscriptionEosed = true },
       onclose: () => {
         batchedSubscription = null
       }
@@ -254,12 +269,20 @@ export function useContentZaps() {
     stopZapTracking(eventId)
   }
 
-  // Self-initialize on login, cleanup on logout
+  // Self-initialize on login, cleanup on logout. Mark the 'content-zaps'
+  // source stale when init fails so the user sees the amber indicator
+  // instead of silently missing zap counts on published content.
   watch(isAuthenticated, (auth) => {
     if (auth) {
-      initializeZapTracking().catch(err => console.warn('[useContentZaps] Init tracking failed:', err.message))
+      initializeZapTracking()
+        .then(() => markFresh('content-zaps'))
+        .catch(err => {
+          markStale('content-zaps', getUserFriendlyError(err))
+          console.warn('[useContentZaps] Init tracking failed:', err?.message)
+        })
     } else {
       stopAllZapTracking()
+      markFresh('content-zaps')
     }
   })
 

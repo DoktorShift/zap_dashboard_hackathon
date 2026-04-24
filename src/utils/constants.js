@@ -9,9 +9,12 @@ export const RELAY_HEALTH_CHECK_TIMEOUT = 5_000  // 5s per health check probe
 export const RELAY_MAX_BACKOFF = 5 * 60 * 1000   // 5min max backoff
 
 // ── Subscribe helper ──
-export const SUBSCRIBE_TIMEOUT = 25_000          // 25s hard timeout
-export const SUBSCRIBE_EOSE_GRACE = 3_000        // 3s grace after EOSE
-export const DEFERRED_SUB_TIMEOUT = 5_000        // 5s timeout for deferred subs
+// Hard timeout = user's patience budget, NOT "time until we give up on relays".
+// Consumers render progressively (on every `onevent`), so the timeout only
+// closes the subscription and lets the UI drop its loading indicator.
+export const SUBSCRIBE_TIMEOUT = 12_000          // 12s hard timeout (was 25s — perceived as hang)
+export const SUBSCRIBE_EOSE_GRACE = 1_500        // 1.5s grace after EOSE (was 3s)
+export const DEFERRED_SUB_TIMEOUT = 8_000        // 8s timeout for deferred subs
 
 // ── Profile fetching ──
 export const PROFILE_FETCH_TIMEOUT = 15_000      // 15s batch fetch timeout
@@ -27,11 +30,15 @@ export const EVENT_CACHE_MAX = 500               // max entries
 export const EVENT_CACHE_EVICT = 100             // evict this many when full
 
 // ── App loading ──
-export const APP_HARD_TIMEOUT = 15_000           // 15s max loading screen
+// App paints cached data first → timeout only governs how long we show the
+// full-screen AppLoader before revealing the UI. Fresh data lands when it lands.
+export const APP_HARD_TIMEOUT = 8_000            // 8s max loading screen (was 15s)
 export const RELAY_READY_TIMEOUT = 5_000         // 5s wait for ready() in login/boot
 
 // ── Refresh cycle ──
-export const REFRESH_CYCLE_INTERVAL = 120_000    // 2min between cycles
+// Mobile browsers throttle background timers anyway; 5min avoids battery drain
+// and relay flood without affecting foreground responsiveness (live subs handle that).
+export const REFRESH_CYCLE_INTERVAL = 300_000    // 5min between cycles (was 2min)
 export const REFRESH_WARMUP_DELAY = 30_000       // 30s warmup before first cycle
 export const REFRESH_STAGGER_DELAY = 5_000       // 5s between callbacks
 
@@ -47,10 +54,27 @@ export const NOTES_CLEANUP_INTERVAL = 30_000     // 30s duplicate cleanup
 // ── Publish ──
 export const PUBLISH_TIMEOUT = 10_000            // 10s publish timeout
 
+// ── Persistent cache ──
+// Bump when cache schema changes so old/incompatible entries are flushed on load.
+export const CACHE_VERSION = 1
+export const CACHE_PERSIST_DEBOUNCE = 2_000      // 2s write coalescing to localStorage
+
 // ── Outbox model (NIP-65) ──
 export const OUTBOX_RELAY_LIST_TTL = 30 * 60 * 1000  // 30min cache for relay lists
-export const OUTBOX_MAX_RELAYS_PER_PUBKEY = 5         // max relays to use per user for outbox
+export const OUTBOX_MAX_RELAYS_PER_PUBKEY = 5         // per-pubkey write relays considered
+export const OUTBOX_MAX_RELAYS_GLOBAL = 12            // hard cap across all authors in one query
+export const OUTBOX_DM_INBOX_TTL = 30 * 60 * 1000     // 30min cache for kind:10050
 export const RELAY_INFO_TTL = 60 * 60 * 1000          // 1h cache for NIP-11 relay info
+
+// Discovery tier — queried ONLY for kind:10002 and kind:10050 bootstrap.
+// Reliable, well-connected aggregators so we can find NIP-65/NIP-17 lists even
+// when the target isn't on any of our own relays.
+export const DISCOVERY_RELAYS = [
+  'wss://purplepag.es',
+  'wss://relay.nostr.band',
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+]
 
 // ── Persistent relay limits ──
 // Only user-curated + own NIP-65 relays are persisted; outbox/inbox stay ephemeral
@@ -147,9 +171,11 @@ export const STORAGE_KEYS = {
   // Notifications
   NOTIFICATION_SETTINGS: 'notification_settings',
   LAST_TX_TIMESTAMP: 'last_transaction_timestamp',
-  LAST_BALANCE: 'last_balance',
+  LAST_BALANCE: 'last_balance', // per-connection: `${LAST_BALANCE}:${connectionId}`
   PROCESSED_TX: 'processed_transactions',
   NOTIFICATIONS_LIST: 'notifications_list',
+  NOTIFICATION_DEDUPE: 'notification_dedupe_keys', // Set of dedupe keys, survives list clear
+  NOTIFIED_CALENDAR: 'notified_calendar_events',
 
   // Content
   CONTENT_ITEMS: 'user_content_items',

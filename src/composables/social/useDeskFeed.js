@@ -242,7 +242,7 @@ export function useDeskFeed(columnRef) {
     const pagedFilters = filters.map(f => ({ ...f, limit: PAGE_SIZE }))
 
     try {
-      const sub = nostrService.subscribe(pagedFilters, {
+      const sub = nostrService.subscribeOutbox(pagedFilters, {
         onevent: (event) => {
           if (isDuplicate(event.id)) return
           const post = eventToPost(event)
@@ -314,7 +314,7 @@ export function useDeskFeed(columnRef) {
       let pageCount = 0
 
       await new Promise((resolve) => {
-        const sub = nostrService.subscribe(pageFilters, {
+        const sub = nostrService.subscribeOutbox(pageFilters, {
           onevent: (event) => {
             if (isDuplicate(event.id)) return
             const post = eventToPost(event)

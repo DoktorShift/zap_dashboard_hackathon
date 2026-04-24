@@ -23,9 +23,12 @@ import {
   IconBook
 } from '@iconify-prerendered/vue-tabler'
 import NotificationDropdown from '../shared/NotificationDropdown.vue'
+import NotificationToastHost from '../shared/NotificationToastHost.vue'
+import PendingPublishBadge from '../shared/PendingPublishBadge.vue'
 import ThreadsPromo from '../shared/ThreadsPromo.vue'
 import { useNostrAuth } from '../../composables/auth/useNostrAuth.js'
 import { useConnectionStatus } from '../../composables/core/useConnectionStatus.js'
+import { useStaleness } from '../../composables/core/useStaleness.js'
 import { generateAvatar } from '../../utils/profile/avatarGenerator.js'
 import { storageService, STORAGE_KEYS } from '../../services/StorageService.js'
 
@@ -41,6 +44,7 @@ const emit = defineEmits(['show-connection', 'toggle-mobile-menu', 'change-page'
 const { isAuthenticated, isLoading: isLoginLoading, userProfile, currentUser, logout, login, authError } = useNostrAuth()
 
 const { status: connectionStatus, connectionLabel, isOffline } = useConnectionStatus()
+const { isStale, primaryReason } = useStaleness()
 
 const showProfileDropdown = ref(false)
 const profileDropdownRef = ref(null)
@@ -265,6 +269,19 @@ const handleLoginClick = async () => {
       
       <!-- Right Side Actions -->
       <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- Stale-data indicator — appears when a background refresh is
+             failing so the user knows we're showing cached data, not live. -->
+        <div
+          v-if="isAuthenticated && isStale"
+          class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700"
+          :title="primaryReason || 'Showing cached data — background refresh failed'"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+          <span>Cached data</span>
+        </div>
+
         <!-- Relay Connection Status Indicator -->
         <div
           v-if="isAuthenticated"
@@ -364,11 +381,17 @@ const handleLoginClick = async () => {
 
         <!-- Action Buttons -->
         <div class="flex items-center space-x-2">
+          <!-- Pending-publish retry badge (only renders when the queue is non-empty) -->
+          <PendingPublishBadge />
+
           <!-- Notifications with Consistent Hover Effect -->
           <div class="hover:bg-orange-50 rounded-lg transition-all duration-200 group">
             <NotificationDropdown />
           </div>
         </div>
+
+        <!-- In-app toast host — teleported to <body>, rendered once per authenticated session -->
+        <NotificationToastHost />
         
         <!-- Enhanced Profile Dropdown -->
         <div class="relative" ref="profileDropdownRef">

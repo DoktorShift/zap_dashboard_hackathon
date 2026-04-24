@@ -8,17 +8,34 @@
  * concurrency, event caching, publishing, and event listeners.
  */
 
-import { RelayPool, verifyEvent, nip11, nip65 } from './nostrImports.js'
+import { RelayPool, verifyEvent, nip11, nip65, normalizeURL } from './nostrImports.js'
 import { cacheManager } from './CacheManager.js'
 import { fetchWithCache, isCacheEntry, unwrap } from './CacheEntry.js'
+import { SubscriptionBroker } from './SubscriptionBroker.js'
 import {
   RELAY_CONNECTION_TIMEOUT, RELAY_MAX_RETRIES, RELAY_RETRY_DELAY,
   RELAY_HEALTH_CHECK_INTERVAL, RELAY_HEALTH_CHECK_TIMEOUT, RELAY_MAX_BACKOFF,
   DEFERRED_SUB_TIMEOUT, PUBLISH_TIMEOUT,
   DEFAULT_RELAY_CONFIGS, MAX_CONCURRENT_SUBS,
   SUBSCRIBE_TIMEOUT, SUBSCRIBE_EOSE_GRACE,
-  OUTBOX_RELAY_LIST_TTL, OUTBOX_MAX_RELAYS_PER_PUBKEY, RELAY_INFO_TTL,
+  OUTBOX_RELAY_LIST_TTL, OUTBOX_MAX_RELAYS_PER_PUBKEY,
+  OUTBOX_MAX_RELAYS_GLOBAL, OUTBOX_DM_INBOX_TTL,
+  DISCOVERY_RELAYS, RELAY_INFO_TTL,
 } from '../../utils/constants.js'
+
+/**
+ * Safe URL normalization — trims, lowercases host, removes trailing slash,
+ * ensures wss:// scheme. Falls back to the raw input on parse error so we
+ * don't lose a relay just because nostr-core is strict.
+ */
+function safeNormalizeURL(url) {
+  if (!url || typeof url !== 'string') return url
+  try {
+    return normalizeURL(url.trim())
+  } catch {
+    return url.trim()
+  }
+}
 
 /**
  * Deterministic cache key from a filter object.
@@ -55,12 +72,32 @@ class NostrService {
     this._subscriptionRegistry = new Map()
     this._subIdCounter = 0
 
-    // Outbox model: NIP-65 relay list cache (CacheEntry envelopes)
-    this._relayListCache = new Map()
+    // Outbox model: NIP-65 relay list + NIP-17 DM inbox caches now live in
+    // cacheManager ('relayLists' / 'dmInbox' namespaces) so they persist
+    // across reloads. See CacheManager.js NAMESPACE_DEFAULTS.
 
-    // NIP-11 relay info cache
+    // NIP-11 relay info cache (short-lived, memory only)
     // url → { info: RelayInfo, fetchedAt: timestamp }
     this._relayInfoCache = new Map()
+
+    // Filter-level subscription brokers — one for plain subscribe, one
+    // for subscribeOutbox. Both dedupe identical concurrent filter sets
+    // into ONE upstream sub with handler fan-out. Two brokers (not one)
+    // because the backends are different: plain subscribe uses our read
+    // pool, outbox subscribe does per-author route resolution. A single
+    // broker keyed on filters alone would conflate them and serve the
+    // wrong relay set.
+    //
+    // Each "backend" is an object that forwards to the real method so
+    // the broker can't recurse back into the public API.
+    this._broker = new SubscriptionBroker({
+      subscribe: (filters, callbacks, options) =>
+        this._realSubscribe(filters, callbacks, options),
+    })
+    this._outboxBroker = new SubscriptionBroker({
+      subscribe: (filters, callbacks, options) =>
+        this._realSubscribeOutbox(filters, callbacks, options),
+    })
   }
 
   _createReadyGate() {
@@ -111,8 +148,13 @@ class NostrService {
     if (!this._initialized) return this.initialize(newRelays)
     if (!newRelays?.length) return
 
+    // Normalize both sides so `wss://Host/` and `wss://host/` don't
+    // produce duplicate connections. Stored keys are already normalized
+    // (mergeRelayLists / connectToRelay normalize on ingest).
     const existingUrls = new Set(this.relayConnections.keys())
-    const toAdd = newRelays.filter(r => !existingUrls.has(r.url))
+    const toAdd = newRelays
+      .map(r => ({ ...r, url: safeNormalizeURL(r.url) }))
+      .filter(r => r.url && !existingUrls.has(r.url))
     if (toAdd.length === 0) return
 
     await this._connectToRelays(toAdd)
@@ -160,7 +202,6 @@ class NostrService {
     this._connectionPromises.clear()
     this._eventListeners.clear()
     this._relayBackoff.clear()
-    this._relayListCache.clear()
     this._relayInfoCache.clear()
     cacheManager.clear()
 
@@ -193,12 +234,22 @@ class NostrService {
       return { close: () => {} }
     }
 
-    // Concurrency control
-    if (this._activeSubscriptions.size >= MAX_CONCURRENT_SUBS) {
-      return this._queueSubscription(validFilters, callbacks, options)
-    }
+    // Route through the broker — identical filter sets from multiple
+    // consumers fan out over a single upstream subscription.
+    return this._broker.subscribe(validFilters, callbacks, options)
+  }
 
-    return this._openSubscription(validFilters, callbacks, options)
+  /**
+   * The real subscribe path the broker delegates to. Keep the concurrency
+   * gate + queue here so the broker's dedup happens BEFORE we consume a
+   * concurrency slot (fewer real subs → fewer queue inserts).
+   * @private
+   */
+  _realSubscribe(filters, callbacks, options) {
+    if (this._activeSubscriptions.size >= MAX_CONCURRENT_SUBS) {
+      return this._queueSubscription(filters, callbacks, options)
+    }
+    return this._openSubscription(filters, callbacks, options)
   }
 
   // ── Query (one-shot, promise-based) ─────────────────────────────
@@ -410,6 +461,7 @@ class NostrService {
   }
 
   removeRelay(url) {
+    url = safeNormalizeURL(url)
     this.relayConnections.delete(url)
     this.relayStatuses.delete(url)
     this._connectionPromises.delete(url)
@@ -418,6 +470,7 @@ class NostrService {
   }
 
   async reconnectRelay(url) {
+    url = safeNormalizeURL(url)
     const status = this.relayStatuses.get(url)
     if (!status) return
     this.relayConnections.delete(url)
@@ -428,129 +481,565 @@ class NostrService {
     }
   }
 
-  // ── Outbox Model (NIP-65) ───────────────────────────────────────
+  // ── Outbox Model (NIP-65 + NIP-17) ──────────────────────────────
+
+  /**
+   * Query a well-known discovery tier directly, bypassing our own relay
+   * pool. Used only for bootstrap data (kind 10002, 10050) so we can find
+   * a user's relay list even when they aren't on any of our relays.
+   * @private
+   */
+  async _queryDiscovery(filter, { maxWait = 6_000 } = {}) {
+    try {
+      const events = await this.pool.querySync(DISCOVERY_RELAYS, filter, { maxWait })
+      return events || []
+    } catch {
+      return []
+    }
+  }
+
+  /** Adapter shape so fetchWithCache can persist via cacheManager. */
+  _cacheStoreFor(namespace) {
+    return {
+      get: (_ns, key) => cacheManager.get(namespace, key),
+      set: (_ns, key, value, ttl) => cacheManager.set(namespace, key, value, ttl),
+      has: (_ns, key) => cacheManager.has(namespace, key),
+    }
+  }
 
   /**
    * Fetch and cache a user's NIP-65 relay list (kind:10002).
-   * Uses nostr-core's parseRelayList for parsing.
+   * Discovery tier first, then our own relays as fallback.
+   * Cached in the persistent 'relayLists' namespace.
    * @param {string} pubkey — hex pubkey
    * @returns {Promise<Array<{url, read, write}>>}
    */
   async fetchRelayList(pubkey) {
-    const relayListStore = {
-      get: (_ns, key) => this._relayListCache.get(key),
-      set: (_ns, key, value) => this._relayListCache.set(key, value),
-      has: (_ns, key) => this._relayListCache.has(key)
-    }
-
     return fetchWithCache({
-      namespace: 'relayList',
+      namespace: 'relayLists',
       key: pubkey,
-      store: relayListStore,
+      store: this._cacheStoreFor('relayLists'),
       fetcher: async () => {
-        const event = await this.queryOne({
-          kinds: [10002], authors: [pubkey], limit: 1
-        })
-        if (!event) return null
-        return nip65.parseRelayList(event)
+        const filter = { kinds: [10002], authors: [pubkey], limit: 1 }
+
+        // 1. Discovery tier — reliable NIP-65 aggregators.
+        let events = await this._queryDiscovery(filter, { maxWait: 6_000 })
+
+        // 2. Fallback: our own relays, if discovery turned up nothing.
+        if (events.length === 0) {
+          await this.ready()
+          const readRelays = this._getHealthyReadRelayUrls()
+          if (readRelays.length > 0) {
+            try {
+              events = await this.pool.querySync(readRelays, filter, { maxWait: 8_000 })
+            } catch {
+              events = []
+            }
+          }
+        }
+
+        if (!events || events.length === 0) return null
+        // Pick the newest if multiple relays returned versions.
+        events.sort((a, b) => b.created_at - a.created_at)
+        const parsed = nip65.parseRelayList(events[0])
+        // Normalize URLs so dedup works downstream.
+        return parsed.map(r => ({ ...r, url: safeNormalizeURL(r.url) }))
       },
       isEmpty: (v) => v == null,
       fallback: [],
       ttl: {
-        hit: OUTBOX_RELAY_LIST_TTL,   // 30min
-        miss: OUTBOX_RELAY_LIST_TTL,  // 30min — no relay list is a valid state
-        error: 30_000                 // 30s retry on network error
-      }
+        hit: OUTBOX_RELAY_LIST_TTL,
+        miss: OUTBOX_RELAY_LIST_TTL,
+        error: 30_000,
+      },
     })
   }
 
   /**
-   * Get outbox relays for a set of pubkeys — their WRITE relays
-   * (where they publish events). Use these relays to READ their events.
-   * @param {string[]} pubkeys
-   * @returns {Promise<string[]>} deduplicated relay URLs
+   * Fetch and cache a user's NIP-17 DM inbox relays (kind:10050).
+   * Used for gift-wrapped DM delivery — distinct from NIP-65.
+   * @param {string} pubkey
+   * @returns {Promise<string[]>} inbox relay URLs
    */
-  async getOutboxRelays(pubkeys) {
-    const relayUrls = new Set()
-    const fetches = pubkeys.map(pk => this.fetchRelayList(pk))
-    const results = await Promise.allSettled(fetches)
-
-    for (const result of results) {
-      if (result.status !== 'fulfilled') continue
-      const relays = result.value
-      const writeRelays = nip65.getWriteRelays(relays)
-      for (const url of writeRelays.slice(0, OUTBOX_MAX_RELAYS_PER_PUBKEY)) {
-        relayUrls.add(url)
-      }
-    }
-
-    return Array.from(relayUrls)
+  async fetchDMInbox(pubkey) {
+    return fetchWithCache({
+      namespace: 'dmInbox',
+      key: pubkey,
+      store: this._cacheStoreFor('dmInbox'),
+      fetcher: async () => {
+        const filter = { kinds: [10050], authors: [pubkey], limit: 1 }
+        let events = await this._queryDiscovery(filter, { maxWait: 6_000 })
+        if (events.length === 0) {
+          await this.ready()
+          const readRelays = this._getHealthyReadRelayUrls()
+          if (readRelays.length > 0) {
+            try {
+              events = await this.pool.querySync(readRelays, filter, { maxWait: 8_000 })
+            } catch {
+              events = []
+            }
+          }
+        }
+        if (!events || events.length === 0) return null
+        events.sort((a, b) => b.created_at - a.created_at)
+        const urls = []
+        for (const [name, value] of events[0].tags) {
+          if (name === 'relay' && value) urls.push(safeNormalizeURL(value))
+        }
+        return urls.length > 0 ? urls : null
+      },
+      isEmpty: (v) => v == null,
+      fallback: [],
+      ttl: {
+        hit: OUTBOX_DM_INBOX_TTL,
+        miss: OUTBOX_DM_INBOX_TTL,
+        error: 30_000,
+      },
+    })
   }
 
   /**
-   * Get inbox relays for a set of pubkeys — their READ relays
-   * (where they read events). Use these relays to PUBLISH events to them.
+   * Build a per-relay filter map for reading events authored by the given
+   * pubkeys (outbox routing). Relays are ranked by author coverage and
+   * capped at OUTBOX_MAX_RELAYS_GLOBAL so a large follow graph doesn't
+   * explode into 100+ connections.
+   *
    * @param {string[]} pubkeys
-   * @returns {Promise<string[]>} deduplicated relay URLs
+   * @returns {Promise<{routeMap: Map<string, Set<string>>, unrouted: string[]}>}
+   *   routeMap: relayUrl → Set of author pubkeys to request from it.
+   *   unrouted: authors with no NIP-65 write relays — fall back to our read pool.
+   */
+  async _buildOutboxRoute(pubkeys) {
+    const unique = Array.from(new Set(pubkeys))
+    const lists = await Promise.allSettled(unique.map(pk => this.fetchRelayList(pk)))
+
+    // relayUrl → Set<pubkey>
+    const candidates = new Map()
+    const unrouted = []
+
+    unique.forEach((pk, idx) => {
+      const result = lists[idx]
+      const list = result.status === 'fulfilled' ? result.value : []
+      const writeUrls = (list && list.length)
+        ? nip65.getWriteRelays(list).slice(0, OUTBOX_MAX_RELAYS_PER_PUBKEY)
+        : []
+      if (writeUrls.length === 0) {
+        unrouted.push(pk)
+        return
+      }
+      for (const rawUrl of writeUrls) {
+        const url = safeNormalizeURL(rawUrl)
+        if (!url) continue
+        let set = candidates.get(url)
+        if (!set) { set = new Set(); candidates.set(url, set) }
+        set.add(pk)
+      }
+    })
+
+    // Rank by (!backedOff, coverage). Backed-off relays sink to the
+    // bottom so a rate-limiting relay doesn't dominate the route map
+    // just because it claims many authors.
+    const ranked = Array.from(candidates.entries())
+      .sort((a, b) => {
+        const aOff = this._isBackedOff(a[0]) ? 1 : 0
+        const bOff = this._isBackedOff(b[0]) ? 1 : 0
+        if (aOff !== bOff) return aOff - bOff
+        return b[1].size - a[1].size
+      })
+      .slice(0, OUTBOX_MAX_RELAYS_GLOBAL)
+
+    return { routeMap: new Map(ranked), unrouted }
+  }
+
+  /**
+   * Per-pubkey inbox relay selection for publishing. Uses read relays
+   * from NIP-65. Falls back to NIP-65 write relays (recipient reads from
+   * their own writes per spec), then our write relays.
    */
   async getInboxRelays(pubkeys) {
     const relayUrls = new Set()
-    const fetches = pubkeys.map(pk => this.fetchRelayList(pk))
-    const results = await Promise.allSettled(fetches)
-
-    for (const result of results) {
+    const lists = await Promise.allSettled(
+      Array.from(new Set(pubkeys)).map(pk => this.fetchRelayList(pk))
+    )
+    for (const result of lists) {
       if (result.status !== 'fulfilled') continue
       const relays = result.value
+      if (!relays || relays.length === 0) continue
       const readRelays = nip65.getReadRelays(relays)
-      for (const url of readRelays.slice(0, OUTBOX_MAX_RELAYS_PER_PUBKEY)) {
-        relayUrls.add(url)
+      const source = readRelays.length > 0 ? readRelays : nip65.getWriteRelays(relays)
+      for (const rawUrl of source.slice(0, OUTBOX_MAX_RELAYS_PER_PUBKEY)) {
+        const url = safeNormalizeURL(rawUrl)
+        if (url) relayUrls.add(url)
       }
     }
-
     return Array.from(relayUrls)
   }
 
   /**
-   * Query with outbox model: fetch events from the target pubkeys'
-   * write relays in addition to our own read relays.
-   * @param {Array<object>} filters — must contain `authors` field
-   * @param {object} [opts] — same as query() options
+   * Backwards-compatible helper — returns the union of per-pubkey write
+   * relays. Prefer `_buildOutboxRoute` for actual routing.
+   */
+  async getOutboxRelays(pubkeys) {
+    const { routeMap } = await this._buildOutboxRoute(pubkeys)
+    return Array.from(routeMap.keys())
+  }
+
+  /**
+   * Outbox-aware query. This is a TRUE req-router per Nostrify spec:
+   *
+   *   For each filter with `authors` or `#p`, partition those pubkeys by
+   *   their write relays and issue ONE sub-filter per (relay, pubkeys)
+   *   pair. Events dedup by id into a single result set.
+   *
+   * Filters without authors/#p go to our own read pool unchanged.
+   *
+   * @param {Array<object>} filters
+   * @param {object} [opts] — { timeout, eoseGrace, dedup }
    * @returns {Promise<Array>}
    */
   async queryOutbox(filters, opts = {}) {
     await this.ready()
 
-    // Extract pubkeys from filters
+    const timeout = opts.timeout ?? SUBSCRIBE_TIMEOUT
+    const eoseGrace = opts.eoseGrace ?? SUBSCRIBE_EOSE_GRACE
+
+    // Collect the author/recipient targets across all filters.
     const pubkeys = new Set()
     for (const f of filters) {
-      if (f.authors) f.authors.forEach(pk => pubkeys.add(pk))
-      if (f['#p']) f['#p'].forEach(pk => pubkeys.add(pk))
+      if (Array.isArray(f.authors)) f.authors.forEach(pk => pubkeys.add(pk))
+      if (Array.isArray(f['#p'])) f['#p'].forEach(pk => pubkeys.add(pk))
     }
 
     if (pubkeys.size === 0) {
+      // Nothing to route by author — use the default pool.
       return this.query(filters, opts)
     }
 
-    // Fetch outbox relays for targets
-    const outboxUrls = await this.getOutboxRelays(Array.from(pubkeys))
+    const { routeMap, unrouted } = await this._buildOutboxRoute(Array.from(pubkeys))
 
-    // Ensure we're connected to outbox relays (best-effort)
-    const newRelays = outboxUrls.filter(url => !this.relayConnections.has(url))
-    if (newRelays.length > 0) {
+    // Ensure outbox relays are connected (best-effort).
+    const toConnect = Array.from(routeMap.keys())
+      .filter(url => !this.relayConnections.has(url))
+    if (toConnect.length > 0) {
       await Promise.allSettled(
-        newRelays.map(url => this.connectToRelay(url, { read: true, write: false }))
+        toConnect.map(url => this.connectToRelay(url, { read: true, write: false }))
       )
     }
 
-    // Query across our relays + outbox relays
-    return this.query(filters, opts)
+    // For each route, narrow each filter to the authors served by that relay.
+    // Unrouted authors (no NIP-65) fall back to our read pool as a single
+    // "fallback" route.
+    const results = []
+    const seen = new Set()
+
+    const runRoute = async (relayUrls, filterNarrower) => {
+      if (!relayUrls || relayUrls.length === 0) return
+      const narrowed = filters.map(filterNarrower).filter(Boolean)
+      if (narrowed.length === 0) return
+
+      const events = await new Promise((resolve) => {
+        const events = []
+        let resolved = false
+        const done = () => {
+          if (resolved) return
+          resolved = true
+          clearTimeout(hard)
+          clearTimeout(grace)
+          try { subs.forEach(s => s.close()) } catch {}
+          resolve(events)
+        }
+
+        let grace
+        const hard = setTimeout(done, timeout)
+        let eoseCount = 0
+
+        const subs = narrowed.map(f => this.pool.subscribe(relayUrls, f, {
+          onevent: (ev) => {
+            if (resolved) return
+            if (seen.has(ev.id)) return
+            seen.add(ev.id)
+            events.push(ev)
+          },
+          oneose: () => {
+            eoseCount++
+            if (eoseCount >= narrowed.length) {
+              clearTimeout(hard)
+              grace = setTimeout(done, eoseGrace)
+            }
+          },
+          onclose: () => {},
+          maxWait: timeout,
+        }))
+      })
+
+      results.push(...events)
+    }
+
+    const tasks = []
+
+    // One task per outbox relay, scoped to its assigned authors.
+    for (const [relayUrl, authorSet] of routeMap) {
+      const authors = Array.from(authorSet)
+      tasks.push(runRoute([relayUrl], (f) => {
+        const next = { ...f }
+        // Narrow authors/#p to only the ones this relay covers.
+        if (Array.isArray(f.authors)) {
+          const scoped = f.authors.filter(pk => authorSet.has(pk))
+          if (scoped.length === 0 && !Array.isArray(f['#p'])) return null
+          next.authors = scoped.length > 0 ? scoped : f.authors
+        }
+        if (Array.isArray(f['#p'])) {
+          const scoped = f['#p'].filter(pk => authorSet.has(pk))
+          if (scoped.length > 0) next['#p'] = scoped
+        }
+        return next
+      }))
+    }
+
+    // Fallback for authors with no NIP-65 — use our own read pool.
+    if (unrouted.length > 0) {
+      const readRelays = this._getHealthyReadRelayUrls()
+      const unroutedSet = new Set(unrouted)
+      tasks.push(runRoute(readRelays, (f) => {
+        const next = { ...f }
+        if (Array.isArray(f.authors)) {
+          const scoped = f.authors.filter(pk => unroutedSet.has(pk))
+          if (scoped.length === 0 && !Array.isArray(f['#p'])) return null
+          next.authors = scoped.length > 0 ? scoped : f.authors
+        }
+        if (Array.isArray(f['#p'])) {
+          const scoped = f['#p'].filter(pk => unroutedSet.has(pk))
+          if (scoped.length > 0) next['#p'] = scoped
+        }
+        return next
+      }))
+    }
+
+    await Promise.allSettled(tasks)
+    return results
   }
 
   /**
-   * Publish with inbox model: publish to the target recipients'
-   * read relays in addition to our own write relays.
+   * Outbox-aware live subscription. Per-author filter partitioning
+   * identical to queryOutbox, but keeps the streams open and exposes a
+   * single composite `{close}` handle.
+   *
+   * Routes through the outbox broker — two consumers subscribing with
+   * identical filter sets (same kinds + same author array up to order)
+   * share ONE upstream route resolution + one set of pool subs. Fan-out
+   * to each consumer's callbacks; real sub closes when the last consumer
+   * releases. See SubscriptionBroker for the contract.
+   *
+   * @param {Array<object>} filters
+   * @param {{onevent?, oneose?, onclose?, maxWait?}} callbacks
+   * @returns {{close: Function}}
+   */
+  subscribeOutbox(filters, callbacks = {}, options = {}) {
+    return this._outboxBroker.subscribe(filters, callbacks, options)
+  }
+
+  /**
+   * The real subscribeOutbox implementation. Called by the outbox broker
+   * (and nothing else) to open ONE upstream route set per distinct
+   * filter fingerprint. Handler fan-out to multiple consumers happens
+   * at the broker layer above.
+   *
+   * Registers with `_subscriptionRegistry` so `_reopenSubscriptions`
+   * can re-run the route resolution + sub open flow when a relay
+   * disconnects and returns. Without that, every live outbox sub
+   * would silently die on the first relay hiccup.
+   *
+   * @private
+   */
+  _realSubscribeOutbox(filters, callbacks = {}, options = {}) {
+    const pubkeys = new Set()
+    for (const f of filters) {
+      if (Array.isArray(f.authors)) f.authors.forEach(pk => pubkeys.add(pk))
+      if (Array.isArray(f['#p'])) f['#p'].forEach(pk => pubkeys.add(pk))
+    }
+
+    // No author hint — delegate to the plain subscribe path (which has
+    // its own broker in front of it for cross-consumer dedup).
+    if (pubkeys.size === 0) {
+      return this.subscribe(filters, callbacks, options)
+    }
+
+    // Registry entry. The `seen` Set persists across reopens so a
+    // reconnected relay replaying its history doesn't re-emit events
+    // the consumer already processed.
+    const registryId = ++this._subIdCounter
+    const entry = {
+      type: 'outbox',
+      filters,
+      pubkeys: Array.from(pubkeys),
+      callbacks,
+      options,
+      subs: [],
+      seen: new Set(),
+      eoseFired: false,
+      closed: false,
+    }
+    this._subscriptionRegistry.set(registryId, entry)
+
+    this._openOutboxEntry(entry).catch(err => {
+      if (entry.closed) return
+      console.warn('[subscribeOutbox] setup failed:', err?.message)
+      callbacks.onclose?.(err?.message || 'subscribeOutbox setup failed')
+    })
+
+    return {
+      close: () => {
+        if (entry.closed) return
+        entry.closed = true
+        this._subscriptionRegistry.delete(registryId)
+        for (const s of entry.subs) {
+          try { s.close() } catch {}
+        }
+        entry.subs = []
+      },
+    }
+  }
+
+  /**
+   * Resolve the outbox routing for an entry and open pool subs.
+   * Idempotent — safe to call on reconnect. Callers guard on `entry.closed`.
+   * @private
+   */
+  async _openOutboxEntry(entry) {
+    await this.ready()
+    if (entry.closed) return
+
+    // Close any stale sub handles from a previous open attempt. We
+    // keep the `seen` set untouched so replays dedupe across cycles.
+    if (entry.subs.length > 0) {
+      for (const s of entry.subs) {
+        try { s.close() } catch {}
+      }
+      entry.subs = []
+    }
+
+    const { routeMap, unrouted } = await this._buildOutboxRoute(entry.pubkeys)
+    if (entry.closed) return
+
+    const toConnect = Array.from(routeMap.keys())
+      .filter(url => !this.relayConnections.has(url))
+    if (toConnect.length > 0) {
+      await Promise.allSettled(
+        toConnect.map(url => this.connectToRelay(url, { read: true, write: false }))
+      )
+    }
+    if (entry.closed) return
+
+    const routeTasks = this._buildRouteTasks(entry.filters, routeMap, unrouted)
+    const expectedEose = routeTasks.length
+
+    if (expectedEose === 0) {
+      // Every route was narrowed away — nothing to sub. Fire EOSE once
+      // (no-op if already fired from a prior cycle) so the consumer's
+      // loading state clears.
+      if (!entry.eoseFired) {
+        entry.eoseFired = true
+        entry.callbacks.oneose?.()
+      }
+      return
+    }
+
+    let eoseCount = 0
+    const wrapEvent = (ev) => {
+      if (entry.closed) return
+      if (entry.seen.has(ev.id)) return
+      entry.seen.add(ev.id)
+      entry.callbacks.onevent?.(ev)
+    }
+    const wrapEose = () => {
+      eoseCount++
+      if (eoseCount >= expectedEose && !entry.eoseFired) {
+        entry.eoseFired = true
+        entry.callbacks.oneose?.()
+      }
+    }
+
+    let openedCount = 0
+    for (const { relayUrls, filter } of routeTasks) {
+      if (entry.closed) break
+      try {
+        const sub = this.pool.subscribe(relayUrls, filter, {
+          onevent: wrapEvent,
+          oneose: wrapEose,
+          onclose: () => { /* reconnect handled centrally */ },
+          maxWait: entry.options.maxWait || 10_000,
+        })
+        entry.subs.push(sub)
+        openedCount++
+      } catch (err) {
+        console.warn('[subscribeOutbox] route open failed:', err?.message)
+      }
+    }
+
+    // If every route failed to open, surface it so the consumer can
+    // clear their loading state / show an error instead of hanging.
+    if (openedCount === 0 && !entry.closed) {
+      entry.callbacks.onclose?.('no outbox routes could be opened')
+    }
+  }
+
+  /**
+   * Build the per-relay (relayUrls, filter) task list from a route map.
+   * Each output filter narrows `authors`/`#p` to pubkeys the relay
+   * actually covers. Authors with no NIP-65 list fall back to our own
+   * read pool as a single "fallback" route.
+   * @private
+   */
+  _buildRouteTasks(filters, routeMap, unrouted) {
+    const tasks = []
+
+    for (const [relayUrl, authorSet] of routeMap) {
+      for (const f of filters) {
+        const next = { ...f }
+        if (Array.isArray(f.authors)) {
+          const scoped = f.authors.filter(pk => authorSet.has(pk))
+          if (scoped.length === 0 && !Array.isArray(f['#p'])) continue
+          next.authors = scoped.length > 0 ? scoped : f.authors
+        }
+        if (Array.isArray(f['#p'])) {
+          const scoped = f['#p'].filter(pk => authorSet.has(pk))
+          if (scoped.length > 0) next['#p'] = scoped
+        }
+        tasks.push({ relayUrls: [relayUrl], filter: next })
+      }
+    }
+
+    if (unrouted.length > 0) {
+      const readRelays = this._getHealthyReadRelayUrls()
+      if (readRelays.length > 0) {
+        const unroutedSet = new Set(unrouted)
+        for (const f of filters) {
+          const next = { ...f }
+          if (Array.isArray(f.authors)) {
+            const scoped = f.authors.filter(pk => unroutedSet.has(pk))
+            if (scoped.length === 0 && !Array.isArray(f['#p'])) continue
+            next.authors = scoped.length > 0 ? scoped : f.authors
+          }
+          if (Array.isArray(f['#p'])) {
+            const scoped = f['#p'].filter(pk => unroutedSet.has(pk))
+            if (scoped.length > 0) next['#p'] = scoped
+          }
+          tasks.push({ relayUrls: readRelays, filter: next })
+        }
+      }
+    }
+
+    return tasks
+  }
+
+  /**
+   * Publish with inbox model. Prefers the recipient's NIP-17 DM inbox
+   * (kind:10050) when the event is DM-shaped (kind 1059), otherwise the
+   * NIP-65 read relays. Always unions with our own write relays as a
+   * delivery floor.
+   *
    * @param {object} event — signed Nostr event
-   * @param {string[]} recipientPubkeys — target recipients
+   * @param {string[]} recipientPubkeys
    * @returns {Promise<{successful, failed, total}>}
    */
   async publishInbox(event, recipientPubkeys = []) {
@@ -560,24 +1049,65 @@ class NostrService {
       return this.publish(event)
     }
 
-    // Fetch inbox relays for recipients
-    const inboxUrls = await this.getInboxRelays(recipientPubkeys)
+    // Gift-wrapped DMs (NIP-17) use the kind:10050 inbox.
+    const useDMInbox = event?.kind === 1059
+    const inboxFetches = recipientPubkeys.map(pk =>
+      useDMInbox ? this.fetchDMInbox(pk) : this.fetchRelayList(pk)
+    )
+    const results = await Promise.allSettled(inboxFetches)
 
-    // Ensure connected to inbox relays (best-effort)
-    const newRelays = inboxUrls.filter(url => !this.relayConnections.has(url))
-    if (newRelays.length > 0) {
+    const inboxUrls = new Set()
+    for (const r of results) {
+      if (r.status !== 'fulfilled' || !r.value) continue
+      if (useDMInbox) {
+        for (const url of r.value) inboxUrls.add(safeNormalizeURL(url))
+      } else {
+        const relays = r.value
+        const readRelays = nip65.getReadRelays(relays)
+        const source = readRelays.length > 0 ? readRelays : nip65.getWriteRelays(relays)
+        for (const url of source.slice(0, OUTBOX_MAX_RELAYS_PER_PUBKEY)) {
+          inboxUrls.add(safeNormalizeURL(url))
+        }
+      }
+    }
+
+    const toConnect = Array.from(inboxUrls).filter(url => !this.relayConnections.has(url))
+    if (toConnect.length > 0) {
       await Promise.allSettled(
-        newRelays.map(url => this.connectToRelay(url, { read: false, write: true }))
+        toConnect.map(url => this.connectToRelay(url, { read: false, write: true }))
       )
     }
 
-    // Publish to our write relays + inbox relays
     const allWriteUrls = new Set([
       ...this._getHealthyWriteRelayUrls(),
-      ...inboxUrls
+      ...inboxUrls,
     ])
     const targetRelays = Array.from(allWriteUrls).map(url => ({ url }))
     return this.publish(event, targetRelays)
+  }
+
+  /**
+   * Build a NIP-65 relay list event template from the CURRENT connected
+   * relays. Caller is responsible for signing + publishing (via
+   * publishService.signAndPublish). Returns null if no relays configured.
+   */
+  buildOwnRelayListTemplate() {
+    const relays = this.getConnectedRelays().map(r => ({
+      url: safeNormalizeURL(r.url),
+      read: r.config?.read !== false,
+      write: r.config?.write !== false,
+    }))
+    if (relays.length === 0) return null
+    return nip65.createRelayListEventTemplate(relays)
+  }
+
+  /**
+   * Check whether a given pubkey has a NIP-65 relay list on discovery
+   * relays. Used at login to decide whether we should auto-publish.
+   */
+  async hasPublishedRelayList(pubkey) {
+    const list = await this.fetchRelayList(pubkey)
+    return Array.isArray(list) && list.length > 0
   }
 
   // ── NIP-11: Relay Information ─────────────────────────────────
@@ -662,8 +1192,14 @@ class NostrService {
 
   mergeRelayLists(userRelays, defaultRelays) {
     const map = new Map()
-    for (const r of defaultRelays) map.set(r.url, r)
-    for (const r of userRelays) map.set(r.url, r)
+    for (const r of defaultRelays) {
+      const url = safeNormalizeURL(r.url)
+      map.set(url, { ...r, url })
+    }
+    for (const r of userRelays) {
+      const url = safeNormalizeURL(r.url)
+      map.set(url, { ...r, url })
+    }
     return Array.from(map.values())
   }
 
@@ -686,6 +1222,7 @@ class NostrService {
   }
 
   async connectToRelay(url, config = { read: true, write: true }, retryCount = 0) {
+    url = safeNormalizeURL(url)
     // Dedup concurrent connection attempts to the same relay
     if (this._connectionPromises.has(url)) {
       return this._connectionPromises.get(url)
@@ -816,6 +1353,13 @@ class NostrService {
   /**
    * Re-open subscriptions that were registered but had no relays,
    * or whose relays disconnected. Called after a relay reconnects.
+   *
+   * Handles two entry shapes:
+   * - `type: 'outbox'` — delegates to `_openOutboxEntry` which re-runs
+   *   the NIP-65 route resolution (important: the set of write relays
+   *   for a given author may have changed while we were offline).
+   * - default (plain subscribe) — re-subscribes against the current
+   *   healthy read pool using the same filters/callbacks.
    */
   _reopenSubscriptions() {
     const healthyRelays = this._getHealthyReadRelayUrls()
@@ -827,32 +1371,41 @@ class NostrService {
         continue
       }
 
-      // If the subscription has no open subs (was created with 0 relays),
-      // or if we want to refresh it, open it now.
-      const hasOpenSubs = entry.subs.length > 0
-      if (!hasOpenSubs) {
-        try {
-          // Close any existing subs first
-          for (const sub of entry.subs) {
-            try { sub.close() } catch { /* ignore */ }
-          }
-          entry.subs = []
+      if (entry.type === 'outbox') {
+        // Re-run the outbox pipeline. `_openOutboxEntry` closes stale
+        // sub handles, refreshes routes, and re-opens. The persisted
+        // `seen` Set dedupes any events the upstream relays replay.
+        this._openOutboxEntry(entry).then(() => {
+          this.emit('subscriptionReopened', { id, type: 'outbox', filters: entry.filters })
+        }).catch(err => {
+          console.warn(`Failed to reopen outbox subscription ${id}:`, err?.message)
+        })
+        continue
+      }
 
-          // Re-open with current healthy relays
-          for (const filter of entry.filters) {
-            const sub = this.pool.subscribe(healthyRelays, filter, {
-              onevent: (event) => entry.callbacks.onevent?.(event),
-              oneose: () => entry.callbacks.oneose?.(),
-              onclose: () => {},
-              maxWait: entry.options.maxWait || 10_000,
-            })
-            entry.subs.push(sub)
-          }
+      // Plain subscribe path — only reopen if it has no live subs
+      // (e.g. was created with 0 relays or onclose cleared it).
+      if (entry.subs.length > 0) continue
 
-          this.emit('subscriptionReopened', { id, filters: entry.filters })
-        } catch (err) {
-          console.warn(`Failed to reopen subscription ${id}:`, err.message)
+      try {
+        for (const sub of entry.subs) {
+          try { sub.close() } catch { /* ignore */ }
         }
+        entry.subs = []
+
+        for (const filter of entry.filters) {
+          const sub = this.pool.subscribe(healthyRelays, filter, {
+            onevent: (event) => entry.callbacks.onevent?.(event),
+            oneose: () => entry.callbacks.oneose?.(),
+            onclose: () => {},
+            maxWait: entry.options.maxWait || 10_000,
+          })
+          entry.subs.push(sub)
+        }
+
+        this.emit('subscriptionReopened', { id, filters: entry.filters })
+      } catch (err) {
+        console.warn(`Failed to reopen subscription ${id}:`, err.message)
       }
     }
   }

@@ -62,7 +62,10 @@ const selectedZapId = ref(null)
 // UI state
 const showFilters = ref(false)
 const viewMode = ref('feed') // 'feed' or 'compact'
-const isInitialLoading = ref(true)
+// Start false — real data comes from the zap subscription and
+// profileService. Artificially delaying the initial paint was pure UX
+// harm; the subscription fans out events progressively now.
+const isInitialLoading = ref(false)
 
 // Pagination state
 const currentPage = ref(1)
@@ -70,11 +73,6 @@ const itemsPerPage = 20
 
 // Threads promo - always show, component handles dismissal internally
 const showThreadsPromo = ref(true)
-
-// Simulate initial data load
-setTimeout(() => {
-  isInitialLoading.value = false
-}, 1000)
 
 // Connection status for messaging
 const connectionStatus = computed(() => {

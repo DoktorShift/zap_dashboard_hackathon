@@ -2,6 +2,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { useNostrAuth } from '../auth/useNostrAuth.js'
 import { nostrService } from '../../services/nostr/NostrService.js'
 import { storageService } from '../../services/StorageService.js'
+import { markStale } from '../core/useStaleness.js'
 
 const engagementMetrics = reactive(new Map()) 
 const activeSubscriptions = reactive(new Map())
@@ -35,7 +36,12 @@ const _startEngagementBackgroundRefresh = async () => {
     console.warn('Engagement background refresh failed:', err.message)
   }
 }
-setTimeout(() => { _startEngagementBackgroundRefresh().catch(err => console.warn('Engagement background refresh error:', err)) }, 0)
+setTimeout(() => {
+  _startEngagementBackgroundRefresh().catch(err => {
+    markStale('engagement-metrics', err?.message || 'Background refresh failed')
+    console.warn('Engagement background refresh error:', err?.message)
+  })
+}, 0)
 
 export function useEngagementMetrics() {
   const { currentUser, isAuthenticated } = useNostrAuth()
@@ -228,7 +234,9 @@ export function useEngagementMetrics() {
       // Rely on relay manager for deduplication
       const subscriptionId = `engagement-batch-${Date.now()}`
 
-      const subscription = nostrService.subscribe(filters, {
+      // Outbox-routed: filters carry #p (event authors) and authors
+      // (for my own kind:10001+ lists). subscribeOutbox handles both.
+      const subscription = nostrService.subscribeOutbox(filters, {
         onevent: (event) => {
           processEngagementEvent(event)
         },

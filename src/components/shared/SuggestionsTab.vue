@@ -68,34 +68,43 @@ const generateSuggestions = async () => {
     const followedPubkeys = new Set([...following.value, currentUser.value.pubkey])
 
     const sampleSize = Math.min(5, following.value.length)
-    const contactPromises = following.value.slice(0, sampleSize).map(async (pubkey) => {
-      try {
-        const contactEvent = await nostrService.queryOne({
-          kinds: [3],
-          authors: [pubkey],
-          limit: 1
-        })
+    const sample = following.value.slice(0, sampleSize)
 
-        if (contactEvent) {
-          const theirFollows = contactEvent.tags
-            .filter(tag => tag[0] === 'p' && tag[1])
-            .map(tag => tag[1])
+    // Single outbox-routed batch: one filter with all 5 authors partitions
+    // automatically across their write relays and dedupes. Previously this
+    // fired N concurrent queryOne calls that each hit our local read pool.
+    let contactEvents = []
+    try {
+      contactEvents = await nostrService.queryOutbox(
+        [{ kinds: [3], authors: sample, limit: sample.length }],
+        { timeout: 12_000, eoseGrace: 1_500 }
+      )
+    } catch (err) {
+      console.warn('Failed to fetch contact lists for suggestions batch:', err)
+    }
 
-          theirFollows.forEach(theirFollowPubkey => {
-            if (!followedPubkeys.has(theirFollowPubkey)) {
-              const current = mutualConnections.get(theirFollowPubkey) || { count: 0, connectedThrough: [] }
-              current.count += 1
-              current.connectedThrough.push(pubkey)
-              mutualConnections.set(theirFollowPubkey, current)
-            }
-          })
-        }
-      } catch (err) {
-        console.warn(`Failed to fetch contact list for ${pubkey.substring(0, 8)}:`, err)
+    // Keep the newest contact list per author (replaceable-event semantics).
+    const latestByAuthor = new Map()
+    for (const ev of contactEvents) {
+      const existing = latestByAuthor.get(ev.pubkey)
+      if (!existing || ev.created_at > existing.created_at) {
+        latestByAuthor.set(ev.pubkey, ev)
       }
-    })
+    }
 
-    await Promise.allSettled(contactPromises)
+    for (const [pubkey, contactEvent] of latestByAuthor) {
+      const theirFollows = contactEvent.tags
+        .filter(tag => tag[0] === 'p' && tag[1])
+        .map(tag => tag[1])
+
+      for (const theirFollowPubkey of theirFollows) {
+        if (followedPubkeys.has(theirFollowPubkey)) continue
+        const current = mutualConnections.get(theirFollowPubkey) || { count: 0, connectedThrough: [] }
+        current.count += 1
+        current.connectedThrough.push(pubkey)
+        mutualConnections.set(theirFollowPubkey, current)
+      }
+    }
 
     const topSuggestions = Array.from(mutualConnections.entries())
       .filter(([, data]) => data.count >= 1)

@@ -10,7 +10,11 @@ const mockSubscribe = vi.fn()
 vi.mock('../../src/services/nostr/NostrService.js', () => ({
   nostrService: {
     ready: mockReady,
-    subscribe: mockSubscribe
+    // useDeskFeed uses subscribeOutbox now (authors/#p filters). For these
+    // unit tests we alias both methods to the same spy so assertions
+    // continue to target `mockSubscribe`.
+    subscribe: mockSubscribe,
+    subscribeOutbox: mockSubscribe
   }
 }))
 
